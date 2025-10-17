@@ -1,0 +1,333 @@
+/**
+ * DOMElementFactory - Centralized DOM element creation for VibeGrid
+ * Provides consistent element creation patterns and styling
+ */
+
+import { log } from '@/logger';
+import type { TableInteraction$ } from '../../stores/pure-observables';
+
+const fileLog = log('components/custom/vibegrid/renderers/factories/DOMElementFactory.ts');
+
+const ROW_HEIGHT = 40;
+const HEADER_HEIGHT = 48;
+
+export interface DOMElementFactoryOptions {
+  tableInteraction$: TableInteraction$;
+  tableCore$?: any;
+  selectionController?: any; // SelectionController instance
+  enableSelectionColumn?: boolean;
+  onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
+}
+
+export class DOMElementFactory {
+  private tableInteraction$: TableInteraction$;
+  private tableCore$?: any;
+  private selectionController?: any;
+  private enableSelectionColumn: boolean;
+  private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
+
+  constructor(options: DOMElementFactoryOptions) {
+    this.tableInteraction$ = options.tableInteraction$;
+    this.tableCore$ = options.tableCore$;
+    this.selectionController = options.selectionController;
+    this.enableSelectionColumn = options.enableSelectionColumn ?? false;
+    this.onEntityUpdate = options.onEntityUpdate;
+  }
+
+  /**
+   * Base element creation with consistent className handling
+   */
+  createElement(tag: string, className: string): HTMLElement {
+    const el = document.createElement(tag);
+    el.className = className;
+    return el;
+  }
+
+  /**
+   * Create group header element with expand/collapse functionality
+   */
+  createGroupHeaderElement(groupRow: any, rowIndex: number): HTMLElement {
+    const groupData = groupRow.data;
+    const level = groupRow.level || 0;
+    const isExpanded = groupRow.isExpanded;
+    
+    const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header');
+    rowElement.dataset.rowId = groupRow.id;
+    rowElement.dataset.groupId = groupRow.id;
+    rowElement.style.cssText = `
+      position: absolute;
+      top: ${rowIndex * ROW_HEIGHT}px;
+      left: 0;
+      right: 0;
+      height: ${ROW_HEIGHT}px;
+      display: flex;
+      align-items: center;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+      font-weight: 600;
+      padding-left: ${level * 20 + 12}px;
+    `;
+
+    // Create expand/collapse button
+    const expandButton = this.createElement('div', 'vibegridx-group-expand');
+    expandButton.style.cssText = `
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.1);
+    `;
+
+    // Triangle icon for expand/collapse
+    const triangle = this.createElement('span', 'triangle-icon');
+    triangle.style.cssText = `
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 6px solid #666;
+      transform: ${isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)'};
+      transition: transform 0.2s ease;
+    `;
+    expandButton.appendChild(triangle);
+
+    // Group label
+    const groupLabel = this.createElement('div', 'vibegridx-group-label');
+    groupLabel.textContent = `${groupData.field}: ${groupData.displayValue} (${groupData.rowCount} items)`;
+    groupLabel.style.cssText = 'flex: 1; font-size: 14px;';
+
+    // Click handler for expand/collapse
+    expandButton.addEventListener('click', () => {
+      if (this.tableCore$?.toggleGroupExpansion) {
+        this.tableCore$.toggleGroupExpansion(groupRow.id);
+      }
+    });
+
+    rowElement.appendChild(expandButton);
+    rowElement.appendChild(groupLabel);
+
+    return rowElement;
+  }
+
+  /**
+   * Create row element with optional selection checkbox
+   */
+  createRowElement(
+    row: any, 
+    rowIndex: number, 
+    columns: any[],
+    columnVisibility: Record<string, boolean>,
+    cellElementFactory: (row: any, column: any, colIndex: number) => HTMLElement
+  ): HTMLElement {
+    const rowElement = this.createElement('div', 'vibegridx-row');
+    rowElement.dataset.rowId = row.id;
+    rowElement.style.cssText = `
+      position: absolute;
+      top: ${rowIndex * ROW_HEIGHT}px;
+      left: 0;
+      right: 0;
+      height: ${ROW_HEIGHT}px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #f1f3f5;
+      background: ${rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};
+    `;
+    
+    // Add row header (row number or checkbox selector)
+    const rowHeader = this.createElement('div', 'vibegridx-row-header');
+    rowHeader.style.cssText = `
+      width: 40px;
+      min-width: 40px;
+      height: ${ROW_HEIGHT}px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: inherit;
+      border-right: 1px solid #f1f3f5;
+      flex-shrink: 0;
+    `;
+    rowHeader.dataset.rowId = row.id;
+
+    if (this.enableSelectionColumn) {
+      // Add checkbox for row selection
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.style.cssText = `
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        margin: 0;
+      `;
+      checkbox.dataset.rowId = row.id;
+      
+      // Add change handler
+      checkbox.addEventListener('change', (e) => {
+        const isShiftKey = (e as any).shiftKey;
+        // Delegate to selection controller
+        this.selectionController?.handleRowCheckboxToggle(row.id, isShiftKey);
+      });
+      
+      rowHeader.appendChild(checkbox);
+    } else {
+      // Add row number
+      const rowNumber = this.createElement('span', 'vibegridx-row-number');
+      rowNumber.textContent = String(rowIndex + 1);
+      rowNumber.style.cssText = `
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: 500;
+      `;
+      rowHeader.appendChild(rowNumber);
+    }
+    
+    rowElement.appendChild(rowHeader);
+    
+    // Add data cells
+    columns.forEach((column, colIndex) => {
+      // Skip hidden columns
+      if (columnVisibility[column.id] === false) {
+        return;
+      }
+
+      const cell = cellElementFactory(row, column, colIndex);
+      rowElement.appendChild(cell);
+    });
+    
+    return rowElement;
+  }
+
+  /**
+   * Create corner header cell (top-left cell that aligns with row headers)
+   */
+  createCornerHeaderCell(): { cornerCell: HTMLElement; selectAllCheckbox?: HTMLInputElement } {
+    const cornerCell = this.createElement('div', 'vibegridx-corner-header');
+    cornerCell.style.cssText = `
+      width: 40px;
+      min-width: 40px;
+      height: ${HEADER_HEIGHT}px;
+      background: #f8f9fa;
+      border-right: 1px solid #e9ecef;
+      border-bottom: 1px solid #e9ecef;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      cursor: pointer;
+    `;
+
+    let selectAllCheckbox: HTMLInputElement | undefined;
+
+    if (this.enableSelectionColumn) {
+      // Add "select all" checkbox in corner
+      selectAllCheckbox = document.createElement('input');
+      selectAllCheckbox.type = 'checkbox';
+      selectAllCheckbox.style.cssText = `
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        margin: 0;
+      `;
+      selectAllCheckbox.title = 'Select all rows';
+      
+      cornerCell.appendChild(selectAllCheckbox);
+    }
+
+    return { cornerCell, selectAllCheckbox };
+  }
+
+  /**
+   * Create header cell for column
+   */
+  createHeaderCell(column: any, width: number): HTMLElement {
+    const headerCell = this.createElement('div', 'vibegridx-header-cell');
+    headerCell.dataset.field = column.id; // Add field ID for sort updates
+    headerCell.style.cssText = `
+      flex: 0 0 ${width}px;
+      height: 100%;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 14px;
+      border-right: 1px solid #e9ecef;
+      background: #f8f9fa;
+      position: relative;
+    `;
+    
+    return headerCell;
+  }
+
+  /**
+   * Create header text group with label and sort icon
+   */
+  createHeaderTextGroup(column: any): HTMLElement {
+    const textGroup = this.createElement('div', 'vibegridx-header-text-group');
+    textGroup.style.cssText = 'display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0;';
+    
+    // Header text
+    const headerText = this.createElement('span', 'vibegridx-header-text');
+    headerText.style.cssText = 'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+    headerText.textContent = column.label;
+    
+    textGroup.appendChild(headerText);
+
+    // Sort icon (if column is sortable)
+    if (column.sortable !== false) {
+      const sortIcon = this.createElement('span', 'vibegridx-sort-icon');
+      sortIcon.style.cssText = 'flex-shrink: 0; min-width: 16px; margin-left: 4px;';
+      sortIcon.innerHTML = this.createSortIconSVG(null); // No sort initially
+      textGroup.appendChild(sortIcon);
+    }
+    
+    return textGroup;
+  }
+
+  /**
+   * Create resize handle for column
+   */
+  createResizeHandle(): HTMLElement {
+    const resizeHandle = this.createElement('div', 'vibegridx-resize-handle');
+    resizeHandle.style.cssText = `
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 4px;
+      height: 100%;
+      cursor: col-resize;
+      background: transparent;
+      z-index: 10;
+    `;
+    resizeHandle.title = 'Resize column';
+    
+    return resizeHandle;
+  }
+
+  /**
+   * Create sort icon SVG
+   */
+  private createSortIconSVG(direction: 'asc' | 'desc' | null): string {
+    const activeColor = '#3b82f6';
+    const inactiveColor = '#9ca3af';
+    
+    return `
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 3L11 7H5L8 3Z" fill="${direction === 'asc' ? activeColor : inactiveColor}" />
+        <path d="M8 13L5 9H11L8 13Z" fill="${direction === 'desc' ? activeColor : inactiveColor}" />
+      </svg>
+    `;
+  }
+
+  /**
+   * Update sort icon for a column
+   */
+  updateSortIcon(headerElement: HTMLElement, direction: 'asc' | 'desc' | null): void {
+    const sortIcon = headerElement.querySelector('.vibegridx-sort-icon');
+    if (sortIcon) {
+      sortIcon.innerHTML = this.createSortIconSVG(direction);
+    }
+  }
+}
