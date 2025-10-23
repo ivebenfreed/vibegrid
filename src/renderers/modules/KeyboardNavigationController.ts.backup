@@ -1,19 +1,16 @@
 /**
  * KeyboardNavigationController - Handles keyboard navigation for VibeGrid
  * Manages arrow key movement, keyboard selection, and keyboard shortcuts
- *
- * MIGRATED TO MOBX - uses InteractionStore directly
  */
 
 import { createLogger } from '@/lib/logging';
-import { runInAction } from 'mobx';
-import type { InteractionStore } from '../../stores/InteractionStore';
+import type { TableInteraction$ } from '../../stores/interaction-state';
 import { SelectionController } from './SelectionController';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts');
 
 export interface KeyboardNavigationOptions {
-  interactionStore: InteractionStore;
+  tableInteraction$: TableInteraction$;
   selectionController: SelectionController;
   getProcessedRows: () => any[];
   getVisibleColumns: () => any[];
@@ -21,14 +18,14 @@ export interface KeyboardNavigationOptions {
 }
 
 export class KeyboardNavigationController {
-  private interactionStore: InteractionStore;
+  private tableInteraction$: TableInteraction$;
   private selectionController: SelectionController;
   private getProcessedRows: () => any[];
   private getVisibleColumns: () => any[];
   private container: HTMLElement;
 
   constructor(options: KeyboardNavigationOptions) {
-    this.interactionStore = options.interactionStore;
+    this.tableInteraction$ = options.tableInteraction$;
     this.selectionController = options.selectionController;
     this.getProcessedRows = options.getProcessedRows;
     this.getVisibleColumns = options.getVisibleColumns;
@@ -41,7 +38,7 @@ export class KeyboardNavigationController {
   handleArrowKey(direction: 'up' | 'down' | 'left' | 'right', isShiftKey: boolean): void {
     const processedRows = this.getProcessedRows();
     const visibleColumns = this.getVisibleColumns();
-    const focusedCell = this.interactionStore.focusedCell;
+    const focusedCell = this.tableInteraction$.focusedCell.get();
 
     fileLog.info('Handling arrow key', { direction, isShiftKey, focusedCell });
 
@@ -55,22 +52,22 @@ export class KeyboardNavigationController {
       const firstRow = processedRows[0];
       const firstColumn = visibleColumns.find(c => c.id !== 'selection') || visibleColumns[0];
       const firstCellId = `${firstRow.id}:${firstColumn.id}`;
-      this.interactionStore.setFocusedCell(firstCellId);
-      this.interactionStore.toggleCellSelection(firstRow.id, firstColumn.id, false, false);
+      this.tableInteraction$.setFocusedCell(firstCellId);
+      this.tableInteraction$.toggleCellSelection(firstRow.id, firstColumn.id, false, false);
       return;
     }
 
     const [currentRowId, currentColumnId] = focusedCell.split(':');
     const currentRowIndex = processedRows.findIndex(r => r.id === currentRowId);
     const currentColIndex = visibleColumns.findIndex(c => c.id === currentColumnId);
-
+    
     if (currentRowIndex === -1 || currentColIndex === -1) {
       return;
     }
-
+    
     let newRowIndex = currentRowIndex;
     let newColIndex = currentColIndex;
-
+    
     switch (direction) {
       case 'up':
         newRowIndex = Math.max(0, currentRowIndex - 1);
@@ -93,23 +90,23 @@ export class KeyboardNavigationController {
         }
         break;
     }
-
+    
     const newRow = processedRows[newRowIndex];
     const newColumn = visibleColumns[newColIndex];
     const newCellId = `${newRow.id}:${newColumn.id}`;
 
-    this.interactionStore.setFocusedCell(newCellId);
+    this.tableInteraction$.setFocusedCell(newCellId);
 
     if (isShiftKey) {
       // Range selection
-      const anchorCell = this.interactionStore.anchorCell;
+      const anchorCell = this.tableInteraction$.anchorCell.get();
       const selectionAnchor = anchorCell || `${currentRowId}:${currentColumnId}`;
       this.selectKeyboardRange(selectionAnchor, newCellId);
     } else {
       // Single cell selection - anchor will be set by setFocusedCell
-      this.interactionStore.toggleCellSelection(newRow.id, newColumn.id, false, false);
+      this.tableInteraction$.toggleCellSelection(newRow.id, newColumn.id, false, false);
     }
-
+    
     // Ensure the focused cell is visible
     this.scrollCellIntoView(newRow.id, newColumn.id);
   }
@@ -128,7 +125,7 @@ export class KeyboardNavigationController {
     const cellElement = this.container.querySelector(
       `.vibegridx-cell[data-row-id="${rowId}"][data-column-id="${columnId}"]`
     ) as HTMLElement;
-
+    
     if (cellElement) {
       cellElement.scrollIntoView({
         behavior: 'smooth',
@@ -144,48 +141,48 @@ export class KeyboardNavigationController {
   handleKeyDown(event: KeyboardEvent): boolean {
     const isCtrlKey = event.ctrlKey || event.metaKey;
     const isShiftKey = event.shiftKey;
-
+    
     switch (event.key) {
       case 'a':
       case 'A':
         if (isCtrlKey) {
           event.preventDefault();
-          // REACTIVE: Select all directly via InteractionStore
+          // REACTIVE: Select all directly via state
           const processedRows = this.getProcessedRows();
           const visibleColumns = this.getVisibleColumns();
-          this.interactionStore.selectAll({
+          this.tableInteraction$.selectAll({
             rows: processedRows,
             columns: visibleColumns,
             columnVisibility: Object.fromEntries(visibleColumns.map(col => [col.id, true]))
           });
-          fileLog.info('⌨️ Ctrl+A select all triggered via InteractionStore');
+          fileLog.info('⌨️ Ctrl+A select all triggered reactively');
           return true;
         }
         break;
-
+      
       case 'ArrowUp':
         event.preventDefault();
         this.handleArrowKey('up', isShiftKey);
         return true;
-
+      
       case 'ArrowDown':
         event.preventDefault();
         this.handleArrowKey('down', isShiftKey);
         return true;
-
+      
       case 'ArrowLeft':
         event.preventDefault();
         this.handleArrowKey('left', isShiftKey);
         return true;
-
+      
       case 'ArrowRight':
         event.preventDefault();
         this.handleArrowKey('right', isShiftKey);
         return true;
-
+      
       case 'Enter':
-        // Use InteractionStore focused cell
-        const focusedCell = this.interactionStore.focusedCell;
+        // Use interaction state focused cell instead of local focusedCell
+        const focusedCell = this.tableInteraction$.focusedCell.get();
         if (focusedCell) {
           const [rowId, columnId] = focusedCell.split(':');
           const cellId = `${rowId}:${columnId}`;
@@ -203,28 +200,28 @@ export class KeyboardNavigationController {
           const value = row ? row[columnId] : '';
 
           // Start editing
-          this.interactionStore.startEdit(cellId, value ? String(value) : '');
+          this.tableInteraction$.startEdit(cellId, value ? String(value) : '');
           return true;
         }
         break;
-
+      
       case 'Escape':
         // If currently editing, just cancel the edit and keep selection
-        if (this.interactionStore.isEditing) {
-          this.interactionStore.cancelEdit();
+        if (this.tableInteraction$.isEditing.get()) {
+          this.tableInteraction$.cancelEdit();
           // Keep the cell selected after canceling edit and focus container for keyboard events
           this.container.focus();
           return true;
         }
 
         // If not editing, clear selection
-        this.interactionStore.clearSelection();
-        this.interactionStore.setFocusedCell(null);
+        this.tableInteraction$.clearSelection();
+        this.tableInteraction$.setFocusedCell(null);
         return true;
-
+      
       case 'Delete':
       case 'Backspace':
-        const currentFocusedCell = this.interactionStore.focusedCell;
+        const currentFocusedCell = this.tableInteraction$.focusedCell.get();
         if (currentFocusedCell && !event.target ||
             (event.target as HTMLElement).tagName !== 'INPUT') {
           // Could trigger delete action here
@@ -233,7 +230,7 @@ export class KeyboardNavigationController {
         }
         break;
     }
-
+    
     return false;
   }
 
@@ -241,40 +238,36 @@ export class KeyboardNavigationController {
    * Set focused cell from external interaction
    */
   setFocusedCell(cellId: string | null): void {
-    // Use InteractionStore only - no local state
-    this.interactionStore.setFocusedCell(cellId);
+    // Use interaction state only - no local state
+    this.tableInteraction$.setFocusedCell(cellId);
   }
 
   /**
    * Get current focused cell
    */
   getFocusedCell(): string | null {
-    return this.interactionStore.focusedCell;
+    return this.tableInteraction$.focusedCell.get();
   }
 
   /**
    * Set selection anchor for range selection
    */
   setSelectionAnchor(cellId: string | null): void {
-    runInAction(() => {
-      this.interactionStore.anchorCell = cellId;
-    });
+    this.tableInteraction$.anchorCell.set(cellId);
   }
 
   /**
    * Get current selection anchor
    */
   getSelectionAnchor(): string | null {
-    return this.interactionStore.anchorCell;
+    return this.tableInteraction$.anchorCell.get();
   }
 
   /**
    * Clear keyboard navigation state
    */
   clear(): void {
-    runInAction(() => {
-      this.interactionStore.setFocusedCell(null);
-      this.interactionStore.anchorCell = null;
-    });
+    this.tableInteraction$.setFocusedCell(null);
+    this.tableInteraction$.anchorCell.set(null);
   }
 }
