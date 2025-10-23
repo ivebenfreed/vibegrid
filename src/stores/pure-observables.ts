@@ -1,55 +1,18 @@
 /**
- * pure-observables.ts - Compatibility Layer
+ * pure-observables.ts - Legacy Compatibility Stub
  *
- * This file provides backward compatibility after Phase 1 consolidation.
- * All functionality has been moved to focused files:
- * - data-state.ts (core data operations)
- * - visual-state.ts (visual display + columns + visual rows)
- * - interaction-state.ts (user interactions)
- * - data-loading-stages.ts (loading states)
+ * ⚠️ This file is a stub for backward compatibility.
+ * All Legend State stores have been migrated to MobX.
+ *
+ * Original stores deleted:
+ * - data-state.ts → TableCoreStore.ts (MobX)
+ * - visual-state.ts → VisualStateStore.ts (MobX)
+ * - interaction-state.ts → InteractionStore.ts (MobX)
+ *
+ * This file only provides type exports for files that haven't been updated yet.
  */
 
-// Re-export from the new consolidated files
-export { createTableCore$, createTableCoreSync$ } from './data-state';
-export { createTableInteraction$ } from './interaction-state';
-export { createVibeGridVisualState } from './visual-state';
-
-// Types
-export type {
-  ColumnLayout,
-  ViewportGeometry,
-  VisualState
-} from './visual-state';
-
-// Main factory function - reconstructed from the split modules
-export function createPureObservables(config: any) {
-  // This recreates the combined observable structure that components expect
-  const tableCore$ = createTableCore$(config);
-  const tableCoreSync$ = createTableCoreSync$(config);
-  const tableInteraction$ = createTableInteraction$(config);
-  const visualState = createVibeGridVisualState();
-
-  return {
-    tableCore$,
-    tableCoreSync$,
-    tableInteraction$,
-    // Visual state is now consolidated in visual-state.ts using factory pattern
-    visualInputs$: visualState.visualInputs$,
-    visualState$: visualState.visualState$,
-    visualOperations: visualState.visualOperations
-  };
-}
-
 // Legacy type exports for backward compatibility
-export interface PureObservables {
-  tableCore$: any;
-  tableCoreSync$: any;
-  tableInteraction$: any;
-  visualInputs$: any;
-  visualState$: any;
-  visualOperations: any;
-}
-
 export type TableCore$ = any;
 export type TableCoreSync$ = any;
 export type TableInteraction$ = any;
@@ -58,3 +21,38 @@ export type TableViewportState = any;
 export type PersistedTableState = any;
 export type TableCoreState = any;
 export type TableInteractionState = any;
+
+// Stub exports - these should not be used
+export function createPureObservables(config: any): any {
+  throw new Error('createPureObservables has been removed - use MobX stores instead');
+}
+
+export function createTableCore$(config: any): any {
+  throw new Error('createTableCore$ has been removed - use TableCoreStore instead');
+}
+
+export function createTableCoreSync$(config: any): any {
+  throw new Error('createTableCoreSync$ has been removed - use TableCoreStore instead');
+}
+
+export function createTableInteraction$(config: any): any {
+  throw new Error('createTableInteraction$ has been removed - use InteractionStore instead');
+}
+
+export function createVibeGridVisualState(): any {
+  throw new Error('createVibeGridVisualState has been removed - use VisualStateStore instead');
+}
+
+// Type re-exports (empty for now)
+export type ColumnLayout = any;
+export type ViewportGeometry = any;
+export type VisualState = any;
+
+export interface PureObservables {
+  tableCore$: any;
+  tableCoreSync$: any;
+  tableInteraction$: any;
+  visualInputs$: any;
+  visualState$: any;
+  visualOperations: any;
+}
