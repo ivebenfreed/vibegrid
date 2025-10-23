@@ -1,5 +1,5 @@
 import React from 'react';
-import { observer } from '@legendapp/state/react';
+import { observer } from 'mobx-react-lite';
 import { Settings2, Plus, X, ChevronDown, GripVertical } from 'lucide-react';
 import {
   DndContext,
@@ -22,24 +22,20 @@ import {
 } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import type { Column, GroupConfig, GroupField } from '../types';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
-import { createVibeGridVisualState } from '../stores/visual-state';
+import type { VibeGridStores } from '../stores/context';
 import { formatFieldName } from '../column-defaults';
 
 interface GroupConfigDropdownPureProps {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
+  stores: VibeGridStores;
   className?: string;
 }
 
@@ -103,15 +99,15 @@ const SortableGroupField = ({ field, index, onRemove }: SortableGroupFieldProps)
 };
 
 export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure({
-  tableCore$,
-  tableInteraction$,
-  visualState,
+  stores,
   className = ''
 }: GroupConfigDropdownPureProps) {
-  // Get reactive data from observables
-  const columns = tableCore$.columns.get();
-  const groupConfig = tableCore$.groupConfig.get();
-  const isOpen = tableInteraction$.groupConfigMenuState.isOpen.get();
+  const { tableCoreStore, interactionStore, visualStateStore } = stores;
+
+  // Get reactive data from MobX stores
+  const columns = tableCoreStore.columns;
+  const groupConfig = visualStateStore.groupConfig;
+  const isOpen = interactionStore.groupConfigMenuState.isOpen;
 
 
   // Drag and drop sensors
@@ -122,14 +118,14 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
     })
   );
 
-  // Event handlers using observable methods
+  // Event handlers using store action methods
   const handleOpenChange = React.useCallback((open: boolean) => {
     if (open) {
-      tableInteraction$.openGroupConfigMenu();
+      interactionStore.openGroupConfigMenu();
     } else {
-      tableInteraction$.closeGroupConfigMenu();
+      interactionStore.closeGroupConfigMenu();
     }
-  }, [tableInteraction$]);
+  }, [interactionStore]);
 
   const handleDragEnd = React.useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -152,10 +148,10 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
           colorScheme: groupConfig.colorScheme
         };
 
-        visualState.visualOperations.setGroupConfig(newConfig);
+        visualStateStore.setGroupConfig(newConfig);
       }
     }
-  }, [groupConfig, visualState]);
+  }, [groupConfig, visualStateStore]);
 
   // Available columns for grouping (only select/enum fields suitable for grouping)
   const availableColumns = React.useMemo(() => {
@@ -212,9 +208,9 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
       colorScheme: 'auto'
     };
 
-    visualState.visualOperations.setGroupConfig(newConfig);
-    tableInteraction$.closeGroupConfigMenu();
-  }, [availableColumns, groupConfig, visualState, tableInteraction$]);
+    visualStateStore.setGroupConfig(newConfig);
+    interactionStore.closeGroupConfigMenu();
+  }, [availableColumns, groupConfig, visualStateStore, interactionStore]);
 
   const handleRemoveGroupField = React.useCallback((index: number) => {
     if (!groupConfig) return;
@@ -222,7 +218,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
     const newFields = groupConfig.fields.filter((_, i) => i !== index);
 
     if (newFields.length === 0) {
-      visualState.visualOperations.setGroupConfig(null);
+      visualStateStore.setGroupConfig(null);
     } else {
       // Explicitly create a new GroupConfig to ensure Set is properly cloned
       const newConfig: GroupConfig = {
@@ -233,14 +229,14 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
         expandedGroups: new Set(groupConfig.expandedGroups), // Explicitly clone the Set
         colorScheme: groupConfig.colorScheme
       };
-      visualState.visualOperations.setGroupConfig(newConfig);
+      visualStateStore.setGroupConfig(newConfig);
     }
-  }, [groupConfig, visualState]);
+  }, [groupConfig, visualStateStore]);
 
   const handleClearGrouping = React.useCallback(() => {
-    visualState.visualOperations.setGroupConfig(null);
-    tableInteraction$.closeGroupConfigMenu();
-  }, [visualState, tableInteraction$]);
+    visualStateStore.setGroupConfig(null);
+    interactionStore.closeGroupConfigMenu();
+  }, [visualStateStore, interactionStore]);
 
   // Get available columns that aren't already used for grouping
   const availableForGrouping = React.useMemo(() => {

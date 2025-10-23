@@ -1,5 +1,5 @@
 import React from 'react';
-import { observer } from '@legendapp/state/react';
+import { observer } from 'mobx-react-lite';
 import { Columns3, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,68 +14,57 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import type { Column } from '../types';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
-import type { createVibeGridVisualState } from '../stores/visual-state';
+import type { VibeGridStores } from '../stores/context';
 import { formatFieldName } from '../column-defaults';
 
 interface VibeGridXColumnVisibilityPureProps {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
+  stores: VibeGridStores;
   className?: string;
 }
 
 export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVisibilityPure({
-  tableCore$,
-  tableInteraction$,
-  visualState,
+  stores,
   className = ''
 }: VibeGridXColumnVisibilityPureProps) {
-  // Get reactive data from observables
-  const columns = visualState.visualInputs$.columns.get();
-  const columnVisibility = visualState.visualInputs$.columnVisibility.get();
-  const isOpen = tableInteraction$.columnVisibilityMenuState.isOpen.get();
-  const searchValue = tableInteraction$.columnVisibilityMenuState.searchValue.get();
+  const { tableCoreStore, interactionStore, visualStateStore } = stores;
 
-  // Filter out Legend State internal properties when calculating counts
-  const legendStateInternalKeys = ['value', 'isFromPersist', 'isFromSync', 'changes'];
-  const actualColumnVisibilityEntries = Object.entries(columnVisibility).filter(
-    ([key]) => !legendStateInternalKeys.includes(key)
-  );
+  // Get reactive data from MobX stores
+  const columns = visualStateStore.columns;
+  const columnVisibility = visualStateStore.columnVisibility;
+  const isOpen = interactionStore.columnVisibilityMenuState.isOpen;
+  const searchValue = interactionStore.columnVisibilityMenuState.searchValue;
 
-  // Computed values from visual state - CONSISTENT VERSION
-  // Count based on actual columns, not just columnVisibility entries
+  // Count hidden/visible columns
   const hiddenColumnCount = columns.filter(col => columnVisibility[col.id] === false).length;
   const visibleColumnCount = columns.filter(col => columnVisibility[col.id] !== false).length;
   
-  // Event handlers using observable methods
+  // Event handlers using store action methods
   const handleOpenChange = React.useCallback((open: boolean) => {
     console.log('ColumnVisibility dropdown:', open ? 'opening' : 'closing');
     if (open) {
-      tableInteraction$.openColumnVisibilityMenu();
+      interactionStore.openColumnVisibilityMenu();
     } else {
-      tableInteraction$.closeColumnVisibilityMenu();
+      interactionStore.closeColumnVisibilityMenu();
     }
-  }, [tableInteraction$]);
+  }, [interactionStore]);
 
   const handleToggleColumn = React.useCallback((columnId: string) => {
-    visualState.visualOperations.toggleColumnVisibility(columnId);
-  }, [visualState]);
+    visualStateStore.toggleColumnVisibility(columnId);
+  }, [visualStateStore]);
 
   const handleShowAll = React.useCallback(() => {
-    visualState.visualOperations.showAllColumns();
-    tableInteraction$.setColumnVisibilitySearch('');
-  }, [visualState, tableInteraction$]);
+    visualStateStore.showAllColumns();
+    interactionStore.setColumnVisibilitySearch('');
+  }, [visualStateStore, interactionStore]);
 
   const handleHideAll = React.useCallback(() => {
-    visualState.visualOperations.hideAllColumns();
-    tableInteraction$.setColumnVisibilitySearch('');
-  }, [visualState, tableInteraction$]);
+    visualStateStore.hideAllColumns();
+    interactionStore.setColumnVisibilitySearch('');
+  }, [visualStateStore, interactionStore]);
 
   const handleSearchChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    tableInteraction$.setColumnVisibilitySearch(e.target.value);
-  }, [tableInteraction$]);
+    interactionStore.setColumnVisibilitySearch(e.target.value);
+  }, [interactionStore]);
 
   // Only calculate expensive operations when dropdown is open
   const filteredColumns = React.useMemo(() => {

@@ -1,13 +1,16 @@
 /**
  * VibeGrid Header (MobX Version)
  *
- * Minimal working header for Day 7-8 migration.
- * Child components (column visibility, grouping, entity add) will be migrated in later phases.
+ * Complete header with all child components migrated to MobX.
+ * Includes: Entity Add, Grouping Config, and Column Visibility controls.
  */
 
 import React from 'react';
 import { observer } from 'mobx-react-lite';
 import type { VibeGridStores } from '../stores/context';
+import { VibeGridEntityAdd } from './VibeGridEntityAdd';
+import { GroupConfigDropdownPure } from './GroupConfigDropdownPure';
+import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure';
 
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores;
@@ -15,6 +18,7 @@ interface VibeGridXHeaderPureProps {
   className?: string;
   entityName?: string;
   orgId?: string;
+  createEntity: (data: Record<string, any>) => void;
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -22,7 +26,8 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableGrouping = false,
   className = '',
   entityName,
-  orgId
+  orgId,
+  createEntity
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore } = stores;
 
@@ -43,12 +48,21 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* TODO (Day 9): Add VibeGridEntityAdd */}
-        {/* TODO (Day 9): Add GroupConfigDropdownPure */}
-        {/* TODO (Day 9): Add VibeGridXColumnVisibilityPure */}
-        <span className="text-xs text-muted-foreground">
-          {visualStateStore.columns.length} columns
-        </span>
+        {/* Entity Add Component */}
+        {entityName && (
+          <VibeGridEntityAdd
+            stores={stores}
+            entityName={entityName}
+            orgId={orgId}
+            createEntity={createEntity}
+          />
+        )}
+
+        {/* Group By Dropdown */}
+        {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
+
+        {/* Column Visibility Dropdown */}
+        <VibeGridXColumnVisibilityPure stores={stores} />
       </div>
     </div>
   );

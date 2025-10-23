@@ -247,6 +247,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           enableGrouping={enableGrouping}
           entityName={entityType}
           orgId={orgId}
+          createEntity={createEntity}
         />
       )}
 

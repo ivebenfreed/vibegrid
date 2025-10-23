@@ -1,8 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { observer } from '@legendapp/state/react';
-import { useForm } from '@tanstack/react-form';
-import { zodValidator } from '@tanstack/zod-form-adapter';
-import { z } from 'zod';
+import { observer } from 'mobx-react-lite';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -14,17 +11,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Plus, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { entityOperations } from '@/legend-state';
 import { EntityNameUtils } from '@/lib/entity-name-utils';
-import { useSystemOptions } from '@/legend-state/reference-system/hooks';
-import type { TableCore$ } from '../stores/data-state';
-import type { createVibeGridVisualState } from '../stores/visual-state';
+import type { VibeGridStores } from '../stores/context';
 
 interface VibeGridEntityAddProps {
-  tableCore$: TableCore$;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
+  stores: VibeGridStores;
   entityName: string;
   orgId?: string;
+  createEntity: (data: Record<string, any>) => void;
   className?: string;
 }
 
@@ -44,20 +38,21 @@ interface FieldValue {
  * - Proper field type handling aligned with the 47+ field type system
  */
 export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
-  tableCore$,
-  visualState,
+  stores,
   entityName,
   orgId,
+  createEntity,
   className = ''
 }: VibeGridEntityAddProps) {
+  const { tableCoreStore } = stores;
+
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<Record<string, FieldValue>>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  // Get reactive data from observables
-  const columns = tableCore$.columns.get();
-  const schema = tableCore$.schema.get();
+  // Get reactive data from MobX stores
+  const columns = tableCoreStore.columns;
 
 
   // Extract display name for UI
@@ -234,25 +229,21 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
         }
       });
 
-      // Add default status and priority if fields exist in schema
-      const schemaFields = schema?.fields || {};
-      if (schemaFields.status && !entityData.status) {
+      // Add default status and priority if not provided
+      if (!entityData.status) {
         entityData.status = 'draft';
       }
-      if (schemaFields.priority && !entityData.priority) {
+      if (!entityData.priority) {
         entityData.priority = 'medium';
       }
 
-      // Ensure proper entity name prefixing
-      const fullEntityName = EntityNameUtils.ensureOrgPrefix(entityName || 'Entity', orgId || '');
-
       console.log('🚀 [VibeGridEntityAdd] Creating entity:', {
-        entityName: fullEntityName,
+        entityName,
         data: entityData
       });
 
-      // Create the entity
-      await entityOperations.createEntity(fullEntityName, entityData);
+      // Create the entity using TanStack DB mutation
+      createEntity(entityData);
 
       console.log('✅ [VibeGridEntityAdd] Entity created successfully');
 

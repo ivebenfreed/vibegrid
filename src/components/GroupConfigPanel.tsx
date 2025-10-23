@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, GripVertical, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('GroupConfigPanel');
+const fileLog = createLogger('GroupConfigPanel');
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
