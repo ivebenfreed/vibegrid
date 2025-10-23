@@ -4,6 +4,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
+import { reaction } from 'mobx';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { VisualStateStore } from '../../stores/VisualStateStore';
@@ -226,7 +227,7 @@ export class HeaderRenderer {
    */
   private createColumnHeader(column: any, actualIndex: number, xOffset: number): HTMLElement {
     // Use single source of truth for column width
-    const actualWidth = this.visualState.visualOperations.getColumnWidth(column.id);
+    const actualWidth = this.visualStateStore.columnWidths[column.id] || 150;
     const headerCell = this.domFactory.createHeaderCell(column, actualWidth);
     
     // Create header content with text and sort icon
@@ -330,7 +331,7 @@ export class HeaderRenderer {
     const columnWidths = this.visualStateStore.columnWidths;
 
     allVisibleColumns.forEach((column, index) => {
-      const actualWidth = this.visualState.visualOperations.getColumnWidth(column.id);
+      const actualWidth = this.visualStateStore.columnWidths[column.id] || 150;
       newColumns.push({
         columnId: column.id,
         x: xOffset,
@@ -535,7 +536,7 @@ export class HeaderRenderer {
    */
   private isGroupedMode(): boolean {
     try {
-      const groupConfig = this.visualState.visualOperations.getGroupConfig();
+      const groupConfig = this.visualStateStore.groupConfig;
       return groupConfig && groupConfig.fields && groupConfig.fields.length > 0;
     } catch (error) {
       // If visual operations aren't available, fallback to direct check
@@ -548,15 +549,16 @@ export class HeaderRenderer {
    * Initialize reactive sort indicators that automatically update when sort state changes
    */
   private initializeReactiveSortIndicators(): void {
-    if (!this.visualState?.visualInputs$?.sortBy) {
-      fileLog.error('🚨 Visual state not available for reactive sort indicators');
+    if (!this.visualStateStore) {
+      fileLog.warn('⚠️ Visual state store not available for reactive sort indicators');
       return;
     }
 
-    // Create reactive observer for sort state changes
-    this.sortIndicatorObserver = observe(() => {
+    // Create MobX reaction for sort state changes
+    this.sortIndicatorObserver = reaction(
+      () => this.visualStateStore.sortBy,
+      (sortState) => {
       try {
-        const sortState = this.visualStateStore.sortBy;
 
         fileLog.debug('🔄 Reactive sort indicator update triggered', {
           sortByCount: sortState?.length || 0,
