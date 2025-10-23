@@ -11,15 +11,15 @@
 
 import { createLogger } from '@/lib/logging';
 import { toast } from 'sonner';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
+import type { TableCoreStore } from '../stores/TableCoreStore';
+import type { InteractionStore } from '../stores/InteractionStore';
 import type { VibeGridClipboardData, ClipboardCell, PasteValidationResult } from '../types/clipboard-types';
 
 const fileLog = createLogger('components/custom/vibegrid/managers/ClipboardManager.ts');
 
 export interface ClipboardManagerOptions {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
+  tableCore$: TableCoreStore;
+  tableInteraction$: InteractionStore;
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
 }
 
@@ -50,8 +50,8 @@ export interface TypeCompatibility {
 }
 
 export class ClipboardManager {
-  private tableCore$: TableCore$;
-  private tableInteraction$: TableInteraction$;
+  private tableCore$: TableCoreStore;
+  private tableInteraction$: InteractionStore;
   private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
 
   constructor(options: ClipboardManagerOptions) {

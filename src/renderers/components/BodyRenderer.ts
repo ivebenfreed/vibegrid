@@ -11,8 +11,8 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import type { TableCore$ } from '../../stores/data-state';
-import type { TableInteraction$ } from '../../stores/interaction-state';
+import type { TableCoreStore } from '../../stores/TableCoreStore';
+import type { InteractionStore } from '../../stores/InteractionStore';
 import type { TableViewport$ } from '../../stores/pure-observables';
 import type { createVibeGridVisualState } from '../../stores/visual-state';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
@@ -30,8 +30,8 @@ const ROW_HEIGHT = 40;
 // ====================================
 
 export interface BodyRendererOptions {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
+  tableCore$: TableCoreStore;
+  tableInteraction$: InteractionStore;
   tableViewport$: TableViewport$;
   domFactory: DOMElementFactory;
   selectionController?: SelectionController;
@@ -55,8 +55,8 @@ export interface BodyRendererOptions {
 // ====================================
 
 export class BodyRenderer {
-  private tableCore$: TableCore$;
-  private tableInteraction$: TableInteraction$;
+  private tableCore$: TableCoreStore;
+  private tableInteraction$: InteractionStore;
   private tableViewport$: TableViewport$;
   private domFactory: DOMElementFactory;
   private selectionController?: SelectionController;

@@ -18,7 +18,7 @@ import type {
   AsyncDataLoader,
   FieldMetadata
 } from '../../FieldTypeRegistry';
-import type { TableCore$ } from '../../../stores/data-state';
+import type { TableCoreStore } from '../../../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 // TODO: Remove Legend State - migrating to MobX
 // import { getEntity$, universeOrgId$ } from '@/legend-state/observables';
@@ -32,7 +32,7 @@ export class UserDataLoader implements AsyncDataLoader {
   async loadRelationshipData(
     column: EnhancedColumn,
     rowIds: string[],
-    tableCore$: TableCore$
+    tableCore$: TableCoreStore
   ): Promise<RelationshipData> {
     const orgId = this.getOrgId();
 

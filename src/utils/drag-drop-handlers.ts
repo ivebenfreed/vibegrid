@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import type { GroupRowOrderConfig } from '../stores/data-state';
+import type { GroupRowOrderConfig } from '../stores/TableCoreStore';
 
 const fileLog = createLogger('components/custom/vibegrid/utils/drag-drop-handlers.ts');
 

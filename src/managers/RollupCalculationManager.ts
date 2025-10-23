@@ -10,7 +10,7 @@ import type {
   RollupConfig,
   RollupCalculator
 } from '../field-types/FieldTypeRegistry';
-import type { TableCore$ } from '../stores/data-state';
+import type { TableCoreStore } from '../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/managers/RollupCalculationManager.ts');
@@ -30,7 +30,7 @@ export interface EntityChangeEvent {
 export abstract class BaseRollupCalculator implements RollupCalculator {
   abstract calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): any;
 
-  getSourceData(rollupConfig: RollupConfig, currentRowId: string, tableCore$: TableCore$): any[] {
+  getSourceData(rollupConfig: RollupConfig, currentRowId: string, tableCore$: TableCoreStore): any[] {
     // This would integrate with the table's data to get related records
     // For now, return empty array - will be implemented when integrating with table
     fileLog.debug('Getting source data for rollup', {

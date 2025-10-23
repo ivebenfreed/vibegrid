@@ -11,7 +11,7 @@ import type {
   RelationshipOption,
   RelationshipConfig
 } from '../field-types/FieldTypeRegistry';
-import type { TableCore$ } from '../stores/data-state';
+import type { TableCoreStore } from '../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/managers/RelationshipDataManager.ts');

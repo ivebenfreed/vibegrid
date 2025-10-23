@@ -7,8 +7,8 @@
 
 import { createLogger } from '@/lib/logging';
 import { toast } from 'sonner';
-import type { TableCore$ } from '../../stores/data-state';
-import type { TableInteraction$ } from '../../stores/interaction-state';
+import type { TableCoreStore } from '../../stores/TableCoreStore';
+import type { InteractionStore } from '../../stores/InteractionStore';
 import type { TableViewport$ } from '../../stores/pure-observables';
 import type { OverlayManager } from '../modules/OverlayManager';
 import { ClipboardManager } from '../../managers/ClipboardManager';
@@ -16,8 +16,8 @@ import { ClipboardManager } from '../../managers/ClipboardManager';
 const fileLog = createLogger('components/custom/vibegrid/renderers/managers/EventManager.ts');
 
 export interface EventManagerOptions {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
+  tableCore$: TableCoreStore;
+  tableInteraction$: InteractionStore;
   tableViewport$: TableViewport$;
   overlayManager?: OverlayManager;
   container: HTMLElement;
@@ -27,8 +27,8 @@ export interface EventManagerOptions {
 }
 
 export class EventManager {
-  private tableCore$: TableCore$;
-  private tableInteraction$: TableInteraction$;
+  private tableCore$: TableCoreStore;
+  private tableInteraction$: InteractionStore;
   private tableViewport$: TableViewport$;
   private overlayManager?: OverlayManager;
   private container: HTMLElement;

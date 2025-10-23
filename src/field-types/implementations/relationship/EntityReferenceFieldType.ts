@@ -15,10 +15,10 @@ import type {
   RelationshipOption,
   AsyncDataLoader
 } from '../../FieldTypeRegistry';
-import type { TableCore$ } from '../../../stores/data-state';
+import type { TableCoreStore } from '../../../stores/TableCoreStore';
 
 export class EntityDataLoader implements AsyncDataLoader {
-  async loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCore$): Promise<RelationshipData> {
+  async loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCoreStore): Promise<RelationshipData> {
     const orgId = this.getOrgId();
     const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown';
 

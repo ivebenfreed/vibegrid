@@ -6,7 +6,7 @@
  */
 
 import type { Column } from '../column-types';
-import type { TableCore$ } from '../stores/data-state';
+import type { TableCoreStore } from '../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 
 const fieldLog = createLogger('components/custom/vibegrid/field-types/FieldTypeRegistry.ts');
@@ -130,7 +130,7 @@ export interface AsyncDataLoader {
   loadRelationshipData(
     column: EnhancedColumn,
     rowIds: string[],
-    tableCore$: TableCore$
+    tableCore$: TableCoreStore
   ): Promise<RelationshipData>;
 
   resolveDisplayValue(
@@ -160,7 +160,7 @@ export interface RollupCalculator {
   getSourceData(
     rollupConfig: RollupConfig,
     currentRowId: string,
-    tableCore$: TableCore$
+    tableCore$: TableCoreStore
   ): any[];
 
   // Real-time update support

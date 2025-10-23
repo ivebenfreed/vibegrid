@@ -1,4 +1,23 @@
 /**
+ * ⚠️ NOT MIGRATED TO MOBX - FILE DISABLED ⚠️
+ * 
+ * This file has not been migrated from Legend State to MobX.
+ * It is currently NOT USED anywhere in the codebase.
+ * 
+ * Status: DISABLED - Do not import or use
+ * Original: Available in archive/vibegrid/
+ * 
+ * To re-enable:
+ * 1. Migrate Legend State observables to MobX
+ * 2. Update imports and reactive patterns
+ * 3. Test thoroughly
+ * 4. Remove this warning
+ */
+
+// This file is disabled and will throw errors if used
+throw new Error('This file has not been migrated to MobX - see file header for details');
+
+/**
  * Position Utility Hooks
  *
  * Common patterns and utilities for working with cell positions.
