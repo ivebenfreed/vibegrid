@@ -5,8 +5,8 @@
  * then we can add overlays back once we have the foundation working.
  */
 
-import { observe, batch } from '@legendapp/state';
-import { log } from '@/lib/logging';
+import { observable, computed, batch, observe } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
 import { createVibeGridVisualState } from '../../stores/visual-state';
 import type { TableCore$ } from '../../stores/data-state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
@@ -50,6 +50,24 @@ const fileLog = createLogger('components/custom/vibegrid/renderers/core/SimplePa
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT;
 const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT;
+
+// ====================================
+// TYPES
+// ====================================
+
+/**
+ * Visual state snapshot for change detection
+ */
+interface VisualState {
+  scrollTop: number;
+  scrollLeft: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  visibleRowStart: number;
+  visibleRowEnd: number;
+  visibleColumnStart: number;
+  visibleColumnEnd: number;
+}
 
 // Import MobX store types
 import type { VibeGridStores } from '../../stores/context';
@@ -105,7 +123,8 @@ export class SimplePassiveRenderer {
   private coordinateMapping: CoordinateMapping = {
     rows: [],
     columns: [],
-    version: 0
+    version: 0,
+    sortBy: []
   };
   
   // Scroll coordination
@@ -199,12 +218,12 @@ export class SimplePassiveRenderer {
         updateViewport: (width: number, height: number) => {
           this.tableViewport$!.viewportWidth.set(width);
           this.tableViewport$!.viewportHeight.set(height);
-          visualStateStore.updateViewport(width, height);
+          visualStateStore.updateViewportDimensions(width, height);
         },
         updateScroll: (scrollTop: number, scrollLeft: number) => {
           this.tableViewport$!.scrollTop.set(scrollTop);
           this.tableViewport$!.scrollLeft.set(scrollLeft);
-          visualStateStore.updateScroll(scrollTop, scrollLeft);
+          visualStateStore.setScrollPosition(scrollLeft, scrollTop);
         }
       } as any;
 
@@ -237,8 +256,8 @@ export class SimplePassiveRenderer {
       this.disposers.push(
         autorun(() => {
           this.tableCore$.columns.set(visualStateStore.columns);
-          this.tableCore$.filters.set(visualStateStore.filters);
-          this.tableCore$.sortBy.set(visualStateStore.sortBy);
+          (this.tableCore$ as any).filters.set(visualStateStore.filters);
+          (this.tableCore$ as any).sortBy.set(visualStateStore.sortBy);
           this.tableCore$.groupConfig.set(visualStateStore.groupConfig);
           this.tableCore$.processedRows.set(tableCoreStore.processedRows);
         })

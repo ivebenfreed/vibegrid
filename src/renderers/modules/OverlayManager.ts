@@ -20,6 +20,9 @@ import { virtualCellPosition$ } from '../../virtualization/VirtualScrollManager'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 import type { CoordinateMapping } from '../../coordinates/VibeGridXCoordinateManager';
 
+// Re-export CoordinateMapping for consumers
+export type { CoordinateMapping };
+
 const fileLog = log('components/custom/vibegrid/renderers/modules/OverlayManager.ts');
 
 // Use centralized dimensions from the new system
