@@ -6,8 +6,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import { runInAction } from 'mobx';
-import type { VisualStateStore } from '../../stores/VisualStateStore';
+import type { createVibeGridVisualState } from '../../stores/visual-state';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts');
 
@@ -16,9 +15,9 @@ export interface MouseControllerOptions {
   bodyRenderer?: any; // Will delegate cell clicks here
   scrollController?: any; // Will delegate outside clicks here
   selectionController?: any; // For row/column selection operations
-  interactionStore: any; // For reactive state updates
-  visualStateStore: VisualStateStore;
-  tableCoreStore?: any; // For accessing processed rows and columns
+  tableInteraction$: any; // For reactive state updates
+  visualState: ReturnType<typeof createVibeGridVisualState>;
+  tableCore$?: any; // For accessing processed rows and columns
   keyboardController?: any; // For ensuring focus after interactions
 }
 
@@ -27,9 +26,9 @@ export class MouseController {
   private bodyRenderer?: any;
   private scrollController?: any;
   private selectionController?: any;
-  private interactionStore: any;
-  private visualStateStore: VisualStateStore;
-  private tableCoreStore?: any;
+  private tableInteraction$: any;
+  private visualState: ReturnType<typeof createVibeGridVisualState>;
+  private tableCore$?: any;
   private keyboardController?: any;
 
   // Mouse state tracking
@@ -70,9 +69,9 @@ export class MouseController {
     this.bodyRenderer = options.bodyRenderer;
     this.scrollController = options.scrollController;
     this.selectionController = options.selectionController;
-    this.interactionStore = options.interactionStore;
-    this.visualStateStore = options.visualStateStore;
-    this.tableCoreStore = options.tableCoreStore;
+    this.tableInteraction$ = options.tableInteraction$;
+    this.visualState = options.visualState;
+    this.tableCore$ = options.tableCore$;
     this.keyboardController = options.keyboardController;
 
     // Prevent text selection during drag operations
@@ -148,11 +147,11 @@ export class MouseController {
       if (columnId) {
         this.isColumnResize = true;
         // Get initial column width from the visual state
-        const columnWidths = this.visualStateStore.columnWidths;
+        const columnWidths = this.visualState.visualInputs$.columnWidths.get();
         const initialWidth = columnWidths[columnId] || 150; // Default width
 
         // Delegate to interaction state following the proper pattern
-        this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth);
+        this.tableInteraction$.startColumnResize(columnId, e.clientX, initialWidth);
 
         fileLog.info('[RESIZE] 📏 Column resize handle mouse down', {
           columnId,
@@ -234,12 +233,12 @@ export class MouseController {
       });
 
       // PURE: Update mouse coordinates
-      this.interactionStore.setMousePosition(e.clientX, e.clientY);
-      this.interactionStore.setMouseDown(true);
+      this.tableInteraction$.setMousePosition(e.clientX, e.clientY);
+      this.tableInteraction$.setMouseDown(true);
 
       // PURE: ALWAYS select the cell when clicked - this is the universal interaction pattern
       // Pass isEditableElement=false for content elements since they handle their own editing
-      this.interactionStore.handleCellClick(cellId, isEditableElement, e.ctrlKey, e.shiftKey);
+      this.tableInteraction$.handleCellClick(cellId, isEditableElement, e.ctrlKey, e.shiftKey);
 
       // Ensure container gets focus for keyboard navigation after cell selection
       if (this.keyboardController && !isEditableElement) {
@@ -321,8 +320,8 @@ export class MouseController {
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Start column drag
         fileLog.info('🎯 Column drag started', { columnId: this.dragColumnId });
-        this.interactionStore.isDragging.set(true);
-        this.interactionStore.dragSource.set(this.dragColumnId);
+        this.tableInteraction$.isDragging.set(true);
+        this.tableInteraction$.dragSource.set(this.dragColumnId);
         this.createDragPreview(this.dragColumnId);
       } else if (this.isRowDrag && this.dragRowId) {
         // Start row drag
@@ -330,8 +329,8 @@ export class MouseController {
           rowId: this.dragRowId,
           groupId: this.dragRowGroupId
         });
-        this.interactionStore.isDragging.set(true);
-        this.interactionStore.dragSource.set(this.dragRowId);
+        this.tableInteraction$.isDragging.set(true);
+        this.tableInteraction$.dragSource.set(this.dragRowId);
         this.createRowDragPreview(this.dragRowId);
       } else if (this.isColumnDrag) {
         // Column drag was attempted but failed - don't fall back to cell selection
@@ -341,9 +340,9 @@ export class MouseController {
         fileLog.warn('⚠️ Row drag detected but dragRowId is missing');
       } else {
         // PURE: Start drag selection with focused cell as anchor (only for cell drags)
-        const startCell = this.interactionStore.focusedCell.get();
+        const startCell = this.tableInteraction$.focusedCell.get();
         if (startCell) {
-          this.interactionStore.startDragSelect(startCell);
+          this.tableInteraction$.startDragSelect(startCell);
           fileLog.info('🖱️ Started drag selection reactively', { startCell });
         } else {
           fileLog.warn('⚠️ No focused cell for drag start');
@@ -358,7 +357,7 @@ export class MouseController {
       if (targetHeaderElement) {
         const targetColumnId = targetHeaderElement.getAttribute('data-column-id');
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
-          this.interactionStore.dragTarget.set(targetColumnId);
+          this.tableInteraction$.dragTarget.set(targetColumnId);
           this.showDropLine(targetHeaderElement, e.clientX);
           fileLog.info('🎯 Column drag over target', {
             sourceColumnId: this.dragColumnId,
@@ -382,7 +381,7 @@ export class MouseController {
         const targetColumnId = targetCellElement?.getAttribute('data-column-id');
 
         if (targetRowId && targetRowId !== this.dragRowId) {
-          this.interactionStore.dragTarget.set(targetRowId);
+          this.tableInteraction$.dragTarget.set(targetRowId);
           this.showRowDropIndicator(targetRowElement, e.clientY);
           fileLog.info('🎯 Row drag over target', {
             sourceRowId: this.dragRowId,
@@ -396,7 +395,7 @@ export class MouseController {
     }
 
     // Handle cell drag selection updates
-    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting.get()) {
+    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.tableInteraction$.isDragSelecting.get()) {
       const target = e.target as HTMLElement;
       const cellElement = target.closest('[data-row-id][data-column-id]');
 
@@ -406,7 +405,7 @@ export class MouseController {
         const currentCellId = `${rowId}:${columnId}`;
 
         // Update drag selection if we're over a different cell
-        const currentDragCell = this.interactionStore.dragSelectCurrent.get();
+        const currentDragCell = this.tableInteraction$.dragSelectCurrent.get();
         if (currentCellId !== currentDragCell) {
           fileLog.info('🖱️ Drag selection updated to new cell', {
             previousCell: currentDragCell,
@@ -420,8 +419,8 @@ export class MouseController {
                         this.visualState.data ||
                         this.visualState.processedRows$ ||
                         [];
-            const columns = this.visualStateStore.columns || [];
-            const columnVisibility = this.visualStateStore.columnVisibility || {};
+            const columns = this.visualState.visualInputs$.columns.get() || [];
+            const columnVisibility = this.visualState.visualInputs$.columnVisibility.get() || {};
 
             const dataContext = {
               rows,
@@ -440,24 +439,24 @@ export class MouseController {
 
             // Only use data context if we have valid data
             if (dataContext.rows.length > 0 && dataContext.columns.length > 0) {
-              this.interactionStore.updateDragSelection(currentCellId, dataContext);
+              this.tableInteraction$.updateDragSelection(currentCellId, dataContext);
             } else {
               fileLog.warn('⚠️ Empty data context for drag selection, falling back to simple update', {
                 rowsCount: dataContext.rows.length,
                 columnsCount: dataContext.columns.length
               });
-              this.interactionStore.updateDragSelection(currentCellId);
+              this.tableInteraction$.updateDragSelection(currentCellId);
             }
           } catch (error) {
             fileLog.warn('⚠️ Failed to get data context for drag selection, falling back to simple update', { error });
-            this.interactionStore.updateDragSelection(currentCellId);
+            this.tableInteraction$.updateDragSelection(currentCellId);
           }
         }
       }
     }
 
     // PURE: Always update mouse coordinates (computed observables react to changes)
-    this.interactionStore.setMousePosition(e.clientX, e.clientY);
+    this.tableInteraction$.setMousePosition(e.clientX, e.clientY);
 
     // Update drag preview position for column drag
     if (this.isDragging && this.isColumnDrag && this.dragPreviewElement) {
@@ -495,7 +494,7 @@ export class MouseController {
         }
 
         // Handle column resize completion
-        const resizeResult = this.interactionStore.endColumnResize();
+        const resizeResult = this.tableInteraction$.endColumnResize();
 
         fileLog.info('[RESIZE] 📏 Column resize ended via MouseController', {
           columnId: resizeResult?.columnId,
@@ -530,7 +529,7 @@ export class MouseController {
         this.justEndedDrag = true; // Reuse the same flag to prevent clicks after resize
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Handle column drag completion
-        const targetColumnId = this.interactionStore.dragTarget.get();
+        const targetColumnId = this.tableInteraction$.dragTarget.get();
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
           // Calculate the same insertBefore logic used for drop line positioning
           const targetHeaderElement = this.container.querySelector(`[data-column-id="${targetColumnId}"]:not([data-row-id])`);
@@ -553,30 +552,30 @@ export class MouseController {
 
         // Reset column drag state
         fileLog.info('🎯 Column drag ended', { columnId: this.dragColumnId });
-        this.interactionStore.isDragging.set(false);
-        this.interactionStore.dragSource.set(null);
-        this.interactionStore.dragTarget.set(null);
+        this.tableInteraction$.isDragging.set(false);
+        this.tableInteraction$.dragSource.set(null);
+        this.tableInteraction$.dragTarget.set(null);
         this.removeDragPreview();
         this.hideDropLine();
         fileLog.info('🎯 Column drag state reset, continuing to general reset');
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
-        const targetRowId = this.interactionStore.dragTarget.get();
+        const targetRowId = this.tableInteraction$.dragTarget.get();
         if (targetRowId && targetRowId !== this.dragRowId) {
           this.handleRowDrop(targetRowId, e.clientY);
         }
 
         // Reset row drag state
         fileLog.info('🏁 Row drag ended', { rowId: this.dragRowId });
-        this.interactionStore.isDragging.set(false);
-        this.interactionStore.dragSource.set(null);
-        this.interactionStore.dragTarget.set(null);
+        this.tableInteraction$.isDragging.set(false);
+        this.tableInteraction$.dragSource.set(null);
+        this.tableInteraction$.dragTarget.set(null);
         this.removeRowDragPreview();
         this.hideRowDropIndicator();
         fileLog.info('🎯 Row drag state reset, continuing to general reset');
       } else {
         // PURE: End drag selection reactively
-        const dragResult = this.interactionStore.endDragSelect();
+        const dragResult = this.tableInteraction$.endDragSelect();
         fileLog.info('🖱️ Ended drag selection reactively', dragResult);
       }
 
@@ -685,7 +684,7 @@ export class MouseController {
         // Ctrl/Cmd+click -> disabled (treated as regular click)
         if (e.shiftKey) {
           // Shift+click: Range selection from last selected cell
-          const selectedCells = this.interactionStore.selectedCells.get();
+          const selectedCells = this.tableInteraction$.selectedCells.get();
           const lastSelectedCell = selectedCells.size > 0 ? Array.from(selectedCells).pop() : null;
 
           if (lastSelectedCell) {
@@ -697,17 +696,17 @@ export class MouseController {
             // Get data context for range selection
             const rows = this.tableCore$?.processedRows?.get() || [];
             const columns = this.tableCore$?.columns?.get() || [];
-            const columnVisibility = this.visualStateStore.columnVisibility;
+            const columnVisibility = this.visualState.visualInputs$.columnVisibility.get();
 
-            this.interactionStore.selectRange(lastSelectedCell, cellId, { rows, columns, columnVisibility });
+            this.tableInteraction$.selectRange(lastSelectedCell, cellId, { rows, columns, columnVisibility });
           } else {
             // No previous selection, just select this cell
-            this.interactionStore.selectedCells.set(new Set([cellId]));
+            this.tableInteraction$.selectedCells.set(new Set([cellId]));
           }
         } else {
           // Regular click or Ctrl/Cmd+click: Replace selection with this cell
           // (Ctrl/Cmd+click is disabled in this system)
-          this.interactionStore.selectedCells.set(new Set([cellId]));
+          this.tableInteraction$.selectedCells.set(new Set([cellId]));
         }
 
         // Prevent event propagation
@@ -1355,7 +1354,7 @@ export class MouseController {
    */
   private handleColumnResize(e: MouseEvent): void {
     // Delegate to interaction state following the proper pattern
-    const result = this.interactionStore.updateColumnResize(e.clientX);
+    const result = this.tableInteraction$.updateColumnResize(e.clientX);
 
     if (result) {
       fileLog.info('[RESIZE] 📏 Column resize move - interaction state updated', {
