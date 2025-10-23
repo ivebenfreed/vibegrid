@@ -32,7 +32,7 @@ function DebugVibeGridPage() {
         </CardHeader>
         <CardContent>
           <div className="border rounded-lg overflow-hidden" style={{ height: '600px' }}>
-            <VibeGridStoreProvider tableId="debug-grid-1">
+            <VibeGridStoreProvider tableId="debug-grid-1" entityType={entityType}>
               <VibeGrid
                 tableId="debug-grid-1"
                 entityType={entityType}

@@ -461,6 +461,12 @@ export class PersistenceStore implements IStore {
    * Normalize entityType to URL format
    */
   private normalizeEntityType(entityType: string): string {
+    // Guard against undefined/null
+    if (!entityType) {
+      log.warn('normalizeEntityType called with undefined/null entityType, returning "unknown"')
+      return 'unknown'
+    }
+
     // Extract base entity name if already prefixed
     let baseEntityType = entityType
     if (entityType.includes('_') && entityType.length > 36) {
