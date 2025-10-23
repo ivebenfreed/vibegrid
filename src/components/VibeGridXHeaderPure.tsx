@@ -1,38 +1,35 @@
+/**
+ * VibeGrid Header (MobX Version)
+ *
+ * Minimal working header for Day 7-8 migration.
+ * Child components (column visibility, grouping, entity add) will be migrated in later phases.
+ */
+
 import React from 'react';
-import { observer } from '@legendapp/state/react';
-import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure';
-import { GroupConfigDropdownPure } from './GroupConfigDropdownPure';
-import { VibeGridEntityAdd } from './VibeGridEntityAdd';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
-import { createVibeGridVisualState } from '../stores/visual-state';
+import { observer } from 'mobx-react-lite';
+import type { VibeGridStores } from '../stores/context';
 
 interface VibeGridXHeaderPureProps {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  // Group by functionality (optional)
+  stores: VibeGridStores;
   enableGrouping?: boolean;
   className?: string;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
-  // Entity information for add functionality
   entityName?: string;
   orgId?: string;
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
-  tableCore$,
-  tableInteraction$,
+  stores,
   enableGrouping = false,
   className = '',
-  visualState,
   entityName,
   orgId
 }: VibeGridXHeaderPureProps) {
-  // Visual state is passed from parent VibeGrid component
+  const { visualStateStore } = stores;
 
-  // Get reactive data from observables
-  const columns = tableCore$.columns.get();
-  const hiddenColumnCount = tableCore$.hiddenColumnCount.get();
+  // Calculate hidden column count
+  const hiddenColumnCount = visualStateStore.columns.filter(
+    col => visualStateStore.columnVisibility[col.id] === false
+  ).length;
 
   return (
     <div className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}>
@@ -44,28 +41,14 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
           </span>
         )}
       </div>
-      
+
       <div className="flex items-center gap-2">
-        {entityName && (
-          <VibeGridEntityAdd
-            tableCore$={tableCore$}
-            visualState={visualState}
-            entityName={entityName}
-            orgId={orgId}
-          />
-        )}
-        {enableGrouping && (
-          <GroupConfigDropdownPure
-            tableCore$={tableCore$}
-            tableInteraction$={tableInteraction$}
-            visualState={visualState}
-          />
-        )}
-        <VibeGridXColumnVisibilityPure
-          tableCore$={tableCore$}
-          tableInteraction$={tableInteraction$}
-          visualState={visualState}
-        />
+        {/* TODO (Day 9): Add VibeGridEntityAdd */}
+        {/* TODO (Day 9): Add GroupConfigDropdownPure */}
+        {/* TODO (Day 9): Add VibeGridXColumnVisibilityPure */}
+        <span className="text-xs text-muted-foreground">
+          {visualStateStore.columns.length} columns
+        </span>
       </div>
     </div>
   );

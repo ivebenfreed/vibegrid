@@ -200,6 +200,9 @@ export class TableCoreStore implements IStore {
   @observable isSchemaLoaded: boolean = false
   @observable schemaError: string | null = null
 
+  // Raw entity data (from TanStack DB)
+  @observable private rawRows: any[] = []
+
   // ====================================
   // DEPENDENCIES (injected)
   // ====================================
@@ -239,6 +242,19 @@ export class TableCoreStore implements IStore {
     this.entityDataProvider = provider
   }
 
+  /**
+   * Set raw entity rows directly (simplified interface for Day 7)
+   * TODO (Day 10): Migrate to full entity data provider pattern
+   */
+  @action
+  setRows(rows: any[]): void {
+    this.rawRows = rows
+    log.debug('📊 Raw rows updated', {
+      entityType: this.entityType,
+      rowCount: rows.length
+    })
+  }
+
   // ====================================
   // COMPUTED VALUES
   // ====================================
@@ -254,14 +270,18 @@ export class TableCoreStore implements IStore {
       return []
     }
 
-    if (!this.entityDataProvider) {
-      log.warn('⚠️ Entity data provider not set', { entityType: this.entityType })
+    // Use raw rows if available (simplified Day 7 approach)
+    let rows: any[]
+    if (this.rawRows.length > 0) {
+      rows = this.rawRows
+    } else if (this.entityDataProvider) {
+      // Fallback to entity data provider (future full implementation)
+      const data = this.entityDataProvider.getEntityData() || {}
+      rows = Object.values(data)
+    } else {
+      log.warn('⚠️ No entity data available', { entityType: this.entityType })
       return []
     }
-
-    // Get entity data from provider (TanStack DB)
-    const data = this.entityDataProvider.getEntityData() || {}
-    let rows = Object.values(data)
 
     log.debug('📊 Got entity data', {
       entityType: this.entityType,
@@ -321,6 +341,21 @@ export class TableCoreStore implements IStore {
     }
 
     return rows
+  }
+
+  // ====================================
+  // GROUP ROW ORDERING ACTIONS
+  // ====================================
+
+  /**
+   * Set custom row order for a specific group
+   */
+  /**
+   * Sorted rows (alias for processedRows for compatibility)
+   */
+  @computed
+  get sortedRows(): any[] {
+    return this.processedRows
   }
 
   // ====================================

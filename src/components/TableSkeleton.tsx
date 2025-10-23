@@ -1,7 +1,7 @@
 import React from 'react';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('TableSkeleton');
+const fileLog = createLogger('components/vibegrid/components/TableSkeleton');
 
 // ====================================
 // TABLE SKELETON COMPONENT

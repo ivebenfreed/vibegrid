@@ -51,13 +51,23 @@ const fileLog = log('components/custom/vibegrid/renderers/core/SimplePassiveRend
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT;
 const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT;
 
+// Import MobX store types
+import type { VibeGridStores } from '../../stores/context';
+
 export interface SimplePassiveRendererOptions {
   container: HTMLElement;
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  tableViewport$: TableViewport$;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
-  initManager: VibeGridHydrationManager;
+
+  // NEW: Accept MobX stores directly
+  stores: VibeGridStores;
+  entityType: string;
+
+  // Legacy interface (DEPRECATED - will be removed in Day 10)
+  tableCore$?: TableCore$;
+  tableInteraction$?: TableInteraction$;
+  tableViewport$?: TableViewport$;
+  visualState?: ReturnType<typeof createVibeGridVisualState>;
+  initManager?: VibeGridHydrationManager;
+
   enableSelectionColumn?: boolean;
   bufferSize?: number;
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
@@ -151,39 +161,147 @@ export class SimplePassiveRenderer {
   private visualState: any = null;
   
   constructor(private options: SimplePassiveRendererOptions) {
-    vibeGridProfiler.startMetric('renderer-initialization', {
-      entityType: options.tableCore$.entityType?.peek()
-    });
-
-    fileLog.info('🎯 SimplePassiveRenderer: Initializing');
-
     this.container = options.container;
-    this.tableCore$ = options.tableCore$;
-    this.tableInteraction$ = options.tableInteraction$;
-    this.tableViewport$ = options.tableViewport$;
-    this.initManager = options.initManager;
 
-    // Use visual state passed from parent VibeGrid component
-    this.visualState = options.visualState;
+    // NEW: Support MobX stores (primary interface)
+    if (options.stores) {
+      fileLog.info('🎯 SimplePassiveRenderer: Initializing with MobX stores');
 
-    // Create sorted processed rows computed observable internally (self-contained)
-    this.sortedProcessedRows$ = this.visualState.createSortedProcessedRows$(this.tableCore$);
+      const { tableCoreStore, visualStateStore, interactionStore, initStore: initMgr } = options.stores;
 
-    fileLog.info('✅ Renderer self-contained: created sortedProcessedRows$ internally', {
-      timestamp: Date.now(),
-      hasSortedRows: !!this.sortedProcessedRows$
-    });
-    
-    this.initDOM();
-    this.initControllers();
-    this.initDOMFactory();
-    this.initPhase2Managers();
-    this.initOverlayManager();
-    this.initHeaderRenderer();
-    fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction - will attach after initialization');
-    // this.initFocusedObservers(); // MOVED: Now called after observersEnabled = true
-    fileLog.debug('🎯 Observer attachment deferred to prevent RAF violations during init');
-    this.postInitialization();
+      // TEMPORARY BRIDGE: Create Legend State observables from MobX stores
+      // TODO (Day 10): Remove this bridge and use MobX stores directly throughout
+      this.tableCore$ = observable({
+        entityType: options.entityType,
+        columns: visualStateStore.columns,
+        filters: visualStateStore.filters,
+        sortBy: visualStateStore.sortBy,
+        groupConfig: visualStateStore.groupConfig,
+        flatRowOrder: tableCoreStore.flatRowOrder,
+        groupRowOrders: tableCoreStore.groupRowOrders,
+        processedRows: tableCoreStore.processedRows
+      }) as any;
+
+      this.tableInteraction$ = observable({
+        selectedCells: interactionStore.selectedCells,
+        selectedRows: interactionStore.selectedRows,
+        editingCell: interactionStore.editingCell,
+        hoveredCell: interactionStore.hoveredCell,
+        focusedCell: interactionStore.focusedCell,
+        isDragging: interactionStore.isDragging
+      }) as any;
+
+      this.tableViewport$ = {
+        scrollTop: observable(visualStateStore.scrollTop),
+        scrollLeft: observable(visualStateStore.scrollLeft),
+        viewportWidth: observable(visualStateStore.viewportWidth),
+        viewportHeight: observable(visualStateStore.viewportHeight),
+        updateViewport: (width: number, height: number) => {
+          this.tableViewport$!.viewportWidth.set(width);
+          this.tableViewport$!.viewportHeight.set(height);
+          visualStateStore.updateViewport(width, height);
+        },
+        updateScroll: (scrollTop: number, scrollLeft: number) => {
+          this.tableViewport$!.scrollTop.set(scrollTop);
+          this.tableViewport$!.scrollLeft.set(scrollLeft);
+          visualStateStore.updateScroll(scrollTop, scrollLeft);
+        }
+      } as any;
+
+      // Create visual state compatibility object
+      this.visualState = {
+        visualInputs$: {
+          columns: observable(visualStateStore.columns),
+          columnWidths: observable(visualStateStore.columnWidths),
+          columnVisibility: observable(visualStateStore.columnVisibility),
+          columnOrder: observable(visualStateStore.columnOrder),
+          sortBy: observable(visualStateStore.sortBy),
+          filters: observable(visualStateStore.filters),
+          groupConfig: observable(visualStateStore.groupConfig)
+        },
+        visualState$: observable({
+          columnLayouts: visualStateStore.columnLayouts,
+          geometry: visualStateStore.geometry
+        }),
+        createSortedProcessedRows$: (tableCore: any) => {
+          // Return a computed observable that returns sorted rows
+          return observable(() => tableCoreStore.sortedRows);
+        }
+      };
+
+      this.initManager = initMgr as any;
+
+      // Set up MobX → Legend State sync
+      // TODO (Day 10): Remove this when renderer uses MobX directly
+      const { autorun } = require('mobx');
+      this.disposers.push(
+        autorun(() => {
+          this.tableCore$.columns.set(visualStateStore.columns);
+          this.tableCore$.filters.set(visualStateStore.filters);
+          this.tableCore$.sortBy.set(visualStateStore.sortBy);
+          this.tableCore$.groupConfig.set(visualStateStore.groupConfig);
+          this.tableCore$.processedRows.set(tableCoreStore.processedRows);
+        })
+      );
+
+      fileLog.info('✅ MobX → Legend State bridge created');
+
+      vibeGridProfiler.startMetric('renderer-initialization', {
+        entityType: options.entityType
+      });
+
+      // Create sorted processed rows (using compatibility function)
+      this.sortedProcessedRows$ = this.visualState.createSortedProcessedRows$(this.tableCore$);
+
+      fileLog.info('✅ Renderer initialized with MobX stores (using compatibility bridge)', {
+        timestamp: Date.now(),
+        hasSortedRows: !!this.sortedProcessedRows$
+      });
+
+      this.initDOM();
+      this.initControllers();
+      this.initDOMFactory();
+      this.initPhase2Managers();
+      this.initOverlayManager();
+      this.initHeaderRenderer();
+      fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction');
+      this.postInitialization();
+    }
+    // LEGACY: Support Legend State observables (deprecated, for backward compatibility)
+    else if (options.tableCore$ && options.tableInteraction$ && options.tableViewport$) {
+      fileLog.info('🎯 SimplePassiveRenderer: Initializing with Legacy observables (deprecated)');
+
+      this.tableCore$ = options.tableCore$;
+      this.tableInteraction$ = options.tableInteraction$;
+      this.tableViewport$ = options.tableViewport$;
+      this.initManager = options.initManager!;
+      this.visualState = options.visualState;
+
+      vibeGridProfiler.startMetric('renderer-initialization', {
+        entityType: options.tableCore$.entityType?.peek()
+      });
+
+      // Create sorted processed rows computed observable internally (self-contained)
+      this.sortedProcessedRows$ = this.visualState.createSortedProcessedRows$(this.tableCore$);
+
+      fileLog.info('✅ Renderer self-contained: created sortedProcessedRows$ internally', {
+        timestamp: Date.now(),
+        hasSortedRows: !!this.sortedProcessedRows$
+      });
+
+      this.initDOM();
+      this.initControllers();
+      this.initDOMFactory();
+      this.initPhase2Managers();
+      this.initOverlayManager();
+      this.initHeaderRenderer();
+      fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction - will attach after initialization');
+      // this.initFocusedObservers(); // MOVED: Now called after observersEnabled = true
+      fileLog.debug('🎯 Observer attachment deferred to prevent RAF violations during init');
+      this.postInitialization();
+    } else {
+      throw new Error('SimplePassiveRenderer: Must provide either stores (MobX) or legacy observables');
+    }
   }
   
   /**

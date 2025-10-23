@@ -6,9 +6,9 @@
  */
 
 import React from 'react';
+import { observer } from 'mobx-react-lite';
 import { Loader2, AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
-import { useSelector } from '@legendapp/state/react';
-import type { VibeGridHydrationManager } from '../stores/init-state';
+import type { InitStore } from '../stores/InitStore';
 import { TableSkeleton } from './TableSkeleton';
 
 // ====================================
@@ -16,7 +16,7 @@ import { TableSkeleton } from './TableSkeleton';
 // ====================================
 
 interface VibeGridLoadingOverlayProps {
-  initManager: VibeGridHydrationManager;
+  initStore: InitStore;
   height?: number | string;
   width?: number | string;
   showDetailedProgress?: boolean;
@@ -26,18 +26,18 @@ interface VibeGridLoadingOverlayProps {
 // LOADING OVERLAY COMPONENT
 // ====================================
 
-export function VibeGridLoadingOverlay({
-  initManager,
+export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
+  initStore,
   height = 600,
   width = '100%',
   showDetailedProgress = false,
 }: VibeGridLoadingOverlayProps) {
 
-  // Subscribe to init state
-  const isFullyInitialized = useSelector(initManager.isFullyHydrated$);
-  const errors = useSelector(initManager.errors$);
-  const hasErrors = useSelector(initManager.hasErrors$);
-  const criticalErrors = useSelector(initManager.criticalErrors$);
+  // Access MobX store properties directly
+  const isFullyInitialized = initStore.isFullyHydrated;
+  const errors = initStore.errors;
+  const hasErrors = initStore.hasErrors;
+  const criticalErrors = initStore.criticalErrors;
 
   // Always render - let parent control visibility to prevent flash
   // if (isFullyInitialized) {
@@ -60,7 +60,7 @@ export function VibeGridLoadingOverlay({
           <AlertTriangle className="w-4 h-4 text-red-500" />
           <span className="text-sm text-red-600">Loading failed</span>
           <button
-            onClick={() => initManager.reset()}
+            onClick={() => initStore.reset()}
             className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
           >
             Retry
@@ -73,7 +73,7 @@ export function VibeGridLoadingOverlay({
         <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg max-w-sm">
           <div className="text-xs font-medium text-gray-700 mb-2">Debug Info:</div>
           <div className="space-y-1 text-xs max-h-32 overflow-y-auto">
-            {Object.entries(initManager.hydrationState$.get()).map(([dependency, ready]) => (
+            {Object.entries(initStore.hydrationState).map(([dependency, ready]) => (
               <div key={dependency} className="flex items-center justify-between">
                 <span className="text-gray-600">{dependency}</span>
                 {ready ? (
@@ -88,7 +88,7 @@ export function VibeGridLoadingOverlay({
       )}
     </div>
   );
-}
+})
 
 
 // ====================================
@@ -98,20 +98,16 @@ export function VibeGridLoadingOverlay({
 /**
  * Hook for using VibeGrid loading state in components
  */
-export function useVibeGridLoadingState(initManager: VibeGridHydrationManager) {
-  const isFullyInitialized = useSelector(initManager.isFullyHydrated$);
-  const progress = useSelector(initManager.hydrationProgress$);
-  const hasErrors = useSelector(initManager.hasErrors$);
-  const criticalErrors = useSelector(initManager.criticalErrors$);
-
+export function useVibeGridLoadingState(initStore: InitStore) {
+  // MobX observables are accessed directly, observer() handles reactivity
   return {
-    isLoading: !isFullyInitialized,
-    isReady: isFullyInitialized,
-    progress,
-    hasErrors,
-    hasCriticalErrors: criticalErrors.length > 0,
-    canRetry: criticalErrors.some(error => error.canRetry),
-    retry: () => initManager.reset(),
-    getStatus: () => initManager.getStatus(),
+    isLoading: !initStore.isFullyHydrated,
+    isReady: initStore.isFullyHydrated,
+    progress: initStore.hydrationProgress,
+    hasErrors: initStore.hasErrors,
+    hasCriticalErrors: initStore.criticalErrors.length > 0,
+    canRetry: initStore.criticalErrors.some(error => error.canRetry),
+    retry: () => initStore.reset(),
+    getStatus: () => initStore.getStatus(),
   };
 }
