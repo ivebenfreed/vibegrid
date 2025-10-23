@@ -22,6 +22,7 @@ import type { IStore } from '@/stores/types'
 import type { Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import { generateColumnsFromEntitySchema } from './column-generation'
+import type { VisualStateStore } from './VisualStateStore'
 
 const log = createLogger('components/vibegrid/stores/TableCoreStore')
 
@@ -208,6 +209,7 @@ export class TableCoreStore implements IStore {
   // ====================================
 
   private visualStateInputs: VisualStateInputs | null = null
+  private visualStateStore: VisualStateStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
   private schemaRegistry: import('@/stores/experience/SchemaRegistryStore').SchemaRegistryStore | null = null
   private disposers = new DisposerManager()
@@ -232,6 +234,10 @@ export class TableCoreStore implements IStore {
   @action
   setVisualStateInputs(inputs: VisualStateInputs): void {
     this.visualStateInputs = inputs
+    // Also store the full VisualStateStore reference for column initialization
+    if ('columns' in inputs && 'initializeColumns' in inputs) {
+      this.visualStateStore = inputs as VisualStateStore
+    }
   }
 
   /**
@@ -322,7 +328,7 @@ export class TableCoreStore implements IStore {
       )
 
       log.info('✅ Processed rows with grouping', {
-        inputCount: Object.keys(data).length,
+        inputCount: rows.length,
         filteredAndSortedRows: rows.length,
         virtualRowsAfterGrouping: groupResult.virtualRows.length,
         groupCount: groupResult.groupCount,
@@ -334,7 +340,7 @@ export class TableCoreStore implements IStore {
     }
 
     log.info('✅ Processed rows (no grouping)', {
-      inputCount: Object.keys(data).length,
+      inputCount: rows.length,
       outputCount: rows.length,
       hasFilters: filters.length > 0,
       hasSorting: sortBy.length > 0
@@ -742,6 +748,24 @@ export class TableCoreStore implements IStore {
         this.isSchemaLoaded = true
         this.schemaError = null
       })
+
+      // 🚀 Initialize columns in VisualStateStore
+      if (this.visualStateStore) {
+        this.visualStateStore.initializeColumns(
+          generatedColumns,
+          this.entityType,
+          '', // orgId - TODO: pass from context
+          ''  // userId - TODO: pass from context
+        )
+        log.info('✅ Columns initialized in VisualStateStore', {
+          entityType: this.entityType,
+          columnCount: generatedColumns.length
+        })
+      } else {
+        log.warn('⚠️ VisualStateStore not available for column initialization', {
+          entityType: this.entityType
+        })
+      }
 
       log.info('✅ Schema loaded successfully', {
         entityType: this.entityType,

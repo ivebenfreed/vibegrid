@@ -9,6 +9,8 @@ import { createLogger } from '@/lib/logging';
 import type { Column } from '../types';
 import { COLUMN_DEFAULTS } from '../column-defaults';
 import type { CellType } from '../column-types';
+// IMPORTANT: Import field-types index to trigger all field type registrations
+import '../field-types';
 import { modularCellBridge } from '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
 import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStore';
