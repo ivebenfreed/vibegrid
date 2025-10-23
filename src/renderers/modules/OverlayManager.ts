@@ -4,7 +4,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import { runInAction } from 'mobx';
+import { runInAction, reaction } from 'mobx';
 import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM';
 import { EditingOverlay } from '../../overlays/EditingOverlay';
 import { ContextMenuManager } from '../../components/ContextMenu';
@@ -60,6 +60,9 @@ export class OverlayManager {
   private lastClipboardString: string = ''; // Clipboard state deduplication
   private updateSelectionRAF: number | null = null;
   private lastCoordinateMappingVersion: number = -1;
+
+  // MobX reaction disposers
+  private disposers: (() => void)[] = [];
   
   constructor(options: OverlayManagerOptions) {
     this.container = options.container;
@@ -137,181 +140,185 @@ export class OverlayManager {
     let lastEditingCell: string | null = null;
     let pendingUpdate: number | null = null;
 
-    // SINGLE OBSERVER: Watches all relevant state in one place
-// TODO-MOBX:     observe(() => {
-// TODO-MOBX:       // Safety check for observable availability
-// TODO-MOBX:       if (!this.interactionStore) {
-// TODO-MOBX:         return;
-// TODO-MOBX:       }
-// TODO-MOBX: 
-// TODO-MOBX:       // DEBUG: Log every observer trigger
-// TODO-MOBX:       fileLog.debug('🔍 REACTIVE: OverlayManager observer triggered');
-// TODO-MOBX: 
-// TODO-MOBX:       // READ ALL STATE: Read all state directly to trigger observer properly
-// TODO-MOBX:       let state;
-// TODO-MOBX:       try {
-// TODO-MOBX:         state = {
-// TODO-MOBX:           // Selection state - use get() to trigger observer properly
-// TODO-MOBX:           selectedCells: this.interactionStore.selectedCells.get(),
-// TODO-MOBX:           focusedCell: this.interactionStore.focusedCell.get(),
-// TODO-MOBX:           hoveredCell: this.interactionStore.hoveredCell.get(),
-// TODO-MOBX: 
-// TODO-MOBX:           // Editing state
-// TODO-MOBX:           editingCell: this.interactionStore.editingCell.get(),
-// TODO-MOBX:           editValue: this.interactionStore.editValue.get(),
-// TODO-MOBX:           isEditing: this.interactionStore.isEditing.get(),
-// TODO-MOBX: 
-// TODO-MOBX:           // Clipboard state
-// TODO-MOBX:           clipboard: this.interactionStore.clipboard.get()
-// TODO-MOBX:         };
-// TODO-MOBX: 
-// TODO-MOBX:         // Debug clipboard state
-// TODO-MOBX:         if (state.clipboard) {
-// TODO-MOBX:           fileLog.debug('📋 OverlayManager detected clipboard state', {
-// TODO-MOBX:             operation: state.clipboard.operation,
-// TODO-MOBX:             copiedCellsCount: state.clipboard.copiedCells.size
-// TODO-MOBX:           });
-// TODO-MOBX:         }
-// TODO-MOBX:       } catch (error) {
-// TODO-MOBX:         fileLog.debug('🔍 REACTIVE: Error reading state, likely during unmount', error);
-// TODO-MOBX:         return;
-// TODO-MOBX:       }
-// TODO-MOBX: 
-// TODO-MOBX:       if (!state) {
-// TODO-MOBX:         return;
-// TODO-MOBX:       }
-// TODO-MOBX: 
-// TODO-MOBX:       fileLog.debug('🔍 REACTIVE: Observer triggered', {
-// TODO-MOBX:         selectedCount: state.selectedCells.size,
-// TODO-MOBX:         editingCell: state.editingCell,
-// TODO-MOBX:         isEditing: state.isEditing,
-// TODO-MOBX:         observerCallCount: Date.now()
-// TODO-MOBX:       });
-// TODO-MOBX: 
-// TODO-MOBX:       // DEDUPLICATION: Skip if nothing meaningful changed
-// TODO-MOBX:       const selectionString = Array.from(state.selectedCells).sort().join(',');
-// TODO-MOBX:       const selectionChanged = lastSelectionString !== selectionString;
-// TODO-MOBX:       const editingChanged = lastEditingCell !== state.editingCell;
-// TODO-MOBX:       const clipboardString = state.clipboard ? `${state.clipboard.operation}:${Array.from(state.clipboard.copiedCells).sort().join(',')}` : '';
-// TODO-MOBX:       const clipboardChanged = this.lastClipboardString !== clipboardString;
-// TODO-MOBX: 
-// TODO-MOBX:       if (!selectionChanged && !editingChanged && !clipboardChanged) {
-// TODO-MOBX:         fileLog.debug('🔍 REACTIVE: No meaningful changes, skipping update');
-// TODO-MOBX:         return;
-// TODO-MOBX:       }
-// TODO-MOBX: 
-// TODO-MOBX:       // Update deduplication tracking
-// TODO-MOBX:       lastSelectionString = selectionString;
-// TODO-MOBX:       lastEditingCell = state.editingCell;
-// TODO-MOBX:       this.lastClipboardString = clipboardString;
-// TODO-MOBX: 
-// TODO-MOBX:       fileLog.debug('🔍 REACTIVE: Consolidated state changed', {
-// TODO-MOBX:         selectionChanged,
-// TODO-MOBX:         editingChanged,
-// TODO-MOBX:         clipboardChanged,
-// TODO-MOBX:         selectedCount: state.selectedCells.size,
-// TODO-MOBX:         editingCell: state.editingCell,
-// TODO-MOBX:         isEditing: state.isEditing,
-// TODO-MOBX:         hasClipboard: !!state.clipboard,
-// TODO-MOBX:         clipboardOperation: state.clipboard?.operation,
-// TODO-MOBX:         clipboardCellCount: state.clipboard?.copiedCells?.size
-// TODO-MOBX:       });
-// TODO-MOBX: 
-// TODO-MOBX:       // BATCH DOM UPDATES: Cancel any pending update and schedule new one
-// TODO-MOBX:       if (pendingUpdate !== null) {
-// TODO-MOBX:         cancelAnimationFrame(pendingUpdate);
-// TODO-MOBX:       }
-// TODO-MOBX: 
-// TODO-MOBX:       pendingUpdate = requestAnimationFrame(() => {
-// TODO-MOBX:         pendingUpdate = null;
-// TODO-MOBX: 
-// TODO-MOBX:         // BATCHED: All DOM updates happen together in a single frame
-// TODO-MOBX:         batch(() => {
-// TODO-MOBX:           // Handle selection updates
-// TODO-MOBX:           if (selectionChanged) {
-// TODO-MOBX:             if (state.selectedCells.size > 0) {
-// TODO-MOBX:               this.performCanvasSelectionUpdate(state.selectedCells);
-// TODO-MOBX:             } else {
-// TODO-MOBX:               // Clear selection overlay when no cells selected
-// TODO-MOBX:               if (this.canvasOverlay) {
-// TODO-MOBX:                 this.canvasOverlay.updateSelectionWithVisualPositions([]);
-// TODO-MOBX:                 this.canvasOverlay.hideFillHandle();
-// TODO-MOBX:               }
-// TODO-MOBX:             }
-// TODO-MOBX:           }
-// TODO-MOBX: 
-// TODO-MOBX:           // Handle editing overlay updates
-// TODO-MOBX:           if (editingChanged) {
-// TODO-MOBX:             if (state.isEditing && state.editingCell && this.editingOverlay) {
-// TODO-MOBX:               // Show editing overlay
-// TODO-MOBX:               const [rowId, columnId] = state.editingCell.split(':');
-// TODO-MOBX:               const columns = this.tableCoreStore.columns.peek(); // Use peek() to avoid triggering observers
-// TODO-MOBX:               const column = columns.find((c: any) => c.id === columnId);
-// TODO-MOBX: 
-// TODO-MOBX:               if (column) {
-// TODO-MOBX:                 const position = this.getCellPosition(rowId, columnId);
-// TODO-MOBX:                 if (position) {
-// TODO-MOBX:                   const cell = { rowId, columnId };
-// TODO-MOBX:                   const actualValue = state.editValue !== undefined ? state.editValue : this.getCellValue(rowId, columnId);
-// TODO-MOBX: 
-// TODO-MOBX:                   fileLog.info('🔍 REACTIVE: Showing editing overlay (consolidated)', {
-// TODO-MOBX:                     cellId: state.editingCell,
-// TODO-MOBX:                     position,
-// TODO-MOBX:                     value: actualValue
-// TODO-MOBX:                   });
-// TODO-MOBX: 
-// TODO-MOBX:                   this.editingOverlay.showAt(position, cell, column, actualValue);
-// TODO-MOBX:                 }
-// TODO-MOBX:               }
-// TODO-MOBX:             } else if (!state.isEditing && this.editingOverlay) {
-// TODO-MOBX:               // Hide editing overlay
-// TODO-MOBX:               fileLog.info('🔍 REACTIVE: Hiding editing overlay (consolidated)');
-// TODO-MOBX:               this.editingOverlay.hide();
-// TODO-MOBX:             }
-// TODO-MOBX:           }
-// TODO-MOBX: 
-// TODO-MOBX:           // Handle clipboard overlay updates (independent of selection)
-// TODO-MOBX:           if (clipboardChanged) {
-// TODO-MOBX:             if (state.clipboard && state.clipboard.copiedCells.size > 0 && this.canvasOverlay) {
-// TODO-MOBX:               const clipboardState = {
-// TODO-MOBX:                 copiedCells: state.clipboard.copiedCells,
-// TODO-MOBX:                 isCut: state.clipboard.operation === 'cut'
-// TODO-MOBX:               };
-// TODO-MOBX:               fileLog.info('📋 REACTIVE: Updating clipboard overlay', {
-// TODO-MOBX:                 operation: state.clipboard.operation,
-// TODO-MOBX:                 cellCount: state.clipboard.copiedCells.size,
-// TODO-MOBX:                 copiedCells: Array.from(state.clipboard.copiedCells)
-// TODO-MOBX:               });
-// TODO-MOBX: 
-// TODO-MOBX:               // Get visual positions for clipboard cells (same approach as selection)
-// TODO-MOBX:               const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
-// TODO-MOBX:               this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
-// TODO-MOBX:             } else if (this.canvasOverlay) {
-// TODO-MOBX:               // Clear clipboard overlay only when clipboard is explicitly null
-// TODO-MOBX:               fileLog.info('📋 REACTIVE: Clearing clipboard overlay');
-// TODO-MOBX:               this.canvasOverlay.clearClipboardIndicators();
-// TODO-MOBX:             }
-// TODO-MOBX:           }
-// TODO-MOBX: 
-// TODO-MOBX:           // IMPORTANT: Always update clipboard overlay if clipboard exists (even without changes)
-// TODO-MOBX:           // This ensures visual feedback persists even when selection changes
-// TODO-MOBX:           if (state.clipboard && state.clipboard.copiedCells.size > 0 && this.canvasOverlay && !clipboardChanged) {
-// TODO-MOBX:             const clipboardState = {
-// TODO-MOBX:               copiedCells: state.clipboard.copiedCells,
-// TODO-MOBX:               isCut: state.clipboard.operation === 'cut'
-// TODO-MOBX:             };
-// TODO-MOBX:             fileLog.debug('📋 REACTIVE: Maintaining clipboard overlay (selection independent)', {
-// TODO-MOBX:               operation: state.clipboard.operation,
-// TODO-MOBX:               cellCount: state.clipboard.copiedCells.size
-// TODO-MOBX:             });
-// TODO-MOBX: 
-// TODO-MOBX:             // Get visual positions for clipboard cells (same approach as selection)
-// TODO-MOBX:             const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
-// TODO-MOBX:             this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
-// TODO-MOBX:           }
-// TODO-MOBX:         });
-// TODO-MOBX:       });
-// TODO-MOBX:     });
+    // SINGLE OBSERVER: Watches all relevant state in one place using MobX reaction
+    this.disposers.push(
+      reaction(
+        () => {
+          // Safety check for observable availability
+          if (!this.interactionStore) {
+            return null;
+          }
+
+          // DEBUG: Log every observer trigger
+          fileLog.debug('🔍 REACTIVE: OverlayManager reaction triggered');
+
+          // READ ALL STATE: Track dependencies by accessing observable properties
+          try {
+            const state = {
+              // Selection state - direct property access (no .get())
+              selectedCells: this.interactionStore.selectedCells,
+              focusedCell: this.interactionStore.focusedCell,
+              hoveredCell: this.interactionStore.hoveredCell,
+
+              // Editing state
+              editingCell: this.interactionStore.editingCell,
+              editValue: this.interactionStore.editValue,
+              isEditing: this.interactionStore.isEditing,
+
+              // Clipboard state
+              clipboard: this.interactionStore.clipboard
+            };
+
+            // Debug clipboard state
+            if (state.clipboard) {
+              fileLog.debug('📋 OverlayManager detected clipboard state', {
+                operation: state.clipboard.operation,
+                copiedCellsCount: state.clipboard.copiedCells.size
+              });
+            }
+
+            return state;
+          } catch (error) {
+            fileLog.debug('🔍 REACTIVE: Error reading state, likely during unmount', error);
+            return null;
+          }
+        },
+        (state) => {
+          if (!state) {
+            return;
+          }
+
+          fileLog.debug('🔍 REACTIVE: Reaction effect triggered', {
+            selectedCount: state.selectedCells.size,
+            editingCell: state.editingCell,
+            isEditing: state.isEditing,
+            observerCallCount: Date.now()
+          });
+
+          // DEDUPLICATION: Skip if nothing meaningful changed
+          const selectionString = Array.from(state.selectedCells).sort().join(',');
+          const selectionChanged = lastSelectionString !== selectionString;
+          const editingChanged = lastEditingCell !== state.editingCell;
+          const clipboardString = state.clipboard ? `${state.clipboard.operation}:${Array.from(state.clipboard.copiedCells).sort().join(',')}` : '';
+          const clipboardChanged = this.lastClipboardString !== clipboardString;
+
+          if (!selectionChanged && !editingChanged && !clipboardChanged) {
+            fileLog.debug('🔍 REACTIVE: No meaningful changes, skipping update');
+            return;
+          }
+
+          // Update deduplication tracking
+          lastSelectionString = selectionString;
+          lastEditingCell = state.editingCell;
+          this.lastClipboardString = clipboardString;
+
+          fileLog.debug('🔍 REACTIVE: Consolidated state changed', {
+            selectionChanged,
+            editingChanged,
+            clipboardChanged,
+            selectedCount: state.selectedCells.size,
+            editingCell: state.editingCell,
+            isEditing: state.isEditing,
+            hasClipboard: !!state.clipboard,
+            clipboardOperation: state.clipboard?.operation,
+            clipboardCellCount: state.clipboard?.copiedCells?.size
+          });
+
+          // BATCH DOM UPDATES: Cancel any pending update and schedule new one
+          if (pendingUpdate !== null) {
+            cancelAnimationFrame(pendingUpdate);
+          }
+
+          pendingUpdate = requestAnimationFrame(() => {
+            pendingUpdate = null;
+
+            // BATCHED: All DOM updates happen together in a single frame
+            // Handle selection updates
+            if (selectionChanged) {
+              if (state.selectedCells.size > 0) {
+                this.performCanvasSelectionUpdate(state.selectedCells);
+              } else {
+                // Clear selection overlay when no cells selected
+                if (this.canvasOverlay) {
+                  this.canvasOverlay.updateSelectionWithVisualPositions([]);
+                  this.canvasOverlay.hideFillHandle();
+                }
+              }
+            }
+
+            // Handle editing overlay updates
+            if (editingChanged) {
+              if (state.isEditing && state.editingCell && this.editingOverlay) {
+                // Show editing overlay
+                const [rowId, columnId] = state.editingCell.split(':');
+                const columns = this.tableCoreStore.columns; // Direct access, no peek() needed
+                const column = columns.find((c: any) => c.id === columnId);
+
+                if (column) {
+                  const position = this.getCellPosition(rowId, columnId);
+                  if (position) {
+                    const cell = { rowId, columnId };
+                    const actualValue = state.editValue !== undefined ? state.editValue : this.getCellValue(rowId, columnId);
+
+                    fileLog.info('🔍 REACTIVE: Showing editing overlay (consolidated)', {
+                      cellId: state.editingCell,
+                      position,
+                      value: actualValue
+                    });
+
+                    this.editingOverlay.showAt(position, cell, column, actualValue);
+                  }
+                }
+              } else if (!state.isEditing && this.editingOverlay) {
+                // Hide editing overlay
+                fileLog.info('🔍 REACTIVE: Hiding editing overlay (consolidated)');
+                this.editingOverlay.hide();
+              }
+            }
+
+            // Handle clipboard overlay updates (independent of selection)
+            if (clipboardChanged) {
+              if (state.clipboard && state.clipboard.copiedCells.size > 0 && this.canvasOverlay) {
+                const clipboardState = {
+                  copiedCells: state.clipboard.copiedCells,
+                  isCut: state.clipboard.operation === 'cut'
+                };
+                fileLog.info('📋 REACTIVE: Updating clipboard overlay', {
+                  operation: state.clipboard.operation,
+                  cellCount: state.clipboard.copiedCells.size,
+                  copiedCells: Array.from(state.clipboard.copiedCells)
+                });
+
+                // Get visual positions for clipboard cells (same approach as selection)
+                const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
+                this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
+              } else if (this.canvasOverlay) {
+                // Clear clipboard overlay only when clipboard is explicitly null
+                fileLog.info('📋 REACTIVE: Clearing clipboard overlay');
+                this.canvasOverlay.clearClipboardIndicators();
+              }
+            }
+
+            // IMPORTANT: Always update clipboard overlay if clipboard exists (even without changes)
+            // This ensures visual feedback persists even when selection changes
+            if (state.clipboard && state.clipboard.copiedCells.size > 0 && this.canvasOverlay && !clipboardChanged) {
+              const clipboardState = {
+                copiedCells: state.clipboard.copiedCells,
+                isCut: state.clipboard.operation === 'cut'
+              };
+              fileLog.debug('📋 REACTIVE: Maintaining clipboard overlay (selection independent)', {
+                operation: state.clipboard.operation,
+                cellCount: state.clipboard.copiedCells.size
+              });
+
+              // Get visual positions for clipboard cells (same approach as selection)
+              const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
+              this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
+            }
+          });
+        }
+      )
+    );
 
     fileLog.info('✅ Consolidated reactive observer established - eliminated multiple observer chain');
   }
@@ -941,6 +948,10 @@ export class OverlayManager {
    */
   destroy(): void {
     fileLog.info('🧹 Destroying overlay system');
+
+    // Dispose of MobX reactions
+    this.disposers.forEach(dispose => dispose());
+    this.disposers = [];
 
     // Clean up RAF to prevent memory leaks
     if (this.updateSelectionRAF !== null) {
