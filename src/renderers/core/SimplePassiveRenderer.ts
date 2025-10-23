@@ -354,57 +354,42 @@ export class SimplePassiveRenderer {
   private initFocusedObservers(): void {
     fileLog.info('🎯 Initializing focused observers');
 
-    // SORTED DATA OBSERVER: Direct subscription to computed sorted rows changes
+    // SORTED DATA OBSERVER: MobX reaction for processed rows changes
+    // TableCoreStore.processedRows is a computed that applies filtering, sorting, and grouping
     // This will trigger whenever the computed sorted data changes (due to sorting, filtering, or raw data changes)
-    fileLog.debug('🎯 Creating sorted data observer - direct subscription to sortedProcessedRows$ changes');
+    fileLog.debug('🎯 Creating sorted data observer - MobX reaction on tableCoreStore.processedRows');
 
-    if (!this.sortedProcessedRows$) {
-      fileLog.error('❌ DATA FLOW ERROR: sortedProcessedRows$ not available - cannot set up observer');
-      return;
-    }
+    this.dataObserverDisposer = reaction(
+      () => this.tableCoreStore.processedRows,
+      (processedRows) => {
+        fileLog.info('🔍 SORTED DATA CHANGE DETECTED - MobX computed reaction', {
+          observersEnabled: this.observersEnabled,
+          rowCount: processedRows.length,
+          sortBy: this.visualStateStore.sortBy,
+          timestamp: Date.now()
+        });
 
-    this.dataObserverDisposer = this.sortedProcessedRows$.onChange(() => {
-      fileLog.info('🔍 SORTED DATA CHANGE DETECTED - Legend State computed observable onChange', {
-        observersEnabled: this.observersEnabled,
-        timestamp: Date.now()
-      });
+        // GUARD: Skip if observers are not enabled yet
+        if (!this.observersEnabled) {
+          fileLog.debug('⏸️ SORTED DATA: Observers not enabled yet');
+          return;
+        }
 
-      // Get the latest sorted data from MobX stores
-      const processedRows = this.tableCoreStore.processedRows;
-      const sortBy = this.visualStateStore.sortBy;
+        // GUARD: Only render if grid is fully initialized
+        if (this.initStore && !this.initStore.isFullyHydrated) {
+          fileLog.debug('⏸️ SORTED DATA: Skipping render during initialization');
+          return;
+        }
 
-      fileLog.info('🔍 SORTED DATA AFTER CHANGE', {
-        processedRowsCount: processedRows.length,
-        sortByCount: sortBy.length,
-        sortByFirst: sortBy[0]?.field,
-        sortByDirection: sortBy[0]?.direction,
-        firstRowTitle: processedRows[0]?.title
-      });
+        // MobX automatically handles change detection - just re-render
+        this.renderBody();
 
-      // GUARD: Skip if observers are not enabled yet
-      if (!this.observersEnabled) {
-        fileLog.debug('⏸️ SORTED DATA: Observers not enabled yet');
-        return;
+        fileLog.debug('🔄 MobX reactive render - sorted data applied', {
+          rowCount: processedRows.length,
+          firstRowTitle: processedRows[0]?.title
+        });
       }
-
-      // GUARD: Only render if grid is fully initialized
-      const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
-      if (!isFullyInitialized) {
-        fileLog.debug('⏸️ SORTED DATA: Skipping render during initialization');
-        return;
-      }
-
-      // Legend State automatically handles change detection - just re-render
-      this.renderBody();
-
-      fileLog.debug('🔄 Legend State reactive render - sorted data applied', {
-        processedRowsCount: processedRows.length,
-        sortByCount: sortBy.length,
-        sortByFirst: sortBy[0]?.field,
-        sortByDirection: sortBy[0]?.direction,
-        firstRowTitle: processedRows[0]?.title
-      });
-    });
+    );
 
     // COLUMN VISIBILITY OBSERVER: MobX reaction for column visibility changes
     this.columnVisibilityObserverDisposer = reaction(
@@ -452,7 +437,7 @@ export class SimplePassiveRenderer {
       }
 
       // GUARD: Only render if grid is fully initialized
-      const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
+      const isFullyInitialized = this.initStore.isFullyHydrated;
       if (!isFullyInitialized) {
         fileLog.debug('⏸️ COLUMN ORDER: Skipping render during initialization');
         return;
@@ -488,7 +473,7 @@ export class SimplePassiveRenderer {
       }
 
       // GUARD: Only render if grid is fully initialized
-      const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
+      const isFullyInitialized = this.initStore.isFullyHydrated;
       if (!isFullyInitialized) {
         fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Skipping render during initialization');
         return;
@@ -533,7 +518,7 @@ export class SimplePassiveRenderer {
 //       }
 // 
 //       // GUARD: Only render if grid is fully initialized
-//       const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
+//       const isFullyInitialized = this.initStore.isFullyHydrated;
 //       if (!isFullyInitialized) {
 //         fileLog.debug('⏸️ VISUAL: Skipping render during initialization');
 //         return;
@@ -724,7 +709,7 @@ export class SimplePassiveRenderer {
 // 
 //       // Skip during initialization to prevent unnecessary renders
 //       // Check rendererInitialized to ensure we're completely done initializing
-//       if (!this.initManager.hydrationState$.rendererInitialized.get(true)) {
+//       if (!this.initStore.hydrationState.rendererInitialized) {
 //         return;
 //       }
 // 
@@ -737,7 +722,7 @@ export class SimplePassiveRenderer {
 //       }
 // 
 //       // GUARD: Only trigger virtual range check if grid is fully initialized
-//       const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
+//       const isFullyInitialized = this.initStore.isFullyHydrated;
 //       if (!isFullyInitialized) {
 //         fileLog.debug('⏸️ SCROLL: Skipping virtual range check during initialization');
 //         return;
@@ -752,7 +737,7 @@ export class SimplePassiveRenderer {
 // 
 //       // Only schedule RAF if we're fully initialized AND have previous ranges to compare
 //       // This prevents double-render during initialization
-//       if (this.initManager.hydrationState$.rendererInitialized.get(true) &&
+//       if (this.initStore.hydrationState.rendererInitialized &&
 //           this.lastVisibleColumns && this.lastVisibleRows) {
 //         this.pendingRAF = requestAnimationFrame(() => {
 //           this.pendingRAF = null; // Clear the pending RAF
@@ -1051,7 +1036,7 @@ export class SimplePassiveRenderer {
             // Mark renderer as initialized AFTER browser paint is complete
             requestAnimationFrame(() => {
               const actualPaintTime = performance.now();
-              this.initManager.markReady('rendererInitialized');
+              this.initStore.markReady('rendererInitialized');
 
               fileLog.debug('🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
                 event: 'browser_paint_complete',
@@ -1124,7 +1109,7 @@ export class SimplePassiveRenderer {
   private checkVirtualRangeChange(): void {
     // Skip during initialization to prevent multiple renders
     // Check rendererInitialized specifically to ensure we're completely done
-    if (!this.initManager.hydrationState$.rendererInitialized.get(true)) {
+    if (!this.initStore.hydrationState.rendererInitialized) {
       return;
     }
 
@@ -1424,8 +1409,8 @@ export class SimplePassiveRenderer {
     });
 
     // GUARD: Only render if grid is fully initialized OR if this is the initial render call
-    const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
-    const rendererInitialized = this.initManager.hydrationState$.rendererInitialized.get(true);
+    const isFullyInitialized = this.initStore.isFullyHydrated;
+    const rendererInitialized = this.initStore.hydrationState.rendererInitialized;
 
     // Allow initial render before renderer is marked as initialized
     if (!isFullyInitialized && rendererInitialized) {
@@ -1574,7 +1559,7 @@ export class SimplePassiveRenderer {
       });
 
       // GUARD: Only update coordinate mapping if grid is fully initialized
-      const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
+      const isFullyInitialized = this.initStore.isFullyHydrated;
       if (!isFullyInitialized) {
         fileLog.debug('⏸️ COORDINATE: Skipping coordinate mapping update during initialization (renderBody)');
         return;
@@ -1591,7 +1576,7 @@ export class SimplePassiveRenderer {
     // Position tracking should be derived from coordinate mapping, not DOM scanning
     // The coordinate mapping already contains all position information needed
     // TODO: Refactor position tracker to use computed observables from coordinateMapping
-    if (this.initManager.isFullyHydrated$.get(true)) {
+    if (this.initStore.isFullyHydrated) {
       // Coordinate mapping is already updated above - position tracker should react to that
       // instead of doing expensive DOM scanning
       fileLog.debug('🚀 PERF: Skipping expensive DOM position update - using coordinate mapping instead');
