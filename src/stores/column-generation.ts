@@ -57,15 +57,15 @@ export async function generateColumnsFromEntitySchema<T = any>(
     throw new Error(`Schema registry not available for entity: ${entityType}`);
   }
 
-  // Look up entity schema by name (not org-prefixed)
-  const entitySchema = schemas[entityType];
+  // Look up entity schema by name using the byName index
+  const entitySchema = schemas.byName[entityType];
 
   if (!entitySchema) {
     fileLog.error("❌ Entity not found in schema registry - FAIL FAST", {
       entityType,
-      availableEntities: Object.keys(schemas)
+      availableEntities: Object.keys(schemas.byName)
     });
-    throw new Error(`Entity ${entityType} not found in schema registry. Available: ${Object.keys(schemas).join(', ')}`);
+    throw new Error(`Entity ${entityType} not found in schema registry. Available: ${Object.keys(schemas.byName).join(', ')}`);
   }
 
   fileLog.info('✅ Found entity schema', {
