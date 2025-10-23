@@ -30,6 +30,7 @@ import { ColumnWidthManager } from '../modules/ColumnWidthManager';
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 import { updateVirtualBounds, updateVirtualViewport, updateVirtualColumns } from '../../virtualization/VirtualScrollManager';
+import { positionTracker } from '../../stores/dom-position-state';
 
 // Utility imports
 import type { ViewportInfo, TableRow } from '../../types';
