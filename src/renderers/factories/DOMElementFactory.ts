@@ -4,7 +4,9 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import type { TableInteraction$ } from '../../stores/interaction-state';
+import type { InteractionStore } from '../../stores/InteractionStore';
+import type { TableCoreStore } from '../../stores/TableCoreStore';
+import type { SelectionController } from '../modules/SelectionController';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/factories/DOMElementFactory.ts');
 
@@ -12,25 +14,25 @@ const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 
 export interface DOMElementFactoryOptions {
-  tableInteraction$: TableInteraction$;
-  tableCore$?: any;
-  selectionController?: any; // SelectionController instance
+  interactionStore: InteractionStore;
+  tableCoreStore?: TableCoreStore;
+  selectionController?: SelectionController;
   enableSelectionColumn?: boolean;
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
-  visualOperations?: any; // Visual operations instance
+  visualOperations?: any; // Visual operations instance (will be migrated later)
 }
 
 export class DOMElementFactory {
-  private tableInteraction$: TableInteraction$;
-  private tableCore$?: any;
-  private selectionController?: any;
+  private interactionStore: InteractionStore;
+  private tableCoreStore?: TableCoreStore;
+  private selectionController?: SelectionController;
   private enableSelectionColumn: boolean;
   private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
   private visualOperations?: any;
 
   constructor(options: DOMElementFactoryOptions) {
-    this.tableInteraction$ = options.tableInteraction$;
-    this.tableCore$ = options.tableCore$;
+    this.interactionStore = options.interactionStore;
+    this.tableCoreStore = options.tableCoreStore;
     this.selectionController = options.selectionController;
     this.enableSelectionColumn = options.enableSelectionColumn ?? false;
     this.onEntityUpdate = options.onEntityUpdate;

@@ -211,16 +211,16 @@ export class SimplePassiveRenderer {
    */
   private initDOMFactory(): void {
     fileLog.info('🏭 Initializing DOM Element Factory');
-    
+
     this.domFactory = new DOMElementFactory({
-      tableInteraction$: this.tableInteraction$,
-      tableCore$: this.tableCore$,
-      selectionController: this.selectionController,
+      interactionStore: this.interactionStore,
+      tableCoreStore: this.tableCoreStore,
+      selectionController: this.selectionController || undefined,
       enableSelectionColumn: this.options.enableSelectionColumn,
       onEntityUpdate: this.options.onEntityUpdate,
-      visualOperations: this.visualState.visualOperations
+      visualOperations: undefined // TODO: Migrate visualOperations to MobX
     });
-    
+
     fileLog.info('✅ DOM Element Factory initialized');
   }
 
