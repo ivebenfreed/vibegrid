@@ -15,7 +15,6 @@ import { reaction } from 'mobx';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { TableViewport$ } from '../../stores/pure-observables';
-import type { createVibeGridVisualState } from '../../stores/visual-state';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 import type { DOMElementFactory } from '../factories/DOMElementFactory';
 import type { SelectionController } from '../modules/SelectionController';
@@ -257,8 +256,7 @@ export class BodyRenderer {
 
     // Add cells with absolute positioning
     // CRITICAL FIX: Use actual column layouts from visual state for proper positioning
-    const visualStateData = this.visualState.visualState$.get();
-    const columnLayouts = visualStateData.visibleColumns;
+    const columnLayouts = this.visualStateStore.visibleColumns;
 
     // PERFORMANCE: Progressive column rendering for faster initial load
     // Render essential columns first (first 6), then defer remaining columns
@@ -322,7 +320,7 @@ export class BodyRenderer {
     }
 
     // Use UNIFIED visual state's totalWidth - no duplicate calculation
-    const totalRowWidth = visualStateData.geometry.totalWidth;
+    const totalRowWidth = this.visualStateStore.geometry.totalWidth;
     rowElement.style.width = `${totalRowWidth}px`;
     rowElement.style.minWidth = `${totalRowWidth}px`;
 
@@ -454,10 +452,9 @@ export class BodyRenderer {
     checkbox.dataset.rowId = row.id;
 
     // Check if this row is currently selected (use ALL visible columns from visual state)
-    const visualStateData = this.visualState.visualState$.get();
-    const allVisibleColumns = visualStateData.visibleColumns;
+    const allVisibleColumns = this.visualStateStore.visibleColumns;
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.interactionStore.selectedCells;
     const isRowSelected = allVisibleColumns.every(col =>
       selectedCells.has(`${row.id}:${col.id}`)
     ) && allVisibleColumns.length > 0;
@@ -597,7 +594,7 @@ export class BodyRenderer {
       });
 
       // Toggle group expansion via tableCore$
-      this.tableCore$.toggleGroupExpansion(groupRow.id);
+      this.tableCoreStore.toggleGroupExpansion(groupRow.id);
     });
   }
 
@@ -620,12 +617,13 @@ export class BodyRenderer {
 
     if (this.modularCellBridge) {
       try {
-        fileLog.debug('🎯 [BODY-RENDERER] Creating optimized cell', {
+        fileLog.info('[VGDEBUG] 🎯 Creating cell', {
           columnId: column.id,
           fieldType: column.cellType || column.type || 'text',
           value: value,
-          hasXPosition: xPosition !== undefined,
-          hasPreComputedConfig: !!column._cachedRenderer?.fieldTypeConfig
+          valueType: typeof value,
+          rowId: row.id,
+          rowDataKeys: Object.keys(rowData).slice(0, 5)
         });
 
         // Use the unified CellFactory with column config
@@ -642,7 +640,7 @@ export class BodyRenderer {
 
         // Check if this cell is selected and apply selection class
         const cellId = `${row.id}:${column.id}`;
-        const isSelected = this.tableInteraction$.selectedCells.get().has(cellId);
+        const isSelected = this.interactionStore.selectedCells.has(cellId);
         if (isSelected) {
           cellElement.classList.add('vibegridx-selected');
         }
@@ -693,7 +691,7 @@ export class BodyRenderer {
           });
 
           // Start edit immediately
-          this.tableInteraction$.startEdit(cellId, value ? String(value) : '');
+          this.interactionStore.startEdit(cellId, value ? String(value) : '');
         });
       }
     }
@@ -742,12 +740,11 @@ export class BodyRenderer {
    */
   updateAllRowCheckboxes(): void {
     // Use UNIFIED visual state's visible columns - no duplicate filtering
-    const visualStateData = this.visualState.visualState$.get();
-    const allVisibleColumns = visualStateData.visibleColumns;
-    const processedRows = this.tableCore$.processedRows.get();
+    const allVisibleColumns = this.visualStateStore.visibleColumns;
+    const processedRows = this.tableCoreStore.processedRows;
 
     // Get reactive checkbox states from interaction state
-    const checkboxStates = this.tableInteraction$.getRowCheckboxStates(processedRows, allVisibleColumns);
+    const checkboxStates = this.interactionStore.getRowCheckboxStates(processedRows, allVisibleColumns);
 
     this.activeRows.forEach((rowElement, rowId) => {
       const checkbox = rowElement.querySelector('input[type="checkbox"]') as HTMLInputElement;
@@ -775,7 +772,7 @@ export class BodyRenderer {
         });
 
         // Get current group structure to determine the source group
-        const processedRows = this.tableCore$.processedRows.get();
+        const processedRows = this.tableCoreStore.processedRows;
         const draggedRow = processedRows.find(r => r.id === draggedRowId);
         if (!draggedRow || draggedRow.type !== 'data') {
           fileLog.error('❌ Invalid dragged row or not a data row', { draggedRowId });
@@ -790,7 +787,7 @@ export class BodyRenderer {
         }
 
         // Move row within group using data state method
-        const success = this.tableCore$.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex);
+        const success = this.tableCoreStore.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex);
 
         fileLog.info('✅ Row move delegated to drag handler', {
           draggedRowId,
@@ -810,7 +807,7 @@ export class BodyRenderer {
         });
 
         // Move row in flat mode
-        const success = this.tableCore$.moveRowInFlat(fromIndex, toIndex);
+        const success = this.tableCoreStore.moveRowInFlat(fromIndex, toIndex);
 
         fileLog.info('✅ Row moved in flat mode', {
           success,
@@ -847,7 +844,7 @@ export class BodyRenderer {
   private updateGroupedModeStatus(): void {
     try {
       // Get grouping configuration from visual operations
-      const groupConfig = this.visualState.visualOperations.getGroupConfig();
+      const groupConfig = this.visualStateStore.getGroupConfig();
       this.isGroupedMode = !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0);
     } catch (error) {
       // Fallback: assume not grouped if unable to get config
@@ -860,7 +857,7 @@ export class BodyRenderer {
    * Find the group ID for a given row ID by traversing the processed rows
    */
   private findRowGroupId(rowId: string): string | null {
-    const processedRows = this.tableCore$.processedRows.get();
+    const processedRows = this.tableCoreStore.processedRows;
     let currentGroupId: string | null = null;
 
     for (const row of processedRows) {
@@ -885,7 +882,7 @@ export class BodyRenderer {
     }
 
     this.activeRows.forEach((rowElement, rowId) => {
-      const row = this.tableCore$.processedRows.get().find(r => r.id === rowId);
+      const row = this.tableCoreStore.processedRows.find(r => r.id === rowId);
       if (row && row.type === 'data') {
         this.dragDropManager!.setupRowForDragDrop(rowElement, row);
       }
@@ -909,8 +906,8 @@ export class BodyRenderer {
     }
 
     // Find the row and column data
-    const rows = this.tableCore$.processedRows.get();
-    const columns = this.tableCore$.columns.get();
+    const rows = this.tableCoreStore.processedRows;
+    const columns = this.tableCoreStore.columns;
     const row = rows.find(r => r.id === rowId);
     const column = columns.find(c => c.id === columnId);
 
@@ -933,20 +930,20 @@ export class BodyRenderer {
 
     // Provide immediate selection feedback
     // Update keyboard navigation focus - use interaction state instead of local state
-    this.tableInteraction$.setFocusedCell(cellId);
+    this.interactionStore.setFocusedCell(cellId);
 
     // Focus the container so it can receive keyboard events
     this.container.focus();
 
-    if (isShiftKey && this.tableInteraction$.anchorCell.get()) {
+    if (isShiftKey && this.interactionStore.anchorCell) {
       // Shift+click for range selection
-      this.tableInteraction$.selectRange(this.tableInteraction$.anchorCell.get()!, cellId);
+      this.interactionStore.selectRange(this.interactionStore.anchorCell!, cellId);
     } else if (isCtrlKey) {
       // Ctrl/Cmd+click for multi-selection toggle
-      this.tableInteraction$.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
+      this.interactionStore.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
     } else {
       // Regular click - use toggleCellSelection to properly set anchor
-      this.tableInteraction$.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
+      this.interactionStore.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
 
       // Store context in case drag selection starts later
       this.lastClickedCell = { cellId, row, column };
@@ -968,8 +965,8 @@ export class BodyRenderer {
     }
 
     // Find the row and column data
-    const rows = this.tableCore$.processedRows.get();
-    const columns = this.tableCore$.columns.get();
+    const rows = this.tableCoreStore.processedRows;
+    const columns = this.tableCoreStore.columns;
     const row = rows.find(r => r.id === rowId);
     const column = columns.find(c => c.id === columnId);
 
@@ -1004,7 +1001,7 @@ export class BodyRenderer {
     });
 
     // Update keyboard navigation focus - use interaction state instead of local state
-    this.tableInteraction$.setFocusedCell(cellId);
+    this.interactionStore.setFocusedCell(cellId);
     // Note: anchorCell is handled by setFocusedCell when no anchor exists
 
     // Focus the container so it can receive keyboard events
@@ -1013,16 +1010,16 @@ export class BodyRenderer {
     // Prevent text selection during drag
     e.preventDefault();
 
-    if (isShiftKey && this.tableInteraction$.anchorCell.get()) {
+    if (isShiftKey && this.interactionStore.anchorCell) {
       // Shift+click for range selection
-      this.tableInteraction$.selectRange(this.tableInteraction$.anchorCell.get()!, cellId);
+      this.interactionStore.selectRange(this.interactionStore.anchorCell!, cellId);
     } else if (isCtrlKey) {
       // Ctrl/Cmd+click for multi-selection toggle
-      this.tableInteraction$.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
+      this.interactionStore.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
     } else {
       // Regular click - use toggleCellSelection to properly set anchor
       // NOTE: Do NOT start drag selection immediately - wait for MouseController to detect actual dragging
-      this.tableInteraction$.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
+      this.interactionStore.toggleCellSelection(row.id, column.id, isCtrlKey, isShiftKey);
 
       // Store context in case drag selection starts later
       this.lastClickedCell = { cellId, row, column };
@@ -1194,7 +1191,7 @@ export class CellFormatter {
     });
 
     // Now start drag selection since actual dragging is detected
-    this.tableInteraction$.startDragSelection(cellId);
+    this.interactionStore.startDragSelection(cellId);
     // NOTE: No additional event listeners - MouseController handles all mouse events
   }
 
@@ -1215,11 +1212,11 @@ export class CellFormatter {
         const currentCellId = `${rowId}:${columnId}`;
         // Create data context for the interaction state
         const dataContext = {
-          rows: this.tableCore$.processedRows.get(),
-          columns: this.tableCore$.columns.get(),
-          columnVisibility: this.visualState.visualInputs$.columnVisibility.get()
+          rows: this.tableCoreStore.processedRows,
+          columns: this.tableCoreStore.columns,
+          columnVisibility: this.visualStateStore.columnVisibility
         };
-        this.tableInteraction$.updateDragSelection(currentCellId, dataContext);
+        this.interactionStore.updateDragSelection(currentCellId, dataContext);
       }
     }
   }
@@ -1231,7 +1228,7 @@ export class CellFormatter {
    */
   endDragSelectionOnMouseUp(): void {
     fileLog.info('🖱️ Ending drag selection on mouse up');
-    this.tableInteraction$.endDragSelection();
+    this.interactionStore.endDragSelection();
 
     // Clean up context since interaction is complete
     this.lastClickedCell = null;

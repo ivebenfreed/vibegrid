@@ -115,10 +115,18 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // ====================================
 
   useEffect(() => {
-    if (rows) {
-      tableCoreStore.setRows(rows)
+    if (!stores || !stores.initStore) {
+      log.warn('[VGDEBUG] ⚠️ Stores not ready for entity data load')
+      return
     }
-  }, [rows, tableCoreStore])
+
+    // Always set rows (even if empty array) and mark as loaded
+    tableCoreStore.setRows(rows || [])
+
+    // Mark entity data as loaded (even if empty - it means loading completed)
+    stores.initStore.markReady('entityDataLoaded')
+    log.info('[VGDEBUG] 📊 Entity data loaded', { rowCount: rows?.length || 0 })
+  }, [rows, tableCoreStore, stores])
 
   // ====================================
   // INITIALIZATION
@@ -134,17 +142,33 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           rowCount: rows?.length || 0
         })
 
-        // Wait for container
-        if (!containerRef.current) {
-          log.warn('⚠️ Container ref not available')
+        // Check if stores are available
+        if (!stores || !stores.initStore) {
+          log.warn('[VGDEBUG] ⚠️ Stores not ready for initialization')
           return
         }
 
-        // Wait for stores to be initialized
-        if (!stores || !visualStateStore.columns.length) {
-          log.info('⏳ Waiting for stores to initialize...')
+        // Wait for container
+        if (!containerRef.current) {
+          log.warn('[VGDEBUG] ⚠️ Container ref not available')
           return
         }
+
+        // Mark container as ready
+        stores.initStore.markReady('containerReady')
+        log.info('[VGDEBUG] ✅ Container ready')
+
+        // Wait for stores to be initialized
+        if (!visualStateStore.columns.length) {
+          log.info('[VGDEBUG] ⏳ Waiting for columns to load...', {
+            columnCount: visualStateStore.columns.length
+          })
+          return
+        }
+
+        log.info('[VGDEBUG] ✅ About to create SimplePassiveRenderer', {
+          columnCount: visualStateStore.columns.length
+        })
 
         // Create the SimplePassiveRenderer with MobX stores
         const renderer = new SimplePassiveRenderer({

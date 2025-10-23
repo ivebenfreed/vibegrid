@@ -869,7 +869,7 @@ export class SimplePassiveRenderer {
    * Post-initialization setup after all managers are created
    */
   private postInitialization(): void {
-    fileLog.info('🚀 Starting post-initialization');
+    fileLog.info('[VGDEBUG] 🚀 Starting post-initialization');
 
     // Phase 1: Quick synchronous operations that don't cause reflows
     // Initialize hybrid coordinate system position tracking (mostly calculations)
@@ -879,11 +879,13 @@ export class SimplePassiveRenderer {
     requestAnimationFrame(() => {
       // Guard: Skip if instance was destroyed (React StrictMode remount)
       if (this.isDestroyed) {
-        fileLog.debug('⏭️ Skipping postInit RAF - instance destroyed', {
+        fileLog.debug('[VGDEBUG] ⏭️ Skipping postInit RAF - instance destroyed', {
           instanceId: this.rendererInstanceId
         });
         return;
       }
+
+      fileLog.info('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)');
 
       // Now safe to measure DOM
       const bounds = this.container.getBoundingClientRect();
@@ -995,8 +997,9 @@ export class SimplePassiveRenderer {
       // Mark controller dependencies as ready (if initManager exists)
       if (this.initStore) {
         // ✅ FIXED: InitStore DOES have markReady method - uncommented
+        fileLog.info('[VGDEBUG] ✅ Marking viewportReady');
         this.initStore.markReady('viewportReady');
-        fileLog.info('✅ Controllers ready');
+        fileLog.info('[VGDEBUG] ✅ Controllers ready');
       }
 
       // Phase 3: Defer overlay and event setup
@@ -1023,8 +1026,9 @@ export class SimplePassiveRenderer {
         // Mark remaining dependencies as ready (if initManager exists)
         if (this.initStore) {
           // ✅ FIXED: InitStore DOES have markReady method - uncommented
+          fileLog.info('[VGDEBUG] ✅ Marking eventHandlersReady');
           this.initStore.markReady('eventHandlersReady');
-          fileLog.info('✅ Overlay and event handlers ready');
+          fileLog.info('[VGDEBUG] ✅ Overlay and event handlers ready');
         }
 
         // Phase 4: Defer header render
@@ -1080,9 +1084,10 @@ export class SimplePassiveRenderer {
               }
 
               const actualPaintTime = performance.now();
+              fileLog.info('[VGDEBUG] ✅ Marking rendererInitialized');
               this.initStore.markReady('rendererInitialized');
 
-              fileLog.debug('🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
+              fileLog.debug('[VGDEBUG] 🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
                 event: 'browser_paint_complete',
                 timestamp: actualPaintTime,
                 paintDuration: actualPaintTime - paintCompleteTime,
