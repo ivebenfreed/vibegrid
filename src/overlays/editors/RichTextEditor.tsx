@@ -7,10 +7,10 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 
-const fileLog = log('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx');
+const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx');
 
 interface RichTextEditorProps {
   cell: {
@@ -110,7 +110,7 @@ export function RichTextEditor({
         // Place cursor at the beginning
         const range = document.createRange();
         const selection = window.getSelection();
-        if (editorRef.current.firstChild) {
+        if (editorRef.current && editorRef.current.firstChild) {
           range.setStart(editorRef.current.firstChild, 0);
           range.collapse(true);
           selection?.removeAllRanges();
@@ -223,7 +223,7 @@ export function RichTextEditor({
 
   const textLength = htmlToText(htmlValue).length;
   const hasMaxLength = column.maxLength && column.maxLength > 0;
-  const isOverLimit = hasMaxLength && textLength > column.maxLength!;
+  const isOverLimit = !!(hasMaxLength && textLength > column.maxLength!);
 
   // Create portal to render outside the grid container
   const portalTarget = document.body;

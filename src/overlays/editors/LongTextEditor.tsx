@@ -7,10 +7,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 
-const fileLog = log('components/custom/vibegrid/overlays/editors/LongTextEditor.tsx');
+const fileLog = createLogger('components/custom/vibegrid/overlays/editors/LongTextEditor.tsx');
 
 interface LongTextEditorProps {
   cell: {
@@ -138,7 +138,7 @@ export function LongTextEditor({
 
   const characterCount = value.length;
   const hasMaxLength = column.maxLength && column.maxLength > 0;
-  const isOverLimit = hasMaxLength && characterCount > column.maxLength!;
+  const isOverLimit = !!(hasMaxLength && characterCount > column.maxLength!);
 
   // Create portal to render outside the grid container
   const portalTarget = document.body;

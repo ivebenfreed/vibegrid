@@ -3,7 +3,8 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
+// TODO: Replace with TanStack DB query for reference options
+// import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
 import type { EditorProps } from './index';
 
 /**
@@ -33,7 +34,13 @@ export function ReferenceSelectEditor({
   const [value, setValue] = useState<string>(initialValue || '');
   const selectRef = useRef<HTMLSelectElement>(null);
 
-  // Determine reference configuration based on field type
+  // TODO: Load reference options from TanStack DB
+  // For now, use stub data
+  const options: any[] = []
+  const isLoading = false
+  const error = null
+
+  /* ORIGINAL - TO BE MIGRATED TO TANSTACK DB
   const getReferenceConfig = () => {
     const cellType = column.cellType || column.type;
 
@@ -45,8 +52,7 @@ export function ReferenceSelectEditor({
     }
 
     if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
-      // Infer entity type from field name (e.g., portfolio_id -> Portfolio)
-      const entityType = column.referenceEntity || inferEntityFromFieldName(column.id);
+      const entityType = column.referenceType || inferEntityFromFieldName(column.id);
       return {
         referenceType: 'entity_reference' as const,
         referenceEntity: entityType
@@ -55,15 +61,15 @@ export function ReferenceSelectEditor({
 
     return {
       referenceType: column.referenceType || 'system',
-      systemOptionType: column.systemOptionType,
-      systemArchetype: column.systemArchetype,
-      customOptionSet: column.customOptionSet,
-      referenceEntity: column.referenceEntity
+      systemOptionType: (column as any).systemOptionType,
+      systemArchetype: (column as any).systemArchetype,
+      customOptionSet: (column as any).customOptionSet,
+      referenceEntity: column.referenceType
     };
   };
 
-  // Get options using the universal hook
   const { options, isLoading, error } = useReferenceOptions(getReferenceConfig());
+  */
 
   useEffect(() => {
     // Focus the select element when mounted
@@ -101,7 +107,7 @@ export function ReferenceSelectEditor({
       systemOptionType: column.systemOptionType,
       systemArchetype: column.systemArchetype,
       customOptionSet: column.customOptionSet,
-      referenceEntity: column.referenceEntity,  // NEW: Log entity reference
+      referenceEntity: (column as any).referenceEntity,  // NEW: Log entity reference
       optionsCount: options.length,
       isLoading,
       error,
@@ -114,7 +120,7 @@ export function ReferenceSelectEditor({
       ref={selectRef}
       value={value}
       onChange={handleChange}
-      onKeyDown={handleKeyDown}
+      onKeyDown={handleKeyDown as any}
       onBlur={handleBlur}
       className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
     >

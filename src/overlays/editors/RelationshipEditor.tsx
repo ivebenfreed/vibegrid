@@ -5,13 +5,14 @@
  */
 
 import React from 'react'
-import { use$ } from '@legendapp/state/react'
-import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
+// TODO: Migrate to TanStack DB for loading relationship options
+// import { use$ } from '@legendapp/state/react'
+// import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
-import { log } from '@/logger'
+import { createLogger } from '@/lib/logging'
 
-const fileLog = log('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
+const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
 
 export function RelationshipEditor({
   cell,
@@ -22,66 +23,24 @@ export function RelationshipEditor({
   onUpdate,
   onBlur
 }: EditorProps) {
-  const currentOrgId = use$(universeOrgId$)
+  // TODO: Load relationship data from TanStack DB
+  // Migration pattern:
+  // 1. Use useEntityCollection(userEntityName) for users
+  // 2. Use useEntityCollection(entityEntityName) for referenced entities
+  // 3. Transform collection data to options format
+
   const cellType = column.cellType || column.type
 
-  // Load user data for user_reference fields
-  const userEntityName = `${currentOrgId}_User`
-  const userEntity$ = getEntity$(userEntityName)
-  const userData = userEntity$ ? use$(userEntity$) : null
-
-  // Load entity data for entity_reference fields
-  const entityType = React.useMemo(() => {
-    if ((cellType === 'entity_reference' || cellType === 'custom_entity_reference') && column.id.endsWith('_id')) {
-      const baseName = column.id.slice(0, -3)
-      return baseName.split('_').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-      ).join('')
-    }
-    return null
-  }, [cellType, column.id])
-
-  const entityEntityName = entityType ? `${currentOrgId}_${entityType}` : null
-  const entityEntity$ = entityEntityName ? getEntity$(entityEntityName) : null
-  const entityData = entityEntity$ ? use$(entityEntity$) : null
-
-  // Generate relationship options based on field type
+  // STUB: Empty relationship options until TanStack DB integration
   const relationshipOptions = React.useMemo(() => {
-    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
-      if (userData && typeof userData === 'object') {
-        const options = Object.values(userData).map((user: any) => ({
-          value: user.id,
-          label: user.name || user.email || user.id
-        }))
+    fileLog.warn('RelationshipEditor: Using stub options (TanStack DB migration pending)', {
+      columnId: column.id,
+      cellType
+    })
 
-        fileLog.info('🔍 RelationshipEditor: Loaded user options', {
-          columnId: column.id,
-          userCount: options.length,
-          sampleUsers: options.slice(0, 3)
-        })
-
-        return options
-      }
-    } else if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
-      if (entityData && typeof entityData === 'object') {
-        const options = Object.values(entityData).map((entity: any) => ({
-          value: entity.id,
-          label: entity.name || entity.title || entity.id
-        }))
-
-        fileLog.info('🔍 RelationshipEditor: Loaded entity options', {
-          columnId: column.id,
-          entityType,
-          entityCount: options.length,
-          sampleEntities: options.slice(0, 3)
-        })
-
-        return options
-      }
-    }
-
+    // Return empty array for now - will be populated after TanStack DB migration
     return []
-  }, [cellType, column.id, userData, entityData, entityType])
+  }, [cellType, column.id])
 
   // Create enhanced column with relationship options
   const enhancedColumn = React.useMemo(() => ({
@@ -105,18 +64,22 @@ export function RelationshipEditor({
   }, [column.id, cellType, onCommit, initialValue])
 
   const getPlaceholder = () => {
-    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
+    // Type assertions for relationship types not in the base Column type
+    const type = cellType as string
+    if (type === 'user_reference' || type === 'custom_user_reference') {
       return 'Select user...'
-    } else if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
+    } else if (type === 'entity_reference' || type === 'custom_entity_reference') {
       return 'Select entity...'
     }
     return 'Select...'
   }
 
   const getSearchPlaceholder = () => {
-    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
+    // Type assertions for relationship types not in the base Column type
+    const type = cellType as string
+    if (type === 'user_reference' || type === 'custom_user_reference') {
       return 'Search users...'
-    } else if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
+    } else if (type === 'entity_reference' || type === 'custom_entity_reference') {
       return 'Search entities...'
     }
     return 'Search...'

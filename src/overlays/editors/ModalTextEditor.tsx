@@ -9,9 +9,9 @@ import React, { useEffect, useState } from 'react';
 import { LongTextEditor } from './LongTextEditor';
 import { RichTextEditor } from './RichTextEditor';
 import type { CellRef, Column } from '../../types';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx');
+const fileLog = createLogger('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx');
 
 interface ModalTextEditorProps {
   cell: CellRef;

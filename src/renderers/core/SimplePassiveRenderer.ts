@@ -6,7 +6,7 @@
  */
 
 import { observe, batch } from '@legendapp/state';
-import { log } from '@/logger';
+import { log } from '@/lib/logging';
 import { createVibeGridVisualState } from '../../stores/visual-state';
 import type { TableCore$ } from '../../stores/data-state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
@@ -45,7 +45,7 @@ import type { VibeGridHydrationManager } from '../../stores/init-state';
 import { modularCellBridge } from '../../field-types';
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler';
 
-const fileLog = log('components/custom/vibegrid/renderers/core/SimplePassiveRenderer.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/core/SimplePassiveRenderer.ts');
 
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT;

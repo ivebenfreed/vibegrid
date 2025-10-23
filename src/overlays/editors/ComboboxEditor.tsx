@@ -14,8 +14,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check } from 'lucide-react'
 import type { CellRef, Column, RelationshipContext, EnumOption } from '../../types'
 import { getOptionIconDisplay } from '../../utils/icon-mapping'
-import { use$ } from '@legendapp/state/react'
-import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
+// TODO: Remove Legend State dependencies - not needed for this editor
+// import { use$ } from '@legendapp/state/react'
+// import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
 
 export interface ComboboxEditorProps {
   cell: CellRef
@@ -133,8 +134,10 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     })
 
     // Add null option for nullable fields
-    if (column.nullable !== false) {
-      standardOptions.unshift({ value: '__null__', label: 'None' })
+    // Note: Using nullLabel as the property name (nullable doesn't exist on Column type)
+    const isNullable = (column as any).nullable !== false || column.nullLabel !== undefined
+    if (isNullable) {
+      standardOptions.unshift({ value: '__null__', label: column.nullLabel || 'None' })
     }
 
     console.log('🔍 ComboboxEditor: Final options', {
@@ -147,7 +150,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     });
 
     return standardOptions
-  }, [column.enumOptions, column.options, column.nullable, column.relationshipOptionsProvider, dynamicOptions])
+  }, [column.enumOptions, column.options, column.nullLabel, column.relationshipOptionsProvider, dynamicOptions])
 
   // Filter options based on search
   const filteredOptions = React.useMemo(() => {
@@ -285,11 +288,11 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
               {(() => {
                 // Group the filtered options
                 const grouped = filteredOptions.reduce((acc, option) => {
-                  const group = option.group || 'Other';
+                  const group = (option as any).group || 'Other';
                   if (!acc[group]) acc[group] = [];
                   acc[group].push(option);
                   return acc;
-                }, {} as Record<string, EnumOption[]>);
+                }, {} as Record<string, any[]>);
                 
                 // Sort groups
                 const sortedGroups = Object.keys(grouped).sort();

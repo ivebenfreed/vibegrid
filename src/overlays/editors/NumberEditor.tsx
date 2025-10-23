@@ -64,7 +64,7 @@ export function NumberEditor({
   };
 
   return (
-    <Input 
+    <Input
       type="number"
       value={value}
       onChange={handleChange}
@@ -72,8 +72,8 @@ export function NumberEditor({
       onBlur={handleBlur}
       autoFocus
       className="border-2 border-blue-500 shadow-lg"
-      placeholder={column.placeholder}
-      step={column.type === 'integer' ? '1' : 'any'}
+      placeholder={(column as any).placeholder}
+      step={column.type === 'number' ? 'any' : '1'}
     />
   );
 }

@@ -45,7 +45,7 @@ export function SelectEditor({
       initialValue={initialValue}
       onCommit={onCommit}
       onCancel={onCancel}
-      placeholder={column.placeholder || "Select..."}
+      placeholder={(column as any).placeholder || "Select..."}
       searchPlaceholder="Search options..."
       relationshipContext={newRelationshipContext}
     />

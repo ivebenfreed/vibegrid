@@ -3,30 +3,38 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
+// TODO: Replace with TanStack DB query for reference options
+// import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
 import type { EditorProps } from './index';
 
-export function ReferenceMultiEditor({ 
-  cell, 
-  column, 
-  initialValue, 
-  onCommit, 
-  onCancel, 
+export function ReferenceMultiEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
   onUpdate,
-  onBlur 
+  onBlur
 }: EditorProps) {
   const [selectedValues, setSelectedValues] = useState<string[]>(
     Array.isArray(initialValue) ? initialValue : initialValue ? [initialValue] : []
   );
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Get options using the universal hook
+  // TODO: Load reference options from TanStack DB
+  // For now, use stub data
+  const options: any[] = []
+  const isLoading = false
+  const error = null
+
+  /* ORIGINAL - TO BE MIGRATED TO TANSTACK DB
   const { options, isLoading, error } = useReferenceOptions({
     referenceType: column.referenceType || 'system',
-    systemOptionType: column.systemOptionType,
-    systemArchetype: column.systemArchetype,
-    customOptionSet: column.customOptionSet
+    systemOptionType: (column as any).systemOptionType,
+    systemArchetype: (column as any).systemArchetype,
+    customOptionSet: (column as any).customOptionSet
   });
+  */
 
   useEffect(() => {
     // Focus the container when mounted

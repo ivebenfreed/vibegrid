@@ -8,9 +8,9 @@ import { useEffect, useRef } from 'react';
 import { positionTracker, PositionEvents } from '../stores/dom-position-state';
 import { updateVirtualBounds, updateVirtualViewport, updateVirtualColumns } from '../virtualization/VirtualScrollManager';
 import type { ColumnLayout, PositionUpdateHandler } from '../types/coordinate-types';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/hooks/use-position-tracking.ts');
+const fileLog = createLogger('components/custom/vibegrid/hooks/use-position-tracking.ts');
 
 /**
  * Initialize position tracking for a VibeGrid container

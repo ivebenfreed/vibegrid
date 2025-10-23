@@ -9,7 +9,8 @@
  */
 
 import React from 'react';
-import { MultiSelect } from '@/components/ui/multi-select';
+// TODO: MultiSelect component doesn't exist - needs to be created or use ComboboxEditor with isMultiSelect
+// import { MultiSelect } from '@/components/ui/multi-select';
 import type { CellRef, Column, EnumOption } from '../../types';
 
 interface MultiSelectEditorProps {
@@ -35,9 +36,9 @@ export function MultiSelectEditor({
     
     // For tags fields with no predefined options, generate from current value
     if (rawOptions.length === 0 && initialValue && typeof initialValue === 'string') {
-      const currentTags = initialValue.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-      rawOptions = currentTags.map(tag => ({ value: tag, label: tag }));
-      
+      const currentTags = (initialValue as any).split(',').map((tag: any) => tag.trim()).filter((tag: any) => tag.length > 0);
+      rawOptions = currentTags.map((tag: any) => ({ value: tag, label: tag }));
+
       console.log('🏷️ MultiSelectEditor: Generated options from current tags', {
         initialValue,
         currentTags,
@@ -83,6 +84,23 @@ export function MultiSelectEditor({
 
   const initialValues = Array.isArray(initialValue) ? initialValue : [];
 
+  // TODO: Replace with actual MultiSelect component or use ComboboxEditor with isMultiSelect=true
+  return (
+    <div className="w-full p-4 border rounded bg-yellow-50">
+      <p className="text-sm text-yellow-800">Multi-select editor not yet implemented</p>
+      <p className="text-xs text-yellow-600 mt-2">
+        Current value: {initialValues.join(', ')}
+      </p>
+      <button
+        className="mt-2 px-2 py-1 text-xs bg-gray-200 rounded"
+        onClick={() => onCancel()}
+      >
+        Close
+      </button>
+    </div>
+  );
+
+  /* ORIGINAL - TO BE IMPLEMENTED WITH ACTUAL MULTISELECT COMPONENT
   return (
     <div className="w-full">
       <MultiSelect
@@ -94,4 +112,5 @@ export function MultiSelectEditor({
       />
     </div>
   );
+  */
 }

@@ -157,7 +157,7 @@ function TextEditorComponent({
           onBlur={handleBlur}
           onFocus={handleFocus}
           style={inputStyle}
-          placeholder={column.placeholder}
+          placeholder={(column as any).placeholder}
           onMouseDown={(e) => {
             // Ensure textarea gets focus and stop propagation
             e.stopPropagation();
@@ -192,8 +192,8 @@ function TextEditorComponent({
         onFocus={handleFocus}
         style={inputStyle}
         type={column.type === 'email' ? 'email' : column.type === 'url' ? 'url' : 'text'}
-        placeholder={column.placeholder}
-        maxLength={column.maxLength}
+        placeholder={(column as any).placeholder}
+        maxLength={(column as any).maxLength}
         onMouseDown={(e) => {
           // Ensure input gets focus and stop propagation
           e.stopPropagation();

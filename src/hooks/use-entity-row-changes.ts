@@ -1,9 +1,11 @@
-import { use$, useObserve } from '@legendapp/state/react';
-import { observe } from '@legendapp/state';
-import { entities$, universeSchema$, universeLoading$, getEntity$ } from '@/legend-state/observables';
+// TODO: This hook needs to be migrated to MobX + TanStack DB when it's needed
+// Currently not used anywhere in the codebase
+// import { use$, useObserve } from '@legendapp/state/react';
+// import { observe } from '@legendapp/state';
+// import { entities$, universeSchema$, universeLoading$, getEntity$ } from '@/legend-state/observables';
 import React, { useCallback, useRef } from 'react';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/hooks/use-entity-row-changes.ts');
+import { createLogger } from '@/lib/logging';
+const fileLog = createLogger('components/custom/vibegrid/hooks/use-entity-row-changes.ts');
 
 interface RowChange {
   rowId: string;
@@ -19,12 +21,26 @@ interface UseEntityRowChangesOptions {
   tableSend?: (event: any) => void; // Add table machine sender
 }
 
-export function useEntityRowChanges({ 
-  entityTableName, 
+export function useEntityRowChanges({
+  entityTableName,
   onRowChange,
   trackDeletes = false,
   tableSend
 }: UseEntityRowChangesOptions) {
+  // TODO: This hook needs complete migration to MobX + TanStack DB
+  // Migration pattern:
+  // 1. Use useVibeGridData() hook to get entity data from TanStack DB
+  // 2. Use MobX reaction() to observe changes
+  // 3. Replace Legend State observe() with MobX autorun() or reaction()
+
+  fileLog.warn('useEntityRowChanges is not yet migrated to MobX. Returning empty data.');
+
+  return {
+    rows: [] as any[],
+    hasChanges: false
+  };
+
+  /* ORIGINAL LEGEND STATE IMPLEMENTATION - TO BE MIGRATED
   const previousRowsRef = useRef<Map<string, any>>(new Map());
   const isInitializedRef = useRef(false);
 
@@ -43,7 +59,7 @@ export function useEntityRowChanges({
 
     for (const [rowId, currentRow] of currentRowMap) {
       const previousRow = previousRowMap.get(rowId);
-      
+
       if (!previousRow) {
         changes.push({
           rowId,
@@ -78,62 +94,50 @@ export function useEntityRowChanges({
     previousRowsRef.current = currentRowMap;
   }, [onRowChange, trackDeletes]);
 
-  // Follow UltraTable pattern: get all entities reactively, then access specific entity
   const allEntities = use$(entities$);
   const schema = use$(universeSchema$);
   const loading = use$(universeLoading$);
-  
-  // Get the specific entity observable from allEntities
+
   const entityObservable = allEntities && allEntities[entityTableName] ? allEntities[entityTableName] : null;
-  
-  // Get the actual entity data reactively
   const rawEntityData = use$(entityObservable);
-  
-  // Process data with proper fallbacks (same as UltraTable)
+
   const rows = React.useMemo(() => {
     if (!schema || loading || !rawEntityData) {
       return [];
     }
-    
+
     let currentRows;
     if (typeof rawEntityData === 'object' && !Array.isArray(rawEntityData)) {
       currentRows = Object.values(rawEntityData);
     } else {
       currentRows = Array.isArray(rawEntityData) ? rawEntityData : [];
     }
-    
-    // Apply change detection
+
     if (currentRows.length > 0) {
       handleChanges(currentRows);
     }
-    
+
     return currentRows;
   }, [schema, loading, rawEntityData, handleChanges]);
 
-  // OPTIMAL: Use Legend State observe() for atomic change detection
-  // This replaces manual JSON.stringify comparison with Legend State's built-in reactivity
   React.useEffect(() => {
     if (!tableSend) return;
 
-    // Create atomic observer that only tracks changes to this specific entity
     const disposeObserver = observe(() => {
-      // ✅ CORRECT: Use getEntity$() instead of entities$.get()
       const entityObservable = getEntity$(entityTableName);
       if (!entityObservable || typeof entityObservable.get !== 'function') return;
-      
-      // CRITICAL: Use get() to track changes atomically - no manual comparison needed
+
       const entityData = entityObservable.get();
-      
+
       if (!entityData) return;
 
-      // Process the raw data efficiently
       let currentRows;
       if (typeof entityData === 'object' && !Array.isArray(entityData)) {
         currentRows = Object.values(entityData);
       } else {
         currentRows = Array.isArray(entityData) ? entityData : [];
       }
-      
+
       if (currentRows.length > 0) {
         fileLog.info('🔄 useEntityRowChanges: Legend State observe() detected atomic change', {
           entityTableName,
@@ -141,15 +145,14 @@ export function useEntityRowChanges({
           source: isInitializedRef.current ? 'legend_state_atomic_update' : 'initial_load',
           timestamp: Date.now()
         });
-        
+
         tableSend({
           type: 'STORE_DATA_UPDATED',
           entities: currentRows,
           loading: false,
           source: isInitializedRef.current ? 'legend_state_atomic_update' : 'initial_load'
         });
-        
-        // Mark as initialized after first send
+
         if (!isInitializedRef.current) {
           isInitializedRef.current = true;
         }
@@ -157,8 +160,7 @@ export function useEntityRowChanges({
     });
 
     fileLog.info(`🔄 useEntityRowChanges: Atomic observer created for ${entityTableName}`);
-    
-    // Cleanup observer on unmount or dependencies change
+
     return disposeObserver;
   }, [tableSend, entityTableName]);
 
@@ -166,4 +168,5 @@ export function useEntityRowChanges({
     rows,
     hasChanges: isInitializedRef.current
   };
+  */
 }

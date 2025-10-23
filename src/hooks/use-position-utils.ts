@@ -19,7 +19,7 @@ export function useSelectionBounds$(cellKeys: string[]) {
     const positionsData = positions$.get();
     const validPositions = positionsData
       .map(item => item.position)
-      .filter((pos): pos is CellCoordinates => pos !== null);
+      .filter((pos): pos is NonNullable<typeof pos> => pos !== null);
 
     if (validPositions.length === 0) return null;
 
@@ -29,10 +29,12 @@ export function useSelectionBounds$(cellKeys: string[]) {
     let maxY = -Infinity;
 
     validPositions.forEach(pos => {
-      minX = Math.min(minX, pos.x);
-      minY = Math.min(minY, pos.y);
-      maxX = Math.max(maxX, pos.x + pos.width);
-      maxY = Math.max(maxY, pos.y + pos.height);
+      if (pos) {
+        minX = Math.min(minX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxX = Math.max(maxX, pos.x + pos.width);
+        maxY = Math.max(maxY, pos.y + pos.height);
+      }
     });
 
     return {
