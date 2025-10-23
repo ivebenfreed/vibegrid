@@ -11,6 +11,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
+import { reaction } from 'mobx';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { TableViewport$ } from '../../stores/pure-observables';
@@ -30,15 +31,16 @@ const ROW_HEIGHT = 40;
 // ====================================
 
 export interface BodyRendererOptions {
-  tableCore$: TableCoreStore;
-  tableInteraction$: InteractionStore;
-  tableViewport$: TableViewport$;
+  // MobX stores (new names)
+  tableCoreStore: TableCoreStore;
+  interactionStore: InteractionStore;
+  visualStateStore: import('../../stores/VisualStateStore').VisualStateStore;
+
   domFactory: DOMElementFactory;
   selectionController?: SelectionController;
   keyboardNavController?: KeyboardNavigationController;
   enableSelectionColumn?: boolean;
   container: HTMLElement;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
 
   // DOM utility functions
   createElement: (tag: string, className?: string) => HTMLElement;
@@ -55,9 +57,9 @@ export interface BodyRendererOptions {
 // ====================================
 
 export class BodyRenderer {
-  private tableCore$: TableCoreStore;
-  private tableInteraction$: InteractionStore;
-  private tableViewport$: TableViewport$;
+  private tableCoreStore: TableCoreStore;
+  private interactionStore: InteractionStore;
+  private visualStateStore: import('../../stores/VisualStateStore').VisualStateStore;
   private domFactory: DOMElementFactory;
   private selectionController?: SelectionController;
   private keyboardNavController?: KeyboardNavigationController;
@@ -65,7 +67,6 @@ export class BodyRenderer {
   private container: HTMLElement;
   private createElement: (tag: string, className?: string) => HTMLElement;
   private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
-  private visualState: ReturnType<typeof createVibeGridVisualState>;
 
   // Row state
   private activeRows: Map<string, HTMLElement> = new Map();
@@ -93,9 +94,9 @@ export class BodyRenderer {
   private modularCellBridge: any = null;
 
   constructor(options: BodyRendererOptions) {
-    this.tableCore$ = options.tableCore$;
-    this.tableInteraction$ = options.tableInteraction$;
-    this.tableViewport$ = options.tableViewport$;
+    this.tableCoreStore = options.tableCoreStore;
+    this.interactionStore = options.interactionStore;
+    this.visualStateStore = options.visualStateStore;
     this.domFactory = options.domFactory;
     this.selectionController = options.selectionController;
     this.keyboardNavController = options.keyboardNavController;
@@ -103,7 +104,6 @@ export class BodyRenderer {
     this.container = options.container;
     this.createElement = options.createElement;
     this.onEntityUpdate = options.onEntityUpdate;
-    this.visualState = options.visualState;
     this.modularCellBridge = options.modularCellBridge || null;
 
     // Initialize drag and drop manager with container
@@ -129,11 +129,15 @@ export class BodyRenderer {
    * Setup observer to watch selection changes and update checkboxes
    */
   private setupSelectionObserver(): void {
-    this.selectionObserverDisposer = this.tableInteraction$.selectedCells.onChange(() => {
-      // Update all row checkboxes when selection changes
-      this.updateAllRowCheckboxes();
-      fileLog.debug('📦 Checkbox states updated due to selection change');
-    });
+    // Use MobX reaction to observe selectedCells changes
+    this.selectionObserverDisposer = reaction(
+      () => this.interactionStore.selectedCells,
+      () => {
+        // Update all row checkboxes when selection changes
+        this.updateAllRowCheckboxes();
+        fileLog.debug('📦 Checkbox states updated due to selection change');
+      }
+    );
   }
 
   /**

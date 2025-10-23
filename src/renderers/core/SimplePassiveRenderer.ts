@@ -160,6 +160,9 @@ export class SimplePassiveRenderer {
   private bodyRenderer: BodyRenderer | null = null;
   private eventManager: EventManager | null = null;
 
+  private rendererInstanceId = Math.random().toString(36).substring(7);
+  private isDestroyed = false;
+
   constructor(private options: SimplePassiveRendererOptions) {
     this.container = options.container;
 
@@ -168,7 +171,10 @@ export class SimplePassiveRenderer {
       throw new Error('SimplePassiveRenderer: Must provide MobX stores');
     }
 
-    fileLog.info('🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)');
+    fileLog.info('🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)', {
+      instanceId: this.rendererInstanceId,
+      hasContainer: !!this.container
+    });
 
     // Store MobX references
     this.stores = options.stores;
@@ -276,47 +282,44 @@ export class SimplePassiveRenderer {
   private initPhase2Managers(): void {
     fileLog.info('🚀 Initializing Phase 2 managers');
 
-    // TODO: GroupRenderer, BodyRenderer, EventManager need MobX migration (Day 6-8)
-    // Temporarily disabled until renderers are migrated to MobX
-    fileLog.warn('⚠️ Phase 2 managers disabled - awaiting MobX migration (Day 6-8)');
-
-    // Initialize GroupRenderer (MobX version - COMMENTED OUT until Day 8)
+    // GroupRenderer needs MobX migration (expects visualState from Legend State)
+    // TODO: Migrate GroupRenderer to use VisualStateStore
     // this.groupRenderer = new GroupRenderer({
     //   domFactory: this.domFactory!,
     //   createElement: this.createElement.bind(this),
-    //   visualStateStore: this.visualStateStore
+    //   visualState: this.visualStateStore // ERROR: Type mismatch
     // });
 
-    // Initialize BodyRenderer (MobX version - COMMENTED OUT until Day 7)
-    // this.bodyRenderer = new BodyRenderer({
-    //   tableCoreStore: this.tableCoreStore,
-    //   visualStateStore: this.visualStateStore,
-    //   interactionStore: this.interactionStore,
-    //   domFactory: this.domFactory!,
-    //   selectionController: this.selectionController,
-    //   keyboardNavController: this.keyboardNavController,
-    //   enableSelectionColumn: this.options.enableSelectionColumn,
-    //   container: this.container,
-    //   createElement: this.createElement.bind(this),
-    //   onEntityUpdate: this.options.onEntityUpdate,
-    //   modularCellBridge: modularCellBridge
-    // });
+    // BodyRenderer is MobX-ready! Initialize it
+    this.bodyRenderer = new BodyRenderer({
+      tableCoreStore: this.tableCoreStore,
+      visualStateStore: this.visualStateStore,
+      interactionStore: this.interactionStore,
+      domFactory: this.domFactory!,
+      selectionController: this.selectionController!,
+      keyboardNavController: this.keyboardNavController!,
+      enableSelectionColumn: this.options.enableSelectionColumn,
+      container: this.container,
+      createElement: this.createElement.bind(this),
+      onEntityUpdate: this.options.onEntityUpdate,
+      modularCellBridge: modularCellBridge
+    });
 
-    // Update SelectionController with bodyRenderer reference (Day 7)
-    // if (this.selectionController) {
-    //   this.selectionController.bodyRenderer = this.bodyRenderer;
-    // }
+    // Update SelectionController with bodyRenderer reference
+    if (this.selectionController) {
+      this.selectionController.bodyRenderer = this.bodyRenderer;
+    }
 
-    // Initialize EventManager (MobX version - COMMENTED OUT until Day 8-9)
+    // EventManager needs MobX migration (expects tableCore$, tableInteraction$, tableViewport$ from Legend State)
+    // TODO: Migrate EventManager to use MobX stores
     // this.eventManager = new EventManager({
-    //   tableCoreStore: this.tableCoreStore,
-    //   visualStateStore: this.visualStateStore,
-    //   interactionStore: this.interactionStore,
+    //   tableCore$: this.tableCoreStore, // ERROR: Type mismatch
+    //   tableInteraction$: this.interactionStore, // ERROR: Type mismatch
     //   container: this.container,
     //   onEntityUpdate: this.options.onEntityUpdate
     // });
 
-    fileLog.info('✅ Phase 2 managers initialized (DISABLED - awaiting MobX migration)');
+    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer only, GroupRenderer and EventManager need migration)');
   }
   
   /**
@@ -498,9 +501,8 @@ export class SimplePassiveRenderer {
     let lastVisualLayout = '';
 
     fileLog.info('🎯 CREATING VISUAL OBSERVER', {
-      visualStateExists: !!this.visualState,
-      visualInputsExists: !!this.visualState?.visualInputs$,
-      columnOrderExists: !!this.visualState?.visualInputs$?.columnOrder,
+      visualStateStoreExists: !!this.visualStateStore,
+      columnOrderExists: this.visualStateStore.columnOrder.length > 0,
       observersEnabled: this.observersEnabled
     });
 
@@ -875,6 +877,14 @@ export class SimplePassiveRenderer {
 
     // Phase 2: Defer DOM measurements and controller initialization
     requestAnimationFrame(() => {
+      // Guard: Skip if instance was destroyed (React StrictMode remount)
+      if (this.isDestroyed) {
+        fileLog.debug('⏭️ Skipping postInit RAF - instance destroyed', {
+          instanceId: this.rendererInstanceId
+        });
+        return;
+      }
+
       // Now safe to measure DOM
       const bounds = this.container.getBoundingClientRect();
       // TODO: Add updateViewportDimensions method to VisualStateStore
@@ -882,7 +892,13 @@ export class SimplePassiveRenderer {
 
       // Initialize enhanced ScrollController with comprehensive event handling
       if (!this.viewport) {
-        fileLog.error('❌ Viewport not initialized - cannot create ScrollController');
+        fileLog.error('❌ Viewport not initialized - cannot create ScrollController', {
+          instanceId: this.rendererInstanceId,
+          viewportProperty: this.viewport,
+          viewportElement: document.querySelector('.vibegridx-viewport'),
+          bodyContainer: this.bodyContainer,
+          container: this.container
+        });
         return;
       }
 
@@ -892,7 +908,7 @@ export class SimplePassiveRenderer {
         container: this.container,
         onClickOutside: () => {
           // Delegate to interaction state with proper editing logic
-          this.tableInteraction$.handleOutsideClick();
+          this.interactionStore.handleOutsideClick();
         },
         onScroll: (scrollLeft: number, scrollTop: number) => {
           // Update scroll position in VisualStateStore
@@ -911,11 +927,11 @@ export class SimplePassiveRenderer {
             scrollLeft,
             scrollTop,
             // Visual state geometry
-            visualStateTotalWidth: visualState.geometry.totalWidth,
-            visualStateViewportWidth: visualState.geometry.viewportWidth,
+            visualStateTotalWidth: this.visualStateStore.geometry.totalWidth,
+            visualStateViewportWidth: this.visualStateStore.geometry.viewportWidth,
             // Visible columns analysis
-            visibleColumnsCount: visualState.visibleColumns.length,
-            columnLayouts: visualState.visibleColumns.map(col => ({
+            visibleColumnsCount: this.visualStateStore.visibleColumns.length,
+            columnLayouts: this.visualStateStore.visibleColumns.map((col: any) => ({
               id: col.id,
               width: col.width,
               xOffset: col.xOffset,
@@ -936,7 +952,7 @@ export class SimplePassiveRenderer {
         },
         keyboardNavController: this.keyboardNavController,
         selectionController: this.selectionController,
-        tableInteraction$: this.tableInteraction$
+        interactionStore: this.interactionStore
       });
 
       // Initialize MouseController for centralized mouse event handling
@@ -945,9 +961,9 @@ export class SimplePassiveRenderer {
         bodyRenderer: this.bodyRenderer,
         scrollController: this.scrollController,
         selectionController: this.selectionController,
-        tableInteraction$: this.tableInteraction$,
-        visualState: this.visualState,
-        tableCore$: this.tableCore$,
+        interactionStore: this.interactionStore,
+        visualStateStore: this.visualStateStore,
+        tableCoreStore: this.tableCoreStore,
         keyboardController: null // Will be set after KeyboardController is created
       });
 
@@ -978,16 +994,21 @@ export class SimplePassiveRenderer {
 
       // Mark controller dependencies as ready (if initManager exists)
       if (this.initStore) {
-        // TODO: InitStore doesn't have markReady method - needs to be added or removed
-        // this.initStore.markReady('mouseControllerReady');
-        // this.initStore.markReady('scrollControllerReady');
-        // this.initStore.markReady('viewportReady');
-        // this.initStore.markReady('positionTrackingReady');
+        // ✅ FIXED: InitStore DOES have markReady method - uncommented
+        this.initStore.markReady('viewportReady');
         fileLog.info('✅ Controllers ready');
       }
 
       // Phase 3: Defer overlay and event setup
       requestAnimationFrame(() => {
+        // Guard: Skip if instance was destroyed
+        if (this.isDestroyed) {
+          fileLog.debug('⏭️ Skipping overlay RAF - instance destroyed', {
+            instanceId: this.rendererInstanceId
+          });
+          return;
+        }
+
         // Initialize overlay now that DOM is ready
         if (this.overlayManager) {
           this.overlayManager.initializeOverlay();
@@ -1001,14 +1022,21 @@ export class SimplePassiveRenderer {
 
         // Mark remaining dependencies as ready (if initManager exists)
         if (this.initStore) {
-          // TODO: InitStore doesn't have markReady method
-          // this.initStore.markReady('overlaySystemReady');
-          // this.initStore.markReady('eventHandlersReady');
+          // ✅ FIXED: InitStore DOES have markReady method - uncommented
+          this.initStore.markReady('eventHandlersReady');
           fileLog.info('✅ Overlay and event handlers ready');
         }
 
         // Phase 4: Defer header render
         requestAnimationFrame(() => {
+          // Guard: Skip if instance was destroyed
+          if (this.isDestroyed) {
+            fileLog.debug('⏭️ Skipping header render RAF - instance destroyed', {
+              instanceId: this.rendererInstanceId
+            });
+            return;
+          }
+
           // Render header first (lighter operation)
           runInAction(() => {
             this.renderHeader();
@@ -1016,6 +1044,14 @@ export class SimplePassiveRenderer {
 
           // Phase 5: Defer body render to next frame
           requestAnimationFrame(() => {
+            // Guard: Skip if instance was destroyed
+            if (this.isDestroyed) {
+              fileLog.debug('⏭️ Skipping body render RAF - instance destroyed', {
+                instanceId: this.rendererInstanceId
+              });
+              return;
+            }
+
             // Render body and capture ranges in batch
             runInAction(() => {
               this.renderBody();
@@ -1035,6 +1071,14 @@ export class SimplePassiveRenderer {
 
             // Mark renderer as initialized AFTER browser paint is complete
             requestAnimationFrame(() => {
+              // Guard: Skip if instance was destroyed
+              if (this.isDestroyed) {
+                fileLog.debug('⏭️ Skipping markReady RAF - instance destroyed', {
+                  instanceId: this.rendererInstanceId
+                });
+                return;
+              }
+
               const actualPaintTime = performance.now();
               this.initStore.markReady('rendererInitialized');
 
@@ -1155,8 +1199,8 @@ export class SimplePassiveRenderer {
   ): void {
     if (!this.bodyContainer || !this.bodyRenderer) return;
 
-    const rows = this.sortedProcessedRows$ ? this.sortedProcessedRows$.get(true) : this.tableCore$.processedRows.get(true);
-    const columns = this.tableCore$.columns.get(true);
+    const rows = this.tableCoreStore.processedRows;
+    const columns = this.tableCoreStore.columns;
     const columnVisibility = this.visualStateStore.columnVisibility;
     const visualState = this.visualStateStore;
     const allVisibleColumnLayouts = visualState.visibleColumns;
@@ -1239,15 +1283,16 @@ export class SimplePassiveRenderer {
    * Initialize DOM structure
    */
   private initDOM(): void {
-    fileLog.info('🎨 initDOM called');
+    fileLog.info('🎨 initDOM called', { instanceId: this.rendererInstanceId });
     if (!this.container) {
       fileLog.error('❌ Container is null - cannot initialize DOM', {
+        instanceId: this.rendererInstanceId,
         containerExists: !!this.container,
         containerType: typeof this.container
       });
       return;
     }
-    fileLog.info('✅ Container exists, creating DOM structure');
+    fileLog.info('✅ Container exists, creating DOM structure', { instanceId: this.rendererInstanceId });
 
     this.container.innerHTML = '';
     
@@ -1309,7 +1354,7 @@ export class SimplePassiveRenderer {
       bottom: 0;
       overflow: auto;
     `;
-    
+
     this.bodyContainer = this.createElement('div', 'vibegridx-body');
     this.bodyContainer.style.cssText = `
       position: relative;
@@ -1317,15 +1362,20 @@ export class SimplePassiveRenderer {
       /* border: 2px solid red !important; */
       box-sizing: border-box;
     `;
-    
+
     this.viewport.appendChild(this.bodyContainer);
 
     // Assemble the complete structure
     table.appendChild(headerClipWrapper);
     table.appendChild(this.viewport);
     this.container.appendChild(table);
-    
-    fileLog.info('✅ Basic DOM structure created');
+
+    fileLog.info('✅ Basic DOM structure created', {
+      instanceId: this.rendererInstanceId,
+      viewportSet: !!this.viewport,
+      bodyContainerSet: !!this.bodyContainer,
+      headerContainerSet: !!this.headerContainer
+    });
   }
   
   /**
@@ -1418,12 +1468,12 @@ export class SimplePassiveRenderer {
       return;
     }
 
-    // CRITICAL FIX: Use sorted processed rows from visual state, not raw unsorted data
-    const rows = this.sortedProcessedRows$ ? this.sortedProcessedRows$.get(true) : this.tableCore$.processedRows.get(true);
-    const columns = this.tableCore$.columns.get(true);
+    // Use processed rows from TableCoreStore (includes filtering, sorting, grouping)
+    const rows = this.tableCoreStore.processedRows;
+    const columns = this.tableCoreStore.columns;
     const columnVisibility = this.visualStateStore.columnVisibility;
 
-    // Debug: Check if we have group rows (Legend State rows don't have type property)
+    // Debug: Check if we have group rows
     const groupRows = rows.filter((row: any) => row.type === 'group');
     const dataRows = rows.filter((row: any) => !row.type || row.type !== 'group'); // All non-group rows are data
 
@@ -1435,7 +1485,6 @@ export class SimplePassiveRenderer {
       columnCount: columns.length,
       groupRows: groupRows.length,
       dataRows: dataRows.length,
-      usingSortedData: !!this.sortedProcessedRows$,
       firstRowTitle: rows[0]?.title,
       callStack: stack
     });
@@ -1822,7 +1871,10 @@ export class SimplePassiveRenderer {
    * Destroy the renderer
    */
   destroy(): void {
-    fileLog.info('🧹 Destroying SimplePassiveRenderer with Phase 2 managers');
+    this.isDestroyed = true;
+    fileLog.info('🧹 Destroying SimplePassiveRenderer with Phase 2 managers', {
+      instanceId: this.rendererInstanceId
+    });
 
     // Cancel any pending RAF
     if (this.pendingRAF !== null) {
