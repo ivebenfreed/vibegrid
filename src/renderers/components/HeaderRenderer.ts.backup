@@ -4,12 +4,16 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import type { TableCoreStore } from '../../stores/TableCoreStore';
-import type { InteractionStore } from '../../stores/InteractionStore';
-import type { VisualStateStore } from '../../stores/VisualStateStore';
+// TODO: Remove Legend State - migrating to MobX
+// import { observe } from '@legendapp/state';
+// Note: This file needs to be updated to receive visual state instance from parent
+import type { TableCore$ } from '../../stores/data-state';
+import type { TableInteraction$ } from '../../stores/interaction-state';
+import type { TableViewport$ } from '../../stores/pure-observables';
 import type { DOMElementFactory } from '../factories/DOMElementFactory';
 import type { SelectionController } from '../modules/SelectionController';
 import type { CoordinateMapping } from '../modules/OverlayManager';
+// import { setupColumnDragHandlers } from '../utils/interaction-handlers'; // REMOVED: Consolidating drag handling in MouseController
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/components/HeaderRenderer.ts');
 
@@ -18,13 +22,16 @@ const HEADER_HEIGHT = 48;
 
 export interface HeaderRendererOptions {
   headerContainer: HTMLElement;
-  tableCoreStore: TableCoreStore;
-  interactionStore: InteractionStore;
-  visualStateStore: VisualStateStore;
+  tableCore$: TableCore$;
+  tableInteraction$: TableInteraction$;
+  tableViewport$: TableViewport$;
   domFactory: DOMElementFactory;
   selectionController?: SelectionController;
   coordinateMapping: CoordinateMapping;
   enableSelectionColumn?: boolean;
+
+  // Visual state instance
+  visualState: any;
 
   // Callbacks for coordinate updates
   updateCoordinateMapping: (mapping: CoordinateMapping) => void;
@@ -32,13 +39,14 @@ export interface HeaderRendererOptions {
 
 export class HeaderRenderer {
   private headerContainer: HTMLElement;
-  private tableCoreStore: TableCoreStore;
-  private interactionStore: InteractionStore;
-  private visualStateStore: VisualStateStore;
+  private tableCore$: TableCore$;
+  private tableInteraction$: TableInteraction$;
+  private tableViewport$: TableViewport$;
   private domFactory: DOMElementFactory;
   private selectionController?: SelectionController;
   private coordinateMapping: CoordinateMapping;
   private enableSelectionColumn: boolean;
+  private visualState: any;
   private updateCoordinateMapping: (mapping: CoordinateMapping) => void;
 
   // Legend State performance optimization: track last render state to prevent redundant renders
@@ -59,14 +67,15 @@ export class HeaderRenderer {
 
   constructor(options: HeaderRendererOptions) {
     this.headerContainer = options.headerContainer;
-    this.tableCoreStore = options.tableCoreStore;
-    this.interactionStore = options.interactionStore;
-    this.visualStateStore = options.visualStateStore;
+    this.tableCore$ = options.tableCore$;
+    this.tableInteraction$ = options.tableInteraction$;
+    this.tableViewport$ = options.tableViewport$;
     this.domFactory = options.domFactory;
     this.selectionController = options.selectionController;
     this.coordinateMapping = options.coordinateMapping;
     this.enableSelectionColumn = options.enableSelectionColumn ?? false;
     this.updateCoordinateMapping = options.updateCoordinateMapping;
+    this.visualState = options.visualState;
 
     this.initializeReactiveSortIndicators();
   }
@@ -77,30 +86,29 @@ export class HeaderRenderer {
   render(): void {
     if (!this.headerContainer) return;
 
-    // Get current state from MobX stores
-    const geometry = this.visualStateStore.geometry;
-    const visibleColumns = this.visualStateStore.visibleColumns;
-    const columns = this.tableCoreStore.columns;
-    const columnVisibility = this.visualStateStore.columnVisibility;
-    const columnOrder = this.visualStateStore.columnOrder;
+    // Get visual state early for debugging
+    const visualStateData = this.visualState.visualState$.get();
 
-    // MobX: Change detection pattern - check if render is actually needed
+    const columns = this.tableCore$.columns.get();
+    const columnVisibility = this.visualState.visualInputs$.columnVisibility.get();
+
+    // Legend State change detection pattern: check if render is actually needed
     const currentRenderState = {
       columnCount: columns.length,
-      scrollLeft: geometry.scrollLeft,
-      visibleColumnsLength: visibleColumns.length,
-      visibleRangeStart: geometry.visibleColumnRange.start,
-      visibleRangeEnd: geometry.visibleColumnRange.end,
-      columnOrderString: (columnOrder || []).join(','), // Track column order for drag operations
+      scrollLeft: visualStateData.geometry.scrollLeft,
+      visibleColumnsLength: visualStateData.visibleColumns.length,
+      visibleRangeStart: visualStateData.geometry.visibleColumnRange.start,
+      visibleRangeEnd: visualStateData.geometry.visibleColumnRange.end,
+      columnOrderString: (visualStateData.columnState.columnOrder || []).join(','), // Track column order for drag operations
       // CRITICAL: Track column widths to detect resize changes
-      columnWidthsString: visibleColumns.map(col => `${col.id}:${col.width}`).join(',')
+      columnWidthsString: visualStateData.visibleColumns.map(col => `${col.id}:${col.width}`).join(',')
     };
 
     fileLog.info('🔄 HEADER RENDER STATE CHECK', {
       currentOrderString: currentRenderState.columnOrderString,
       lastOrderString: this.lastRenderState?.columnOrderString,
       orderChanged: this.lastRenderState?.columnOrderString !== currentRenderState.columnOrderString,
-      columnOrder: columnOrder
+      columnOrder: visualStateData.columnState.columnOrder
     });
 
     // Skip render if nothing actually changed (Legend State optimization pattern)
@@ -122,10 +130,10 @@ export class HeaderRenderer {
 
     fileLog.info('🔄 HEADER RENDER TRIGGERED', {
       columnCount: columns.length,
-      scrollLeft: geometry.scrollLeft,
-      visibleRange: `${geometry.visibleColumnRange.start}-${geometry.visibleColumnRange.end}`,
-      totalColumns: visibleColumns.length,
-      virtualRangeCount: geometry.visibleColumnRange.end - geometry.visibleColumnRange.start
+      scrollLeft: visualStateData.geometry.scrollLeft,
+      visibleRange: `${visualStateData.geometry.visibleColumnRange.start}-${visualStateData.geometry.visibleColumnRange.end}`,
+      totalColumns: visualStateData.visibleColumns.length,
+      virtualRangeCount: visualStateData.geometry.visibleColumnRange.end - visualStateData.geometry.visibleColumnRange.start
     });
     
     this.headerContainer.innerHTML = '';
@@ -163,7 +171,7 @@ export class HeaderRenderer {
     
     // Get visible columns from unified visual state (same as DOM rendering)
     // This ensures coordinate mapping matches exactly what's rendered in DOM
-    const allColumnLayouts = visibleColumns;
+    const allColumnLayouts = visualStateData.visibleColumns;
     const allVisibleColumns = allColumnLayouts.map(layout =>
       columns.find(col => col.id === layout.id)
     ).filter(Boolean);
@@ -171,12 +179,12 @@ export class HeaderRenderer {
     fileLog.info('🎨 Header rendering ALL columns (no virtualization)', {
       totalColumns: columns.length,
       visibleColumns: allColumnLayouts.length,
-      scrollLeft: geometry.scrollLeft,
+      scrollLeft: visualStateData.geometry.scrollLeft,
       columnIds: allColumnLayouts.slice(0, 5).map(col => col.id)
     });
 
     // Update column coordinate mapping only if columns have changed
-    // Now uses the SAME column source as DOM rendering (visibleColumns)
+    // Now uses the SAME column source as DOM rendering (visualStateData.visibleColumns)
     const needsCoordinateUpdate = this.updateColumnCoordinateMapping(allVisibleColumns);
 
     // Render ALL columns at their absolute positions
@@ -202,7 +210,7 @@ export class HeaderRenderer {
 
     // Set total width for proper overflow handling (include end drop zone)
     // Use UNIFIED visual state's totalWidth - no duplicate calculation
-    const totalHeaderWidth = geometry.totalWidth;
+    const totalHeaderWidth = visualStateData.geometry.totalWidth;
     headerRow.style.width = `${totalHeaderWidth}px`;
     headerRow.style.minWidth = `${totalHeaderWidth}px`;
 
@@ -303,7 +311,7 @@ export class HeaderRenderer {
         fileLog.info('🎯 Column dropped at end position', { draggedColumnId });
 
         // Move column to the end by using the last column as target with insertBefore=false
-        const columns = this.tableCoreStore.columns;
+        const columns = this.tableCore$.columns.get();
         if (columns.length > 0) {
           const lastColumn = columns[columns.length - 1];
           if (lastColumn.id !== draggedColumnId) {
@@ -327,7 +335,7 @@ export class HeaderRenderer {
 
     // Build new coordinate mapping for all visible columns
     // Get reactive column widths
-    const columnWidths = this.visualStateStore.columnWidths;
+    const columnWidths = this.visualState.visualInputs$.columnWidths.get();
 
     allVisibleColumns.forEach((column, index) => {
       const actualWidth = this.visualState.visualOperations.getColumnWidth(column.id);
@@ -405,7 +413,7 @@ export class HeaderRenderer {
    * Update sort indicator for a column
    */
   private updateSortIndicator(headerCell: HTMLElement, column: any): void {
-    const sortState = this.visualStateStore.sortBy;
+    const sortState = this.visualState.visualInputs$.sortBy.get();
     const columnSort = sortState.find((s: any) => s.field === (column.field || column.id));
     
     if (columnSort) {
@@ -421,14 +429,14 @@ export class HeaderRenderer {
   updateSortIndicators(): void {
     // Get current sort state and trigger reactive update
     try {
-      const sortState = this.visualStateStore.sortBy;
+      const sortState = this.visualState.visualInputs$.sortBy.get();
       this.updateSortIndicatorsReactive(sortState);
     } catch (error) {
       // Fallback to manual update if reactive state is not available
       fileLog.warn('⚠️ Falling back to manual sort indicator update', { error });
 
       const headerCells = this.headerContainer.querySelectorAll('.vibegridx-header-cell');
-      const columns = this.tableCoreStore.columns;
+      const columns = this.tableCore$.columns.get();
 
       headerCells.forEach((headerCell, index) => {
         const fieldId = headerCell.getAttribute('data-field');
@@ -539,7 +547,7 @@ export class HeaderRenderer {
       return groupConfig && groupConfig.fields && groupConfig.fields.length > 0;
     } catch (error) {
       // If visual operations aren't available, fallback to direct check
-      const tableCore = this.tableCoreStore;
+      const tableCore = this.tableCore$.get();
       return tableCore.grouping && tableCore.grouping.fields && tableCore.grouping.fields.length > 0;
     }
   }
@@ -556,7 +564,7 @@ export class HeaderRenderer {
     // Create reactive observer for sort state changes
     this.sortIndicatorObserver = observe(() => {
       try {
-        const sortState = this.visualStateStore.sortBy;
+        const sortState = this.visualState.visualInputs$.sortBy.get();
 
         fileLog.debug('🔄 Reactive sort indicator update triggered', {
           sortByCount: sortState?.length || 0,

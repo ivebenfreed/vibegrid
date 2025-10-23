@@ -844,20 +844,18 @@ export class SimplePassiveRenderer {
     
     this.headerRenderer = new HeaderRenderer({
       headerContainer: this.headerContainer,
-      tableCore$: this.tableCore$,
-      tableInteraction$: this.tableInteraction$,
-      tableViewport$: this.tableViewport$,
+      tableCoreStore: this.tableCoreStore,
+      interactionStore: this.interactionStore,
+      visualStateStore: this.visualStateStore,
       domFactory: this.domFactory,
       selectionController: this.selectionController,
       coordinateMapping: this.coordinateMapping,
       enableSelectionColumn: this.options.enableSelectionColumn,
-      visualState: this.visualState,
       updateCoordinateMapping: (mapping: CoordinateMapping) => {
         this.coordinateMapping = mapping;
 
         // GUARD: Only update coordinate mapping if grid is fully initialized
-        const isFullyInitialized = this.initManager.isFullyHydrated$.get(true);
-        if (!isFullyInitialized) {
+        if (!this.initStore.isFullyHydrated) {
           fileLog.debug('⏸️ COORDINATE: Skipping coordinate mapping update during initialization');
           return;
         }
