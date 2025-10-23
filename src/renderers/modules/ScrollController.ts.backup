@@ -15,7 +15,7 @@ export interface ScrollControllerOptions {
   onClickOutside?: () => void;
   keyboardNavController?: any;
   selectionController?: any;
-  interactionStore?: any;
+  tableInteraction$?: any;
 }
 
 export class ScrollController {
@@ -27,7 +27,7 @@ export class ScrollController {
   private onClickOutside?: () => void;
   private keyboardNavController?: any;
   private selectionController?: any;
-  private interactionStore?: any;
+  private tableInteraction$?: any;
   private lastScrollLeft: number = 0;
   private lastScrollTop: number = 0;
 
@@ -46,7 +46,7 @@ export class ScrollController {
     this.onClickOutside = options.onClickOutside;
     this.keyboardNavController = options.keyboardNavController;
     this.selectionController = options.selectionController;
-    this.interactionStore = options.interactionStore;
+    this.tableInteraction$ = options.tableInteraction$;
 
     this.setupScrollHandling();
   }
