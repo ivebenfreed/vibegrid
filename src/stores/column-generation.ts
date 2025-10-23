@@ -5,14 +5,13 @@
  * as cell renderers for consistent behavior.
  */
 
-// TODO: Remove Legend State - migrating to MobX
-// import { universeSchema$, universeLoading$ } from '@/legend-state/observables';
 import { createLogger } from '@/lib/logging';
 import type { Column } from '../types';
 import { COLUMN_DEFAULTS } from '../column-defaults';
 import type { CellType } from '../column-types';
 import { modularCellBridge } from '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
+import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStore';
 
 const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
 
@@ -37,38 +36,39 @@ interface EntityField {
 }
 
 /**
- * Generate VibeGrid columns from entity schema using universe schema system
+ * Generate VibeGrid columns from entity schema using SchemaRegistryStore
  */
-export async function generateColumnsFromEntitySchema<T = any>(entityType: string): Promise<Column<T>[]> {
+export async function generateColumnsFromEntitySchema<T = any>(
+  entityType: string,
+  schemaRegistry: SchemaRegistryStore
+): Promise<Column<T>[]> {
   fileLog.info('🎯 Generating columns from entity schema', { entityType });
 
-  // Check if universe schema system is ready
-  const isLoading = universeLoading$.get();
-  if (isLoading) {
-    fileLog.info("⏳ Universe schema still loading", { entityType });
-    throw new Error(`Universe schema still loading for entity: ${entityType}`);
+  // Check if schema registry is ready
+  if (schemaRegistry.isBootstrapping) {
+    fileLog.info("⏳ Schema registry still loading", { entityType });
+    throw new Error(`Schema registry still loading for entity: ${entityType}`);
   }
 
-  // Get schema from universe schema system (no API calls)
-  const universeSchema = universeSchema$.get();
-  if (!universeSchema?.entities) {
-    fileLog.warn("❌ Universe schema not available", { entityType });
-    throw new Error(`Universe schema not available for entity: ${entityType}`);
+  // Get schemas from MobX store
+  const schemas = schemaRegistry.schemas;
+  if (!schemas) {
+    fileLog.warn("❌ Schema registry not available", { entityType });
+    throw new Error(`Schema registry not available for entity: ${entityType}`);
   }
 
-  // Look up entity schema using org-prefixed entityType
-  // The entityType should already be org-prefixed (e.g., "01920000-1000-7000-8000-000000000001_Task")
-  const entitySchema = universeSchema.entities[entityType];
+  // Look up entity schema by name (not org-prefixed)
+  const entitySchema = schemas[entityType];
 
   if (!entitySchema) {
-    fileLog.error("❌ Entity not found in universe schema - FAIL FAST", {
+    fileLog.error("❌ Entity not found in schema registry - FAIL FAST", {
       entityType,
-      availableEntities: Object.keys(universeSchema.entities)
+      availableEntities: Object.keys(schemas)
     });
-    throw new Error(`Entity ${entityType} not found in universe schema. Available: ${Object.keys(universeSchema.entities).join(', ')}`);
+    throw new Error(`Entity ${entityType} not found in schema registry. Available: ${Object.keys(schemas).join(', ')}`);
   }
 
-  fileLog.info('✅ Found entity schema in universe', {
+  fileLog.info('✅ Found entity schema', {
     entityType,
     fieldCount: entitySchema.fields?.length || 0
   });

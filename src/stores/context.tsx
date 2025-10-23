@@ -12,6 +12,7 @@ import { VisualStateStore } from './VisualStateStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { InitStore } from './InitStore'
+import { useSchemaRegistry } from '@/stores'
 
 const log = createLogger('components/vibegrid/stores/context')
 
@@ -53,6 +54,9 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
     const [isInitialized, setIsInitialized] = useState(false)
     const [initError, setInitError] = useState<string | null>(null)
 
+    // Get schema registry from root store
+    const schemaRegistry = useSchemaRegistry()
+
     // Create stores once using useMemo
     const stores = useMemo(() => {
       log.info('🏗️ Creating VibeGrid stores', {
@@ -71,6 +75,9 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
       // Set up dependency injection between stores
       // TableCoreStore needs VisualStateStore for filters, sorting, grouping
       tableCoreStore.setVisualStateInputs(visualStateStore)
+
+      // TableCoreStore needs SchemaRegistry for column generation
+      tableCoreStore.setSchemaRegistry(schemaRegistry)
 
       // PersistenceStore needs all stores to save/load preferences
       persistenceStore.setTableCoreStore(tableCoreStore)
@@ -95,7 +102,7 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
         persistenceStore,
         initStore
       }
-    }, [entityType, orgId, tableId])
+    }, [entityType, orgId, tableId, schemaRegistry])
 
     // Initialize stores on mount
     useEffect(() => {

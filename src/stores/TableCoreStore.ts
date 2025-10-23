@@ -209,6 +209,7 @@ export class TableCoreStore implements IStore {
 
   private visualStateInputs: VisualStateInputs | null = null
   private entityDataProvider: EntityDataProvider | null = null
+  private schemaRegistry: import('@/stores/experience/SchemaRegistryStore').SchemaRegistryStore | null = null
   private disposers = new DisposerManager()
 
   // ====================================
@@ -240,6 +241,15 @@ export class TableCoreStore implements IStore {
   @action
   setEntityDataProvider(provider: EntityDataProvider): void {
     this.entityDataProvider = provider
+  }
+
+  /**
+   * Set schema registry (for column generation)
+   * Called by parent component after store creation
+   */
+  @action
+  setSchemaRegistry(registry: import('@/stores/experience/SchemaRegistryStore').SchemaRegistryStore): void {
+    this.schemaRegistry = registry
   }
 
   /**
@@ -715,8 +725,13 @@ export class TableCoreStore implements IStore {
     log.debug('Initializing TableCoreStore...', { entityType: this.entityType })
 
     try {
+      // Check if schema registry is available
+      if (!this.schemaRegistry) {
+        throw new Error('Schema registry not set - call setSchemaRegistry() before init()')
+      }
+
       // Load schema and generate columns
-      const generatedColumns = await generateColumnsFromEntitySchema(this.entityType)
+      const generatedColumns = await generateColumnsFromEntitySchema(this.entityType, this.schemaRegistry)
 
       if (generatedColumns.length === 0) {
         throw new Error(`No columns generated for entity: ${this.entityType}`)
