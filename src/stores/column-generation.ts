@@ -123,14 +123,14 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
 
   // Generate columns from schema fields - Synchronous approach with lazy color loading
   const allColumns = schemaFields.map((fieldDef: any) => {
-    // API returns field objects with "name" property
-    const fieldName = fieldDef?.name;
+    // FieldDefinition uses "fieldName" property (from @/types/dataforge)
+    const fieldName = fieldDef?.fieldName || fieldDef?.name;
     if (!fieldName) {
-      fileLog.warn("⚠️ Field missing name property, skipping", { fieldDef });
+      fileLog.warn("⚠️ Field missing fieldName/name property, skipping", { fieldDef });
       return null;
     }
 
-    const safeFieldDef: EntityField = fieldDef && typeof fieldDef === "object" ? fieldDef : { name: fieldName, type: "text" };
+    const safeFieldDef: EntityField = fieldDef && typeof fieldDef === "object" ? { ...fieldDef, name: fieldName } : { name: fieldName, type: "text" };
     const fieldType = String(safeFieldDef.type || "text").toLowerCase();
 
     // Map DataForge field types to VibeGrid cell types
