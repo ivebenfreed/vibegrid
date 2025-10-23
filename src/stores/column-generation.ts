@@ -5,15 +5,16 @@
  * as cell renderers for consistent behavior.
  */
 
-import { universeSchema$, universeLoading$ } from '@/legend-state/observables';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { universeSchema$, universeLoading$ } from '@/legend-state/observables';
+import { createLogger } from '@/lib/logging';
 import type { Column } from '../types';
 import { COLUMN_DEFAULTS } from '../column-defaults';
 import type { CellType } from '../column-types';
 import { modularCellBridge } from '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
 
-const fileLog = log('components/custom/vibegrid/stores/column-generation');
+const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
 
 interface EntityField {
   name: string;

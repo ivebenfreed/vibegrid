@@ -5,7 +5,7 @@
  * event management. Extracted from SimplePassiveRenderer for better modularity.
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import { toast } from 'sonner';
 import type { TableCore$ } from '../../stores/data-state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
@@ -13,7 +13,7 @@ import type { TableViewport$ } from '../../stores/pure-observables';
 import type { OverlayManager } from '../modules/OverlayManager';
 import { ClipboardManager } from '../../managers/ClipboardManager';
 
-const fileLog = log('components/custom/vibegrid/renderers/managers/EventManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/managers/EventManager.ts');
 
 export interface EventManagerOptions {
   tableCore$: TableCore$;

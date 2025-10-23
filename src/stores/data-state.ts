@@ -7,10 +7,13 @@
  * No persistence - uses simple data-only state management.
  */
 
-import { observable, computed, batch } from '@legendapp/state';
-import { getEntity$, entityOperations, universeSchema$, universeLoading$, universeOrgId$, universeUserId$, universeContext$ } from '@/legend-state/observables';
-import { syncNotifications$, syncStatus$ } from '@/legend-state/sync-notifications';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, computed, batch } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { getEntity$, entityOperations, universeSchema$, universeLoading$, universeOrgId$, universeUserId$, universeContext$ } from '@/legend-state/observables';
+// TODO: Remove Legend State - migrating to MobX
+// import { syncNotifications$, syncStatus$ } from '@/legend-state/sync-notifications';
+import { createLogger } from '@/lib/logging';
 import type { Column, SortConfig, FilterConfig, GroupConfig } from '../types';
 // Import moved to visual-state.ts as part of Phase 1 consolidation
 import { GroupProcessor } from '../processors/GroupProcessor';
@@ -46,7 +49,7 @@ function getBasicColumns<T>(): Column<T>[] {
   ];
 }
 
-const fileLog = log('components/custom/vibegrid/stores/data-state.ts');
+const fileLog = createLogger('components/custom/vibegrid/stores/data-state.ts');
 
 // ====================================
 // TYPES

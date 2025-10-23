@@ -3,9 +3,9 @@
  * Handles width updates for header cells, body cells, and header scroll sync
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/ColumnWidthManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/ColumnWidthManager.ts');
 
 export interface ColumnWidthManagerOptions {
   headerContainer?: HTMLElement | null;

@@ -12,9 +12,9 @@ import type {
   RelationshipConfig
 } from '../field-types/FieldTypeRegistry';
 import type { TableCore$ } from '../stores/data-state';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/managers/RelationshipDataManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/managers/RelationshipDataManager.ts');
 
 export interface RelationshipCacheEntry {
   data: RelationshipData;

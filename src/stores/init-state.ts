@@ -5,10 +5,11 @@
  * Prevents race conditions and ensures proper loading order.
  */
 
-import { observable, computed, when } from '@legendapp/state';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, computed, when } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/stores/init-state');
+const fileLog = createLogger('components/custom/vibegrid/stores/init-state');
 
 // ====================================
 // HYDRATION STATE TYPES

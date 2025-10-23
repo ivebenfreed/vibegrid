@@ -16,9 +16,9 @@ import type {
   VirtualRowType
 } from '../types';
 import type { GroupRowOrderConfig } from '../stores/data-state';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('GroupProcessor');
+const fileLog = createLogger('GroupProcessor');
 
 // ====================================
 // CONSTANTS

@@ -3,11 +3,12 @@
  * Handles cell, row, column, and range selection logic
  */
 
-import { log } from '@/logger';
-import { batch } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
+// TODO: Remove Legend State - migrating to MobX
+// import { batch } from '@legendapp/state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/SelectionController.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/SelectionController.ts');
 
 export interface SelectionControllerOptions {
   tableInteraction$: TableInteraction$;

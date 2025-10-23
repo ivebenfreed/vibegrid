@@ -3,11 +3,11 @@
  * Manages arrow key movement, keyboard selection, and keyboard shortcuts
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import type { TableInteraction$ } from '../../stores/interaction-state';
 import { SelectionController } from './SelectionController';
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts');
 
 export interface KeyboardNavigationOptions {
   tableInteraction$: TableInteraction$;

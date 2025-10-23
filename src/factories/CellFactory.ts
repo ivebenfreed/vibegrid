@@ -9,7 +9,7 @@ import type {
   FieldTypeRegistry,
   VibeGridFieldType
 } from '../field-types/FieldTypeRegistry';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
 // Practical column type that works with current usage patterns
 interface CellFactoryColumn {
@@ -33,7 +33,7 @@ interface CellFactoryColumn {
   asyncDataState?: any;
 }
 
-const fileLog = log('components/custom/vibegrid/factories/CellFactory.ts');
+const fileLog = createLogger('components/custom/vibegrid/factories/CellFactory.ts');
 
 export interface CellPosition {
   rowIndex: number;

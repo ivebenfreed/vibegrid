@@ -2,8 +2,8 @@ import type { ViewportInfo } from '../types';
 import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
 import type { VisualCellPosition } from './OverlayTypes';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/overlays/ClipboardOverlayDOM.ts');
+import { createLogger } from '@/lib/logging';
+const fileLog = createLogger('components/custom/vibegrid/overlays/ClipboardOverlayDOM.ts');
 
 // ====================================
 // CLIPBOARD OVERLAY - DOM Implementation

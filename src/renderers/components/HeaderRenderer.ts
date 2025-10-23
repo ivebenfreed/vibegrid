@@ -3,8 +3,9 @@
  * Handles column headers, sorting, resizing, and select-all functionality
  */
 
-import { log } from '@/logger';
-import { observe } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
+// TODO: Remove Legend State - migrating to MobX
+// import { observe } from '@legendapp/state';
 // Note: This file needs to be updated to receive visual state instance from parent
 import type { TableCore$ } from '../../stores/data-state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
@@ -14,7 +15,7 @@ import type { SelectionController } from '../modules/SelectionController';
 import type { CoordinateMapping } from '../modules/OverlayManager';
 // import { setupColumnDragHandlers } from '../utils/interaction-handlers'; // REMOVED: Consolidating drag handling in MouseController
 
-const fileLog = log('components/custom/vibegrid/renderers/components/HeaderRenderer.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/components/HeaderRenderer.ts');
 
 const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 48;

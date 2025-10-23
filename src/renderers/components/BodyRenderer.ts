@@ -10,7 +10,7 @@
  * - modules/CellFormatter.ts (245 lines)
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import type { TableCore$ } from '../../stores/data-state';
 import type { TableInteraction$ } from '../../stores/interaction-state';
 import type { TableViewport$ } from '../../stores/pure-observables';
@@ -21,7 +21,7 @@ import type { SelectionController } from '../modules/SelectionController';
 import { KeyboardNavigationController } from '../modules/KeyboardNavigationController';
 import { DragDropManager } from '../../utils/drag-drop-handlers';
 
-const fileLog = log('components/custom/vibegrid/renderers/components/BodyRenderer.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/components/BodyRenderer.ts');
 
 const ROW_HEIGHT = 40;
 

@@ -9,7 +9,8 @@
  * It does NOT handle overlay positioning - that's done via DOM positions.
  */
 
-import { observable, computed } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, computed } from '@legendapp/state';
 import { GRID_DIMENSIONS, GridCalculations } from '../constants/grid-dimensions';
 import type {
   VirtualBounds,
@@ -20,9 +21,9 @@ import type {
   RowLayout
 } from '../types/coordinate-types';
 import { CoordinateUtils } from '../types/coordinate-types';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/virtualization/VirtualScrollManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/virtualization/VirtualScrollManager.ts');
 
 // ====================================
 // VIRTUAL STATE OBSERVABLES

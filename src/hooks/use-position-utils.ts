@@ -4,7 +4,8 @@
  * Common patterns and utilities for working with cell positions.
  */
 
-import { computed } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { computed } from '@legendapp/state';
 import { useCellPosition$, useMultipleCellPositions$ } from './use-cell-position';
 import { CoordinateUtils } from '../types/coordinate-types';
 import type { CellCoordinates, Position, Bounds } from '../types/coordinate-types';

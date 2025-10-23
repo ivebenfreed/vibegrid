@@ -11,9 +11,9 @@ import type {
   RollupCalculator
 } from '../field-types/FieldTypeRegistry';
 import type { TableCore$ } from '../stores/data-state';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/managers/RollupCalculationManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/managers/RollupCalculationManager.ts');
 
 export interface EntityChangeEvent {
   entityType: string;

@@ -19,9 +19,9 @@
 // ====================================
 
 import type { CellRef, TableRow, Column, ViewportInfo } from '../types';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/coordinates/VibeGridXCoordinateManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/coordinates/VibeGridXCoordinateManager.ts');
 
 export interface CoordinatePosition {
   rowIndex: number;

@@ -12,8 +12,9 @@
  * All renderers, managers, and components should read from this computed state ONLY.
  */
 
-import { computed, observable, batch, when } from '@legendapp/state';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { computed, observable, batch, when } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
 import type { Column, GroupConfig, SortConfig, FilterConfig, VirtualRow } from '../types';
 import { GroupProcessor } from '../processors/GroupProcessor';
 
@@ -75,7 +76,7 @@ function applySorting(rawRows: any[], sortBy: SortConfig[]): any[] {
   return sortedRows;
 }
 
-const fileLog = log('components/custom/vibegrid/stores/visual-state.ts');
+const fileLog = createLogger('components/custom/vibegrid/stores/visual-state.ts');
 
 // ====================================
 // CORE VISUAL STATE TYPES

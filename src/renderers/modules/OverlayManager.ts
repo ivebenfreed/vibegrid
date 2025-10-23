@@ -3,8 +3,9 @@
  * Handles canvas overlay, selection manager, editing overlay, and context menu
  */
 
-import { log } from '@/logger';
-import { observe, batch } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
+// TODO: Remove Legend State - migrating to MobX
+// import { observe, batch } from '@legendapp/state';
 import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM';
 import { EditingOverlay } from '../../overlays/EditingOverlay';
 import { ContextMenuManager } from '../../components/ContextMenu';
@@ -23,7 +24,7 @@ import type { CoordinateMapping } from '../../coordinates/VibeGridXCoordinateMan
 // Re-export CoordinateMapping for consumers
 export type { CoordinateMapping };
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/OverlayManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/OverlayManager.ts');
 
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT;

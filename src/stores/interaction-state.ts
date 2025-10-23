@@ -7,11 +7,12 @@
  * of sophisticated interaction logic.
  */
 
-import { observable, computed, batch } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, computed, batch } from '@legendapp/state';
 import { getUpdateFunction } from '../utils/entity-update-helpers';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/stores/interaction-state.ts');
+const fileLog = createLogger('components/custom/vibegrid/stores/interaction-state.ts');
 
 // ====================================
 // TYPES

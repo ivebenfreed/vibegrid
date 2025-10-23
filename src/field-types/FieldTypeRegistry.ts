@@ -7,9 +7,9 @@
 
 import type { Column } from '../column-types';
 import type { TableCore$ } from '../stores/data-state';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fieldLog = log('components/custom/vibegrid/field-types/FieldTypeRegistry.ts');
+const fieldLog = createLogger('components/custom/vibegrid/field-types/FieldTypeRegistry.ts');
 
 // Re-export backend metadata types
 export type {

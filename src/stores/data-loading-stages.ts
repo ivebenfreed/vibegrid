@@ -5,10 +5,11 @@
  * Prevents cells from rendering with partial data
  */
 
-import { observable, batch } from '@legendapp/state';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, batch } from '@legendapp/state';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/stores/data-loading-stages.ts');
+const fileLog = createLogger('components/custom/vibegrid/stores/data-loading-stages.ts');
 
 export type LoadingStage = 
   | 'idle' 

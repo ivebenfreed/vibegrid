@@ -5,10 +5,10 @@
  * Manages drag state and delegates click events to appropriate handlers.
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import type { createVibeGridVisualState } from '../../stores/visual-state';
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/MouseController.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts');
 
 export interface MouseControllerOptions {
   container: HTMLElement;

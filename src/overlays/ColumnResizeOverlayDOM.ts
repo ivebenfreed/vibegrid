@@ -1,7 +1,7 @@
 import type { ColumnResizeState } from '../types';
 import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/overlays/ColumnResizeOverlayDOM.ts');
+import { createLogger } from '@/lib/logging';
+const fileLog = createLogger('components/custom/vibegrid/overlays/ColumnResizeOverlayDOM.ts');
 
 // ====================================
 // COLUMN RESIZE OVERLAY - DOM Implementation

@@ -5,7 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,
@@ -21,7 +21,7 @@ import { fieldTypeRegistry } from '../../FieldTypeRegistry';
 import { formatFieldForDisplay } from '@/server/dataforge/fields/display-formatters';
 import { getOptionIconDisplay } from '../../../utils/icon-mapping';
 
-const fileLog = log('components/custom/vibegrid/field-types/implementations/basic/SelectFieldType');
+const fileLog = createLogger('components/custom/vibegrid/field-types/implementations/basic/SelectFieldType');
 
 interface SelectOption {
   value: string;

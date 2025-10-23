@@ -35,11 +35,15 @@
  * 🚨 IMPORTANT: Do not modify the visual-state.ts integration without testing persistence!
  */
 
-import { observable } from '@legendapp/state';
-import { configureSynced, syncObservable } from '@legendapp/state/sync';
-import { ObservablePersistLocalStorage } from '@legendapp/state/persist-plugins/local-storage';
-import { observablePersistIndexedDB } from '@legendapp/state/persist-plugins/indexeddb';
-import { log } from '@/logger';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { configureSynced, syncObservable } from '@legendapp/state/sync';
+// TODO: Remove Legend State - migrating to MobX
+// import { ObservablePersistLocalStorage } from '@legendapp/state/persist-plugins/local-storage';
+// TODO: Remove Legend State - migrating to MobX
+// import { observablePersistIndexedDB } from '@legendapp/state/persist-plugins/indexeddb';
+import { createLogger } from '@/lib/logging';
 import type { GroupConfig, SortConfig, FilterConfig } from '../types';
 
 // Serializable version of GroupConfig for persistence (Sets converted to arrays)
@@ -57,7 +61,7 @@ interface SerializableGroupConfig {
 }
 import type { GroupRowOrderConfig } from './data-state';
 
-const persistLog = log('vibegrid/simple-persistence');
+const persistLog = createLogger('vibegrid/simple-persistence');
 
 // Storage size management
 const MAX_STORAGE_SIZE = 1024 * 1024 * 2; // 2MB limit for safety

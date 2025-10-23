@@ -1,8 +1,9 @@
+// TODO: Remove Legend State - migrating to MobX
 // Import Legend State entity operations
-import { entityOperations } from '@/legend-state';
+// import { entityOperations } from '@/legend-state';
 import type { VibeGridXEntityType } from '../hooks/useDexieEntityConfig';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/utils/entity-update-helpers.ts');
+import { createLogger } from '@/lib/logging';
+const fileLog = createLogger('components/custom/vibegrid/utils/entity-update-helpers.ts');
 
 /**
  * Get the appropriate update function for an entity type using Legend State

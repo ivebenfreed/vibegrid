@@ -1,7 +1,7 @@
 import type { ViewportInfo } from '../types';
 import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/overlays/DragPreviewOverlayDOM.ts');
+import { createLogger } from '@/lib/logging';
+const fileLog = createLogger('components/custom/vibegrid/overlays/DragPreviewOverlayDOM.ts');
 
 // ====================================
 // DRAG PREVIEW OVERLAY - DOM Implementation

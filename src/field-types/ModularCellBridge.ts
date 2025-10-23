@@ -11,11 +11,11 @@ import { SchemaAdapter } from '../schema/SchemaAdapter';
 import { CellFactory } from '../factories/CellFactory';
 import { RelationshipDataManager } from '../managers/RelationshipDataManager';
 import { RollupCalculationManager } from '../managers/RollupCalculationManager';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
 // Field type implementations are now imported in the main index.ts
 
-const fileLog = log('components/custom/vibegrid/field-types/ModularCellBridge.ts');
+const fileLog = createLogger('components/custom/vibegrid/field-types/ModularCellBridge.ts');
 
 /**
  * Bridge between old and new cell rendering systems

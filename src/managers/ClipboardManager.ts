@@ -9,13 +9,13 @@
  * - Number fields (validation)
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 import { toast } from 'sonner';
 import type { TableCore$ } from '../stores/data-state';
 import type { TableInteraction$ } from '../stores/interaction-state';
 import type { VibeGridClipboardData, ClipboardCell, PasteValidationResult } from '../types/clipboard-types';
 
-const fileLog = log('components/custom/vibegrid/managers/ClipboardManager.ts');
+const fileLog = createLogger('components/custom/vibegrid/managers/ClipboardManager.ts');
 
 export interface ClipboardManagerOptions {
   tableCore$: TableCore$;

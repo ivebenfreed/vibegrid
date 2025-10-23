@@ -3,9 +3,9 @@
  * Handles viewport scrolling and header-body scroll coordination
  */
 
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/renderers/modules/ScrollController.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/ScrollController.ts');
 
 export interface ScrollControllerOptions {
   viewport: HTMLElement;

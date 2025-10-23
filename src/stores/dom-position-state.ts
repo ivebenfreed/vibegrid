@@ -5,7 +5,8 @@
  * a single scroll-based trigger for reliable position updates.
  */
 
-import { observable, batch, ObservableHint, computed } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { observable, batch, ObservableHint, computed } from '@legendapp/state';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
 import type {
   CellCoordinates,
@@ -15,9 +16,9 @@ import type {
   CellRef
 } from '../types/coordinate-types';
 import { CoordinateUtils } from '../types/coordinate-types';
-import { log } from '@/logger';
+import { createLogger } from '@/lib/logging';
 
-const fileLog = log('components/custom/vibegrid/stores/dom-position-state.ts');
+const fileLog = createLogger('components/custom/vibegrid/stores/dom-position-state.ts');
 
 interface ViewportCache {
   scrollLeft: number;

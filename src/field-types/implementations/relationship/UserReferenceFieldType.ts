@@ -19,10 +19,11 @@ import type {
   FieldMetadata
 } from '../../FieldTypeRegistry';
 import type { TableCore$ } from '../../../stores/data-state';
-import { log } from '@/logger';
-import { getEntity$, universeOrgId$ } from '@/legend-state/observables';
+import { createLogger } from '@/lib/logging';
+// TODO: Remove Legend State - migrating to MobX
+// import { getEntity$, universeOrgId$ } from '@/legend-state/observables';
 
-const fileLog = log('components/custom/vibegrid/field-types/implementations/relationship/UserReferenceFieldType.ts');
+const fileLog = createLogger('components/custom/vibegrid/field-types/implementations/relationship/UserReferenceFieldType.ts');
 
 /**
  * User Data Loader for async relationship data

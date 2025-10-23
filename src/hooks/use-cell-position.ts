@@ -6,7 +6,8 @@
  * and virtual positions (for non-rendered cells).
  */
 
-import { computed } from '@legendapp/state';
+// TODO: Remove Legend State - migrating to MobX
+// import { computed } from '@legendapp/state';
 import { domPositions$ } from '../stores/dom-position-state';
 import { virtualCellPosition$ } from '../virtualization/VirtualScrollManager';
 import type { CellCoordinates, CellRef } from '../types/coordinate-types';
