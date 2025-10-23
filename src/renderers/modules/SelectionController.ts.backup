@@ -1,32 +1,31 @@
 /**
  * SelectionController - Manages all selection operations for VibeGrid
  * Handles cell, row, column, and range selection logic
- *
- * MIGRATED TO MOBX - uses InteractionStore directly
  */
 
 import { createLogger } from '@/lib/logging';
-import { runInAction } from 'mobx';
-import type { InteractionStore } from '../../stores/InteractionStore';
+// TODO: Remove Legend State - migrating to MobX
+// import { batch } from '@legendapp/state';
+import type { TableInteraction$ } from '../../stores/interaction-state';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/modules/SelectionController.ts');
 
 export interface SelectionControllerOptions {
-  interactionStore: InteractionStore;
+  tableInteraction$: TableInteraction$;
   getProcessedRows: () => any[];
   getVisibleColumns: () => any[];
   bodyRenderer?: any; // For updating checkbox visual state
 }
 
 export class SelectionController {
-  private interactionStore: InteractionStore;
+  private tableInteraction$: TableInteraction$;
   private getProcessedRows: () => any[];
   private getVisibleColumns: () => any[];
   public bodyRenderer?: any; // Public to allow SimplePassiveRenderer to set it
   private lastSelectedRowId: string | null = null;
 
   constructor(options: SelectionControllerOptions) {
-    this.interactionStore = options.interactionStore;
+    this.tableInteraction$ = options.tableInteraction$;
     this.getProcessedRows = options.getProcessedRows;
     this.getVisibleColumns = options.getVisibleColumns;
     this.bodyRenderer = options.bodyRenderer;
@@ -47,9 +46,7 @@ export class SelectionController {
       }
     }
 
-    runInAction(() => {
-      this.interactionStore.selectedCells = selectedCells;
-    });
+    this.tableInteraction$.selectedCells.set(selectedCells);
     fileLog.info('Selected all cells', { count: selectedCells.size });
   }
 
@@ -59,10 +56,10 @@ export class SelectionController {
   selectColumn(columnId: string): void {
     const processedRows = this.getProcessedRows();
 
-    // Use interaction store method to ensure proper state management
-    this.interactionStore.selectColumnCells(columnId, processedRows);
+    // Use interaction-state method to ensure proper state management
+    this.tableInteraction$.selectColumnCells(columnId, processedRows);
 
-    fileLog.info('Column selected via InteractionStore', {
+    fileLog.info('Column selected via interaction-state', {
       columnId,
       rowCount: processedRows.length
     });
@@ -74,8 +71,8 @@ export class SelectionController {
   selectRow(rowId: string): void {
     const visibleColumns = this.getVisibleColumns();
 
-    // Use interaction store method to ensure proper state management
-    this.interactionStore.selectRowCells(rowId, visibleColumns);
+    // Use interaction-state method to ensure proper state management
+    this.tableInteraction$.selectRowCells(rowId, visibleColumns);
 
     this.lastSelectedRowId = rowId;
 
@@ -84,7 +81,7 @@ export class SelectionController {
       this.bodyRenderer.updateAllRowCheckboxes();
     }
 
-    fileLog.info('Row selected via InteractionStore', {
+    fileLog.info('Row selected via interaction-state', {
       rowId,
       columnCount: visibleColumns.length
     });
@@ -96,8 +93,8 @@ export class SelectionController {
   toggleRowSelection(rowId: string): void {
     const visibleColumns = this.getVisibleColumns();
 
-    // Use interaction store method to ensure proper state management
-    this.interactionStore.toggleRowCells(rowId, visibleColumns);
+    // Use interaction-state method to ensure proper state management
+    this.tableInteraction$.toggleRowCells(rowId, visibleColumns);
 
     this.lastSelectedRowId = rowId;
 
@@ -106,7 +103,7 @@ export class SelectionController {
       this.bodyRenderer.updateAllRowCheckboxes();
     }
 
-    fileLog.info('Row selection toggled via InteractionStore', { rowId });
+    fileLog.info('Row selection toggled via interaction-state', { rowId });
   }
 
   /**
@@ -115,10 +112,10 @@ export class SelectionController {
   selectRowRange(startRowId: string, endRowId: string): void {
     const processedRows = this.getProcessedRows();
     const visibleColumns = this.getVisibleColumns();
-
+    
     const startRowIndex = processedRows.findIndex(r => r.id === startRowId);
     const endRowIndex = processedRows.findIndex(r => r.id === endRowId);
-
+    
     if (startRowIndex === -1 || endRowIndex === -1) {
       fileLog.warn('Could not find row indices for range selection', {
         startRowId,
@@ -128,12 +125,12 @@ export class SelectionController {
       });
       return;
     }
-
+    
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
     const maxRowIndex = Math.max(startRowIndex, endRowIndex);
-
+    
     const selectedCells = new Set<string>();
-
+    
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = processedRows[r];
       for (const column of visibleColumns) {
@@ -141,11 +138,9 @@ export class SelectionController {
         selectedCells.add(`${row.id}:${column.id}`);
       }
     }
-
-    runInAction(() => {
-      this.interactionStore.selectedCells = selectedCells;
-      this.interactionStore.anchorCell = `${startRowId}:${visibleColumns[0]?.id}`;
-    });
+    
+    this.tableInteraction$.selectedCells.set(selectedCells);
+    this.tableInteraction$.anchorCell.set(`${startRowId}:${visibleColumns[0]?.id}`);
 
     // Update checkbox visual state
     if (this.bodyRenderer?.updateAllRowCheckboxes) {
@@ -166,26 +161,26 @@ export class SelectionController {
   selectCellRange(startCell: string, endCell: string): void {
     const [startRowId, startColumnId] = startCell.split(':');
     const [endRowId, endColumnId] = endCell.split(':');
-
+    
     const processedRows = this.getProcessedRows();
     const visibleColumns = this.getVisibleColumns();
-
+    
     const startRowIndex = processedRows.findIndex(r => r.id === startRowId);
     const endRowIndex = processedRows.findIndex(r => r.id === endRowId);
     const startColIndex = visibleColumns.findIndex(c => c.id === startColumnId);
     const endColIndex = visibleColumns.findIndex(c => c.id === endColumnId);
-
+    
     if (startRowIndex === -1 || endRowIndex === -1 || startColIndex === -1 || endColIndex === -1) {
       return;
     }
-
+    
     const minRowIndex = Math.min(startRowIndex, endRowIndex);
     const maxRowIndex = Math.max(startRowIndex, endRowIndex);
     const minColIndex = Math.min(startColIndex, endColIndex);
     const maxColIndex = Math.max(startColIndex, endColIndex);
-
+    
     const selectedCells = new Set<string>();
-
+    
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = processedRows[r];
       for (let c = minColIndex; c <= maxColIndex; c++) {
@@ -195,11 +190,9 @@ export class SelectionController {
         }
       }
     }
-
-    runInAction(() => {
-      this.interactionStore.selectedCells = selectedCells;
-    });
-
+    
+    this.tableInteraction$.selectedCells.set(selectedCells);
+    
     fileLog.info('Cell range selected', {
       startCell,
       endCell,
@@ -211,17 +204,17 @@ export class SelectionController {
    * Clear all selections
    */
   clearSelection(): void {
-    // Use interaction store method to ensure proper state management
-    this.interactionStore.clearSelection();
+    // Use interaction-state method to ensure proper state management
+    this.tableInteraction$.clearSelection();
     this.lastSelectedRowId = null;
-    fileLog.info('Selection cleared via InteractionStore');
+    fileLog.info('Selection cleared via interaction-state');
   }
 
   /**
    * Select all cells in the table (for select all checkbox)
    */
   handleSelectAllToggle(): void {
-    const selectedCells = this.interactionStore.selectedCells;
+    const selectedCells = this.tableInteraction$.selectedCells.get();
     const processedRows = this.getProcessedRows();
     const visibleColumns = this.getVisibleColumns();
 
@@ -232,16 +225,16 @@ export class SelectionController {
     });
 
     if (selectedCells.size === 0) {
-      // No selection - select all cells via interaction store
-      this.interactionStore.selectAll({
+      // No selection - select all cells via interaction-state
+      this.tableInteraction$.selectAll({
         rows: processedRows,
         columns: visibleColumns,
         columnVisibility: this.getColumnVisibility()
       });
       fileLog.info('✅ Select all triggered via SelectionController');
     } else {
-      // Has selection - clear all via interaction store
-      this.interactionStore.clearSelection();
+      // Has selection - clear all via interaction-state
+      this.tableInteraction$.clearSelection();
       fileLog.info('✅ Clear selection triggered via SelectionController');
     }
 
@@ -303,8 +296,8 @@ export class SelectionController {
       return { checked: false, indeterminate: false };
     }
 
-    // Use reactive checkbox states from interaction store
-    const checkboxStates = this.interactionStore.getRowCheckboxStates(processedRows, visibleColumns);
+    // Use reactive checkbox states from interaction state
+    const checkboxStates = this.tableInteraction$.getRowCheckboxStates(processedRows, visibleColumns);
 
     let totalRows = processedRows.length;
     let selectedRowCount = 0;
