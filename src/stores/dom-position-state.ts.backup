@@ -1,13 +1,11 @@
 /**
- * DOM Position State - Reactive DOM Position Tracking (MOBX)
+ * DOM Position State - Reactive DOM Position Tracking
  *
- * This store tracks actual DOM positions of rendered cells using
+ * This observable tracks actual DOM positions of rendered cells using
  * a single scroll-based trigger for reliable position updates.
- *
- * MIGRATED TO MOBX - Uses observable class with @observable properties
  */
 
-import { makeObservable, observable, computed, action, runInAction } from 'mobx';
+import { observable, batch, ObservableHint, computed } from '@legendapp/state';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
 import type {
   CellCoordinates,
@@ -17,9 +15,9 @@ import type {
   CellRef
 } from '../types/coordinate-types';
 import { CoordinateUtils } from '../types/coordinate-types';
-import { createLogger } from '@/lib/logging';
+import { log } from '@/logger';
 
-const fileLog = createLogger('components/custom/vibegrid/stores/dom-position-state.ts');
+const fileLog = log('components/custom/vibegrid/stores/dom-position-state.ts');
 
 interface ViewportCache {
   scrollLeft: number;
@@ -36,162 +34,72 @@ interface ColumnPositionCache {
   lastColumnUpdate: number;
 }
 
-/**
- * MobX store for DOM position tracking
- */
-class DOMPositionStore {
-  // Observable properties
-  @observable cellPositions: CellPositionMap = new Map();
+interface DOMPositionState {
+  cellPositions: CellPositionMap;
+  viewportCache: ViewportCache;
+  columnCache: ColumnPositionCache;
+  lastUpdate: number;
+  isTracking: boolean;
+}
 
-  @observable viewportCache: ViewportCache = {
+// Central DOM position observable
+export const domPositions$ = observable<DOMPositionState>({
+  cellPositions: new Map(),
+  viewportCache: {
     scrollLeft: 0,
     scrollTop: 0,
     clientWidth: 0,
     clientHeight: 0,
     containerRect: null,
     lastViewportUpdate: 0
-  };
-
-  @observable columnCache: ColumnPositionCache = {
+  },
+  columnCache: {
     columnPositions: new Map(),
     totalWidth: 0,
     lastColumnUpdate: 0
-  };
+  },
+  lastUpdate: 0,
+  isTracking: false
+});
 
-  @observable lastUpdate: number = 0;
-  @observable isTracking: boolean = false;
+// PERFORMANCE FIX: Reference to coordinate mapping for reactive position calculation
+let coordinateMapping: any = null;
 
-  // Reference to coordinate mapping for reactive position calculation
-  @observable coordinateMapping: any = null;
-
-  constructor() {
-    makeObservable(this);
+// PERFORMANCE FIX: Computed observable for cell positions derived from coordinate mapping
+// This eliminates expensive DOM scanning by calculating positions mathematically
+const computedCellPositions$ = computed(() => {
+  if (!coordinateMapping || !coordinateMapping.rows || !coordinateMapping.columns) {
+    return new Map();
   }
 
-  /**
-   * Computed cell positions derived from coordinate mapping
-   * This eliminates expensive DOM scanning by calculating positions mathematically
-   */
-  @computed
-  get computedCellPositions(): CellPositionMap {
-    if (!this.coordinateMapping || !this.coordinateMapping.rows || !this.coordinateMapping.columns) {
-      return new Map();
-    }
+  const positions = new Map();
+  const { rows, columns } = coordinateMapping;
 
-    const positions = new Map();
-    const { rows, columns } = this.coordinateMapping;
-
-    // Calculate positions mathematically from coordinate mapping
-    rows.forEach((row: any) => {
-      columns.forEach((column: any) => {
-        const cellKey = `${row.rowId}:${column.columnId}`;
-        positions.set(cellKey, {
-          x: column.x,
-          y: row.y,
-          width: column.width,
-          height: row.height,
-          rowId: row.rowId,
-          columnId: column.columnId,
-          rowIndex: row.index,
-          columnIndex: column.index
-        });
+  // Calculate positions mathematically from coordinate mapping
+  rows.forEach((row: any) => {
+    columns.forEach((column: any) => {
+      const cellKey = `${row.rowId}:${column.columnId}`;
+      positions.set(cellKey, {
+        x: column.x,
+        y: row.y,
+        width: column.width,
+        height: row.height,
+        rowId: row.rowId,
+        columnId: column.columnId,
+        rowIndex: row.index,
+        columnIndex: column.index
       });
     });
+  });
 
-    fileLog.debug('🧮 COMPUTED: Calculated cell positions from coordinate mapping', {
-      totalPositions: positions.size,
-      rows: rows.length,
-      columns: columns.length
-    });
+  fileLog.debug('🧮 COMPUTED: Calculated cell positions from coordinate mapping', {
+    totalPositions: positions.size,
+    rows: rows.length,
+    columns: columns.length
+  });
 
-    return positions;
-  }
-
-  /**
-   * Update cell positions
-   */
-  @action
-  updateCellPositions(positions: CellPositionMap, timestamp: number): void {
-    this.cellPositions = positions;
-    this.lastUpdate = timestamp;
-  }
-
-  /**
-   * Update viewport cache
-   */
-  @action
-  updateViewportCache(cache: ViewportCache): void {
-    this.viewportCache = cache;
-  }
-
-  /**
-   * Update column cache
-   */
-  @action
-  updateColumnCache(cache: ColumnPositionCache): void {
-    this.columnCache = cache;
-  }
-
-  /**
-   * Set tracking status
-   */
-  @action
-  setTracking(tracking: boolean): void {
-    this.isTracking = tracking;
-  }
-
-  /**
-   * Update coordinate mapping reference
-   */
-  @action
-  updateCoordinateMapping(mapping: any): void {
-    this.coordinateMapping = mapping;
-    fileLog.debug('🎯 COORDINATE: Updated coordinate mapping reference for computed positions', {
-      hasRows: !!mapping?.rows,
-      hasColumns: !!mapping?.columns,
-      rowCount: mapping?.rows?.length || 0,
-      columnCount: mapping?.columns?.length || 0
-    });
-  }
-}
-
-// Export singleton instance
-export const domPositionStore = new DOMPositionStore();
-
-// Backwards compatibility export
-export const domPositions$ = {
-  get: () => domPositionStore,
-  cellPositions: {
-    get: () => domPositionStore.cellPositions,
-    set: (positions: CellPositionMap) => runInAction(() => {
-      domPositionStore.cellPositions = positions;
-    })
-  },
-  viewportCache: {
-    get: () => domPositionStore.viewportCache,
-    set: (cache: ViewportCache) => runInAction(() => {
-      domPositionStore.viewportCache = cache;
-    })
-  },
-  columnCache: {
-    get: () => domPositionStore.columnCache,
-    set: (cache: ColumnPositionCache) => runInAction(() => {
-      domPositionStore.columnCache = cache;
-    })
-  },
-  lastUpdate: {
-    get: () => domPositionStore.lastUpdate,
-    set: (timestamp: number) => runInAction(() => {
-      domPositionStore.lastUpdate = timestamp;
-    })
-  },
-  isTracking: {
-    get: () => domPositionStore.isTracking,
-    set: (tracking: boolean) => runInAction(() => {
-      domPositionStore.isTracking = tracking;
-    })
-  }
-};
+  return positions;
+});
 
 // Event handlers
 const positionChangeHandlers = new Set<PositionUpdateHandler>();
@@ -233,7 +141,7 @@ class ReactivePositionTracker {
     });
 
     tableContainer = viewportContainer;
-    domPositionStore.setTracking(true);
+    domPositions$.isTracking.set(true);
 
     // Setup single scroll-based trigger
     this.setupScrollListener(viewportContainer);
@@ -270,6 +178,9 @@ class ReactivePositionTracker {
     fileLog.info('✅ Scroll listener initialized');
   }
 
+
+
+
   /**
    * Schedule a position update (RAF throttled)
    * PERFORMANCE OPTIMIZED: Better throttling and coalescing
@@ -279,7 +190,7 @@ class ReactivePositionTracker {
 
     const now = Date.now();
     if (now - this.lastUpdateTime < this.updateThrottle) {
-      // Use pendingUpdate flag to prevent multiple setTimeout calls
+      // PERFORMANCE FIX: Use pendingUpdate flag to prevent multiple setTimeout calls
       if (!this.pendingUpdate) {
         this.pendingUpdate = true;
         setTimeout(() => {
@@ -310,10 +221,10 @@ class ReactivePositionTracker {
     // Update lastUpdateTime to prevent throttle issues
     this.lastUpdateTime = timestamp;
 
-    const currentPositions = domPositionStore.cellPositions;
+    const currentPositions = domPositions$.cellPositions.get();
     const newPositions = new Map(currentPositions);
 
-    // Discover all cells in the DOM to ensure complete tracking
+    // PERFORMANCE FIX: Discover all cells in the DOM to ensure complete tracking
     const allCellsInDOM = container.querySelectorAll('[data-row-id][data-column-id]');
     const allCellElements = Array.from(allCellsInDOM) as HTMLElement[];
 
@@ -331,11 +242,11 @@ class ReactivePositionTracker {
       updating: cellsToUpdate.length
     });
 
-    // Get viewport container once to avoid repeated queries
+    // PERFORMANCE FIX: Get viewport container once to avoid repeated queries
     const viewportContainer = container.querySelector('.vibegridx-viewport') as HTMLElement || container;
 
     // VIEWPORT CACHE: Update viewport measurements once per batch
-    const currentViewportCache = domPositionStore.viewportCache;
+    const currentViewportCache = domPositions$.viewportCache.get();
     let viewportRect: DOMRect | null = null;
     let scrollLeft = 0;
     let scrollTop = 0;
@@ -344,10 +255,10 @@ class ReactivePositionTracker {
 
     // Check if viewport measurements need updating (throttled to avoid excessive reads)
     const viewportUpdateNeeded = !currentViewportCache.containerRect ||
-                                 (timestamp - currentViewportCache.lastViewportUpdate) > 100; // 10fps max for viewport updates
+                                 (timestamp - currentViewportCache.lastViewportUpdate) > 100; // 10fps max for viewport updates - reduced to prevent forced reflows
 
     if (viewportContainer && viewportUpdateNeeded) {
-      // Single batch of layout reads for viewport
+      // PERFORMANCE FIX: Single batch of layout reads for viewport
       viewportRect = viewportContainer.getBoundingClientRect();
       scrollLeft = viewportContainer.scrollLeft || 0;
       scrollTop = viewportContainer.scrollTop || 0;
@@ -355,15 +266,13 @@ class ReactivePositionTracker {
       clientHeight = viewportContainer.clientHeight || 0;
 
       // Cache the viewport measurements
-      runInAction(() => {
-        domPositionStore.updateViewportCache({
-          scrollLeft,
-          scrollTop,
-          clientWidth,
-          clientHeight,
-          containerRect: viewportRect,
-          lastViewportUpdate: timestamp
-        });
+      domPositions$.viewportCache.set({
+        scrollLeft,
+        scrollTop,
+        clientWidth,
+        clientHeight,
+        containerRect: viewportRect,
+        lastViewportUpdate: timestamp
       });
 
       fileLog.debug('📊 VIEWPORT CACHE: Updated viewport measurements', {
@@ -387,13 +296,13 @@ class ReactivePositionTracker {
       }
     }
 
-    // Process all cells with pre-calculated viewport data
+    // PERFORMANCE FIX: Process all cells with pre-calculated viewport data
     cellsToUpdate.forEach(({ element: cell, rowId, columnId, cellKey }) => {
       if (!rowId || !columnId || !viewportRect) return;
 
       const oldPosition = currentPositions.get(cellKey);
 
-      // Single getBoundingClientRect call per cell
+      // PERFORMANCE FIX: Single getBoundingClientRect call per cell
       const cellRect = cell.getBoundingClientRect();
 
       // Calculate position relative to viewport container
@@ -460,9 +369,10 @@ class ReactivePositionTracker {
     }
 
     if (hasChanges) {
-      // Batch update using MobX runInAction
-      runInAction(() => {
-        domPositionStore.updateCellPositions(newPositions, timestamp);
+      // Batch update the observable
+      batch(() => {
+        domPositions$.cellPositions.set(newPositions);
+        domPositions$.lastUpdate.set(timestamp);
       });
 
       fileLog.debug('📊 Position update complete', {
@@ -474,6 +384,7 @@ class ReactivePositionTracker {
 
     this.isUpdating = false;
   }
+
 
   /**
    * Check if position has changed significantly
@@ -534,7 +445,7 @@ class ReactivePositionTracker {
     }
 
     tableContainer = null;
-    domPositionStore.setTracking(false);
+    domPositions$.isTracking.set(false);
     this.isInitialized = false;
 
     fileLog.info('🧹 DOM position tracking cleaned up');
@@ -542,7 +453,7 @@ class ReactivePositionTracker {
 
   /**
    * Force immediate position update (useful for testing)
-   * Uses computed positions instead of DOM scanning
+   * PERFORMANCE FIX: Use computed positions instead of DOM scanning
    */
   forceUpdate(): void {
     fileLog.info('🔄 forceUpdate called - using computed positions instead of DOM scanning');
@@ -550,25 +461,32 @@ class ReactivePositionTracker {
   }
 
   /**
-   * Update coordinate mapping reference for computed positions
+   * PERFORMANCE FIX: Update coordinate mapping reference for computed positions
    */
   updateCoordinateMapping(mapping: any): void {
-    domPositionStore.updateCoordinateMapping(mapping);
+    coordinateMapping = mapping;
+    fileLog.debug('🎯 COORDINATE: Updated coordinate mapping reference for computed positions', {
+      hasRows: !!mapping?.rows,
+      hasColumns: !!mapping?.columns,
+      rowCount: mapping?.rows?.length || 0,
+      columnCount: mapping?.columns?.length || 0
+    });
   }
 
   /**
-   * Update positions from computed observable instead of DOM scanning
+   * PERFORMANCE FIX: Update positions from computed observable instead of DOM scanning
    */
   private updateFromComputedPositions(): void {
     if (this.isUpdating) return;
     this.isUpdating = true;
 
     try {
-      const computedPositions = domPositionStore.computedCellPositions;
+      const computedPositions = computedCellPositions$.get();
 
       if (computedPositions.size > 0) {
-        runInAction(() => {
-          domPositionStore.updateCellPositions(computedPositions, Date.now());
+        batch(() => {
+          domPositions$.cellPositions.set(computedPositions);
+          domPositions$.lastUpdate.set(Date.now());
         });
 
         fileLog.debug('✅ COMPUTED: Updated positions from coordinate mapping', {
@@ -585,10 +503,11 @@ class ReactivePositionTracker {
    * Get current tracking status
    */
   getStatus(): { isTracking: boolean; cellCount: number; lastUpdate: number } {
+    const state = domPositions$.get();
     return {
-      isTracking: domPositionStore.isTracking,
-      cellCount: domPositionStore.cellPositions.size,
-      lastUpdate: domPositionStore.lastUpdate
+      isTracking: state.isTracking,
+      cellCount: state.cellPositions.size,
+      lastUpdate: state.lastUpdate
     };
   }
 }
@@ -610,14 +529,14 @@ export const PositionEvents = {
    * Get current position for a cell
    */
   getCellPosition(cellKey: string): CellCoordinates | null {
-    return domPositionStore.cellPositions.get(cellKey) || null;
+    return domPositions$.cellPositions.get().get(cellKey) || null;
   },
 
   /**
    * Get positions for multiple cells
    */
   getMultipleCellPositions(cellKeys: string[]): Array<{ key: string; position: CellCoordinates | null }> {
-    const positions = domPositionStore.cellPositions;
+    const positions = domPositions$.cellPositions.get();
     return cellKeys.map(key => ({
       key,
       position: positions.get(key) || null
@@ -636,7 +555,7 @@ export const PositionEvents = {
    * Get all visible cell keys
    */
   getVisibleCellKeys(): string[] {
-    const positions = domPositionStore.cellPositions;
+    const positions = domPositions$.cellPositions.get();
     return Array.from(positions.entries())
       .filter(([_, pos]) => pos.isVisible)
       .map(([key, _]) => key);
@@ -646,14 +565,14 @@ export const PositionEvents = {
    * Get cached viewport measurements (avoids layout-forcing reads)
    */
   getViewportCache(): ViewportCache {
-    return domPositionStore.viewportCache;
+    return domPositions$.viewportCache.get();
   },
 
   /**
    * Get cached scroll position
    */
   getScrollPosition(): { scrollLeft: number; scrollTop: number } {
-    const cache = domPositionStore.viewportCache;
+    const cache = domPositions$.viewportCache.get();
     return { scrollLeft: cache.scrollLeft, scrollTop: cache.scrollTop };
   },
 
@@ -661,7 +580,7 @@ export const PositionEvents = {
    * Get cached viewport dimensions
    */
   getViewportDimensions(): { clientWidth: number; clientHeight: number } {
-    const cache = domPositionStore.viewportCache;
+    const cache = domPositions$.viewportCache.get();
     return { clientWidth: cache.clientWidth, clientHeight: cache.clientHeight };
   },
 
@@ -669,7 +588,7 @@ export const PositionEvents = {
    * Get cached container rect
    */
   getContainerRect(): DOMRect | null {
-    return domPositionStore.viewportCache.containerRect;
+    return domPositions$.viewportCache.get().containerRect;
   },
 
   /**
@@ -688,12 +607,10 @@ export const PositionEvents = {
       totalWidth = Math.max(totalWidth, column.offset + column.width);
     }
 
-    runInAction(() => {
-      domPositionStore.updateColumnCache({
-        columnPositions,
-        totalWidth,
-        lastColumnUpdate: timestamp
-      });
+    domPositions$.columnCache.set({
+      columnPositions,
+      totalWidth,
+      lastColumnUpdate: timestamp
     });
 
     fileLog.debug('📊 COLUMN CACHE: Updated column positions', {
@@ -707,7 +624,7 @@ export const PositionEvents = {
    * Get cached column position
    */
   getColumnPosition(columnId: string): { offset: number; width: number } | null {
-    const cache = domPositionStore.columnCache;
+    const cache = domPositions$.columnCache.get();
     return cache.columnPositions.get(columnId) || null;
   },
 
@@ -715,13 +632,13 @@ export const PositionEvents = {
    * Get cached total width
    */
   getTotalWidth(): number {
-    return domPositionStore.columnCache.totalWidth;
+    return domPositions$.columnCache.get().totalWidth;
   },
 
   /**
    * Get all cached column positions
    */
   getAllColumnPositions(): Map<string, { offset: number; width: number }> {
-    return domPositionStore.columnCache.columnPositions;
+    return domPositions$.columnCache.get().columnPositions;
   }
 };
