@@ -12,6 +12,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
+import { autorun } from 'mobx'
 import { useLiveQuery } from '@tanstack/react-db'
 import { createLogger } from '@/lib/logging'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
@@ -249,14 +250,25 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       }
     }
 
-    // Initialize when stores and data are ready
-    // Only initialize once - guard prevents re-initialization
-    if (stores && visualStateStore.columns.length > 0 && !rendererRef.current) {
-      initializeRenderer()
-    }
+    // Use MobX autorun to reactively trigger initialization when columns are ready
+    // This allows us to avoid having visualStateStore.columns in React dependencies
+    const disposer = autorun(() => {
+      // Read columns.length inside autorun to track it
+      const hasColumns = visualStateStore.columns.length > 0
+
+      if (stores && hasColumns && !rendererRef.current) {
+        log.info('🎯 MobX autorun: Columns ready, initializing renderer', {
+          columnCount: visualStateStore.columns.length
+        })
+        initializeRenderer()
+      }
+    })
 
     // Cleanup only on unmount
     return () => {
+      // Dispose MobX autorun
+      disposer()
+
       if (rendererRef.current) {
         log.debug('🧹 Cleaning up VibeGrid')
 
@@ -269,7 +281,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         rendererRef.current = null
       }
     }
-  }, [stores]) // CRITICAL: Only depend on stores - renderer has MobX reactions for data/column changes!
+  }, [stores]) // Only depend on stores - MobX autorun handles columns readiness!
 
   // ====================================
   // DERIVED STATE

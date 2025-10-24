@@ -835,6 +835,20 @@ export class SimplePassiveRenderer {
       }
     });
 
+    // HYDRATION OBSERVER: Re-render when grid becomes fully hydrated (for late-arriving data)
+    reaction(
+      () => this.initStore.isFullyHydrated,
+      (isHydrated) => {
+        if (isHydrated && this.observersEnabled) {
+          fileLog.debug('🎯 Grid fully hydrated - triggering render for any pending data', {
+            rowCount: this.tableCoreStore.processedRows.length
+          });
+          // Re-render to show any data that arrived during initialization
+          this.renderBody();
+        }
+      }
+    );
+
     fileLog.debug('✅ Focused observers initialized');
   }
 
