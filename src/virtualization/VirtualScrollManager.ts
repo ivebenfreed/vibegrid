@@ -59,7 +59,7 @@ export function updateVirtualBounds(options: {
     ...options
   };
 
-  fileLog.info('📊 Virtual bounds updated', {
+  fileLog.debug('📊 Virtual bounds updated', {
     totalRows: options.totalRows ?? virtualBounds.totalRows,
     columnCount: options.columnWidths?.length ?? virtualBounds.columnWidths.length,
     rowHeight: options.rowHeight ?? virtualBounds.rowHeight
@@ -99,7 +99,7 @@ export function updateVirtualColumns(columns: ColumnLayout[]): void {
   const columnWidths = columns.map(col => col.width);
   updateVirtualBounds({ columnWidths });
 
-  fileLog.info('📊 Virtual columns updated', {
+  fileLog.debug('📊 Virtual columns updated', {
     columnCount: columns.length,
     totalWidth: columnWidths.reduce((sum, w) => sum + w, 0)
   });
@@ -112,7 +112,7 @@ export function updateVirtualRows(rows: RowLayout[]): void {
   virtualRowLayouts = rows;
   updateVirtualBounds({ totalRows: rows.length });
 
-  fileLog.info('📊 Virtual rows updated', {
+  fileLog.debug('📊 Virtual rows updated', {
     rowCount: rows.length,
     groupRows: rows.filter(r => r.type === 'group').length
   });

@@ -52,7 +52,7 @@ export function RelationshipEditor({
 
   // Handle relationship-specific saving
   const handleRelationshipCommit = React.useCallback((value: any) => {
-    fileLog.info('🔗 RelationshipEditor: Committing relationship value', {
+    fileLog.debug('🔗 RelationshipEditor: Committing relationship value', {
       columnId: column.id,
       cellType,
       value,

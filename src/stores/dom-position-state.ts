@@ -225,7 +225,7 @@ class ReactivePositionTracker {
     // Find the viewport container which is where cells and overlays live
     const viewportContainer = container.querySelector('.vibegridx-viewport') as HTMLElement || container;
 
-    fileLog.info('🎯 Initializing DOM position tracking', {
+    fileLog.debug('🎯 Initializing DOM position tracking', {
       containerClass: container.className,
       viewportClass: viewportContainer.className,
       existingCells: viewportContainer.querySelectorAll('[data-row-id][data-column-id]').length,
@@ -240,7 +240,7 @@ class ReactivePositionTracker {
     this.isInitialized = true;
 
     // Defer initial position update to prevent blocking initialization
-    fileLog.info('🚀 Position tracker initialized, deferring initial update to prevent reflows', {
+    fileLog.debug('🚀 Position tracker initialized, deferring initial update to prevent reflows', {
       cellsFound: viewportContainer.querySelectorAll('[data-row-id][data-column-id]').length
     });
 
@@ -267,7 +267,7 @@ class ReactivePositionTracker {
     // Also listen to window resize which affects viewport positions
     window.addEventListener('resize', this.scrollHandler, { passive: true });
 
-    fileLog.info('✅ Scroll listener initialized');
+    fileLog.debug('✅ Scroll listener initialized');
   }
 
   /**
@@ -537,7 +537,7 @@ class ReactivePositionTracker {
     domPositionStore.setTracking(false);
     this.isInitialized = false;
 
-    fileLog.info('🧹 DOM position tracking cleaned up');
+    fileLog.debug('🧹 DOM position tracking cleaned up');
   }
 
   /**
@@ -545,7 +545,7 @@ class ReactivePositionTracker {
    * Uses computed positions instead of DOM scanning
    */
   forceUpdate(): void {
-    fileLog.info('🔄 forceUpdate called - using computed positions instead of DOM scanning');
+    fileLog.debug('🔄 forceUpdate called - using computed positions instead of DOM scanning');
     this.updateFromComputedPositions();
   }
 

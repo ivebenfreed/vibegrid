@@ -126,7 +126,7 @@ export function initializeFieldTypeSystem(): void {
     // Field types are automatically registered via imports above
     const stats = fieldTypeRegistry.getRegisteredTypes();
 
-    fileLog.info('VibeGrid Modular Field Type System Initialized', {
+    fileLog.debug('VibeGrid Modular Field Type System Initialized', {
       totalFieldTypes: stats.length,
       basicTypes: fieldTypeRegistry.getTypesByCategory('basic'),
       relationshipTypes: fieldTypeRegistry.getTypesByCategory('relationship'),

@@ -97,7 +97,7 @@ export class HeaderRenderer {
       columnWidthsString: visibleColumns.map(col => `${col.id}:${col.width}`).join(',')
     };
 
-    fileLog.info('🔄 HEADER RENDER STATE CHECK', {
+    fileLog.debug('🔄 HEADER RENDER STATE CHECK', {
       currentOrderString: currentRenderState.columnOrderString,
       lastOrderString: this.lastRenderState?.columnOrderString,
       orderChanged: this.lastRenderState?.columnOrderString !== currentRenderState.columnOrderString,
@@ -121,7 +121,7 @@ export class HeaderRenderer {
     // Update last render state
     this.lastRenderState = currentRenderState;
 
-    fileLog.info('🔄 HEADER RENDER TRIGGERED', {
+    fileLog.debug('🔄 HEADER RENDER TRIGGERED', {
       columnCount: columns.length,
       scrollLeft: geometry.scrollLeft,
       visibleRange: `${geometry.visibleColumnRange.start}-${geometry.visibleColumnRange.end}`,
@@ -169,7 +169,7 @@ export class HeaderRenderer {
       columns.find(col => col.id === layout.id)
     ).filter(Boolean);
 
-    fileLog.info('🎨 Header rendering ALL columns (no virtualization)', {
+    fileLog.debug('🎨 Header rendering ALL columns (no virtualization)', {
       totalColumns: columns.length,
       visibleColumns: allColumnLayouts.length,
       scrollLeft: geometry.scrollLeft,
@@ -219,7 +219,7 @@ export class HeaderRenderer {
       this.updateCoordinateMapping(this.coordinateMapping);
     }
     
-    fileLog.info('✅ Header rendered with total width', { totalHeaderWidth });
+    fileLog.debug('✅ Header rendered with total width', { totalHeaderWidth });
   }
 
   /**
@@ -302,7 +302,7 @@ export class HeaderRenderer {
 
       const draggedColumnId = e.dataTransfer!.getData('text/plain');
       if (draggedColumnId) {
-        fileLog.info('🎯 Column dropped at end position', { draggedColumnId });
+        fileLog.debug('🎯 Column dropped at end position', { draggedColumnId });
 
         // Move column to the end by using the last column as target with insertBefore=false
         const columns = this.tableCoreStore.columns;
@@ -417,7 +417,7 @@ export class HeaderRenderer {
       startX = e.pageX;
       startWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150;
 
-      fileLog.info('🔧 Started column resize', {
+      fileLog.debug('🔧 Started column resize', {
         columnId: column.id,
         startWidth,
         startX
@@ -445,7 +445,7 @@ export class HeaderRenderer {
             const deltaX = e.pageX - startX;
             const newWidth = Math.max(50, startWidth + deltaX); // Min width 50px
 
-            fileLog.info('[RESIZE-PREVIEW] 📏 Updating resize state', {
+            fileLog.debug('[RESIZE-PREVIEW] 📏 Updating resize state', {
               columnId: column.id,
               startWidth,
               deltaX,
@@ -463,7 +463,7 @@ export class HeaderRenderer {
               };
             });
 
-            fileLog.info('[RESIZE-PREVIEW] ✅ columnResize state set', {
+            fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize state set', {
               state: this.interactionStore.columnResize
             });
 
@@ -487,7 +487,7 @@ export class HeaderRenderer {
           // Apply the new width (MobX action)
           this.visualStateStore.updateColumnWidth(column.id, resizeState.newWidth);
 
-          fileLog.info('✅ Column resize complete', {
+          fileLog.debug('✅ Column resize complete', {
             columnId: column.id,
             oldWidth: startWidth,
             newWidth: resizeState.newWidth
@@ -495,11 +495,11 @@ export class HeaderRenderer {
         }
 
         // Clear resize state (MobX)
-        fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing columnResize state (mouseup)');
+        fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing columnResize state (mouseup)');
         runInAction(() => {
           this.interactionStore.columnResize = null;
         });
-        fileLog.info('[RESIZE-PREVIEW] ✅ columnResize set to null');
+        fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize set to null');
 
         // Clean up listeners
         document.removeEventListener('mousemove', handleMouseMove);
@@ -559,7 +559,7 @@ export class HeaderRenderer {
       this.selectAllCheckbox.checked = state.checked;
       this.selectAllCheckbox.indeterminate = state.indeterminate;
       
-      fileLog.info('☑️ Select all checkbox updated', {
+      fileLog.debug('☑️ Select all checkbox updated', {
         checked: state.checked,
         indeterminate: state.indeterminate
       });
@@ -681,7 +681,7 @@ export class HeaderRenderer {
       }
     });
 
-    fileLog.info('✅ Reactive sort indicators initialized');
+    fileLog.debug('✅ Reactive sort indicators initialized');
   }
 
   /**
@@ -716,7 +716,7 @@ export class HeaderRenderer {
     if (this.sortIndicatorObserver) {
       this.sortIndicatorObserver();
       this.sortIndicatorObserver = undefined;
-      fileLog.info('🧹 Reactive sort indicator observer disposed');
+      fileLog.info('🧹 Reactive sort indicator observer disposed'); // Keep: lifecycle
     }
   }
 }

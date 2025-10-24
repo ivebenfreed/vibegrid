@@ -53,7 +53,7 @@ export class KeyboardController {
    * Setup centralized keyboard event handling
    */
   private setupKeyboardHandling(): void {
-    fileLog.info('⌨️ Setting up centralized keyboard handling');
+    fileLog.info('⌨️ Setting up centralized keyboard handling'); // Keep: lifecycle
 
     const keydownHandler = (e: KeyboardEvent) => {
       const isCtrlKey = e.ctrlKey || e.metaKey;
@@ -80,39 +80,39 @@ export class KeyboardController {
           case 'c':
             e.preventDefault();
             this.onCopy?.();
-            fileLog.info('⌨️ Ctrl+C - Copy');
+            fileLog.debug('⌨️ Ctrl+C - Copy');
             break;
           case 'v':
             e.preventDefault();
             this.onPaste?.();
-            fileLog.info('⌨️ Ctrl+V - Paste');
+            fileLog.debug('⌨️ Ctrl+V - Paste');
             break;
           case 'x':
             e.preventDefault();
             this.onCut?.();
-            fileLog.info('⌨️ Ctrl+X - Cut');
+            fileLog.debug('⌨️ Ctrl+X - Cut');
             break;
           case 'z':
             e.preventDefault();
             if (isShiftKey) {
               this.onRedo?.();
-              fileLog.info('⌨️ Ctrl+Shift+Z - Redo');
+              fileLog.debug('⌨️ Ctrl+Shift+Z - Redo');
             } else {
               this.onUndo?.();
-              fileLog.info('⌨️ Ctrl+Z - Undo');
+              fileLog.debug('⌨️ Ctrl+Z - Undo');
             }
             break;
           case 'y':
             e.preventDefault();
             this.onRedo?.();
-            fileLog.info('⌨️ Ctrl+Y - Redo');
+            fileLog.debug('⌨️ Ctrl+Y - Redo');
             break;
           case 'a':
             // Let KeyboardNavigationController handle Ctrl+A
             if (this.keyboardNavController) {
               const handled = this.keyboardNavController.handleKeyDown(e);
               if (handled) {
-                fileLog.info('⌨️ Ctrl+A - Select All (delegated)');
+                fileLog.debug('⌨️ Ctrl+A - Select All (delegated)');
                 return;
               }
             }
@@ -130,7 +130,7 @@ export class KeyboardController {
     // Focus the container initially to ensure keyboard events work
     this.container.focus();
 
-    fileLog.info('✅ Centralized keyboard handling setup complete');
+    fileLog.info('✅ Centralized keyboard handling setup complete'); // Keep: lifecycle
   }
 
   /**
@@ -146,7 +146,7 @@ export class KeyboardController {
    */
   setKeyboardNavController(controller: KeyboardNavigationController): void {
     this.keyboardNavController = controller;
-    fileLog.info('⌨️ Keyboard navigation controller updated');
+    fileLog.debug('⌨️ Keyboard navigation controller updated');
   }
 
   /**
@@ -163,7 +163,7 @@ export class KeyboardController {
    * Clean up all event listeners
    */
   destroy(): void {
-    fileLog.info('🧹 Destroying KeyboardController');
+    fileLog.info('🧹 Destroying KeyboardController'); // Keep: lifecycle
 
     // Remove all tracked event listeners
     this.eventListeners.forEach(({ element, event, handler }) => {
@@ -175,6 +175,6 @@ export class KeyboardController {
     });
 
     this.eventListeners = [];
-    fileLog.info('✅ KeyboardController destroyed');
+    fileLog.info('✅ KeyboardController destroyed'); // Keep: lifecycle
   }
 }

@@ -50,7 +50,7 @@ export class SelectionController {
     runInAction(() => {
       this.interactionStore.selectedCells = selectedCells;
     });
-    fileLog.info('Selected all cells', { count: selectedCells.size });
+    fileLog.debug('Selected all cells', { count: selectedCells.size });
   }
 
   /**
@@ -62,7 +62,7 @@ export class SelectionController {
     // Use interaction store method to ensure proper state management
     this.interactionStore.selectColumnCells(columnId, processedRows);
 
-    fileLog.info('Column selected via InteractionStore', {
+    fileLog.debug('Column selected via InteractionStore', {
       columnId,
       rowCount: processedRows.length
     });
@@ -84,7 +84,7 @@ export class SelectionController {
       this.bodyRenderer.updateAllRowCheckboxes();
     }
 
-    fileLog.info('Row selected via InteractionStore', {
+    fileLog.debug('Row selected via InteractionStore', {
       rowId,
       columnCount: visibleColumns.length
     });
@@ -106,7 +106,7 @@ export class SelectionController {
       this.bodyRenderer.updateAllRowCheckboxes();
     }
 
-    fileLog.info('Row selection toggled via InteractionStore', { rowId });
+    fileLog.debug('Row selection toggled via InteractionStore', { rowId });
   }
 
   /**
@@ -152,7 +152,7 @@ export class SelectionController {
       this.bodyRenderer.updateAllRowCheckboxes();
     }
 
-    fileLog.info('Row range selected', {
+    fileLog.debug('Row range selected', {
       startRowId,
       endRowId,
       rowCount: maxRowIndex - minRowIndex + 1,
@@ -200,7 +200,7 @@ export class SelectionController {
       this.interactionStore.selectedCells = selectedCells;
     });
 
-    fileLog.info('Cell range selected', {
+    fileLog.debug('Cell range selected', {
       startCell,
       endCell,
       cellCount: selectedCells.size
@@ -214,7 +214,7 @@ export class SelectionController {
     // Use interaction store method to ensure proper state management
     this.interactionStore.clearSelection();
     this.lastSelectedRowId = null;
-    fileLog.info('Selection cleared via InteractionStore');
+    fileLog.debug('Selection cleared via InteractionStore');
   }
 
   /**
@@ -225,7 +225,7 @@ export class SelectionController {
     const processedRows = this.getProcessedRows();
     const visibleColumns = this.getVisibleColumns();
 
-    fileLog.info('🎯 Select all checkbox toggled', {
+    fileLog.debug('🎯 Select all checkbox toggled', {
       currentSelection: selectedCells.size,
       totalRows: processedRows.length,
       totalColumns: visibleColumns.length
@@ -238,11 +238,11 @@ export class SelectionController {
         columns: visibleColumns,
         columnVisibility: this.getColumnVisibility()
       });
-      fileLog.info('✅ Select all triggered via SelectionController');
+      fileLog.debug('✅ Select all triggered via SelectionController');
     } else {
       // Has selection - clear all via interaction store
       this.interactionStore.clearSelection();
-      fileLog.info('✅ Clear selection triggered via SelectionController');
+      fileLog.debug('✅ Clear selection triggered via SelectionController');
     }
 
     // Update checkbox visual state

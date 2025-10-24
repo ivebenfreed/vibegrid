@@ -24,7 +24,7 @@ export class ColumnWidthManager {
     this.bodyContainer = options.bodyContainer;
     this.headerViewport = options.headerViewport;
 
-    fileLog.info('🏗️ ColumnWidthManager initialized');
+    fileLog.debug('🏗️ ColumnWidthManager initialized');
   }
 
   /**
@@ -38,7 +38,7 @@ export class ColumnWidthManager {
       // Update the width style to match HeaderRenderer's absolute positioning approach
       headerCell.style.width = `${newWidth}px`;
 
-      fileLog.info('[RESIZE] 📏 ColumnWidthManager updated header cell width', {
+      fileLog.debug('[RESIZE] 📏 ColumnWidthManager updated header cell width', {
         columnId,
         newWidth,
         method: 'direct-width-style',
@@ -71,7 +71,7 @@ export class ColumnWidthManager {
         cell.style.cssText = updatedStyle;
       });
 
-      fileLog.info('[RESIZE] 📏 ColumnWidthManager updated body cell widths', {
+      fileLog.debug('[RESIZE] 📏 ColumnWidthManager updated body cell widths', {
         columnId,
         newWidth,
         cellsUpdated: bodyCells.length,
@@ -93,7 +93,7 @@ export class ColumnWidthManager {
     this.updateHeaderCellWidth(columnId, newWidth);
     this.updateBodyCellWidths(columnId, newWidth);
 
-    fileLog.info('📏 Column width updated', { columnId, newWidth });
+    fileLog.debug('📏 Column width updated', { columnId, newWidth });
   }
 
   /**
@@ -130,6 +130,6 @@ export class ColumnWidthManager {
       this._scrollRAF = null;
     }
 
-    fileLog.info('🧹 ColumnWidthManager destroyed');
+    fileLog.debug('🧹 ColumnWidthManager destroyed');
   }
 }

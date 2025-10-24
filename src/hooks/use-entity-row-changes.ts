@@ -158,7 +158,7 @@ export function useEntityRowChanges({
       }
 
       if (currentRows.length > 0) {
-        fileLog.info('🔄 useEntityRowChanges: Legend State observe() detected atomic change', {
+        fileLog.debug('🔄 useEntityRowChanges: Legend State observe() detected atomic change', {
           entityTableName,
           rowCount: currentRows.length,
           source: isInitializedRef.current ? 'legend_state_atomic_update' : 'initial_load',
@@ -178,7 +178,7 @@ export function useEntityRowChanges({
       }
     });
 
-    fileLog.info(`🔄 useEntityRowChanges: Atomic observer created for ${entityTableName}`);
+    fileLog.debug(`🔄 useEntityRowChanges: Atomic observer created for ${entityTableName}`);
 
     return disposeObserver;
   }, [tableSend, entityTableName]);

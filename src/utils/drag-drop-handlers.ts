@@ -30,7 +30,7 @@ export class DragDropManager {
 
   constructor(callbacks: DragDropCallbacks) {
     this.callbacks = callbacks;
-    fileLog.info('🎯 DragDropManager initialized');
+    fileLog.debug('🎯 DragDropManager initialized');
   }
 
   /**
@@ -95,7 +95,7 @@ export class DragDropManager {
     rowType: 'data' | 'group' | 'summary',
     groupId?: string
   ): void {
-    fileLog.info('🎯 setupRowDragHandlers called', {
+    fileLog.debug('🎯 setupRowDragHandlers called', {
       rowId,
       rowType,
       groupId,
@@ -110,7 +110,7 @@ export class DragDropManager {
     }
 
     const isGroupMode = this.callbacks.isGroupMode?.() ?? true;
-    fileLog.info('🔍 Group mode check', { isGroupMode, groupId, hasGroupId: !!groupId });
+    fileLog.debug('🔍 Group mode check', { isGroupMode, groupId, hasGroupId: !!groupId });
 
     if (isGroupMode && !groupId) {
       fileLog.error('❌ Cannot setup drag handlers: no group ID provided for grouped mode', {
@@ -295,7 +295,7 @@ export class DragDropManager {
    */
   destroy(): void {
     this.removeDropIndicators();
-    fileLog.info('🧹 DragDropManager destroyed');
+    fileLog.debug('🧹 DragDropManager destroyed');
   }
 }
 
@@ -354,7 +354,7 @@ export function initializeGroupRowOrder(
   const rowIds = dataRows.map(row => row.id);
   setGroupRowOrder(groupId, rowIds);
 
-  fileLog.info('🔧 Initialized group row order', {
+  fileLog.debug('🔧 Initialized group row order', {
     groupId,
     rowCount: rowIds.length
   });

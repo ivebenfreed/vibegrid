@@ -5,6 +5,8 @@
  */
 
 import { createLogger } from '@/lib/logging';
+import { reaction } from 'mobx';
+import { orpcClient } from '@/data/orpc/client';
 import type {
   VibeGridFieldType,
   CellRenderer,
@@ -23,7 +25,7 @@ const fileLog = createLogger('components/vibegrid/field-types/implementations/re
 export class EntityDataLoader implements AsyncDataLoader {
   async loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCoreStore): Promise<RelationshipData> {
     const orgId = this.getOrgId();
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown';
+    const targetEntity = column.relationshipConfig?.targetEntityType || (column.targetEntityType as string) || 'Unknown';
 
     try {
       const response = await fetch(`/api/dataforge/orgs/${orgId}/relationships/${targetEntity.toLowerCase()}?rowIds=${rowIds.join(',')}`);
@@ -105,6 +107,8 @@ export class EntityDataLoader implements AsyncDataLoader {
 }
 
 export class EntityReferenceRenderer implements CellRenderer {
+  private disposers: Array<() => void> = [];
+
   constructor(private dataLoader: EntityDataLoader) {}
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
@@ -126,9 +130,56 @@ export class EntityReferenceRenderer implements CellRenderer {
       return container;
     }
 
-    container.textContent = 'Loading...';
-    container.style.opacity = '0.7';
-    this.loadAndRenderEntity(container, value, column);
+    if (typeof value === 'object' && value !== null) {
+      const candidate = (value as any).name || (value as any).title;
+      if (candidate) {
+        container.innerHTML = this.createEntityBadge(value, (value as any).id || rowData[column.id], column);
+        return container;
+      }
+    }
+
+    const tableCoreStore = this.getTableCoreStore(column);
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
+    const entityId = String(value);
+
+    if (tableCoreStore) {
+      const existing = tableCoreStore.getEntityReferenceRecord(targetEntity, entityId);
+      if (existing) {
+        container.innerHTML = this.createEntityBadge(existing, entityId, column);
+        container.style.opacity = '1';
+        return container;
+      }
+
+      container.textContent = 'Loading...';
+      container.style.opacity = '0.7';
+
+      void tableCoreStore.ensureEntityReferenceRecord(targetEntity, entityId, async () => {
+        const record = await this.fetchEntityRecord(entityId, column, tableCoreStore);
+        return record;
+      });
+
+      const dispose = reaction(
+        () => tableCoreStore.getEntityReferenceRecord(targetEntity, entityId),
+        (record) => {
+          if (record) {
+            container.innerHTML = this.createEntityBadge(record, entityId, column);
+            container.style.opacity = '1';
+            dispose();
+          }
+        },
+        { fireImmediately: false }
+      );
+
+      this.disposers.push(dispose);
+    } else {
+      fileLog.debug('EntityReferenceRenderer: no tableCoreStore available, falling back to direct fetch', {
+        columnId: column.id,
+        entityId
+      });
+      container.textContent = 'Loading...';
+      container.style.opacity = '0.7';
+      this.loadAndRenderEntity(container, entityId, column, undefined);
+    }
 
     return container;
   }
@@ -143,7 +194,8 @@ export class EntityReferenceRenderer implements CellRenderer {
       element.style.opacity = '0.6';
     } else {
       element.textContent = 'Loading...';
-      this.loadAndRenderEntity(element, value, column);
+      const tableCoreStore = this.getTableCoreStore(column);
+      this.loadAndRenderEntity(element, String(value), column, tableCoreStore);
     }
   }
 
@@ -192,24 +244,157 @@ export class EntityReferenceRenderer implements CellRenderer {
     `;
   }
 
-  private async loadAndRenderEntity(container: HTMLElement, entityId: string, column: EnhancedColumn) {
+  private async loadAndRenderEntity(
+    container: HTMLElement,
+    entityId: string,
+    column: EnhancedColumn,
+    tableCoreStore?: TableCoreStore
+  ) {
     try {
-      await new Promise(resolve => setTimeout(resolve, 200));
-
       const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
-      const mockEntityData = {
-        id: entityId,
-        name: `${targetEntity} ${entityId.slice(-4)}`,
-        title: `Sample ${targetEntity}`
-      };
 
-      container.innerHTML = this.createEntityBadge(mockEntityData, entityId, column);
-      container.style.opacity = '1';
+      if (tableCoreStore) {
+        const record = await tableCoreStore.ensureEntityReferenceRecord(targetEntity, entityId, async () => {
+          return this.fetchEntityRecord(entityId, column, tableCoreStore);
+        });
+
+        if (record) {
+          container.innerHTML = this.createEntityBadge(record, entityId, column);
+          container.style.opacity = '1';
+          return;
+        }
+      } else {
+        const record = await this.fetchEntityRecord(entityId, column, undefined);
+        if (record) {
+          container.innerHTML = this.createEntityBadge(record, entityId, column);
+          container.style.opacity = '1';
+          return;
+        }
+      }
+
+      container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
+      container.style.opacity = '0.6';
+      fileLog.debug('EntityReferenceRenderer: fallback display', {
+        entityId,
+        columnId: column.id
+      });
     } catch (error) {
       fileLog.error('Failed to load entity data', { error, entityId });
       container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
       container.className += ' vibegridx-entity-reference-error';
     }
+  }
+
+  private async fetchEntityRecord(
+    entityId: string,
+    column: EnhancedColumn,
+    tableCoreStore?: TableCoreStore
+  ): Promise<any | null> {
+    try {
+      const targetEntity = column.relationshipConfig?.targetEntityType || column.targetEntityType || this.inferTargetEntity(column);
+      if (!targetEntity) {
+        fileLog.warn('fetchEntityRecord: Unable to determine target entity type', {
+          columnId: column.id,
+          entityId
+        });
+        return null;
+      }
+
+      const response = await orpcClient.dataforge.data.get({
+        entityName: targetEntity,
+        recordId: entityId
+      });
+
+      const record = response?.data;
+      if (record && tableCoreStore) {
+        tableCoreStore.setEntityReferenceRecord(targetEntity, entityId, record);
+      }
+
+      return record ?? null;
+    } catch (error) {
+      fileLog.error('Failed to fetch entity record', { error, entityId, columnId: column.id });
+      return null;
+    }
+  }
+
+  private inferTargetEntity(column: EnhancedColumn): string | null {
+    if (column.relationshipConfig?.targetEntityType) {
+      return column.relationshipConfig.targetEntityType;
+    }
+
+    if ((column as any).targetEntityType) {
+      return (column as any).targetEntityType;
+    }
+
+    if (column.id?.includes('project')) {
+      return 'BuildProject';
+    }
+
+    return null;
+  }
+
+  private storeRelationshipData(
+    tableCoreStore: TableCoreStore,
+    column: EnhancedColumn,
+    relationshipData: RelationshipData | null | undefined
+  ): void {
+    if (!relationshipData || typeof relationshipData !== 'object') {
+      fileLog.debug('storeRelationshipData: empty relationship data', {
+        hasData: !!relationshipData
+      });
+      return;
+    }
+
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'entity';
+    const dataForEntity = relationshipData[targetEntity.toLowerCase()] ?? relationshipData[targetEntity] ?? null;
+
+    if (!dataForEntity) {
+      fileLog.debug('storeRelationshipData: no data for target entity key', {
+        targetEntity,
+        availableKeys: Object.keys(relationshipData)
+      });
+      return;
+    }
+
+    if (Array.isArray(dataForEntity)) {
+      dataForEntity.forEach((item: any) => {
+        if (item && item.id) {
+          tableCoreStore.setEntityReferenceRecord(targetEntity, item.id, item);
+        }
+      });
+      fileLog.debug('storeRelationshipData: cached array records', {
+        targetEntity,
+        count: dataForEntity.length
+      });
+      return;
+    }
+
+    if (dataForEntity instanceof Map) {
+      dataForEntity.forEach((item: any, id: string) => {
+        if (id && item) {
+          tableCoreStore.setEntityReferenceRecord(targetEntity, id, item);
+        }
+      });
+      fileLog.debug('storeRelationshipData: cached map records', {
+        targetEntity,
+        count: dataForEntity.size
+      });
+      return;
+    }
+
+    Object.entries(dataForEntity as Record<string, any>).forEach(([id, item]) => {
+      if (id && item) {
+        tableCoreStore.setEntityReferenceRecord(targetEntity, id, item);
+      }
+    });
+    fileLog.debug('storeRelationshipData: cached object records', {
+      targetEntity,
+      count: Object.keys(dataForEntity as Record<string, any>).length
+    });
+  }
+
+  private getTableCoreStore(column: EnhancedColumn): TableCoreStore | undefined {
+    return (column as any).tableCoreStore || (column as any).tableCore$;
   }
 }
 

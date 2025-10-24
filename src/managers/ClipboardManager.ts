@@ -64,7 +64,7 @@ export class ClipboardManager {
    * Handle copy operation with rich metadata
    */
   async handleCopy(): Promise<boolean> {
-    fileLog.info('📋 ClipboardManager: Copy action triggered');
+    fileLog.debug('📋 ClipboardManager: Copy action triggered');
 
     const selectedCells = this.tableInteraction$.selectedCells.get();
     if (selectedCells.size === 0) {
@@ -98,7 +98,7 @@ export class ClipboardManager {
         duration: 2000
       });
 
-      fileLog.info('📋 Copy completed with metadata', { cellCount: selectedCells.size });
+      fileLog.debug('📋 Copy completed with metadata', { cellCount: selectedCells.size });
       return true;
     } catch (error) {
       fileLog.error('📋 Copy failed', error);
@@ -114,7 +114,7 @@ export class ClipboardManager {
    * Handle paste operation with column type awareness
    */
   async handlePaste(): Promise<PasteResult> {
-    fileLog.info('📋 ClipboardManager: Paste action triggered');
+    fileLog.debug('📋 ClipboardManager: Paste action triggered');
 
     const clipboard = this.tableInteraction$.clipboard.get();
     if (!clipboard || !clipboard.data) {
@@ -156,7 +156,7 @@ export class ClipboardManager {
       // Clear copy overlay on successful paste
       if (result.success && result.pastedCount > 0) {
         this.tableInteraction$.clearClipboard();
-        fileLog.info('📋 Clipboard cleared after successful paste');
+        fileLog.debug('📋 Clipboard cleared after successful paste');
       }
 
       // Show appropriate toast based on results
@@ -460,7 +460,7 @@ export class ClipboardManager {
       });
     }
 
-    fileLog.info('📋 Starting column-aware paste operation', {
+    fileLog.debug('📋 Starting column-aware paste operation', {
       dataRows: data.length,
       dataCols: data[0]?.length || 0,
       targetRowsCount: sortedRows.length,
@@ -586,7 +586,7 @@ export class ClipboardManager {
       }
     }
 
-    fileLog.info('📋 Column-aware paste operation completed', {
+    fileLog.debug('📋 Column-aware paste operation completed', {
       pastedCount,
       errorCount,
       skippedCount,

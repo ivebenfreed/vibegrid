@@ -115,13 +115,13 @@ export class BodyRenderer {
     // This allows synchronous access if it's already initialized
     if (typeof window !== 'undefined' && window.vibegridCellBridge) {
       this.modularCellBridge = window.vibegridCellBridge;
-      fileLog.info('🎯 [FIELD-BRIDGE] Modular cell system already available from init manager');
+      fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already available from init manager');
     } else {
       // Initialize modular cell system asynchronously as fallback
       this.initializeModularCellSystem();
     }
 
-    fileLog.info('🏗️ BodyRenderer initialized (Phase 2.1 consolidated)');
+    fileLog.info('🏗️ BodyRenderer initialized (Phase 2.1 consolidated)'); // Keep: lifecycle
   }
 
   /**
@@ -146,7 +146,7 @@ export class BodyRenderer {
     // First check if it's already available globally (from init manager)
     if (typeof window !== 'undefined' && window.vibegridCellBridge) {
       this.modularCellBridge = window.vibegridCellBridge;
-      fileLog.info('🎯 [FIELD-BRIDGE] Modular cell system already initialized (from init manager)', {
+      fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already initialized (from init manager)', {
         supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
         basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
         relationshipTypes: this.modularCellBridge.getStats().registry.relationshipTypes.length,
@@ -160,7 +160,7 @@ export class BodyRenderer {
       const modularModule = await import('../../field-types');
       this.modularCellBridge = modularModule.modularCellBridge;
 
-      fileLog.info('🎯 [FIELD-BRIDGE] Modular cell system initialized in BodyRenderer', {
+      fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system initialized in BodyRenderer', {
         supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
         basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
         relationshipTypes: this.modularCellBridge.getStats().registry.relationshipTypes.length,
@@ -186,7 +186,7 @@ export class BodyRenderer {
     // Clear active rows
     this.activeRows.clear();
 
-    fileLog.info('🧹 BodyRenderer destroyed');
+    fileLog.info('🧹 BodyRenderer destroyed'); // Keep: lifecycle
   }
 
   // ====================================
@@ -207,7 +207,7 @@ export class BodyRenderer {
     this.cellRenderingStats.rowsRequested++;
     this.cellRenderingStats.lastRenderTime = Date.now();
 
-    fileLog.info('🔧 [CELL-DEBUG] Creating row element', {
+    fileLog.debug('🔧 [CELL-DEBUG] Creating row element', {
       rowId: row.id,
       rowIndex,
       rowType: row.type,
@@ -344,7 +344,7 @@ export class BodyRenderer {
     // Track successful row creation
     this.cellRenderingStats.rowsCreated++;
 
-    fileLog.info('✅ [CELL-DEBUG] Row element created successfully', {
+    fileLog.debug('✅ [CELL-DEBUG] Row element created successfully', {
       rowId: row.id,
       cellsInRow: this.cellRenderingStats.cellsCreated - (this.cellRenderingStats.cellsCreated - columns.length),
       totalWidth: totalRowWidth,
@@ -588,7 +588,7 @@ export class BodyRenderer {
       e.preventDefault();
       e.stopPropagation();
 
-      fileLog.info('🎯 Group header clicked', {
+      fileLog.debug('🎯 Group header clicked', {
         groupId: groupRow.id,
         currentlyExpanded: isExpanded
       });
@@ -618,7 +618,7 @@ export class BodyRenderer {
 
     if (this.modularCellBridge) {
       try {
-        fileLog.info('[VGDEBUG] 🎯 Creating cell', {
+        fileLog.debug('[VGDEBUG] 🎯 Creating cell', {
           columnId: column.id,
           fieldType: column.cellType || column.type || 'text',
           value: value,
@@ -632,9 +632,12 @@ export class BodyRenderer {
           this.visualStateStore.columnWidths[column.id] ??
           column.width ??
           150;
-        const columnForRender = column.width === effectiveWidth
-          ? column
-          : { ...column, width: effectiveWidth };
+        const columnForRender = {
+          ...column,
+          width: effectiveWidth,
+          tableCoreStore: this.tableCoreStore,
+          tableCore$: this.tableCoreStore
+        };
 
         const cellElement = this.modularCellBridge.createCell(
           value,
@@ -693,7 +696,7 @@ export class BodyRenderer {
           e.stopPropagation();
           const cellId = `${row.id}:${column.id}`;
 
-          fileLog.info('📝 Content clicked - entering edit mode', {
+          fileLog.debug('📝 Content clicked - entering edit mode', {
             rowId: row.id,
             columnId: column.id,
             value,
@@ -775,7 +778,7 @@ export class BodyRenderer {
   private initializeDragDrop(): void {
     this.dragDropManager = new DragDropManager({
       onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => {
-        fileLog.info('🔄 Row move requested via drag and drop (grouped)', {
+        fileLog.debug('🔄 Row move requested via drag and drop (grouped)', {
           draggedRowId,
           targetGroupId,
           newIndex
@@ -799,7 +802,7 @@ export class BodyRenderer {
         // Move row within group using data state method
         const success = this.tableCoreStore.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex);
 
-        fileLog.info('✅ Row move delegated to drag handler', {
+        fileLog.debug('✅ Row move delegated to drag handler', {
           draggedRowId,
           sourceGroupId,
           targetGroupId,
@@ -811,7 +814,7 @@ export class BodyRenderer {
       },
 
       onFlatRowMove: (fromIndex: number, toIndex: number) => {
-        fileLog.info('🔄 Row move requested via drag and drop (flat)', {
+        fileLog.debug('🔄 Row move requested via drag and drop (flat)', {
           fromIndex,
           toIndex
         });
@@ -819,7 +822,7 @@ export class BodyRenderer {
         // Move row in flat mode
         const success = this.tableCoreStore.moveRowInFlat(fromIndex, toIndex);
 
-        fileLog.info('✅ Row moved in flat mode', {
+        fileLog.debug('✅ Row moved in flat mode', {
           success,
           fromIndex,
           toIndex
@@ -930,7 +933,7 @@ export class BodyRenderer {
     const isShiftKey = e.shiftKey;
     const cellId = `${row.id}:${column.id}`;
 
-    fileLog.info('🖱️ Cell mouse down - immediate selection', {
+    fileLog.debug('🖱️ Cell mouse down - immediate selection', {
       rowId: row.id,
       columnId: column.id,
       ctrl: isCtrlKey,
@@ -994,7 +997,7 @@ export class BodyRenderer {
         target.classList.contains('vibegridx-cell-boolean-editable') ||
         target.classList.contains('vibegridx-cell-empty-editable') ||
         target.classList.contains('vibegridx-enum-badge'))) {
-      fileLog.info('📝 Content element clicked, ignoring for selection');
+      fileLog.debug('📝 Content element clicked, ignoring for selection');
       return; // Content clicks are handled separately for editing
     }
 
@@ -1002,7 +1005,7 @@ export class BodyRenderer {
     const isShiftKey = e.shiftKey;
     const cellId = `${row.id}:${column.id}`;
 
-    fileLog.info('🖱️ Cell whitespace clicked - selection mode', {
+    fileLog.debug('🖱️ Cell whitespace clicked - selection mode', {
       rowId: row.id,
       columnId: column.id,
       ctrl: isCtrlKey,
@@ -1195,7 +1198,7 @@ export class CellFormatter {
 
     const { cellId } = this.lastClickedCell;
 
-    fileLog.info('🖱️ Starting drag selection on actual drag detection', {
+    fileLog.debug('🖱️ Starting drag selection on actual drag detection', {
       startCell: cellId,
       mousePosition: { x: e.clientX, y: e.clientY }
     });
@@ -1237,7 +1240,7 @@ export class CellFormatter {
    * Can be removed after verifying no references exist
    */
   endDragSelectionOnMouseUp(): void {
-    fileLog.info('🖱️ Ending drag selection on mouse up');
+    fileLog.debug('🖱️ Ending drag selection on mouse up');
     this.interactionStore.endDragSelection();
 
     // Clean up context since interaction is complete

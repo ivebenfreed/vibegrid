@@ -80,14 +80,14 @@ export class MouseController {
     this.container.style.webkitUserSelect = 'none';
 
     this.setupGlobalMouseHandling();
-    fileLog.info('🖱️ MouseController initialized with global event handling');
+    fileLog.debug('🖱️ MouseController initialized with global event handling');
   }
 
   /**
    * Setup global mouse event listeners - ONLY these listeners should exist for mouse events
    */
   private setupGlobalMouseHandling(): void {
-    fileLog.info('🖱️ Setting up global mouse event coordination');
+    fileLog.debug('🖱️ Setting up global mouse event coordination');
 
     // Global mouse event handlers
     const mouseDownHandler = this.onMouseDown.bind(this);
@@ -103,7 +103,7 @@ export class MouseController {
 
     // NOTE: No HTML5 drag events needed - we use pure mouse events for column drag
 
-    fileLog.info('✅ Global mouse event coordination setup complete');
+    fileLog.debug('✅ Global mouse event coordination setup complete');
   }
 
   /**
@@ -180,7 +180,7 @@ export class MouseController {
       if (columnId) {
         this.isColumnDrag = true;
         this.dragColumnId = columnId;
-        fileLog.info('🎯 Column header mouse down - preparing for drag', { columnId });
+        fileLog.debug('🎯 Column header mouse down - preparing for drag', { columnId });
         return;
       } else {
         fileLog.warn('⚠️ Header element found but no column ID', {
@@ -209,7 +209,7 @@ export class MouseController {
         this.dragRowId = rowId;
         this.dragRowGroupId = groupId || null;
 
-        fileLog.info('🖱️ Row drag handle mouse down - preparing for row drag', {
+        fileLog.debug('🖱️ Row drag handle mouse down - preparing for row drag', {
           cellId,
           rowId,
           groupId,
@@ -226,7 +226,7 @@ export class MouseController {
       const isEditableElement = target.matches('input, textarea, select') ||
                                 target.contentEditable === 'true';
 
-      fileLog.info('🖱️ Cell mouse down - pure event coordination', {
+      fileLog.debug('🖱️ Cell mouse down - pure event coordination', {
         cellId,
         tagName: target.tagName,
         className: target.className,
@@ -259,7 +259,7 @@ export class MouseController {
       }
     }
 
-    fileLog.info('🖱️ Mouse down tracked', {
+    fileLog.debug('🖱️ Mouse down tracked', {
       position: this.startPosition,
       target: target.tagName
     });
@@ -384,7 +384,7 @@ export class MouseController {
         if (targetRowId && targetRowId !== this.dragRowId) {
           runInAction(() => { this.interactionStore.dragTarget = targetRowId });
           this.showRowDropIndicator(targetRowElement, e.clientY);
-          fileLog.info('🎯 Row drag over target', {
+          fileLog.debug('🎯 Row drag over target', {
             sourceRowId: this.dragRowId,
             targetRowId
           });
@@ -536,7 +536,7 @@ export class MouseController {
             insertBefore = e.clientX < cellCenterX;
           }
 
-          fileLog.info('🎯 Column dropped for reordering', {
+          fileLog.debug('🎯 Column dropped for reordering', {
             sourceColumnId: this.dragColumnId,
             targetColumnId,
             insertBefore,
@@ -561,21 +561,21 @@ export class MouseController {
         }
 
         // Reset row drag state
-        fileLog.info('🏁 Row drag ended', { rowId: this.dragRowId });
+        fileLog.debug('🏁 Row drag ended', { rowId: this.dragRowId });
         runInAction(() => { this.interactionStore.isDragging = false });
         runInAction(() => { this.interactionStore.dragSource = null });
         runInAction(() => { this.interactionStore.dragTarget = null });
         this.removeRowDragPreview();
         this.hideRowDropIndicator();
-        fileLog.info('🎯 Row drag state reset, continuing to general reset');
+        fileLog.debug('🎯 Row drag state reset, continuing to general reset');
       } else {
         // PURE: End drag selection reactively
         const dragResult = this.interactionStore.endDragSelect();
-        fileLog.info('🖱️ Ended drag selection reactively', dragResult);
+        fileLog.debug('🖱️ Ended drag selection reactively', dragResult);
       }
 
-      fileLog.info('🖱️ Mouse up after drag - preventing synthetic click');
-      fileLog.info('🖱️ About to reset all drag state');
+      fileLog.debug('🖱️ Mouse up after drag - preventing synthetic click');
+      fileLog.debug('🖱️ About to reset all drag state');
       // Prevent the browser from generating a click event after drag
       e.preventDefault();
       e.stopPropagation();
@@ -593,7 +593,7 @@ export class MouseController {
       this.dragRowGroupId = null;
       this.isColumnResize = false;
       this.startPosition = { x: 0, y: 0 };
-      fileLog.info('🖱️ Drag state reset immediately', {
+      fileLog.debug('🖱️ Drag state reset immediately', {
         isDragging: this.isDragging,
         isTracking: this.isTracking,
         isColumnDrag: this.isColumnDrag,
@@ -616,7 +616,7 @@ export class MouseController {
       this.dragRowGroupId = null;
       this.isColumnResize = false;
       this.startPosition = { x: 0, y: 0 };
-      fileLog.info('🖱️ Non-drag mouse up - state reset', {
+      fileLog.debug('🖱️ Non-drag mouse up - state reset', {
         isDragging: this.isDragging,
         isTracking: this.isTracking,
         isColumnDrag: this.isColumnDrag,
@@ -632,7 +632,7 @@ export class MouseController {
   private onClick(e: MouseEvent): void {
     // Ignore clicks that resulted from drag or resize operations
     if (this.isDragging || this.justEndedDrag) {
-      fileLog.info('🖱️ Click blocked - was result of drag or resize operation', {
+      fileLog.debug('🖱️ Click blocked - was result of drag or resize operation', {
         isDragging: this.isDragging,
         justEndedDrag: this.justEndedDrag
       });
@@ -644,7 +644,7 @@ export class MouseController {
     const target = e.target as HTMLElement;
     const isWithinContainer = this.container.contains(e.target as Node);
 
-    fileLog.info('🔍 onClick entry', {
+    fileLog.debug('🔍 onClick entry', {
       targetTag: target.tagName,
       targetClass: target.className,
       targetId: target.id,
@@ -665,7 +665,7 @@ export class MouseController {
         const columnId = cellElement.getAttribute('data-column-id');
         const cellId = `${rowId}:${columnId}`;
 
-        fileLog.info('🖱️ Cell click detected', {
+        fileLog.debug('🖱️ Cell click detected', {
           cellId,
           rowId,
           columnId,
@@ -683,7 +683,7 @@ export class MouseController {
           const lastSelectedCell = selectedCells.size > 0 ? Array.from(selectedCells).pop() : null;
 
           if (lastSelectedCell) {
-            fileLog.info('🖱️ Shift+click range selection', {
+            fileLog.debug('🖱️ Shift+click range selection', {
               from: lastSelectedCell,
               to: cellId
             });
@@ -715,7 +715,7 @@ export class MouseController {
         // Handle row header clicks
         const rowId = rowHeaderElement.getAttribute('data-row-id');
         if (rowId) {
-          fileLog.info('🖱️ Row header click detected', {
+          fileLog.debug('🖱️ Row header click detected', {
             rowId,
             isShiftKey: e.shiftKey,
             isCtrlKey: e.ctrlKey
@@ -748,7 +748,7 @@ export class MouseController {
           const groupId = groupRowElement.getAttribute('data-group-id');
 
           if (groupId) {
-            fileLog.info('🎯 Group expansion triangle clicked', {
+            fileLog.debug('🎯 Group expansion triangle clicked', {
               groupId,
               targetTag: target.tagName,
               targetClass: target.className
@@ -756,7 +756,7 @@ export class MouseController {
 
             // Toggle group expansion via MobX store
             this.visualStateStore.toggleGroupExpansion(groupId);
-            fileLog.info('🔄 toggleGroupExpansion called', { groupId });
+            fileLog.debug('🔄 toggleGroupExpansion called', { groupId });
             return; // Important: exit early to prevent further processing
           }
         }
@@ -788,7 +788,7 @@ export class MouseController {
             const isCtrlKey = e.ctrlKey || e.metaKey;
             const isShiftKey = e.shiftKey;
 
-            fileLog.info('🖱️ Column header click detected', {
+            fileLog.debug('🖱️ Column header click detected', {
               columnId,
               field,
               isShiftKey,
@@ -800,7 +800,7 @@ export class MouseController {
             // Shift+click enables multi-column sorting
             const isMultiSort = isShiftKey;
 
-            fileLog.info('🔄 Column header clicked for sort', {
+            fileLog.debug('🔄 Column header clicked for sort', {
               columnId,
               field,
               isMultiSort,
@@ -808,7 +808,7 @@ export class MouseController {
             });
 
               // Use visual state operations for sorting
-            fileLog.info('🔄 About to call toggleSort', {
+            fileLog.debug('🔄 About to call toggleSort', {
               hasVisualState: !!this.visualState,
               hasVisualOperations: !!this.visualState?.visualOperations,
               hasToggleSort: !!this.visualState?.visualOperations?.toggleSort,
@@ -816,7 +816,7 @@ export class MouseController {
               isMultiSort
             });
             this.visualStateStore.toggleSort(field, isMultiSort);
-            fileLog.info('🔄 toggleSort call completed');
+            fileLog.debug('🔄 toggleSort call completed');
           }
         } else if (!cellElement) {
         // Check if this was actually a column header click that didn't get detected
@@ -827,7 +827,7 @@ export class MouseController {
           const columnId = columnHeaderElement.getAttribute('data-column-id');
           const field = columnHeaderElement.getAttribute('data-field');
 
-          fileLog.info('🔍 FOUND MISSED COLUMN HEADER in fallback check', {
+          fileLog.debug('🔍 FOUND MISSED COLUMN HEADER in fallback check', {
             columnId,
             field,
             targetTag: target.tagName,
@@ -840,7 +840,7 @@ export class MouseController {
             // Ctrl+click for column selection is disabled in this system
             // Regular click or Shift+click - toggle sort
             const isMultiSort = isShiftKey;
-            fileLog.info('🔄 Column header clicked for sort via fallback', {
+            fileLog.debug('🔄 Column header clicked for sort via fallback', {
               columnId,
               field,
               isMultiSort,
@@ -853,7 +853,7 @@ export class MouseController {
 
         // Click within container but not on a cell or row header - this should NOT clear selection
         // Only clicks outside the entire container should clear selection
-        fileLog.info('🖱️ Container click (non-cell) detected - preserving selection', {
+        fileLog.debug('🖱️ Container click (non-cell) detected - preserving selection', {
           targetTag: target.tagName,
           targetClass: target.className,
           targetId: target.id,
@@ -868,7 +868,7 @@ export class MouseController {
       }
     } else {
       // Click outside the container - this is a true outside click for blur
-      fileLog.info('🖱️ Outside container click detected - delegating to ScrollController for blur');
+      fileLog.debug('🖱️ Outside container click detected - delegating to ScrollController for blur');
 
       if (this.scrollController?.handleOutsideClick) {
         this.scrollController.handleOutsideClick(e);
@@ -901,7 +901,7 @@ export class MouseController {
    * Force reset drag state - called by external components when drag ends
    */
   resetDragState(): void {
-    fileLog.info('🖱️ Force resetting drag state', {
+    fileLog.debug('🖱️ Force resetting drag state', {
       wasTracking: this.isTracking,
       wasDragging: this.isDragging,
       wasColumnDrag: this.isColumnDrag,
@@ -930,22 +930,22 @@ export class MouseController {
    */
   setBodyRenderer(bodyRenderer: any): void {
     this.bodyRenderer = bodyRenderer;
-    fileLog.info('🖱️ BodyRenderer reference updated');
+    fileLog.debug('🖱️ BodyRenderer reference updated');
   }
 
   setScrollController(scrollController: any): void {
     this.scrollController = scrollController;
-    fileLog.info('🖱️ ScrollController reference updated');
+    fileLog.debug('🖱️ ScrollController reference updated');
   }
 
   setSelectionController(selectionController: any): void {
     this.selectionController = selectionController;
-    fileLog.info('🖱️ SelectionController reference updated');
+    fileLog.debug('🖱️ SelectionController reference updated');
   }
 
   setKeyboardController(keyboardController: any): void {
     this.keyboardController = keyboardController;
-    fileLog.info('🖱️ KeyboardController reference updated');
+    fileLog.debug('🖱️ KeyboardController reference updated');
   }
 
   /**
@@ -1214,7 +1214,7 @@ export class MouseController {
     // Calculate target index
     const targetIndex = this.calculateRowDropIndex(targetRowElement, targetGroupId, insertBefore);
 
-    fileLog.info('🎯 Row dropped for reordering', {
+    fileLog.debug('🎯 Row dropped for reordering', {
       sourceRowId: this.dragRowId,
       sourceGroupId: this.dragRowGroupId,
       targetRowId,
@@ -1302,7 +1302,7 @@ export class MouseController {
     // Access DragDropManager through BodyRenderer
     if (this.bodyRenderer?.dragDropManager?.callbacks?.onRowMove) {
       const success = this.bodyRenderer.dragDropManager.callbacks.onRowMove(draggedRowId, targetGroupId, newIndex);
-      fileLog.info(success ? '🎯 Same-group row move' : '❌ Row move failed', {
+      fileLog.debug(success ? '🎯 Same-group row move' : '❌ Row move failed', {
         draggedRowId,
         targetGroupId,
         newIndex,
@@ -1325,7 +1325,7 @@ export class MouseController {
     // Access DragDropManager through BodyRenderer
     if (this.bodyRenderer?.dragDropManager?.callbacks?.onFlatRowMove) {
       const success = this.bodyRenderer.dragDropManager.callbacks.onFlatRowMove(fromIndex, toIndex);
-      fileLog.info(success ? '🎯 Flat row move' : '❌ Flat row move failed', {
+      fileLog.debug(success ? '🎯 Flat row move' : '❌ Flat row move failed', {
         fromIndex,
         toIndex,
         success
@@ -1426,6 +1426,6 @@ export class MouseController {
     this.container.style.userSelect = '';
     this.container.style.webkitUserSelect = '';
 
-    fileLog.info('🧹 MouseController destroyed');
+    fileLog.debug('🧹 MouseController destroyed');
   }
 }

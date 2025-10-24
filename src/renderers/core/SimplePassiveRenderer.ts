@@ -173,7 +173,7 @@ export class SimplePassiveRenderer {
       throw new Error('SimplePassiveRenderer: Must provide MobX stores');
     }
 
-    fileLog.info('🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)', {
+    fileLog.debug('🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)', {
       instanceId: this.rendererInstanceId,
       hasContainer: !!this.container
     });
@@ -186,7 +186,7 @@ export class SimplePassiveRenderer {
     this.initStore = options.stores.initStore;
     this.entityType = options.entityType;
 
-    fileLog.info('✅ MobX stores assigned', {
+    fileLog.debug('✅ MobX stores assigned', {
       entityType: this.entityType,
       hasTableCore: !!this.tableCoreStore,
       hasVisualState: !!this.visualStateStore,
@@ -209,7 +209,7 @@ export class SimplePassiveRenderer {
     fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction');
     this.postInitialization();
 
-    fileLog.info('✅ SimplePassiveRenderer initialized with PURE MobX (no bridge)', {
+    fileLog.debug('✅ SimplePassiveRenderer initialized with PURE MobX (no bridge)', {
       timestamp: Date.now(),
       entityType: this.entityType
     });
@@ -219,7 +219,7 @@ export class SimplePassiveRenderer {
    * Initialize DOM Element Factory
    */
   private initDOMFactory(): void {
-    fileLog.info('🏭 Initializing DOM Element Factory');
+    fileLog.debug('🏭 Initializing DOM Element Factory');
 
     this.domFactory = new DOMElementFactory({
       interactionStore: this.interactionStore,
@@ -230,14 +230,14 @@ export class SimplePassiveRenderer {
       visualOperations: this.visualStateStore // ✅ FIXED: Wire up VisualStateStore
     });
 
-    fileLog.info('✅ DOM Element Factory initialized');
+    fileLog.debug('✅ DOM Element Factory initialized');
   }
 
   /**
    * Initialize modular controllers
    */
   private initControllers(): void {
-    fileLog.info('🎮 Initializing modular controllers');
+    fileLog.debug('🎮 Initializing modular controllers');
 
     // Initialize selection controller (MobX version)
     this.selectionController = new SelectionController({
@@ -278,7 +278,7 @@ export class SimplePassiveRenderer {
    * Initialize Phase 2 managers
    */
   private initPhase2Managers(): void {
-    fileLog.info('🚀 Initializing Phase 2 managers');
+    fileLog.debug('🚀 Initializing Phase 2 managers');
 
     // GroupRenderer needs MobX migration (expects visualState from Legend State)
     // TODO: Migrate GroupRenderer to use VisualStateStore
@@ -311,20 +311,20 @@ export class SimplePassiveRenderer {
     // Initialize DragDropManager for row reordering
     this.dragDropManager = new DragDropManager({
       onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => {
-        fileLog.info('🎯 Row moved', { draggedRowId, targetGroupId, newIndex });
+        fileLog.debug('🎯 Row moved', { draggedRowId, targetGroupId, newIndex });
         // TODO: Implement row move logic
         return true;
       },
       onFlatRowMove: (fromIndex: number, toIndex: number) => {
-        fileLog.info('🎯 Flat row moved', { fromIndex, toIndex });
+        fileLog.debug('🎯 Flat row moved', { fromIndex, toIndex });
         // TODO: Implement flat row move logic
         return true;
       },
       onDragStart: (rowId: string, groupId?: string) => {
-        fileLog.info('🎯 Row drag started', { rowId, groupId });
+        fileLog.debug('🎯 Row drag started', { rowId, groupId });
       },
       onDragEnd: (success: boolean) => {
-        fileLog.info('🎯 Row drag ended', { success });
+        fileLog.debug('🎯 Row drag ended', { success });
       },
       isGroupMode: () => this.visualStateStore.groupBy.length > 0
     });
@@ -341,14 +341,14 @@ export class SimplePassiveRenderer {
     //   onEntityUpdate: this.options.onEntityUpdate
     // });
 
-    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager - GroupRenderer and EventManager need migration)');
+    fileLog.debug('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager - GroupRenderer and EventManager need migration)');
   }
   
   /**
    * Initialize overlay manager
    */
   private initOverlayManager(): void {
-    fileLog.info('🎨 Initializing overlay manager');
+    fileLog.debug('🎨 Initializing overlay manager');
 
     // Initialize OverlayManager (MobX version)
     this.overlayManager = new OverlayManager({
@@ -363,7 +363,7 @@ export class SimplePassiveRenderer {
 
     // Note: initializeOverlay() is called later in postInitialization() after DOM is ready
 
-    fileLog.info('✅ Overlay manager initialized');
+    fileLog.debug('✅ Overlay manager initialized');
   }
 
   /**
@@ -371,7 +371,7 @@ export class SimplePassiveRenderer {
    * Each observer handles only its specific concern for optimal performance
    */
   private initFocusedObservers(): void {
-    fileLog.info('🎯 Initializing focused observers');
+    fileLog.debug('🎯 Initializing focused observers');
 
     // SORTED DATA OBSERVER: MobX reaction for processed rows changes
     // TableCoreStore.processedRows is a computed that applies filtering, sorting, and grouping
@@ -500,7 +500,7 @@ export class SimplePassiveRenderer {
 
       const columnWidths = this.visualStateStore.columnWidths;
 
-      fileLog.info('[RESIZE] 🎨 Column widths changed - forcing layout re-render', {
+      fileLog.debug('[RESIZE] 🎨 Column widths changed - forcing layout re-render', {
         columnWidths,
         columnCount: Object.keys(columnWidths).length
       });
@@ -516,7 +516,7 @@ export class SimplePassiveRenderer {
     // Track non-scroll visual changes to avoid duplicate renders with scroll observer
     let lastVisualLayout = '';
 
-    fileLog.info('🎯 CREATING VISUAL OBSERVER', {
+    fileLog.debug('🎯 CREATING VISUAL OBSERVER', {
       visualStateStoreExists: !!this.visualStateStore,
       columnOrderExists: this.visualStateStore.columnOrder.length > 0,
       observersEnabled: this.observersEnabled
@@ -524,7 +524,7 @@ export class SimplePassiveRenderer {
 
     // TODO: Visual observer needs complete rebuild for MobX (Day 6-8 after BodyRenderer migration)
     // this.visualObserverDisposer = reaction(() => {
-//       fileLog.info('🔍 VISUAL OBSERVER CALLBACK ENTERED', {
+//       fileLog.debug('🔍 VISUAL OBSERVER CALLBACK ENTERED', {
 //         observersEnabled: this.observersEnabled,
 //         timestamp: Date.now()
 //       });
@@ -552,7 +552,7 @@ export class SimplePassiveRenderer {
 //       // const scrollLeft = this.visualState.visualInputs$.scrollLeft.get();
 //       // const scrollTop = this.visualState.visualInputs$.scrollTop.get();
 // 
-//       fileLog.info('[RESIZE] 🔍 VISUAL OBSERVER TRIGGERED - layout change detected', {
+//       fileLog.debug('[RESIZE] 🔍 VISUAL OBSERVER TRIGGERED - layout change detected', {
 //         columnWidths,
 //         columnOrderLength: columnOrder.length,
 //         timestamp: Date.now(),
@@ -573,7 +573,7 @@ export class SimplePassiveRenderer {
 //         .join(',');
 //       const layoutSignature = `${visualState.columnLayouts.length}-${visualState.geometry.totalWidth}-${visualState.geometry.viewportWidth}x${visualState.geometry.viewportHeight}-${columnOrderSignature}-hidden:${columnVisibilitySignature}-widths:${columnWidthsSignature}`;
 // 
-//       fileLog.info('🔍 VISUAL OBSERVER TRIGGERED', {
+//       fileLog.debug('🔍 VISUAL OBSERVER TRIGGERED', {
 //         columnOrderSignature,
 //         columnOrder: columnOrder,
 //         columnVisibilitySignature,
@@ -591,7 +591,7 @@ export class SimplePassiveRenderer {
 //       if (layoutSignature !== lastVisualLayout) {
 //         lastVisualLayout = layoutSignature;
 // 
-//         fileLog.info('🎨 Visual layout changed - updating layout only', {
+//         fileLog.debug('🎨 Visual layout changed - updating layout only', {
 //           columnCount: visualState.columnLayouts.length,
 //           totalWidth: visualState.geometry.totalWidth,
 //           viewportSize: `${visualState.geometry.viewportWidth}x${visualState.geometry.viewportHeight}`,
@@ -618,7 +618,7 @@ export class SimplePassiveRenderer {
 // 
 //       // Only log resize-specific info when actually resizing
 //       if (columnResize?.isResizing) {
-//         fileLog.info('[RESIZE] 🔍 Column resize active in interaction observer', {
+//         fileLog.debug('[RESIZE] 🔍 Column resize active in interaction observer', {
 //           observersEnabled: this.observersEnabled,
 //           timestamp: Date.now(),
 //           columnResizeState: columnResize
@@ -643,7 +643,7 @@ export class SimplePassiveRenderer {
 // 
 //       // Only log detailed state when something interesting is happening
 //       if (isDragging || editingCell || isDragSelecting || columnResize?.isResizing) {
-//         fileLog.info('🖱️ INTERACTION OBSERVER TRIGGERED', {
+//         fileLog.debug('🖱️ INTERACTION OBSERVER TRIGGERED', {
 //           selectedCount: selectedCells.size,
 //           isEditing: !!editingCell,
 //           isDragging,
@@ -705,7 +705,7 @@ export class SimplePassiveRenderer {
 //       // CRITICAL FIX: Access columnResize state right here so Legend State tracks dependency
 //       const currentColumnResize = this.tableInteraction$.columnResize.get(true);
 //       if (currentColumnResize?.isResizing && currentColumnResize.columnId && currentColumnResize.newWidth) {
-//         fileLog.info('[RESIZE] 📏 SimplePassiveRenderer handling column resize', {
+//         fileLog.debug('[RESIZE] 📏 SimplePassiveRenderer handling column resize', {
 //           columnId: currentColumnResize.columnId,
 //           newWidth: currentColumnResize.newWidth,
 //           isResizing: currentColumnResize.isResizing,
@@ -823,7 +823,7 @@ export class SimplePassiveRenderer {
       const rowRangeChanged = currentRowRange.start !== previousRowRange.start || currentRowRange.end !== previousRowRange.end;
 
       if (rowRangeChanged) {
-        fileLog.info('🚀 VIRTUAL SCROLL: Direct scroll-based update', {
+        fileLog.debug('🚀 VIRTUAL SCROLL: Direct scroll-based update', {
           newScrollTop,
           currentRange: `${currentRowRange.start}-${currentRowRange.end}`,
           previousRange: `${previousRowRange.start}-${previousRowRange.end}`,
@@ -835,7 +835,7 @@ export class SimplePassiveRenderer {
       }
     });
 
-    fileLog.info('✅ Focused observers initialized');
+    fileLog.debug('✅ Focused observers initialized');
   }
 
 
@@ -848,7 +848,7 @@ export class SimplePassiveRenderer {
       return;
     }
     
-    fileLog.info('🎨 Initializing Header Renderer');
+    fileLog.debug('🎨 Initializing Header Renderer');
     
     this.headerRenderer = new HeaderRenderer({
       headerContainer: this.headerContainer,
@@ -878,14 +878,14 @@ export class SimplePassiveRenderer {
       }
     });
     
-    fileLog.info('✅ Header Renderer initialized');
+    fileLog.debug('✅ Header Renderer initialized');
   }
   
   /**
    * Post-initialization setup after all managers are created
    */
   private postInitialization(): void {
-    fileLog.info('[VGDEBUG] 🚀 Starting post-initialization');
+    fileLog.debug('[VGDEBUG] 🚀 Starting post-initialization');
 
     // Phase 1: Quick synchronous operations that don't cause reflows
     // Initialize hybrid coordinate system position tracking (mostly calculations)
@@ -901,7 +901,7 @@ export class SimplePassiveRenderer {
         return;
       }
 
-      fileLog.info('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)');
+      fileLog.debug('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)');
 
       // Now safe to measure DOM
       const bounds = this.container.getBoundingClientRect();
@@ -941,7 +941,7 @@ export class SimplePassiveRenderer {
           const viewport = this.viewport;
           const headerViewport = this.headerViewport;
 
-          fileLog.info('📜 SCROLL DEBUG - Width Calculations', {
+          fileLog.debug('📜 SCROLL DEBUG - Width Calculations', {
             scrollLeft,
             scrollTop,
             // Visual state geometry
@@ -1013,9 +1013,9 @@ export class SimplePassiveRenderer {
       // Mark controller dependencies as ready (if initManager exists)
       if (this.initStore) {
         // ✅ FIXED: InitStore DOES have markReady method - uncommented
-        fileLog.info('[VGDEBUG] ✅ Marking viewportReady');
+        fileLog.debug('[VGDEBUG] ✅ Marking viewportReady');
         this.initStore.markReady('viewportReady');
-        fileLog.info('[VGDEBUG] ✅ Controllers ready');
+        fileLog.debug('[VGDEBUG] ✅ Controllers ready');
       }
 
       // Phase 3: Defer overlay and event setup
@@ -1042,9 +1042,9 @@ export class SimplePassiveRenderer {
         // Mark remaining dependencies as ready (if initManager exists)
         if (this.initStore) {
           // ✅ FIXED: InitStore DOES have markReady method - uncommented
-          fileLog.info('[VGDEBUG] ✅ Marking eventHandlersReady');
+          fileLog.debug('[VGDEBUG] ✅ Marking eventHandlersReady');
           this.initStore.markReady('eventHandlersReady');
-          fileLog.info('[VGDEBUG] ✅ Overlay and event handlers ready');
+          fileLog.debug('[VGDEBUG] ✅ Overlay and event handlers ready');
         }
 
         // Phase 4: Defer header render
@@ -1100,7 +1100,7 @@ export class SimplePassiveRenderer {
               }
 
               const actualPaintTime = performance.now();
-              fileLog.info('[VGDEBUG] ✅ Marking rendererInitialized');
+              fileLog.debug('[VGDEBUG] ✅ Marking rendererInitialized');
               this.initStore.markReady('rendererInitialized');
 
               fileLog.debug('[VGDEBUG] 🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
@@ -1113,18 +1113,18 @@ export class SimplePassiveRenderer {
 
             // Enable observers after initialization is complete
             this.observersEnabled = true;
-            fileLog.info('🔄 OBSERVERS ENABLED after initialization', {
+            fileLog.debug('🔄 OBSERVERS ENABLED after initialization', {
               observersEnabled: this.observersEnabled,
               timestamp: Date.now(),
               visualObserverExists: !!this.visualObserverDisposer
             });
 
             // NOW attach reactive observers AFTER initialization is complete
-            fileLog.info('🎯 Attaching focused observers after initialization complete');
+            fileLog.debug('🎯 Attaching focused observers after initialization complete');
             this.initFocusedObservers();
-            fileLog.info('✅ Reactive observers attached - performance optimized');
+            fileLog.debug('✅ Reactive observers attached - performance optimized');
 
-            fileLog.info('✅ Post-initialization complete');
+            fileLog.debug('✅ Post-initialization complete');
           });
         });
       });
@@ -1135,7 +1135,7 @@ export class SimplePassiveRenderer {
    * Initialize hybrid coordinate system position tracking
    */
   private initializePositionTracking(): void {
-    fileLog.info('🎯 Initializing hybrid position tracking system');
+    fileLog.debug('🎯 Initializing hybrid position tracking system');
 
     // Initialize DOM position tracking
     positionTracker.initialize(this.container);
@@ -1160,7 +1160,7 @@ export class SimplePassiveRenderer {
       scrollLeft: 0
     });
 
-    fileLog.info('✅ Hybrid position tracking initialized', {
+    fileLog.debug('✅ Hybrid position tracking initialized', {
       totalRows,
       columnCount: columns.length,
       viewportSize: `${bounds.width}x${bounds.height}`
@@ -1227,7 +1227,7 @@ export class SimplePassiveRenderer {
     const allVisibleColumnLayouts = visualState.visibleColumns;
     const baseOffset = this.calculateBaseOffset();
 
-    fileLog.info('🚀 INCREMENTAL UPDATE: Virtual rows changed', {
+    fileLog.debug('🚀 INCREMENTAL UPDATE: Virtual rows changed', {
       previousRange: `${previousRange.start}-${previousRange.end}`,
       currentRange: `${currentRange.start}-${currentRange.end}`,
       totalRows: rows.length,
@@ -1236,7 +1236,7 @@ export class SimplePassiveRenderer {
 
     // If this is the first render (previous was -1 to -1), create all visible rows
     if (previousRange.start === -1) {
-      fileLog.info('🎯 INITIAL RENDER: Creating all visible rows', {
+      fileLog.debug('🎯 INITIAL RENDER: Creating all visible rows', {
         range: `${currentRange.start}-${currentRange.end}`,
         count: currentRange.end - currentRange.start + 1
       });
@@ -1293,7 +1293,7 @@ export class SimplePassiveRenderer {
       this.bodyContainer.appendChild(fragment);
     }
 
-    fileLog.info('✅ INCREMENTAL UPDATE: Complete', {
+    fileLog.debug('✅ INCREMENTAL UPDATE: Complete', {
       previousRange: `${previousRange.start}-${previousRange.end}`,
       currentRange: `${currentRange.start}-${currentRange.end}`,
       totalRowsNow: this.bodyContainer.children.length
@@ -1304,7 +1304,7 @@ export class SimplePassiveRenderer {
    * Initialize DOM structure
    */
   private initDOM(): void {
-    fileLog.info('🎨 initDOM called', { instanceId: this.rendererInstanceId });
+    fileLog.debug('🎨 initDOM called', { instanceId: this.rendererInstanceId });
     if (!this.container) {
       fileLog.error('❌ Container is null - cannot initialize DOM', {
         instanceId: this.rendererInstanceId,
@@ -1313,7 +1313,7 @@ export class SimplePassiveRenderer {
       });
       return;
     }
-    fileLog.info('✅ Container exists, creating DOM structure', { instanceId: this.rendererInstanceId });
+    fileLog.debug('✅ Container exists, creating DOM structure', { instanceId: this.rendererInstanceId });
 
     this.container.innerHTML = '';
     
@@ -1391,7 +1391,7 @@ export class SimplePassiveRenderer {
     table.appendChild(this.viewport);
     this.container.appendChild(table);
 
-    fileLog.info('✅ Basic DOM structure created', {
+    fileLog.debug('✅ Basic DOM structure created', {
       instanceId: this.rendererInstanceId,
       viewportSet: !!this.viewport,
       bodyContainerSet: !!this.bodyContainer,
@@ -1408,7 +1408,7 @@ export class SimplePassiveRenderer {
     
     // Context menu handling is now done by EventManager in Phase 2
     
-    fileLog.info('✅ Legacy setupObservers() called - using ObserverManager instead');
+    fileLog.debug('✅ Legacy setupObservers() called - using ObserverManager instead');
   }
 
   /**
@@ -1501,7 +1501,7 @@ export class SimplePassiveRenderer {
     // TEMP DEBUG: Add stack trace back to identify remaining multiple render sources
     const stack = new Error().stack?.split('\n').slice(1, 4).join('\n') || 'No stack available';
 
-    fileLog.info('🎨 Rendering body with Phase 2 managers', {
+    fileLog.debug('🎨 Rendering body with Phase 2 managers', {
       rowCount: rows.length,
       columnCount: columns.length,
       groupRows: groupRows.length,
@@ -1585,7 +1585,7 @@ export class SimplePassiveRenderer {
       
       // Check if this is a group header or data row
       if (row.type === 'group') {
-        fileLog.info('🎯 Rendering group row', { 
+        fileLog.debug('🎯 Rendering group row', { 
           rowId: row.id, 
           level: row.level,
           isExpanded: row.isExpanded,
@@ -1660,7 +1660,7 @@ export class SimplePassiveRenderer {
       fileLog.debug('🚀 PERF: Skipping expensive DOM position update - using coordinate mapping instead');
     }
 
-    fileLog.info('✅ Body rendered with Phase 2 managers');
+    fileLog.debug('✅ Body rendered with Phase 2 managers');
   }
   
   /**
@@ -1684,7 +1684,7 @@ export class SimplePassiveRenderer {
       }
     });
     
-    fileLog.info('✅ DOM selection classes updated', { selectedCount: selectedCells.size });
+    fileLog.debug('✅ DOM selection classes updated', { selectedCount: selectedCells.size });
   }
   
   /**
@@ -1713,7 +1713,7 @@ export class SimplePassiveRenderer {
       }
     });
     
-    fileLog.info('✅ Visual cell positions calculated', { 
+    fileLog.debug('✅ Visual cell positions calculated', { 
       selectedCount: selectedCells.size,
       visualCount: visualCells.length 
     });
@@ -1741,7 +1741,7 @@ export class SimplePassiveRenderer {
    * This prevents cascade effects and reduces render cycles from 5+ to 1
    */
   private handleConsolidatedVisualStateChange(visualState: VisualState): void {
-    fileLog.info('🎨 Consolidated visual state change - batched render coordination', {
+    fileLog.debug('🎨 Consolidated visual state change - batched render coordination', {
       columnCount: visualState.columns.length,
       hiddenColumns: Object.values(visualState.columnVisibility).filter(v => v === false).length,
       viewport: visualState.viewport
@@ -1901,7 +1901,7 @@ export class SimplePassiveRenderer {
    */
   destroy(): void {
     this.isDestroyed = true;
-    fileLog.info('🧹 Destroying SimplePassiveRenderer with Phase 2 managers', {
+    fileLog.debug('🧹 Destroying SimplePassiveRenderer with Phase 2 managers', {
       instanceId: this.rendererInstanceId
     });
 
@@ -2023,7 +2023,7 @@ export class SimplePassiveRenderer {
     this.domFactory = null;
     this.headerRenderer = null;
     
-    fileLog.info('✅ SimplePassiveRenderer destroyed with all Phase 2 managers cleaned up');
+    fileLog.debug('✅ SimplePassiveRenderer destroyed with all Phase 2 managers cleaned up');
   }
   
   // selectAllCells method removed - now handled by SelectionController

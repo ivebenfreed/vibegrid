@@ -72,7 +72,7 @@ export class ClipboardOverlayDOM {
     visualCells: VisualCellPosition[],
     isCut: boolean
   ): void {
-    fileLog.info('ClipboardOverlayDOM: Updating with visual positions', {
+    fileLog.debug('ClipboardOverlayDOM: Updating with visual positions', {
       cellCount: visualCells.length,
       isCut
     });
@@ -117,14 +117,14 @@ export class ClipboardOverlayDOM {
     clipboardState: { copiedCells: Set<string>; isCut: boolean } | null,
     viewport: ViewportInfo | null
   ): void {
-    fileLog.info('ClipboardOverlayDOM: updateIndicator called', {
+    fileLog.debug('ClipboardOverlayDOM: updateIndicator called', {
       hasClipboardState: !!clipboardState,
       hasViewport: !!viewport,
       cellCount: clipboardState?.copiedCells.size || 0
     });
     
     if (!clipboardState || !viewport || clipboardState.copiedCells.size === 0 || !this.coordinateMapping) {
-      fileLog.info('ClipboardOverlayDOM: Clearing due to missing requirements', {
+      fileLog.debug('ClipboardOverlayDOM: Clearing due to missing requirements', {
         hasClipboardState: !!clipboardState,
         hasViewport: !!viewport,
         cellCount: clipboardState?.copiedCells.size || 0,
@@ -192,7 +192,7 @@ export class ClipboardOverlayDOM {
     // Animate the dashed border
     this.startDashAnimation();
     
-    fileLog.info('ClipboardOverlayDOM: Indicator shown', {
+    fileLog.debug('ClipboardOverlayDOM: Indicator shown', {
       x, y, width, height, isCut, color
     });
   }
@@ -282,7 +282,7 @@ export class ClipboardOverlayDOM {
       this.indicator = null;
     }
     
-    fileLog.info('ClipboardOverlayDOM: Indicator cleared');
+    fileLog.debug('ClipboardOverlayDOM: Indicator cleared');
   }
   
   /**

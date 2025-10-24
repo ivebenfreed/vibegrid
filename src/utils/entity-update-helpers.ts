@@ -11,7 +11,7 @@ const fileLog = createLogger('components/custom/vibegrid/utils/entity-update-hel
  */
 export function getUpdateFunction(entityType: VibeGridXEntityType | null) {
   return async (id: string, updates: Record<string, any>) => {
-    fileLog.info('[getUpdateFunction] onEntityUpdate called with Legend State', { id, updates, entityType });
+    fileLog.debug('[getUpdateFunction] onEntityUpdate called with Legend State', { id, updates, entityType });
     
     if (!entityType) {
       fileLog.warn('[getUpdateFunction] No entity type provided');
@@ -21,7 +21,7 @@ export function getUpdateFunction(entityType: VibeGridXEntityType | null) {
     try {
       // Entity type should already be in proper PascalCase format (e.g., "WorkTask")
       await entityOperations.updateEntity(entityType, id, updates);
-      fileLog.info(`[getUpdateFunction] Successfully updated ${entityType}:${id}`);
+      fileLog.debug(`[getUpdateFunction] Successfully updated ${entityType}:${id}`);
     } catch (error) {
       fileLog.error(`[getUpdateFunction] Failed to update ${entityType}:${id}:`, error);
       throw error;

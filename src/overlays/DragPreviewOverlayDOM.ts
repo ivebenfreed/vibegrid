@@ -109,7 +109,7 @@ export class DragPreviewOverlayDOM {
     const isColumnDrag = draggingHeaders.length > 0 || bodyDragPreview !== null || isDragInProgress;
 
     if (isColumnDrag) {
-      fileLog.info('DragPreviewOverlayDOM: Column drag detected, skipping general drag preview', {
+      fileLog.debug('DragPreviewOverlayDOM: Column drag detected, skipping general drag preview', {
         draggingHeaders: draggingHeaders.length,
         bodyDragPreview: !!bodyDragPreview,
         isDragInProgress
@@ -148,7 +148,7 @@ export class DragPreviewOverlayDOM {
       transition: 'all 100ms ease-out'
     });
     
-    fileLog.info('DragPreviewOverlayDOM: Preview shown', { x, y, width, height });
+    fileLog.debug('DragPreviewOverlayDOM: Preview shown', { x, y, width, height });
   }
   
   /**
@@ -163,7 +163,7 @@ export class DragPreviewOverlayDOM {
 
     // If any values are invalid, return zero bounds
     if (startRow === null || startCol === null || currentRow === null || currentCol === null) {
-      fileLog.info('DragPreviewOverlayDOM: Invalid cell coordinates detected, skipping preview', {
+      fileLog.debug('DragPreviewOverlayDOM: Invalid cell coordinates detected, skipping preview', {
         startCell: dragState.startCell,
         currentCell: dragState.currentCell
       });

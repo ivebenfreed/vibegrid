@@ -79,12 +79,12 @@ export class OverlayManager {
 
     this.initOverlays();
   }
-  
+
   /**
    * Initialize all overlay components
    */
   private initOverlays(): void {
-    fileLog.info('🎨 Initializing overlay system');
+    fileLog.info('🎨 Initializing overlay system'); // Keep: lifecycle
     
     // Create canvas overlay
     this.canvasOverlay = new CanvasOverlayDOM(
@@ -96,7 +96,7 @@ export class OverlayManager {
         cellWidth: 150 // Default width, updated by coordinate mapping
       },
       (event) => {
-        fileLog.info('📋 Canvas overlay event:', event);
+        fileLog.debug('📋 Canvas overlay event:', event);
         // Handle fill events from the overlay system
       }
     );
@@ -139,7 +139,7 @@ export class OverlayManager {
     // Link to existing interactions observable instead of setting up separate observer
     this.linkToInteractionsObservable();
 
-    fileLog.info('✅ Overlay system initialized (CanvasOverlay handles fill handle & resize preview)');
+    fileLog.info('✅ Overlay system initialized (CanvasOverlay handles fill handle & resize preview)'); // Keep: lifecycle
   }
   
   /**
@@ -385,7 +385,7 @@ export class OverlayManager {
       )
     );
 
-    fileLog.info('✅ Consolidated reactive observer established - eliminated multiple observer chain');
+    fileLog.debug('✅ Consolidated reactive observer established - eliminated multiple observer chain');
   }
 
   
@@ -409,7 +409,7 @@ export class OverlayManager {
 
     try {
       this.canvasOverlay.init(targetContainer);
-      fileLog.info('🎨 Canvas overlay initialized in viewport container');
+      fileLog.info('🎨 Canvas overlay initialized in viewport container'); // Keep: lifecycle
 
       // Initialize DOM position tracking now that overlay is ready
       this.initializeDOMPositionTracking();
@@ -424,7 +424,7 @@ export class OverlayManager {
   private initializeDOMPositionTracking(): void {
     try {
       positionTracker.initialize(this.container);
-      fileLog.info('✅ DOM position tracking initialized');
+      fileLog.info('✅ DOM position tracking initialized'); // Keep: lifecycle
     } catch (error) {
       fileLog.error('❌ Failed to initialize DOM position tracking', error);
     }
@@ -549,7 +549,7 @@ export class OverlayManager {
   updateColumnResizePreview(resizeState: any): void {
     // Only log when there's an actual resize happening
     if (resizeState?.isResizing) {
-      fileLog.info('[RESIZE] 🎨 OverlayManager.updateColumnResizePreview called', {
+      fileLog.debug('[RESIZE] 🎨 OverlayManager.updateColumnResizePreview called', {
         resizeState,
         canvasOverlayExists: !!this.canvasOverlay,
         isInitialized: this.canvasOverlay?.isInitialized
@@ -559,14 +559,14 @@ export class OverlayManager {
     // Ensure overlay is initialized
     if (!this.canvasOverlay?.isInitialized) {
       if (resizeState?.isResizing) {
-        fileLog.info('[RESIZE] 🎨 Initializing overlay for resize preview');
+        fileLog.debug('[RESIZE] 🎨 Initializing overlay for resize preview');
       }
       this.initializeOverlay();
     }
 
     if (this.canvasOverlay && this.canvasOverlay.isInitialized) {
       if (resizeState?.isResizing) {
-        fileLog.info('[RESIZE] 🎨 Passing resize state to canvasOverlay');
+        fileLog.debug('[RESIZE] 🎨 Passing resize state to canvasOverlay');
       }
       this.canvasOverlay.updateColumnResizePreview(resizeState);
     } else if (resizeState?.isResizing) {
@@ -838,7 +838,7 @@ export class OverlayManager {
    * Clean up all overlays
    */
   destroy(): void {
-    fileLog.info('🧹 Destroying overlay system');
+    fileLog.info('🧹 Destroying overlay system'); // Keep: lifecycle
 
     // Dispose of MobX reactions
     this.disposers.forEach(dispose => dispose());
@@ -881,7 +881,7 @@ export class OverlayManager {
 
     // Selection cleanup not needed - handled by interaction-state
 
-    fileLog.info('✅ Overlay system destroyed');
+    fileLog.info('✅ Overlay system destroyed'); // Keep: lifecycle
   }
   
   /**

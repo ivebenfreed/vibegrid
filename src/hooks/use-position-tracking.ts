@@ -34,7 +34,7 @@ export function usePositionTracking(
       return;
     }
 
-    fileLog.info('🎯 Initializing position tracking', {
+    fileLog.debug('🎯 Initializing position tracking', {
       containerElement: containerRef.current.tagName,
       columns: columns.length,
       totalRows
@@ -63,7 +63,7 @@ export function usePositionTracking(
     isInitialized.current = true;
 
     return () => {
-      fileLog.info('🧹 Cleaning up position tracking');
+      fileLog.debug('🧹 Cleaning up position tracking');
       positionTracker.cleanup();
       isInitialized.current = false;
     };
@@ -164,14 +164,14 @@ export function useScrollTracking(
 
     element.addEventListener('scroll', handleScroll, { passive: true });
 
-    fileLog.info('📜 Scroll tracking initialized');
+    fileLog.debug('📜 Scroll tracking initialized');
 
     return () => {
       element.removeEventListener('scroll', handleScroll);
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
-      fileLog.info('📜 Scroll tracking cleaned up');
+      fileLog.debug('📜 Scroll tracking cleaned up');
     };
   }, [enabled, scrollableRef, throttleMs]);
 }
@@ -225,14 +225,14 @@ export function useResizeTracking(
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(element);
 
-    fileLog.info('📐 Resize tracking initialized');
+    fileLog.debug('📐 Resize tracking initialized');
 
     return () => {
       resizeObserver.disconnect();
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
-      fileLog.info('📐 Resize tracking cleaned up');
+      fileLog.debug('📐 Resize tracking cleaned up');
     };
   }, [enabled, containerRef, throttleMs]);
 }
@@ -243,7 +243,7 @@ export function useResizeTracking(
 export function useManualPositionUpdate() {
   return {
     forceUpdate: () => {
-      fileLog.info('🔄 Manual position update triggered');
+      fileLog.debug('🔄 Manual position update triggered');
       positionTracker.forceUpdate();
     },
     updateViewport: (viewport: {
@@ -252,7 +252,7 @@ export function useManualPositionUpdate() {
       viewportWidth?: number;
       viewportHeight?: number;
     }) => {
-      fileLog.info('🔄 Manual viewport update', viewport);
+      fileLog.debug('🔄 Manual viewport update', viewport);
       updateVirtualViewport(viewport);
     },
     updateBounds: (bounds: {
@@ -260,7 +260,7 @@ export function useManualPositionUpdate() {
       columnWidths?: number[];
       rowHeight?: number;
     }) => {
-      fileLog.info('🔄 Manual bounds update', bounds);
+      fileLog.debug('🔄 Manual bounds update', bounds);
       updateVirtualBounds(bounds);
     }
   };

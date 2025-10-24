@@ -44,7 +44,7 @@ export class VibeGridPerformanceProfiler {
     this.startTime = performance.now();
 
     if (this.enabled) {
-      fileLog.info('🚀 [PERFORMANCE] VibeGrid performance profiler started', {
+      fileLog.debug('🚀 [PERFORMANCE] VibeGrid performance profiler started', {
         sessionId: this.sessionId,
         startTime: this.startTime
       });
@@ -107,7 +107,7 @@ export class VibeGridPerformanceProfiler {
 
     this.activeMetrics.delete(name);
 
-    fileLog.info('✅ [PERFORMANCE] Completed metric', {
+    fileLog.debug('✅ [PERFORMANCE] Completed metric', {
       name,
       duration: `${duration.toFixed(2)}ms`,
       metadata: metric.metadata
@@ -193,7 +193,7 @@ export class VibeGridPerformanceProfiler {
     };
 
     if (this.enabled) {
-      fileLog.info('📊 [PERFORMANCE] Performance report generated', {
+      fileLog.debug('📊 [PERFORMANCE] Performance report generated', {
         sessionId: this.sessionId,
         totalDuration: `${totalDuration.toFixed(2)}ms`,
         summary: report.summary,
@@ -212,7 +212,7 @@ export class VibeGridPerformanceProfiler {
 
     const report = this.generateReport();
 
-    fileLog.info('🚀 VibeGrid Performance Report', {
+    fileLog.debug('🚀 VibeGrid Performance Report', {
       sessionId: report.sessionId,
       totalDuration: report.totalDuration?.toFixed(2),
       breakdown: {
@@ -246,9 +246,9 @@ export class VibeGridPerformanceProfiler {
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (enabled) {
-      fileLog.info('✅ [PERFORMANCE] Profiler enabled');
+      fileLog.debug('✅ [PERFORMANCE] Profiler enabled');
     } else {
-      fileLog.info('⏸️ [PERFORMANCE] Profiler disabled');
+      fileLog.debug('⏸️ [PERFORMANCE] Profiler disabled');
     }
   }
 }

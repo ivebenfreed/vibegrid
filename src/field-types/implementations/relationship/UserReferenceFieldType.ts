@@ -76,9 +76,9 @@ export class UserDataLoader implements AsyncDataLoader {
   ): Promise<RelationshipOption[]> {
     try {
       // Get members data from TableCoreStore (passed via tableCore$ parameter)
-      const membersData = (column as any).tableCore$?.membersData
+      const membersData = (column as any).tableCoreStore?.membersData || (column as any).tableCore$?.membersData
 
-      if (!membersData || !(membersData instanceof Map)) {
+      if (!membersData || typeof membersData.get !== 'function') {
         fileLog.warn('No members data available in TableCoreStore');
         return [];
       }
@@ -171,8 +171,19 @@ export class UserReferenceRenderer implements CellRenderer {
       return container;
     }
 
+    const tableCoreStore = this.getTableCoreStore(column);
+    if (!tableCoreStore) {
+      fileLog.warn('UserReferenceRenderer: No tableCoreStore available on column', {
+        columnId: column.id
+      });
+      container.textContent = `User ${String(value).slice(-4)}`;
+      container.style.opacity = '0.6';
+      container.style.fontStyle = 'italic';
+      return container;
+    }
+
     // If it's a UUID, try to render immediately from membersData
-    const tableCore$ = (column as any).tableCore$;
+    const tableCore$ = tableCoreStore;
     const userId = value;
 
     fileLog.debug('Rendering UserReference', {
@@ -183,7 +194,7 @@ export class UserReferenceRenderer implements CellRenderer {
       membersDataType: tableCore$?.membersData?.constructor?.name
     });
 
-    if (tableCore$?.membersData) {
+    if (tableCore$?.membersData && typeof tableCore$.membersData.get === 'function') {
       const user = tableCore$.membersData.get(userId);
       if (user) {
         fileLog.debug('User found in membersData immediately', { userId, userName: user.name });
@@ -205,7 +216,7 @@ export class UserReferenceRenderer implements CellRenderer {
       },
       (user) => {
         if (user) {
-          fileLog.info('MobX reaction fired - user loaded!', { userId, userName: user.name });
+          fileLog.debug('MobX reaction fired - user loaded!', { userId, userName: user.name });
           container.innerHTML = this.createUserBadge(user, userId);
           container.style.opacity = '1';
           dispose(); // Stop watching after first update
@@ -230,7 +241,8 @@ export class UserReferenceRenderer implements CellRenderer {
     } else {
       element.textContent = 'Loading...';
       element.style.opacity = '0.7';
-      this.loadAndRenderUser(element, value, column);
+      const tableCoreStore = this.getTableCoreStore(column);
+      this.loadAndRenderUser(element, value, column, tableCoreStore);
     }
   }
 
@@ -307,16 +319,19 @@ export class UserReferenceRenderer implements CellRenderer {
     return words.slice(0, 2).map(word => word.charAt(0).toUpperCase()).join('');
   }
 
-  private async loadAndRenderUser(container: HTMLElement, userId: string, column: EnhancedColumn) {
+  private async loadAndRenderUser(
+    container: HTMLElement,
+    userId: string,
+    column: EnhancedColumn,
+    tableCoreStore?: TableCoreStore
+  ) {
     try {
       // ⚡ PERFORMANCE: Use setTimeout to defer lookup off the main thread
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      // Get members data from TableCoreStore (passed via column.tableCore$)
-      const tableCore$ = (column as any).tableCore$
-      const membersData = tableCore$?.membersData
+      const membersData = tableCoreStore?.membersData
 
-      if (!membersData || !(membersData instanceof Map)) {
+      if (!membersData || typeof membersData.get !== 'function') {
         fileLog.warn('No members data available in TableCoreStore', { userId });
         container.textContent = `User ${userId.slice(-4)}`;
         container.style.opacity = '0.6';
@@ -343,6 +358,10 @@ export class UserReferenceRenderer implements CellRenderer {
       container.className += ' vibegridx-user-reference-error';
       container.style.color = '#dc2626';
     }
+  }
+
+  private getTableCoreStore(column: EnhancedColumn): TableCoreStore | undefined {
+    return (column as any).tableCoreStore || (column as any).tableCore$;
   }
 }
 

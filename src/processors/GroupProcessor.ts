@@ -55,7 +55,7 @@ export class GroupProcessor {
     config: GroupConfig,
     groupRowOrders?: Record<string, GroupRowOrderConfig>
   ): GroupTree {
-    fileLog.info('GroupProcessor: processData called', {
+    fileLog.debug('GroupProcessor: processData called', {
       rowCount: rows.length,
       columnCount: columns.length,
       groupFieldCount: config.fields.length,
@@ -86,7 +86,7 @@ export class GroupProcessor {
       groupCount: this.countGroups(groupTree.groups)
     };
     
-    fileLog.info('GroupProcessor: processData completed', {
+    fileLog.debug('GroupProcessor: processData completed', {
       originalRows: rows.length,
       virtualRows: virtualRows.length,
       groupCount: result.groupCount,
@@ -148,7 +148,7 @@ export class GroupProcessor {
         }
       });
 
-      fileLog.info('🔄 GroupProcessor: Created empty groups for all options', {
+      fileLog.debug('🔄 GroupProcessor: Created empty groups for all options', {
         fieldName,
         optionCount: column.options.length,
         emptyGroupKeys: Array.from(groupMap.keys())
@@ -159,7 +159,7 @@ export class GroupProcessor {
     rows.forEach((row, index) => {
       // Debug: log the actual data structure to understand the format
       if (index === 0) {
-        fileLog.info('🔍 GroupProcessor: Examining first row structure', {
+        fileLog.debug('🔍 GroupProcessor: Examining first row structure', {
           row: row,
           hasData: !!row?.data,
           hasDirectAccess: !!row?.[fieldName],
@@ -472,7 +472,7 @@ export class GroupProcessor {
     expandedGroups: Set<string>
   ): VirtualRow[] {
     
-    fileLog.info('GroupProcessor.flattenGroupTree called', {
+    fileLog.debug('GroupProcessor.flattenGroupTree called', {
       groupCount: groups.length,
       expandedGroups: Array.from(expandedGroups),
       firstGroupId: groups[0]?.id,
@@ -494,7 +494,7 @@ export class GroupProcessor {
         isExpandable: true
       });
       
-      fileLog.info('GroupProcessor: Processing group', {
+      fileLog.debug('GroupProcessor: Processing group', {
         groupId: group.id,
         isExpanded: expandedGroups.has(group.id),
         childrenCount: group.children?.length || 0,
@@ -503,7 +503,7 @@ export class GroupProcessor {
       
       // Add children if group is expanded
       if (expandedGroups.has(group.id)) {
-        fileLog.info('GroupProcessor: Group is expanded, adding children', {
+        fileLog.debug('GroupProcessor: Group is expanded, adding children', {
           groupId: group.id,
           childrenCount: group.children.length
         });
@@ -527,7 +527,7 @@ export class GroupProcessor {
           }
         });
       } else {
-        fileLog.info('GroupProcessor: Group is collapsed, not adding children', {
+        fileLog.debug('GroupProcessor: Group is collapsed, not adding children', {
           groupId: group.id
         });
       }
@@ -535,7 +535,7 @@ export class GroupProcessor {
     
     groups.forEach(group => addGroupAndChildren(group, 0));
     
-    fileLog.info('GroupProcessor.flattenGroupTree result', {
+    fileLog.debug('GroupProcessor.flattenGroupTree result', {
       totalVirtualRows: virtualRows.length,
       groupRows: virtualRows.filter(vr => vr.type === 'group').length,
       dataRows: virtualRows.filter(vr => vr.type === 'data').length

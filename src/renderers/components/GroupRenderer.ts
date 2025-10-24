@@ -27,7 +27,7 @@ export class GroupRenderer {
     this.createElement = options.createElement;
     this.visualState = options.visualState;
 
-    fileLog.info('🏗️ GroupRenderer initialized');
+    fileLog.debug('🏗️ GroupRenderer initialized');
   }
 
   /**
@@ -112,7 +112,7 @@ export class GroupRenderer {
     // Click handler for expand/collapse
     const handleToggle = () => {
       this.visualState.visualOperations.toggleGroupExpansion(groupRow.id);
-      fileLog.info('🔄 Group toggled', {
+      fileLog.debug('🔄 Group toggled', {
         groupId: groupRow.id,
         wasExpanded: isExpanded,
         field: fieldName,
@@ -178,7 +178,7 @@ export class GroupRenderer {
    * Clean up group renderer resources
    */
   destroy(): void {
-    fileLog.info('🧹 GroupRenderer cleanup');
+    fileLog.debug('🧹 GroupRenderer cleanup');
     // No specific cleanup needed for now, but method available for future use
   }
 }

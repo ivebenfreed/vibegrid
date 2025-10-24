@@ -44,11 +44,11 @@ export async function generateColumnsFromEntitySchema<T = any>(
   entityType: string,
   schemaRegistry: SchemaRegistryStore
 ): Promise<Column<T>[]> {
-  fileLog.info('🎯 Generating columns from entity schema', { entityType });
+  fileLog.debug('🎯 Generating columns from entity schema', { entityType });
 
   // Check if schema registry is ready
   if (schemaRegistry.isBootstrapping) {
-    fileLog.info("⏳ Schema registry still loading", { entityType });
+    fileLog.debug("⏳ Schema registry still loading", { entityType });
     throw new Error(`Schema registry still loading for entity: ${entityType}`);
   }
 
@@ -70,7 +70,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     throw new Error(`Entity ${entityType} not found in schema registry. Available: ${Object.keys(schemas.byName).join(', ')}`);
   }
 
-  fileLog.info('✅ Found entity schema', {
+  fileLog.debug('✅ Found entity schema', {
     entityType,
     fieldCount: entitySchema.fields?.length || 0
   });
@@ -96,7 +96,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
   }
 
   // DEBUG: Log the actual entity schema structure to understand the issue
-  fileLog.info("🔍 [SCHEMA-DEBUG] Entity schema fields found", {
+  fileLog.debug("🔍 [SCHEMA-DEBUG] Entity schema fields found", {
     entityType,
     hasAllFields: !!entitySchema.allFields,
     allFieldsLength: entitySchema.allFields?.length,
@@ -137,6 +137,19 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
 
     // Map DataForge field types to VibeGrid cell types
     const cellType = mapFieldTypeToVibeGridCellType(fieldType, fieldName);
+
+    if (cellType.includes('entity_reference')) {
+      fileLog.debug('[COLUMN-GEN] Entity reference field detected', {
+        entityType,
+        fieldName,
+        fieldType,
+        relationshipType: safeFieldDef.relationshipType,
+        relationshipTable: safeFieldDef.relationshipTable,
+        relationshipDisplayField: safeFieldDef.relationshipDisplayField,
+        targetEntityType: safeFieldDef.targetEntityType,
+        rawField: safeFieldDef
+      });
+    }
 
     // Get width from centralized defaults
     const defaults = COLUMN_DEFAULTS[cellType as CellType] || COLUMN_DEFAULTS.text;
@@ -245,7 +258,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
   // Return business fields first, then system fields
   const orderedColumns = [...businessFields, ...systemFields];
 
-  fileLog.info('✅ Generated columns from schema', {
+  fileLog.debug('✅ Generated columns from schema', {
     entityType,
     totalColumns: orderedColumns.length,
     businessFields: businessFields.length,

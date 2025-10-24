@@ -72,7 +72,7 @@ export class EventManager {
     this.setupContextMenu();
     this.setupGlobalDocumentHandling();
 
-    fileLog.info('✅ Global event handling setup complete (keyboard handling moved to KeyboardController)');
+    fileLog.info('✅ Global event handling setup complete (keyboard handling moved to KeyboardController)'); // Keep: lifecycle
   }
 
   /**
@@ -87,7 +87,7 @@ export class EventManager {
         const rowId = cellElement.dataset.rowId;
         const columnId = cellElement.dataset.columnId;
         
-        fileLog.info('🖱️ Context menu triggered', { rowId, columnId });
+        fileLog.debug('🖱️ Context menu triggered', { rowId, columnId });
         
         // Show context menu
         this.overlayManager.showContextMenu({
@@ -137,7 +137,7 @@ export class EventManager {
     // For now, we'll track document-level events for drag operations
     // that are initiated from component-specific handlers
     
-    fileLog.info('📋 Global document event handling ready');
+    fileLog.debug('📋 Global document event handling ready');
   }
 
   /**
@@ -160,7 +160,7 @@ export class EventManager {
    * Handle cut action (copy then clear)
    */
   async handleCutAction(): Promise<void> {
-    fileLog.info('✂️ Cut action triggered');
+    fileLog.debug('✂️ Cut action triggered');
 
     const selectedCells = this.tableInteraction$.selectedCells.get();
     if (selectedCells.size === 0) {
@@ -193,7 +193,7 @@ export class EventManager {
           duration: 2000
         });
 
-        fileLog.info('✂️ Cut completed', { cellCount: selectedCells.size });
+        fileLog.debug('✂️ Cut completed', { cellCount: selectedCells.size });
       }
     } catch (error) {
       fileLog.error('✂️ Cut failed', error);
@@ -210,7 +210,7 @@ export class EventManager {
    * Handle insert row action
    */
   private handleInsertRowAction(): void {
-    fileLog.info('➕ Insert row action triggered');
+    fileLog.debug('➕ Insert row action triggered');
     
     // Get the current selection to determine insertion point
     const selectedCells = this.tableInteraction$.selectedCells.get();
@@ -241,11 +241,11 @@ export class EventManager {
    * Handle delete row action
    */
   private handleDeleteRowAction(): void {
-    fileLog.info('➖ Delete row action triggered');
+    fileLog.debug('➖ Delete row action triggered');
     
     const selectedCells = this.tableInteraction$.selectedCells.get();
     if (selectedCells.size === 0) {
-      fileLog.info('➖ No cells selected for row deletion');
+      fileLog.debug('➖ No cells selected for row deletion');
       return;
     }
 
@@ -258,7 +258,7 @@ export class EventManager {
       this.tableCore$.deleteRow(rowId);
     });
     
-    fileLog.info('➖ Delete rows completed', { rowCount: uniqueRowIds.length });
+    fileLog.debug('➖ Delete rows completed', { rowCount: uniqueRowIds.length });
     this.overlayManager?.hideContextMenu();
   }
 
@@ -266,13 +266,13 @@ export class EventManager {
    * Handle undo action
    */
   handleUndoAction(): void {
-    fileLog.info('↶ Undo action triggered');
+    fileLog.debug('↶ Undo action triggered');
     
     // Implement undo via tableCore$ if available
     if (this.tableCore$.undo) {
       this.tableCore$.undo();
     } else {
-      fileLog.info('↶ Undo not available');
+      fileLog.debug('↶ Undo not available');
     }
   }
 
@@ -280,13 +280,13 @@ export class EventManager {
    * Handle redo action
    */
   handleRedoAction(): void {
-    fileLog.info('↷ Redo action triggered');
+    fileLog.debug('↷ Redo action triggered');
     
     // Implement redo via tableCore$ if available
     if (this.tableCore$.redo) {
       this.tableCore$.redo();
     } else {
-      fileLog.info('↷ Redo not available');
+      fileLog.debug('↷ Redo not available');
     }
   }
 
@@ -340,8 +340,8 @@ export class EventManager {
    * Clean up all event listeners
    */
   destroy(): void {
-    fileLog.info('🧹 Destroying EventManager');
-    
+    fileLog.info('🧹 Destroying EventManager'); // Keep: lifecycle
+
     // Remove all tracked event listeners
     this.activeEventListeners.forEach(({ target, type, listener }) => {
       try {
@@ -350,9 +350,9 @@ export class EventManager {
         fileLog.error('❌ Error removing event listener', error);
       }
     });
-    
+
     this.activeEventListeners = [];
-    
-    fileLog.info('✅ EventManager destroyed');
+
+    fileLog.info('✅ EventManager destroyed'); // Keep: lifecycle
   }
 }

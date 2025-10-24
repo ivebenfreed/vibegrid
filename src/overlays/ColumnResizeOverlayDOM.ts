@@ -67,7 +67,7 @@ export class ColumnResizeOverlayDOM {
    * Update the resize indicator based on current resize state
    */
   updateResizePreview(resizeState: ColumnResizeState | null): void {
-    fileLog.info('[RESIZE-PREVIEW] 🎯 ColumnResizeOverlay.updateResizePreview called', {
+    fileLog.debug('[RESIZE-PREVIEW] 🎯 ColumnResizeOverlay.updateResizePreview called', {
       hasResizeState: !!resizeState,
       isResizing: resizeState?.isResizing,
       columnId: resizeState?.columnId,
@@ -75,7 +75,7 @@ export class ColumnResizeOverlayDOM {
     });
 
     if (!resizeState?.isResizing || !resizeState.columnId) {
-      fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing resize preview (no active resize)');
+      fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing resize preview (no active resize)');
       this.clear();
       return;
     }
@@ -118,7 +118,7 @@ export class ColumnResizeOverlayDOM {
       ({ indicatorX, overlayX, scrollLeft } = fallback);
     }
 
-    fileLog.info('[RESIZE-PREVIEW] 📏 Column position from DOM', {
+    fileLog.debug('[RESIZE-PREVIEW] 📏 Column position from DOM', {
       columnId: resizeState.columnId,
       resizeWidth: resizeState.newWidth,
       calculatedX: indicatorX,
@@ -128,13 +128,13 @@ export class ColumnResizeOverlayDOM {
 
     // Create or update resize indicator
     if (!this.resizeIndicator) {
-      fileLog.info('[RESIZE-PREVIEW] 🎨 Creating NEW resize indicator element');
+      fileLog.debug('[RESIZE-PREVIEW] 🎨 Creating NEW resize indicator element');
       this.resizeIndicator = document.createElement('div');
       this.resizeIndicator.className = 'vibegridx-resize-indicator';
       this.overlayContainer?.appendChild(this.resizeIndicator);
-      fileLog.info('[RESIZE-PREVIEW] ✅ Resize indicator appended to overlay container');
+      fileLog.debug('[RESIZE-PREVIEW] ✅ Resize indicator appended to overlay container');
     } else {
-      fileLog.info('[RESIZE-PREVIEW] ♻️ Reusing existing resize indicator');
+      fileLog.debug('[RESIZE-PREVIEW] ♻️ Reusing existing resize indicator');
     }
 
     // Position indicator using absolute positioning within overlay container
@@ -152,7 +152,7 @@ export class ColumnResizeOverlayDOM {
       zIndex: '1000'
     });
 
-    fileLog.info('[RESIZE-PREVIEW] 🎨 Resize indicator positioned', {
+    fileLog.debug('[RESIZE-PREVIEW] 🎨 Resize indicator positioned', {
       columnId: resizeState.columnId,
       newWidth: resizeState.newWidth,
       indicatorX,
@@ -194,7 +194,7 @@ export class ColumnResizeOverlayDOM {
     const overlayX = columnLeft + newWidth;
     const indicatorX = overlayX + scrollLeft;
 
-    fileLog.info('[RESIZE-PREVIEW] 📏 Fallback position calculated', {
+    fileLog.debug('[RESIZE-PREVIEW] 📏 Fallback position calculated', {
       columnId: resizeState.columnId,
       columnLeft,
       overlayX,

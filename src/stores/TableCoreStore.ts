@@ -15,9 +15,11 @@
  * - Updates entity data via TanStack DB mutations
  */
 
-import { makeObservable, observable, action, computed, runInAction } from 'mobx'
+import { makeObservable, observable, action, computed, runInAction, ObservableMap } from 'mobx'
 import { createLogger } from '@/lib/logging'
 import { DisposerManager } from '@/stores/utils/disposer'
+import { getOrCreateEntityCollection } from '@/data/db/collections/registry'
+import { createEntityCollection } from '@/data/db/collections/entity-collections'
 import type { IStore } from '@/stores/types'
 import type { Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
@@ -205,7 +207,13 @@ export class TableCoreStore implements IStore {
   @observable private rawRows: any[] = []
 
   // Members data for UserReference fields (from TanStack DB membersCollection)
-  @observable membersData: Map<string, any> = new Map()
+  @observable membersData: ObservableMap<string, any> = observable.map<string, any>()
+
+  // Cached entity reference data keyed by target entity → entity id
+  @observable entityReferenceData: ObservableMap<string, ObservableMap<string, any>> = observable.map<string, ObservableMap<string, any>>()
+
+  // Track in-flight entity reference loads to avoid duplicate network calls
+  private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
   // ====================================
   // DEPENDENCIES (injected)
@@ -289,6 +297,141 @@ export class TableCoreStore implements IStore {
     log.debug('👥 Members data updated', {
       memberCount: this.membersData.size
     })
+  }
+
+  getEntityReferenceRecord(targetEntity: string, entityId: string): any {
+    const key = (targetEntity || '').toLowerCase()
+    const map = this.entityReferenceData.get(key)
+    return map?.get(entityId)
+  }
+
+  @action
+  setEntityReferenceRecord(targetEntity: string, entityId: string, data: any): void {
+    const map = this.getOrCreateEntityReferenceMap(targetEntity)
+    map.set(entityId, data)
+  }
+
+  async ensureEntityReferenceRecord(
+    targetEntity: string,
+    entityId: string,
+    loader?: () => Promise<any>
+  ): Promise<any> {
+    const map = this.getOrCreateEntityReferenceMap(targetEntity)
+    if (map.has(entityId)) {
+      return map.get(entityId)
+    }
+
+    const loadKey = `${targetEntity.toLowerCase()}:${entityId}`
+    if (!this.pendingEntityReferenceLoads.has(loadKey)) {
+      const promise = this.loadEntityReferenceRecord(targetEntity, entityId, map, loader)
+      this.pendingEntityReferenceLoads.set(loadKey, promise)
+    }
+
+    await this.pendingEntityReferenceLoads.get(loadKey)
+    const result = map.get(entityId)
+    log.debug('Entity reference ensure completed', {
+      targetEntity,
+      entityId,
+      hasRecord: !!result
+    })
+    return map.get(entityId)
+  }
+
+  private getOrCreateEntityReferenceMap(targetEntity: string): ObservableMap<string, any> {
+    const key = (targetEntity || '').toLowerCase()
+    let map = this.entityReferenceData.get(key)
+    if (!map) {
+      map = observable.map<string, any>()
+      this.entityReferenceData.set(key, map)
+    }
+    return map
+  }
+
+  private async loadEntityReferenceRecord(
+    targetEntity: string,
+    entityId: string,
+    map: ObservableMap<string, any>,
+    loader?: () => Promise<any>
+  ): Promise<void> {
+    try {
+      const collectionRecord = await this.loadFromEntityCollection(targetEntity, entityId)
+      if (collectionRecord) {
+        runInAction(() => {
+          map.set(entityId, collectionRecord)
+        })
+        log.debug('Entity reference record loaded from collection', {
+          targetEntity,
+          entityId
+        })
+        return
+      }
+
+      if (loader) {
+        const record = await loader()
+        if (record) {
+          runInAction(() => {
+            map.set(entityId, record)
+          })
+          log.debug('Entity reference record loaded via fallback loader', {
+            targetEntity,
+            entityId
+          })
+          return
+        }
+      }
+
+      log.warn('Entity reference record could not be loaded', {
+        targetEntity,
+        entityId
+      })
+    } catch (error) {
+      log.error('Failed to load entity reference record', {
+        targetEntity,
+        entityId,
+        error
+      })
+    } finally {
+      this.pendingEntityReferenceLoads.delete(`${targetEntity.toLowerCase()}:${entityId}`)
+    }
+  }
+
+  private async loadFromEntityCollection(targetEntity: string, entityId: string): Promise<any | null> {
+    try {
+      const orgId = this.visualStateStore?.orgId
+      if (!orgId) {
+        log.warn('Entity reference collection load skipped - no orgId', {
+          targetEntity,
+          entityId
+        })
+        return null
+      }
+
+      const normalizedEntity = targetEntity || this.entityType
+      if (!normalizedEntity) {
+        return null
+      }
+
+      const collection = getOrCreateEntityCollection(
+        normalizedEntity,
+        orgId,
+        createEntityCollection
+      )
+
+      await collection.preload()
+      const record = collection.get(entityId)
+      if (record) {
+        return record
+      }
+
+      return null
+    } catch (error) {
+      log.warn('Entity reference collection load failed, will fall back to loader', {
+        targetEntity,
+        entityId,
+        error
+      })
+      return null
+    }
   }
 
   // ====================================

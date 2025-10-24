@@ -56,7 +56,7 @@ export class ScrollController {
    * Extracted from SimplePassiveRenderer for better modularity
    */
   private setupScrollHandling(): void {
-    fileLog.info('📜 Setting up comprehensive scroll coordination');
+    fileLog.debug('📜 Setting up comprehensive scroll coordination');
 
     // Set up viewport scroll handling
     const scrollHandler = this.handleViewportScroll.bind(this);
@@ -64,7 +64,7 @@ export class ScrollController {
 
     // Keyboard handling now managed by KeyboardController - removed from here
 
-    fileLog.info('✅ Comprehensive scroll coordination setup complete');
+    fileLog.debug('✅ Comprehensive scroll coordination setup complete');
   }
 
 
@@ -250,7 +250,7 @@ export class ScrollController {
 
     if (shouldClearSelection) {
       const clickType = viewportElement ? 'empty space within viewport' : 'outside VibeGrid container';
-      fileLog.info(`🖱️ Click on ${clickType} - delegating to handler`);
+      fileLog.debug(`🖱️ Click on ${clickType} - delegating to handler`);
 
       // Just delegate the event, don't manage state
       if (this.onClickOutside) {
@@ -287,7 +287,7 @@ export class ScrollController {
     });
     this.eventListeners = [];
 
-    fileLog.info('🧹 ScrollController destroyed');
+    fileLog.debug('🧹 ScrollController destroyed');
   }
 
   /**

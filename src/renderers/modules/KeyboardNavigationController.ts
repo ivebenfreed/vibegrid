@@ -43,7 +43,7 @@ export class KeyboardNavigationController {
     const visibleColumns = this.getVisibleColumns();
     const focusedCell = this.interactionStore.focusedCell;
 
-    fileLog.info('Handling arrow key', { direction, isShiftKey, focusedCell });
+    fileLog.debug('Handling arrow key', { direction, isShiftKey, focusedCell });
 
     // Ensure we have rows and columns
     if (processedRows.length === 0 || visibleColumns.length === 0) {
@@ -158,7 +158,7 @@ export class KeyboardNavigationController {
             columns: visibleColumns,
             columnVisibility: Object.fromEntries(visibleColumns.map(col => [col.id, true]))
           });
-          fileLog.info('⌨️ Ctrl+A select all triggered via InteractionStore');
+          fileLog.debug('⌨️ Ctrl+A select all triggered via InteractionStore');
           return true;
         }
         break;
@@ -228,7 +228,7 @@ export class KeyboardNavigationController {
         if (currentFocusedCell && !event.target ||
             (event.target as HTMLElement).tagName !== 'INPUT') {
           // Could trigger delete action here
-          fileLog.info('Delete key pressed on focused cell', { focusedCell: currentFocusedCell });
+          fileLog.debug('Delete key pressed on focused cell', { focusedCell: currentFocusedCell });
           return true;
         }
         break;

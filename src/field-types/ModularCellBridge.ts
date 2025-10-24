@@ -29,13 +29,13 @@ export class ModularCellBridge {
     this.relationshipDataManager = new RelationshipDataManager();
     this.rollupCalculationManager = new RollupCalculationManager();
 
-    fileLog.info('🚀 [FIELD-BRIDGE] ModularCellBridge created (CellFactory will be initialized lazily)');
+    fileLog.debug('🚀 [FIELD-BRIDGE] ModularCellBridge created (CellFactory will be initialized lazily)');
   }
 
   private ensureCellFactory(): void {
     if (!this.cellFactory) {
       const registeredTypes = fieldTypeRegistry.getRegisteredTypes();
-      fileLog.info('🔧 [FIELD-BRIDGE] Initializing CellFactory', {
+      fileLog.debug('🔧 [FIELD-BRIDGE] Initializing CellFactory', {
         registeredTypesCount: registeredTypes.length,
         registeredTypes: registeredTypes
       });
@@ -50,7 +50,7 @@ export class ModularCellBridge {
         enableAccessibility: true
       });
 
-      fileLog.info('🎯 [FIELD-BRIDGE] CellFactory initialized lazily', {
+      fileLog.debug('🎯 [FIELD-BRIDGE] CellFactory initialized lazily', {
         registeredTypes: registeredTypes.length,
         basicTypes: fieldTypeRegistry.getTypesByCategory('basic').length,
         relationshipTypes: fieldTypeRegistry.getTypesByCategory('relationship').length,
@@ -87,7 +87,7 @@ export class ModularCellBridge {
       // Ensure cell factory is initialized
       this.ensureCellFactory();
 
-      fileLog.info('🎯 [FIELD-BRIDGE] Creating cell with modular system', {
+      fileLog.debug('🎯 [FIELD-BRIDGE] Creating cell with modular system', {
         columnId: column.id,
         fieldType: column.cellType || column.type,
         cellType: column.cellType,
@@ -367,5 +367,5 @@ export const modularCellBridge = new ModularCellBridge();
 // Development helper
 if (typeof window !== 'undefined') {
   (window as any).vibeGridModularBridge = modularCellBridge;
-  fileLog.info('ModularCellBridge available globally as window.vibeGridModularBridge');
+  fileLog.debug('ModularCellBridge available globally as window.vibeGridModularBridge');
 }

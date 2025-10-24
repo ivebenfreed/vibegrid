@@ -240,7 +240,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
         entityData.priority = 'medium';
       }
 
-      fileLog.info('Creating entity', {
+      fileLog.debug('Creating entity', {
         entityName,
         data: entityData
       });
@@ -248,7 +248,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       // Create the entity using TanStack DB mutation
       createEntity(entityData);
 
-      fileLog.info('Entity created successfully');
+      fileLog.debug('Entity created successfully');
 
       // Reset form and close dialog
       setFormData({});
