@@ -381,7 +381,7 @@ export class SimplePassiveRenderer {
     this.dataObserverDisposer = reaction(
       () => this.tableCoreStore.processedRows,
       (processedRows) => {
-        fileLog.info('🔍 SORTED DATA CHANGE DETECTED - MobX computed reaction', {
+        fileLog.debug('🔍 SORTED DATA CHANGE DETECTED - MobX computed reaction', {
           observersEnabled: this.observersEnabled,
           rowCount: processedRows.length,
           sortBy: this.visualStateStore.sortBy,
@@ -429,7 +429,7 @@ export class SimplePassiveRenderer {
 
         const hiddenColumns = Object.entries(columnVisibility).filter(([_, visible]) => visible === false);
 
-        fileLog.info('🎨 Column visibility changed - forcing layout re-render', {
+        fileLog.debug('🎨 Column visibility changed - forcing layout re-render', {
           hiddenColumnsCount: hiddenColumns.length,
           hiddenColumns: hiddenColumns.map(([id]) => id)
         });
@@ -444,7 +444,7 @@ export class SimplePassiveRenderer {
     this.columnOrderObserverDisposer = reaction(
       () => this.visualStateStore.columnOrder,
       () => {
-      fileLog.info('🔄 COLUMN ORDER CHANGE DETECTED via dedicated observer', {
+      fileLog.debug('🔄 COLUMN ORDER CHANGE DETECTED via dedicated observer', {
         observersEnabled: this.observersEnabled,
         timestamp: Date.now()
       });
@@ -464,7 +464,7 @@ export class SimplePassiveRenderer {
 
       const columnOrder = this.visualStateStore.columnOrder;
 
-      fileLog.info('🎨 Column order changed - forcing layout re-render', {
+      fileLog.debug('🎨 Column order changed - forcing layout re-render', {
         columnOrderLength: columnOrder.length,
         columnOrder: columnOrder
       });
@@ -480,7 +480,7 @@ export class SimplePassiveRenderer {
     this.columnWidthsObserverDisposer = reaction(
       () => this.visualStateStore.columnWidths,
       () => {
-      fileLog.info('[RESIZE] 🔄 COLUMN WIDTH CHANGE DETECTED via dedicated observer', {
+      fileLog.debug('[RESIZE] 🔄 COLUMN WIDTH CHANGE DETECTED via dedicated observer', {
         observersEnabled: this.observersEnabled,
         timestamp: Date.now()
       });
@@ -1197,7 +1197,7 @@ export class SimplePassiveRenderer {
 
     // Only handle column range changes (row changes handled by direct scroll observer)
     if (columnRangeChanged) {
-      fileLog.info('🔄 Column range changed - triggering body re-render', {
+      fileLog.debug('🔄 Column range changed - triggering body re-render', {
         columnRangeChanged,
         oldColumnRange: `${previousColumnRange.start}-${previousColumnRange.end}`,
         newColumnRange: `${currentColumnRange.start}-${currentColumnRange.end}`

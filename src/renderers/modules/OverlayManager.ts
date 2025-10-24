@@ -280,7 +280,7 @@ export class OverlayManager {
                     const cell = { rowId, columnId };
                     const actualValue = state.editValue !== undefined ? state.editValue : this.getCellValue(rowId, columnId);
 
-                    fileLog.info('🔍 REACTIVE: Showing editing overlay (consolidated)', {
+                    fileLog.debug('🔍 REACTIVE: Showing editing overlay (consolidated)', {
                       cellId: state.editingCell,
                       position,
                       value: actualValue
@@ -291,7 +291,7 @@ export class OverlayManager {
                 }
               } else if (!state.isEditing && this.editingOverlay) {
                 // Hide editing overlay
-                fileLog.info('🔍 REACTIVE: Hiding editing overlay (consolidated)');
+                fileLog.debug('🔍 REACTIVE: Hiding editing overlay (consolidated)');
                 this.editingOverlay.hide();
               }
             }
@@ -303,7 +303,7 @@ export class OverlayManager {
                   copiedCells: state.clipboard.copiedCells,
                   isCut: state.clipboard.operation === 'cut'
                 };
-                fileLog.info('📋 REACTIVE: Updating clipboard overlay', {
+                fileLog.debug('📋 REACTIVE: Updating clipboard overlay', {
                   operation: state.clipboard.operation,
                   cellCount: state.clipboard.copiedCells.size,
                   copiedCells: Array.from(state.clipboard.copiedCells)
@@ -314,7 +314,7 @@ export class OverlayManager {
                 this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
               } else if (this.canvasOverlay) {
                 // Clear clipboard overlay only when clipboard is explicitly null
-                fileLog.info('📋 REACTIVE: Clearing clipboard overlay');
+                fileLog.debug('📋 REACTIVE: Clearing clipboard overlay');
                 this.canvasOverlay.clearClipboardIndicators();
               }
             }
@@ -338,7 +338,7 @@ export class OverlayManager {
 
             // Handle column resize preview
             if (state.columnResize) {
-              fileLog.info('[RESIZE-PREVIEW] 📏 REACTIVE: Column resize detected', {
+              fileLog.debug('[RESIZE-PREVIEW] 📏 REACTIVE: Column resize detected', {
                 hasCanvasOverlay: !!this.canvasOverlay,
                 isInitialized: this.canvasOverlay?.isInitialized,
                 columnId: state.columnResize.columnId,
@@ -348,13 +348,13 @@ export class OverlayManager {
 
               if (this.canvasOverlay) {
                 this.canvasOverlay.updateColumnResizePreview(state.columnResize);
-                fileLog.info('[RESIZE-PREVIEW] ✅ Called canvasOverlay.updateColumnResizePreview');
+                fileLog.debug('[RESIZE-PREVIEW] ✅ Called canvasOverlay.updateColumnResizePreview');
               } else {
                 fileLog.warn('[RESIZE-PREVIEW] ⚠️ No canvasOverlay available!');
               }
             } else if (this.canvasOverlay) {
               // Clear resize preview
-              fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing resize preview');
+              fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing resize preview');
               this.canvasOverlay.updateColumnResizePreview(null);
             }
           });
@@ -509,7 +509,7 @@ export class OverlayManager {
       hasTargetColumn: columnId in row
     });
 
-    fileLog.info('📄 Getting cell value for editing', {
+    fileLog.debug('📄 Getting cell value for editing', {
       rowId,
       columnId,
       foundRow: !!row,
@@ -612,55 +612,19 @@ export class OverlayManager {
     // Keep scrollContainer reference for diagnostic logging only
     const scrollContainer = this.bodyContainer || this.container.querySelector('.vibegridx-body-container') as HTMLElement || this.container;
 
-    // PERFORMANCE: Sample diagnostic logging (10% of calls)
-    if (Math.random() < 0.1) {
-      fileLog.debug('🎨 DIAGNOSTIC: Getting visual cell positions with full context', {
-        selectedCount: selectedCells.size,
-        currentScrollLeft,
-        currentScrollTop,
-        viewportWidth,
-        totalColumns: columns.length,
-        scrollContainer: {
-          className: scrollContainer.className,
-          scrollWidth: scrollContainer.scrollWidth,
-          clientWidth: scrollContainer.clientWidth
-        }
-      });
-    }
+    fileLog.debug('🎨 Getting visual cell positions', {
+      selectedCount: selectedCells.size,
+      scrollLeft: currentScrollLeft,
+      scrollTop: currentScrollTop
+    });
 
     selectedCells.forEach(cellId => {
-      // PERFORMANCE: Sample per-cell diagnostic logging (reduce from 100% to 20% of cells)
-      if (Math.random() < 0.2) {
-        fileLog.debug('🔍 DIAGNOSTIC: Processing cellId in getVisualCellPositions', {
-          cellId,
-          cellIdType: typeof cellId,
-          cellIdValue: cellId
-        });
-      }
 
       const [rowId, columnId] = cellId.split(':');
 
       // GET COLUMN INFORMATION
       const column = columns.find((c: any) => c.id === columnId);
       const columnIndex = columns.findIndex((c: any) => c.id === columnId);
-
-      // PERFORMANCE: Sample column analysis logging (20% of calls)
-      if (Math.random() < 0.2) {
-        fileLog.debug('🔍 DIAGNOSTIC: Column analysis', {
-          rowId,
-          columnId,
-          rowIdType: typeof rowId,
-          columnIdType: typeof columnId,
-          columnIndex,
-          columnExists: !!column,
-          columnData: column ? {
-            id: column.id,
-            title: column.title,
-            width: column.width,
-            type: column.type
-          } : null
-        });
-      }
 
       // Calculate expected column X position based on column widths
       let expectedColumnX = 0;
@@ -671,21 +635,6 @@ export class OverlayManager {
 
       // CRITICAL FIX: Account for scroll position in expected calculation
       const expectedColumnXScrollAdjusted = expectedColumnX - currentScrollLeft;
-
-      fileLog.debug('🔍 DIAGNOSTIC: Expected column position calculation with scroll adjustment', {
-        columnId,
-        columnIndex,
-        expectedColumnX, // Absolute position in full table
-        expectedColumnXScrollAdjusted, // Position relative to current viewport
-        currentScrollLeft,
-        scrollAdjustment: currentScrollLeft,
-        currentColumnWidth: column?.width || 150,
-        calculationBreakdown: columns.slice(0, columnIndex).map((c: any, i: number) => ({
-          index: i,
-          id: c.id,
-          width: c.width || 150
-        }))
-      });
 
       // Use the hybrid getCellPosition method
       const position = this.getCellPosition(rowId, columnId);
@@ -699,54 +648,14 @@ export class OverlayManager {
           height: position.height
         };
         visualPositions.push(visualPos);
-
-        // CRITICAL DIAGNOSTIC: Compare expected vs actual position using scroll-adjusted expected value
-        const positionDiscrepancy = Math.abs(position.x - expectedColumnXScrollAdjusted);
-        const isPositionAccurate = positionDiscrepancy < 5; // Allow 5px tolerance
-
-        fileLog.debug('🎯 DIAGNOSTIC: Position analysis for selection overlay', {
-          requestedCell: cellId,
-          columnId,
-          columnIndex,
-          actualPosition: { x: position.x, y: position.y, width: position.width, height: position.height },
-          expectedColumnX, // Absolute position
-          expectedColumnXScrollAdjusted, // Scroll-adjusted position
-          positionDiscrepancy, // Now using scroll-adjusted comparison
-          isPositionAccurate,
-          positionAnalysis: {
-            expectedAbsolute: expectedColumnX,
-            expectedViewportRelative: expectedColumnXScrollAdjusted,
-            actualViewportRelative: position.x,
-            discrepancyFromScrollAdjusted: positionDiscrepancy,
-            discrepancyFromAbsolute: Math.abs(position.x - expectedColumnX)
-          },
-          context: {
-            scrollLeft: currentScrollLeft,
-            viewportWidth,
-            isLastColumn: columnIndex === columns.length - 1,
-            isScrolledRight: currentScrollLeft > 0
-          }
-        });
       } else {
-        fileLog.warn('❌ DIAGNOSTIC: Could not find position for cell via hybrid system', {
-          cellId,
-          rowId,
-          columnId,
-          expectedColumnX,
-          expectedColumnXScrollAdjusted,
-          columnIndex,
-          scrollContext: {
-            scrollLeft: currentScrollLeft,
-            viewportWidth,
-            scrollWidth: scrollContainer.scrollWidth
-          }
-        });
+        fileLog.debug('Cell position not found', { cellId, rowId, columnId });
       }
     });
 
-    fileLog.info('✅ Visual positions calculated via hybrid system', {
-      inputCells: selectedCells.size,
-      outputPositions: visualPositions.length
+    fileLog.debug('Visual positions calculated', {
+      cellCount: selectedCells.size,
+      positionsFound: visualPositions.length
     });
 
     return visualPositions;
@@ -760,47 +669,14 @@ export class OverlayManager {
     const cachedViewport = PositionEvents.getViewportCache();
     const currentScrollLeft = cachedViewport.scrollLeft || 0;
 
-    // Keep scrollContainer reference for diagnostic logging only
-    const scrollContainer = this.bodyContainer || this.container.querySelector('.vibegridx-body-container') as HTMLElement || this.container;
-
-    fileLog.debug('🎯 DIAGNOSTIC: getCellPosition called with full context', {
-      rowId,
-      columnId,
-      rowIdType: typeof rowId,
-      columnIdType: typeof columnId,
-      rowIdValue: rowId,
-      columnIdValue: columnId,
-      currentScrollLeft,
-      scrollContainerClass: scrollContainer.className
-    });
-
     const cellKey = `${rowId}:${columnId}`;
-
-    fileLog.debug('🎯 DIAGNOSTIC: Getting cell position with scroll context', {
-      cellKey,
-      rowId,
-      columnId,
-      scrollLeft: currentScrollLeft
-    });
 
     // Try DOM position first (highest accuracy)
     const domPositions = domPositions$.cellPositions;
     const domPosition = domPositions.get(cellKey);
 
-    fileLog.debug('🎯 HYBRID: DOM position check', {
-      cellKey,
-      hasDomPosition: !!domPosition,
-      isVisible: domPosition?.isVisible,
-      domPosition: domPosition ? { x: domPosition.x, y: domPosition.y, width: domPosition.width, height: domPosition.height } : null
-    });
-
     if (domPosition && domPosition.isVisible) {
-      fileLog.info('✅ Using DOM position', {
-        cellKey,
-        position: { x: domPosition.x, y: domPosition.y, width: domPosition.width, height: domPosition.height },
-        source: 'dom'
-      });
-
+      fileLog.debug('Using cached DOM position', { cellKey });
       return {
         x: domPosition.x,
         y: domPosition.y,
@@ -810,7 +686,7 @@ export class OverlayManager {
     }
 
     // DIRECT SOLUTION: Calculate position directly from DOM
-    fileLog.warn('🔄 DOM position not cached, calculating directly', { cellKey });
+    fileLog.debug('DOM position not cached, calculating directly', { cellKey });
 
     const cell = this.container.querySelector(`[data-row-id="${rowId}"][data-column-id="${columnId}"]`) as HTMLElement;
     if (cell) {
@@ -841,23 +717,6 @@ export class OverlayManager {
         viewportContainer = this.container;
       }
 
-      fileLog.debug('🔍 DIAGNOSTIC: Container debug info', {
-        cellKey,
-        columnId,
-        foundCell: !!cell,
-        foundViewport: !!viewportContainer,
-        containerClass: this.container.className,
-        viewportClass: viewportContainer?.className,
-        cellParentClass: cell.parentElement?.className,
-        isViewportSameAsContainer: viewportContainer === this.container,
-        scrollingContext: {
-          containerScrollLeft: this.container.scrollLeft,
-          viewportScrollLeft: viewportContainer?.scrollLeft,
-          globalScrollLeft: currentScrollLeft,
-          shouldUseViewportForCalculation: !!viewportContainer && viewportContainer !== this.container
-        }
-      });
-
       if (viewportContainer) {
         const cellRect = cell.getBoundingClientRect();
         const viewportRect = viewportContainer.getBoundingClientRect();
@@ -878,43 +737,7 @@ export class OverlayManager {
           height: cellRect.height
         };
 
-        fileLog.debug('✅ DIAGNOSTIC: Using direct DOM calculation with scroll analysis', {
-          cellKey,
-          columnId,
-          position: directPosition,
-          source: 'direct',
-          rawCellRect: {
-            left: cellRect.left,
-            top: cellRect.top,
-            right: cellRect.right,
-            width: cellRect.width,
-            height: cellRect.height
-          },
-          rawViewportRect: {
-            left: viewportRect.left,
-            top: viewportRect.top,
-            right: viewportRect.right,
-            width: viewportRect.width,
-            height: viewportRect.height
-          },
-          calculation: {
-            xCalc: `${cellRect.left} - ${viewportRect.left} = ${cellRect.left - viewportRect.left}`,
-            yCalc: `${cellRect.top} - ${viewportRect.top} = ${cellRect.top - viewportRect.top}`,
-            cellVisibleWidth: Math.min(cellRect.right, viewportRect.right) - Math.max(cellRect.left, viewportRect.left),
-            isPartiallyVisible: cellRect.right > viewportRect.right || cellRect.left < viewportRect.left,
-            isFullyVisible: cellRect.left >= viewportRect.left && cellRect.right <= viewportRect.right
-          },
-          scrollDiagnostic: {
-            scrollLeft: currentScrollLeft,
-            cellAbsoluteLeft: cellRect.left,
-            cellAbsoluteRight: cellRect.right,
-            viewportAbsoluteLeft: viewportRect.left,
-            viewportAbsoluteRight: viewportRect.right,
-            cellRelativeToViewport: cellRect.left - viewportRect.left,
-            isCellOutsideViewport: cellRect.right < viewportRect.left || cellRect.left > viewportRect.right
-          }
-        });
-
+        fileLog.debug('Calculated cell position from DOM', { cellKey, position: directPosition });
         return directPosition;
       }
     }
@@ -938,13 +761,7 @@ export class OverlayManager {
 
     // If cache is fresh, use it directly
     if (cachedViewport.containerRect && cachedViewport.lastViewportUpdate > 0) {
-      fileLog.debug('📊 VIEWPORT CACHE: Using cached viewport measurements for getViewportInfo', {
-        scrollLeft: cachedViewport.scrollLeft,
-        scrollTop: cachedViewport.scrollTop,
-        viewportWidth: cachedViewport.clientWidth,
-        viewportHeight: cachedViewport.clientHeight,
-        cacheAge: Date.now() - cachedViewport.lastViewportUpdate
-      });
+        fileLog.debug('Using cached viewport measurements');
 
       return {
         scrollTop: cachedViewport.scrollTop,
@@ -955,7 +772,7 @@ export class OverlayManager {
     }
 
     // Fallback to DOM reads if cache is empty (should be rare)
-    fileLog.warn('📊 VIEWPORT CACHE: Cache miss, falling back to DOM reads');
+    fileLog.debug('Viewport cache miss, reading from DOM');
     const scrollContainer = this.bodyContainer || this.container.querySelector('.vibegridx-body-container') as HTMLElement || this.container;
 
     let scrollTop = 0;
@@ -1096,7 +913,7 @@ export class OverlayManager {
     // Store the mapping so we can pass it when overlays are lazy-created
     this.coordinateMapping = mapping;
 
-    fileLog.info('[RESIZE-PREVIEW] 🔄 OverlayManager: Coordinate mapping updated', {
+    fileLog.debug('[RESIZE-PREVIEW] 🔄 OverlayManager: Coordinate mapping updated', {
       version: mapping.version,
       rowCount: mapping.rows.length,
       columnCount: mapping.columns.length,
@@ -1105,7 +922,7 @@ export class OverlayManager {
 
     // Delegate to canvas overlay which handles all sub-overlays
     if (this.canvasOverlay) {
-      fileLog.info('[RESIZE-PREVIEW] 📍 Passing mapping to CanvasOverlay');
+      fileLog.debug('[RESIZE-PREVIEW] 📍 Passing mapping to CanvasOverlay');
       this.canvasOverlay.updateCoordinateMapping(mapping);
     }
 

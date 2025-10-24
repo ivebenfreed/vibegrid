@@ -70,7 +70,7 @@ export class ModularCellBridge {
     value: any,
     column: Column,
     rowData: any,
-    position: { rowIndex: number; columnIndex: number; xPosition?: number }
+    position: { rowIndex: number; columnIndex: number; xPosition?: number; width?: number }
   ): HTMLElement {
     try {
       // 🚀 FAST PATH: Use pre-computed formatter if available
@@ -130,7 +130,7 @@ export class ModularCellBridge {
     value: any,
     column: Column,
     rowData: any,
-    position: { rowIndex: number; columnIndex: number; xPosition?: number }
+    position: { rowIndex: number; columnIndex: number; xPosition?: number; width?: number }
   ): HTMLElement {
     // Create container with proper VibeGrid structure (matching CellFactory)
     const container = document.createElement('div');
@@ -139,7 +139,7 @@ export class ModularCellBridge {
     container.dataset.field = column.field || column.id;
 
     // Get column width (fallback to 150px if not specified)
-    const actualWidth = column.width || 150;
+    const actualWidth = position.width ?? column.width ?? 150;
 
     // Apply VibeGrid-compatible positioning (matching CellFactory structure)
     if (position.xPosition !== undefined) {

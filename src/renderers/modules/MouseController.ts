@@ -128,7 +128,7 @@ export class MouseController {
     // Provide immediate visual feedback on mouse down
     const target = e.target as HTMLElement;
 
-    fileLog.info('🖱️ Mouse down on element', {
+    fileLog.debug('🖱️ Mouse down on element', {
       tagName: target.tagName,
       className: target.className,
       id: target.id,
@@ -154,7 +154,7 @@ export class MouseController {
         // Delegate to interaction state following the proper pattern
         this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth);
 
-        fileLog.info('[RESIZE] 📏 Column resize handle mouse down', {
+        fileLog.debug('[RESIZE] 📏 Column resize handle mouse down', {
           columnId,
           initialWidth,
           element: resizeHandle.tagName,
@@ -276,7 +276,7 @@ export class MouseController {
         e.clientY - this.startPosition.y
       );
 
-      fileLog.info('🖱️ Mouse move while tracking', {
+      fileLog.debug('🖱️ Mouse move while tracking', {
         distance,
         threshold: this.dragThreshold,
         startPos: this.startPosition,
@@ -306,7 +306,7 @@ export class MouseController {
     // Update drag state if threshold exceeded
     if (!this.isDragging && distance > this.dragThreshold) {
       this.isDragging = true;
-      fileLog.info('🖱️ Drag threshold exceeded - now dragging', {
+      fileLog.debug('🖱️ Drag threshold exceeded - now dragging', {
         distance,
         threshold: this.dragThreshold,
         isColumnDrag: this.isColumnDrag,
@@ -320,13 +320,13 @@ export class MouseController {
         this.handleColumnResize(e);
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Start column drag
-        fileLog.info('🎯 Column drag started', { columnId: this.dragColumnId });
+        fileLog.debug('🎯 Column drag started', { columnId: this.dragColumnId });
         runInAction(() => { this.interactionStore.isDragging = true });
         runInAction(() => { this.interactionStore.dragSource = this.dragColumnId });
         this.createDragPreview(this.dragColumnId);
       } else if (this.isRowDrag && this.dragRowId) {
         // Start row drag
-        fileLog.info('🚀 Row drag started', {
+        fileLog.debug('🚀 Row drag started', {
           rowId: this.dragRowId,
           groupId: this.dragRowGroupId
         });
@@ -344,7 +344,7 @@ export class MouseController {
         const startCell = this.interactionStore.focusedCell;
         if (startCell) {
           this.interactionStore.startDragSelect(startCell);
-          fileLog.info('🖱️ Started drag selection reactively', { startCell });
+          fileLog.debug('🖱️ Started drag selection reactively', { startCell });
         } else {
           fileLog.warn('⚠️ No focused cell for drag start');
         }
@@ -360,7 +360,7 @@ export class MouseController {
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
           runInAction(() => { this.interactionStore.dragTarget = targetColumnId });
           this.showDropLine(targetHeaderElement, e.clientX);
-          fileLog.info('🎯 Column drag over target', {
+          fileLog.debug('🎯 Column drag over target', {
             sourceColumnId: this.dragColumnId,
             targetColumnId
           });
@@ -408,7 +408,7 @@ export class MouseController {
         // Update drag selection if we're over a different cell
         const currentDragCell = this.interactionStore.dragSelectCurrent;
         if (currentCellId !== currentDragCell) {
-          fileLog.info('🖱️ Drag selection updated to new cell', {
+          fileLog.debug('🖱️ Drag selection updated to new cell', {
             previousCell: currentDragCell,
             currentCell: currentCellId
           });
@@ -473,7 +473,7 @@ export class MouseController {
   private onMouseUp(e: MouseEvent): void {
     // CRITICAL FIX: Always reset drag state on mouse up, regardless of where the mouse is released
     // The check for container was causing drag state to persist when mouse is released outside container
-    fileLog.info('🖱️ Mouse up detected', {
+    fileLog.debug('🖱️ Mouse up detected', {
       withinContainer: this.container.contains(e.target as Node),
       wasTracking: this.isTracking,
       wasDragging: this.isDragging,
@@ -493,21 +493,21 @@ export class MouseController {
         // Handle column resize completion
         const resizeResult = this.interactionStore.endColumnResize();
 
-        fileLog.info('[RESIZE] 📏 Column resize ended via MouseController', {
+        fileLog.debug('[RESIZE] 📏 Column resize ended via MouseController', {
           columnId: resizeResult?.columnId,
           newWidth: resizeResult?.newWidth,
           finalMouseX: e.clientX
         });
 
         // Apply the final width to visual state
-        fileLog.info('[RESIZE] 📏 Attempting to persist column width', {
+        fileLog.debug('[RESIZE] 📏 Attempting to persist column width', {
           hasResizeResult: !!resizeResult,
           columnId: resizeResult?.columnId,
           newWidth: resizeResult?.newWidth
         });
 
         if (resizeResult?.columnId && resizeResult?.newWidth) {
-          fileLog.info('[RESIZE] 📏 Calling updateColumnWidth to persist', {
+          fileLog.debug('[RESIZE] 📏 Calling updateColumnWidth to persist', {
             columnId: resizeResult.columnId,
             newWidth: resizeResult.newWidth
           });
@@ -546,13 +546,13 @@ export class MouseController {
         }
 
         // Reset column drag state
-        fileLog.info('🎯 Column drag ended', { columnId: this.dragColumnId });
+        fileLog.debug('🎯 Column drag ended', { columnId: this.dragColumnId });
         runInAction(() => { this.interactionStore.isDragging = false });
         runInAction(() => { this.interactionStore.dragSource = null });
         runInAction(() => { this.interactionStore.dragTarget = null });
         this.removeDragPreview();
         this.hideDropLine();
-        fileLog.info('🎯 Column drag state reset, continuing to general reset');
+        fileLog.debug('🎯 Column drag state reset, continuing to general reset');
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
         const targetRowId = this.interactionStore.dragTarget;
@@ -990,7 +990,7 @@ export class MouseController {
     });
 
     document.body.appendChild(this.dragPreviewElement);
-    fileLog.info('🎯 Column drag preview created', { columnId, text: columnText });
+    fileLog.debug('🎯 Column drag preview created', { columnId, text: columnText });
   }
 
   /**
@@ -1010,7 +1010,7 @@ export class MouseController {
     if (this.dragPreviewElement) {
       this.dragPreviewElement.remove();
       this.dragPreviewElement = null;
-      fileLog.info('🎯 Column drag preview removed');
+      fileLog.debug('🎯 Column drag preview removed');
     }
   }
 
@@ -1121,7 +1121,7 @@ export class MouseController {
     });
 
     document.body.appendChild(this.dragPreviewElement);
-    fileLog.info('🚀 Row drag preview created', { rowId, text: rowText });
+    fileLog.debug('🚀 Row drag preview created', { rowId, text: rowText });
   }
 
   /**
@@ -1131,7 +1131,7 @@ export class MouseController {
     if (this.dragPreviewElement) {
       this.dragPreviewElement.remove();
       this.dragPreviewElement = null;
-      fileLog.info('🚀 Row drag preview removed');
+      fileLog.debug('🚀 Row drag preview removed');
     }
   }
 
@@ -1348,7 +1348,7 @@ export class MouseController {
     const result = this.interactionStore.updateColumnResize(e.clientX);
 
     if (result) {
-      fileLog.info('[RESIZE] 📏 Column resize move - interaction state updated', {
+      fileLog.debug('[RESIZE] 📏 Column resize move - interaction state updated', {
         columnId: result.columnId,
         newWidth: result.newWidth,
         mouseX: e.clientX,
@@ -1370,7 +1370,7 @@ export class MouseController {
 
         if (timeSinceLastUpdate >= this.RESIZE_THROTTLE_MS) {
           // Enough time has passed, update immediately
-          fileLog.info('[RESIZE] 🎨 Updating visual state LIVE (immediate)', {
+          fileLog.debug('[RESIZE] 🎨 Updating visual state LIVE (immediate)', {
             columnId: result.columnId,
             newWidth: result.newWidth,
             timeSinceLastUpdate
@@ -1381,7 +1381,7 @@ export class MouseController {
           // Too soon, schedule an update
           const delay = this.RESIZE_THROTTLE_MS - timeSinceLastUpdate;
           this.resizeThrottleTimeout = window.setTimeout(() => {
-            fileLog.info('[RESIZE] 🎨 Updating visual state LIVE (throttled)', {
+            fileLog.debug('[RESIZE] 🎨 Updating visual state LIVE (throttled)', {
               columnId: result.columnId,
               newWidth: result.newWidth,
               delay

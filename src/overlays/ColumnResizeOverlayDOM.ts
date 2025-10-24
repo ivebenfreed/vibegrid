@@ -79,28 +79,43 @@ export class ColumnResizeOverlayDOM {
       this.clear();
       return;
     }
-    
-    // SIMPLER APPROACH: Get position directly from the column header element in the DOM
-    const headerCell = this.container.querySelector(`[data-column-id="${resizeState.columnId}"]`) as HTMLElement;
-    if (!headerCell) {
-      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column header element not found:', resizeState.columnId);
+
+    if (!this.coordinateMapping || !this.coordinateMapping.columns) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ No coordinate mapping available for resize preview');
       return;
     }
 
-    const headerRect = headerCell.getBoundingClientRect();
-    const containerRect = this.container.getBoundingClientRect();
+    const columnMapping = this.coordinateMapping.columns.find(
+      (col) => col.columnId === resizeState.columnId
+    );
 
-    // Calculate position: left edge of column + new width
-    const columnLeft = headerRect.left - containerRect.left;
-    const newX = columnLeft + (resizeState.newWidth || 150);
+    if (!columnMapping) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column not found in coordinate mapping', {
+        columnId: resizeState.columnId,
+        availableColumns: this.coordinateMapping.columns.map(col => col.columnId)
+      });
+      return;
+    }
+
+    const baseWidth = resizeState.newWidth ?? columnMapping.width ?? 150;
+    const newX = columnMapping.offset + baseWidth;
+
+    // Determine current horizontal scroll from the viewport the overlay is attached to
+    const viewportElement =
+      this.container.parentElement?.closest('.vibegridx-viewport') as HTMLElement ??
+      this.container.parentElement as HTMLElement ?? null;
+    const scrollLeft = viewportElement?.scrollLeft ?? 0;
+
+    const adjustedX = newX - scrollLeft;
 
     fileLog.info('[RESIZE-PREVIEW] 📏 Column position from DOM', {
       columnId: resizeState.columnId,
-      headerLeft: headerRect.left,
-      containerLeft: containerRect.left,
-      columnLeftRelative: columnLeft,
-      newWidth: resizeState.newWidth,
-      calculatedX: newX
+      columnOffset: columnMapping.offset,
+      mappedWidth: columnMapping.width,
+      resizeWidth: resizeState.newWidth,
+      calculatedX: newX,
+      scrollLeft,
+      adjustedX
     });
 
     // Create or update resize indicator
@@ -128,19 +143,13 @@ export class ColumnResizeOverlayDOM {
       transition: 'none',
       zIndex: '1000'
     });
-    
+
     fileLog.info('[RESIZE-PREVIEW] 🎨 Resize indicator positioned', {
       columnId: resizeState.columnId,
       newWidth: resizeState.newWidth,
       indicatorX: newX,
-      scrollLeft: scrollLeft,
-      adjustedX: adjustedX,
-      left: `${adjustedX - this.config.resizeIndicatorWidth! / 2}px`,
-      width: `${this.config.resizeIndicatorWidth}px`,
-      color: this.config.resizeIndicatorColor,
-      zIndex: this.resizeIndicator.style.zIndex,
-      display: this.resizeIndicator.style.display,
-      visibility: this.resizeIndicator.style.visibility
+      scrollLeft,
+      adjustedX
     });
   }
   

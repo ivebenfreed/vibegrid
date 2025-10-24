@@ -142,7 +142,7 @@ export class VibeGridXCoordinateManager {
       return mapping;
     });
     
-    fileLog.info('VibeGridXCoordinateManager.updateColumns:', {
+    fileLog.debug('VibeGridXCoordinateManager.updateColumns:', {
       columnCount: columns.length,
       columnIds: columns.map(c => c.id),
       columnMappings: newColumns.map(c => ({ id: c.columnId, index: c.index, offset: c.offset }))
@@ -223,7 +223,7 @@ export class VibeGridXCoordinateManager {
     const rowHeight = 40;
     const y = position.rowIndex * rowHeight;
     
-    fileLog.info('getCellPosition: Row mapping check', {
+    fileLog.debug('getCellPosition: Row mapping check', {
       rowId,
       sortedIndex: position.rowIndex,
       calculatedY: y,
@@ -273,7 +273,7 @@ export class VibeGridXCoordinateManager {
     const viewportY = absolutePos.y;
     const viewportX = absolutePos.x;
     
-    fileLog.info('getCellPositionWithViewport: Using absolute coordinates', {
+    fileLog.debug('getCellPositionWithViewport: Using absolute coordinates', {
       rowId,
       absoluteRowIndex,
       absoluteY: absolutePos.y,
@@ -595,7 +595,7 @@ export class VibeGridXCoordinateManager {
    * Debug helper
    */
   debug(): void {
-    fileLog.info('VibeGridXCoordinateManager Debug:', {
+    fileLog.debug('VibeGridXCoordinateManager Debug:', {
       version: this.version,
       rowCount: this.mapping.rows.length,
       columnCount: this.mapping.columns.length,

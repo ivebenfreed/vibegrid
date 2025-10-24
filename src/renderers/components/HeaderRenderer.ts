@@ -409,13 +409,13 @@ export class HeaderRenderer {
   private setupResizeHandler(resizeHandle: HTMLElement, column: any): void {
     let isResizing = false;
     let startX = 0;
-    let startWidth = column.width || 150;
+    let startWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150;
 
     resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
       e.stopPropagation();
       isResizing = true;
       startX = e.pageX;
-      startWidth = column.width || 150;
+      startWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150;
 
       fileLog.info('🔧 Started column resize', {
         columnId: column.id,

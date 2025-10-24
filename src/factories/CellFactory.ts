@@ -40,6 +40,7 @@ export interface CellPosition {
   columnIndex: number;
   xPosition?: number;
   yPosition?: number;
+  width?: number;
 }
 
 export interface CellFactoryOptions {
@@ -157,7 +158,7 @@ export class CellFactory {
     container.dataset.columnId = column.id;
     container.dataset.field = column.field || column.id;
 
-    const actualWidth = this.getColumnWidth(column);
+    const actualWidth = position.width ?? this.getColumnWidth(column);
 
     // Apply VibeGrid-compatible positioning (matching BodyRenderer structure)
     if (position.xPosition !== undefined) {
@@ -410,7 +411,7 @@ export class CellFactory {
     // Priority: explicit width > display metadata > default
     return column.width ||
            column.display?.width ||
-           200;
+           150;
   }
 
   /**

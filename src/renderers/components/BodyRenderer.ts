@@ -283,7 +283,7 @@ export class BodyRenderer {
       }
 
       // Use the layout's xOffset for absolute positioning (already includes cumulative positioning)
-      const cell = this.createCellElement(row, column, colIndex, layout.xOffset);
+      const cell = this.createCellElement(row, column, colIndex, layout.xOffset, layout.width);
       rowElement.appendChild(cell);
 
       this.cellRenderingStats.cellsCreated++;
@@ -307,7 +307,7 @@ export class BodyRenderer {
           }
 
           // Use the layout's xOffset for absolute positioning
-          const cell = this.createCellElement(row, column, colIndex, layout.xOffset);
+          const cell = this.createCellElement(row, column, colIndex, layout.xOffset, layout.width);
           rowElement.appendChild(cell);
 
           this.cellRenderingStats.cellsCreated++;
@@ -609,7 +609,8 @@ export class BodyRenderer {
     row: any,
     column: any,
     colIndex: number,
-    xPosition?: number
+    xPosition?: number,
+    widthOverride?: number
   ): HTMLElement {
     // PERFORMANCE: Simplified cell creation using ModularCellBridge efficiently
     const rowData = row.data || row;
@@ -627,14 +628,23 @@ export class BodyRenderer {
         });
 
         // Use the unified CellFactory with column config
+        const effectiveWidth = widthOverride ??
+          this.visualStateStore.columnWidths[column.id] ??
+          column.width ??
+          150;
+        const columnForRender = column.width === effectiveWidth
+          ? column
+          : { ...column, width: effectiveWidth };
+
         const cellElement = this.modularCellBridge.createCell(
           value,
-          column,
+          columnForRender,
           rowData,
           {
             rowIndex: 0,
             columnIndex: colIndex,
-            xPosition
+            xPosition,
+            width: effectiveWidth
           }
         );
 
