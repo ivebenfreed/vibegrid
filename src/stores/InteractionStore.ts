@@ -20,7 +20,6 @@ import { makeObservable, observable, action, computed } from 'mobx'
 import { createLogger } from '@/lib/logging'
 import { DisposerManager } from '@/stores/utils/disposer'
 import type { IStore } from '@/stores/types'
-import { getUpdateFunction } from '../utils/entity-update-helpers'
 
 const log = createLogger('components/vibegrid/stores/InteractionStore')
 
@@ -199,6 +198,7 @@ export class InteractionStore implements IStore {
   private tableCore$: any = null
   private tableCoreStore: any = null
   private visualStateStore: any = null
+  private collection: any = null // TanStack DB collection for entity mutations
   private disposers = new DisposerManager()
 
   constructor(tableCore$?: any) {
@@ -218,6 +218,16 @@ export class InteractionStore implements IStore {
    */
   setVisualStateStore(store: any): void {
     this.visualStateStore = store
+  }
+
+  /**
+   * Set TanStack DB collection for entity mutations
+   */
+  setCollection(collection: any): void {
+    this.collection = collection
+    log.info('TanStack DB collection set', {
+      hasCollection: !!collection
+    })
   }
 
   /**
@@ -791,7 +801,13 @@ export class InteractionStore implements IStore {
   }
 
   /**
-   * Save edit
+   * Save edit using TanStack DB collection mutation
+   *
+   * This implements optimistic updates with:
+   * - Immediate UI feedback (clear editing state)
+   * - Automatic rollback on error
+   * - Performance timing metrics
+   * - Real-time sync via WebSocket
    */
   @action
   async saveEdit(finalValue?: any): Promise<void> {
@@ -822,60 +838,102 @@ export class InteractionStore implements IStore {
     const rowId = cellParts[0]
     const fieldName = cellParts[1]
 
-    // Get entity type
-    const entityType = this.tableCore$?.entityType?.get()
-    if (!entityType) {
-      log.warn('No entity type available for entity update', { editingCell, rowId, fieldName })
-      return
-    }
-
-    try {
-      log.info('Persisting field edit to entity', {
-        entityType,
+    // Check if TanStack DB collection is available
+    if (!this.collection) {
+      log.error('Cannot save: TanStack DB collection not set', {
+        editingCell,
         rowId,
         fieldName,
-        editValue,
-        cellId: editingCell
+        hint: 'Call setCollection() before editing'
       })
 
-      const updateEntity = getUpdateFunction(entityType)
-      const updateData = { [fieldName]: editValue }
-
-      // Persist the change
-      await updateEntity(rowId, updateData)
-
-      log.info('Field edit successfully persisted', {
-        entityType,
-        rowId,
-        fieldName,
-        newValue: editValue
-      })
-
-    } catch (error) {
-      log.error('Failed to persist field edit', {
-        entityType,
-        rowId,
-        fieldName,
-        editValue,
-        error: error instanceof Error ? error.message : String(error)
-      })
-
-      // Show error state
       this.editValidation = {
         isValid: false,
-        message: `Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: 'Save failed: Database collection not available'
       }
       return
     }
 
-    // Clear editing state after successful save
+    // Get current data to check for changes
+    const currentData = this.collection.get(String(rowId))
+    const currentValue = currentData?.[fieldName]
+
+    // OPTIMIZATION: Skip update if value hasn't changed
+    if (currentValue === editValue) {
+      log.info('Skipping save - value unchanged', {
+        rowId,
+        fieldName,
+        value: editValue
+      })
+
+      // Clear editing state without saving
+      this.editingCell = null
+      this.editValue = null
+      this.isEditing = false
+      this.isCancelling = false
+      this.editValidation = null
+
+      return
+    }
+
+    // Start performance timing
+    const startTime = performance.now()
+
+    // Optimistic update using TanStack DB collection
+    // The collection handles the optimistic state update immediately
+    const tx = this.collection.update(String(rowId), (draft: any) => {
+      draft[fieldName] = editValue
+      draft.updatedAt = new Date().toISOString()
+    })
+
+    const localDuration = performance.now() - startTime
+    log.info('Optimistic edit applied to collection', {
+      rowId,
+      fieldName,
+      editValue,
+      localDuration: `${localDuration.toFixed(1)}ms`,
+      cellId: editingCell,
+      note: 'Table will react automatically via useVibeGridData hook'
+    })
+
+    // Clear editing state immediately (optimistic UX)
+    // The table will re-render automatically when the collection updates
     this.editingCell = null
     this.editValue = null
     this.isEditing = false
     this.isCancelling = false
     this.editValidation = null
 
-    log.info('Edit saved and synced', { cellId: editingCell, value: editValue })
+    // Monitor persistence status
+    // TanStack DB automatically rolls back on error - we just log it
+    tx.isPersisted.promise
+      .then(() => {
+        const totalDuration = performance.now() - startTime
+        log.info('Edit persisted to server', {
+          rowId,
+          fieldName,
+          editValue,
+          localDuration: `${localDuration.toFixed(1)}ms`,
+          totalDuration: `${totalDuration.toFixed(1)}ms`,
+          networkDuration: `${(totalDuration - localDuration).toFixed(1)}ms`,
+          note: 'Optimistic update confirmed'
+        })
+      })
+      .catch((error: any) => {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+
+        log.error('Edit persistence failed - TanStack DB auto-rollback', {
+          rowId,
+          fieldName,
+          editValue,
+          error: errorMessage,
+          note: 'Collection automatically rolled back, table will react via hook'
+        })
+
+        // TanStack DB automatically rolls back the collection state
+        // The table will re-render with the original value via useVibeGridData
+        // No manual rollback needed!
+      })
   }
 
   /**

@@ -105,7 +105,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // TANSTACK DB INTEGRATION
   // ====================================
 
-  const { rows, isLoading: isDataLoading, createEntity, updateEntity, deleteEntity } =
+  const { rows, isLoading: isDataLoading, collection, createEntity, updateEntity, deleteEntity } =
     useVibeGridData(entityType, visualStateStore)
 
   // Fetch organization members for UserReference fields (automatic org context)
@@ -155,6 +155,16 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     log.debug('Syncing members to TableCoreStore', { memberCount: members.length })
     tableCoreStore.setMembersData(members)
   }, [members, tableCoreStore])
+
+  // Set TanStack DB collection on InteractionStore for entity mutations
+  useEffect(() => {
+    if (!interactionStore || !collection) return
+    log.info('Setting TanStack DB collection on InteractionStore', {
+      hasCollection: !!collection,
+      entityType
+    })
+    interactionStore.setCollection(collection)
+  }, [collection, interactionStore, entityType])
 
   // ====================================
   // INITIALIZATION

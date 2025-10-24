@@ -37,6 +37,7 @@ export class KeyboardNavigationController {
 
   /**
    * Handle arrow key navigation
+   * Note: This method is only called when NOT editing (checked in handleKeyDown)
    */
   handleArrowKey(direction: 'up' | 'down' | 'left' | 'right', isShiftKey: boolean): void {
     const processedRows = this.getProcessedRows();
@@ -144,6 +145,16 @@ export class KeyboardNavigationController {
   handleKeyDown(event: KeyboardEvent): boolean {
     const isCtrlKey = event.ctrlKey || event.metaKey;
     const isShiftKey = event.shiftKey;
+
+    // CRITICAL: During editing, only handle Escape (to cancel)
+    // All other keys (including Ctrl+A) should work normally in the editor
+    if (this.interactionStore.isEditing && event.key !== 'Escape') {
+      fileLog.debug('Key pressed during editing - letting editor handle it', {
+        key: event.key,
+        editingCell: this.interactionStore.editingCell
+      });
+      return false; // Let the editor handle all keys except Escape
+    }
 
     switch (event.key) {
       case 'a':
