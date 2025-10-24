@@ -78,6 +78,10 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
       // TableCoreStore needs SchemaRegistry for column generation
       tableCoreStore.setSchemaRegistry(schemaRegistry)
 
+      // InteractionStore needs TableCoreStore and VisualStateStore for data context
+      interactionStore.setTableCoreStore(tableCoreStore)
+      interactionStore.setVisualStateStore(visualStateStore)
+
       // PersistenceStore needs all stores to save/load preferences
       persistenceStore.setTableCoreStore(tableCoreStore)
       persistenceStore.setVisualStateStore(visualStateStore)

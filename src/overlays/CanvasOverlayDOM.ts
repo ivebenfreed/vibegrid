@@ -321,13 +321,19 @@ export class CanvasOverlayDOM {
    * Update coordinate mapping
    */
   updateCoordinateMapping(mapping: CoordinateMapping): void {
-    fileLog.info('CanvasOverlayDOM: Updating coordinate mapping', {
+    fileLog.info('[RESIZE-PREVIEW] 📍 CanvasOverlay.updateCoordinateMapping', {
       version: mapping.version,
       rowCount: mapping.rows.length,
-      colCount: mapping.columns.length
+      colCount: mapping.columns.length,
+      hadMappingBefore: !!this.coordinateMapping
     });
-    
+
     this.coordinateMapping = mapping;
+
+    fileLog.info('[RESIZE-PREVIEW] ✅ Coordinate mapping stored', {
+      nowHasMapping: !!this.coordinateMapping,
+      columnCount: this.coordinateMapping?.columns.length
+    });
     
     // Update all active overlays with new mapping
     if (this.selectionOverlay) {
@@ -573,10 +579,33 @@ export class CanvasOverlayDOM {
    * Update column resize preview
    */
   updateColumnResizePreview(resizeState: ColumnResizeState | null): void {
-    if (!this.overlayContainer) return;
-    
+    fileLog.info('[RESIZE-PREVIEW] 📐 CanvasOverlay.updateColumnResizePreview called', {
+      hasOverlayContainer: !!this.overlayContainer,
+      resizeState: resizeState,
+      hasCoordinateMapping: !!this.coordinateMapping
+    });
+
+    if (!this.overlayContainer) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ No overlayContainer!');
+      return;
+    }
+
     const columnResize = this.getColumnResizeOverlay();
+
+    // CRITICAL: Update coordinate mapping if available (lazy-created overlay needs it)
+    if (this.coordinateMapping) {
+      fileLog.info('[RESIZE-PREVIEW] 📐 Updating coordinate mapping for lazy-created overlay from CanvasOverlay', {
+        hasMapping: !!this.coordinateMapping,
+        columnCount: this.coordinateMapping?.columns.length
+      });
+      columnResize.updateCoordinateMapping(this.coordinateMapping);
+    } else {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ CanvasOverlay has no coordinate mapping to pass!');
+    }
+
+    fileLog.info('[RESIZE-PREVIEW] 📐 Got ColumnResizeOverlay, calling updateResizePreview');
     columnResize.updateResizePreview(resizeState);
+    fileLog.info('[RESIZE-PREVIEW] ✅ updateResizePreview called');
   }
   
   /**

@@ -8,6 +8,7 @@ import { runInAction, reaction } from 'mobx';
 import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM';
 import { EditingOverlay } from '../../overlays/EditingOverlay';
 import { ContextMenuManager } from '../../components/ContextMenu';
+import { ColumnDragOverlayDOM } from '../../overlays/ColumnDragOverlayDOM';
 // SelectionManager functionality consolidated into interaction-state
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
@@ -54,12 +55,15 @@ export class OverlayManager {
   // Selection now managed through tableInteraction$ observable
   private editingOverlay: EditingOverlay | null = null;
   private contextMenu: ContextMenuManager | null = null;
+  private columnDragOverlay: ColumnDragOverlayDOM | null = null;
+  // Note: FillHandleLayer is managed by CanvasOverlayDOM, not created here
   
   // Performance optimization caches
   private lastSelectionString: string = ''; // More reliable deduplication
   private lastClipboardString: string = ''; // Clipboard state deduplication
   private updateSelectionRAF: number | null = null;
   private lastCoordinateMappingVersion: number = -1;
+  private coordinateMapping: CoordinateMapping | null = null;
 
   // MobX reaction disposers
   private disposers: (() => void)[] = [];
@@ -124,10 +128,18 @@ export class OverlayManager {
     // Create context menu
     this.contextMenu = new ContextMenuManager(this.container);
 
+    // Create column drag overlay
+    this.columnDragOverlay = new ColumnDragOverlayDOM(this.container, {
+      cellHeight: ROW_HEIGHT,
+      headerHeight: HEADER_HEIGHT
+    });
+
+    // Note: FillHandleLayer and ColumnResizeOverlay are lazily created by CanvasOverlayDOM
+
     // Link to existing interactions observable instead of setting up separate observer
     this.linkToInteractionsObservable();
 
-    fileLog.info('✅ Overlay system initialized');
+    fileLog.info('✅ Overlay system initialized (CanvasOverlay handles fill handle & resize preview)');
   }
   
   /**
@@ -138,6 +150,7 @@ export class OverlayManager {
     // State tracking for deduplication
     let lastSelectionString = '';
     let lastEditingCell: string | null = null;
+    let lastResizeState: string = ''; // Track full resize state as string
     let pendingUpdate: number | null = null;
 
     // SINGLE OBSERVER: Watches all relevant state in one place using MobX reaction
@@ -166,7 +179,10 @@ export class OverlayManager {
               isEditing: this.interactionStore.isEditing,
 
               // Clipboard state
-              clipboard: this.interactionStore.clipboard
+              clipboard: this.interactionStore.clipboard,
+
+              // Column resize state
+              columnResize: this.interactionStore.columnResize
             };
 
             // Debug clipboard state
@@ -201,8 +217,11 @@ export class OverlayManager {
           const editingChanged = lastEditingCell !== state.editingCell;
           const clipboardString = state.clipboard ? `${state.clipboard.operation}:${Array.from(state.clipboard.copiedCells).sort().join(',')}` : '';
           const clipboardChanged = this.lastClipboardString !== clipboardString;
+          const resizeStateString = state.columnResize ? `${state.columnResize.columnId}:${state.columnResize.newWidth}` : '';
+          const resizeChanged = lastResizeState !== resizeStateString; // Detect width changes OR start/stop
 
-          if (!selectionChanged && !editingChanged && !clipboardChanged) {
+          // IMPORTANT: Don't skip if columnResize changed (resize preview needs immediate updates including clear)
+          if (!selectionChanged && !editingChanged && !clipboardChanged && !resizeChanged) {
             fileLog.debug('🔍 REACTIVE: No meaningful changes, skipping update');
             return;
           }
@@ -210,6 +229,7 @@ export class OverlayManager {
           // Update deduplication tracking
           lastSelectionString = selectionString;
           lastEditingCell = state.editingCell;
+          lastResizeState = resizeStateString;
           this.lastClipboardString = clipboardString;
 
           fileLog.debug('🔍 REACTIVE: Consolidated state changed', {
@@ -314,6 +334,28 @@ export class OverlayManager {
               // Get visual positions for clipboard cells (same approach as selection)
               const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
               this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
+            }
+
+            // Handle column resize preview
+            if (state.columnResize) {
+              fileLog.info('[RESIZE-PREVIEW] 📏 REACTIVE: Column resize detected', {
+                hasCanvasOverlay: !!this.canvasOverlay,
+                isInitialized: this.canvasOverlay?.isInitialized,
+                columnId: state.columnResize.columnId,
+                newWidth: state.columnResize.newWidth,
+                isResizing: state.columnResize.isResizing
+              });
+
+              if (this.canvasOverlay) {
+                this.canvasOverlay.updateColumnResizePreview(state.columnResize);
+                fileLog.info('[RESIZE-PREVIEW] ✅ Called canvasOverlay.updateColumnResizePreview');
+              } else {
+                fileLog.warn('[RESIZE-PREVIEW] ⚠️ No canvasOverlay available!');
+              }
+            } else if (this.canvasOverlay) {
+              // Clear resize preview
+              fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing resize preview');
+              this.canvasOverlay.updateColumnResizePreview(null);
             }
           });
         }
@@ -989,9 +1031,16 @@ export class OverlayManager {
       this.contextMenu.destroy();
       this.contextMenu = null;
     }
-    
+
+    if (this.columnDragOverlay) {
+      this.columnDragOverlay.destroy();
+      this.columnDragOverlay = null;
+    }
+
+    // Note: FillHandleLayer cleanup handled by CanvasOverlayDOM.destroy()
+
     // Selection cleanup not needed - handled by interaction-state
-    
+
     fileLog.info('✅ Overlay system destroyed');
   }
   
@@ -1022,6 +1071,13 @@ export class OverlayManager {
   }
 
   /**
+   * Get column drag overlay instance
+   */
+  getColumnDragOverlay(): ColumnDragOverlayDOM | null {
+    return this.columnDragOverlay;
+  }
+
+  /**
    * Update coordinate mapping for all overlays
    * This method is called by SimplePassiveRenderer when coordinates change
    */
@@ -1037,15 +1093,27 @@ export class OverlayManager {
 
     this.lastCoordinateMappingVersion = mapping.version;
 
-    fileLog.info('🔄 Coordinate mapping updated for overlays', {
+    // Store the mapping so we can pass it when overlays are lazy-created
+    this.coordinateMapping = mapping;
+
+    fileLog.info('[RESIZE-PREVIEW] 🔄 OverlayManager: Coordinate mapping updated', {
       version: mapping.version,
       rowCount: mapping.rows.length,
-      columnCount: mapping.columns.length
+      columnCount: mapping.columns.length,
+      storedMapping: !!this.coordinateMapping
     });
 
     // Delegate to canvas overlay which handles all sub-overlays
     if (this.canvasOverlay) {
+      fileLog.info('[RESIZE-PREVIEW] 📍 Passing mapping to CanvasOverlay');
       this.canvasOverlay.updateCoordinateMapping(mapping);
     }
+
+    // Update column drag overlay
+    if (this.columnDragOverlay) {
+      this.columnDragOverlay.updateCoordinateMapping(mapping);
+    }
+
+    // Note: FillHandleLayer coordinate mapping handled by CanvasOverlayDOM
   }
 }

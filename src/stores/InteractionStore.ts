@@ -197,11 +197,27 @@ export class InteractionStore implements IStore {
   // ====================================
 
   private tableCore$: any = null
+  private tableCoreStore: any = null
+  private visualStateStore: any = null
   private disposers = new DisposerManager()
 
   constructor(tableCore$?: any) {
     makeObservable(this)
     this.tableCore$ = tableCore$
+  }
+
+  /**
+   * Set TableCoreStore reference (for MobX architecture)
+   */
+  setTableCoreStore(store: any): void {
+    this.tableCoreStore = store
+  }
+
+  /**
+   * Set VisualStateStore reference (for MobX architecture)
+   */
+  setVisualStateStore(store: any): void {
+    this.visualStateStore = store
   }
 
   /**
@@ -366,13 +382,28 @@ export class InteractionStore implements IStore {
     // 1. Always set focus
     this.setFocusedCell(cellId)
 
-    // 2. Handle selection (Ctrl+click disabled, treat as regular click)
-    if (!shiftKey) {
+    // 2. Handle selection with Shift and Ctrl support
+    if (shiftKey && this.anchorCell) {
+      // SHIFT+CLICK: Range selection from anchor cell
+      const dataContext = this.getDataContext()
+      this.selectRange(this.anchorCell, cellId, dataContext)
+      log.info('Shift+click range selection', {
+        from: this.anchorCell,
+        to: cellId,
+        hasDataContext: !!dataContext
+      })
+    } else if (ctrlKey) {
+      // CTRL+CLICK: Multi-select (toggle cell in selection)
+      this.selectCell(cellId, true)
+      log.info('Ctrl+click multi-select', { cellId })
+    } else {
+      // NORMAL CLICK: Single selection
       this.selectCell(cellId, false)
+      log.info('Normal click single selection', { cellId })
     }
 
-    // 3. For editable cells, start editing
-    if (isEditable && !shiftKey) {
+    // 3. For editable cells, start editing (but not during multi-select)
+    if (isEditable && !shiftKey && !ctrlKey) {
       // Get the actual cell value for editing
       const [rowId, columnId] = cellId.split(':')
       const processedRows = this.tableCore$?.processedRows?.get() || []
@@ -396,8 +427,29 @@ export class InteractionStore implements IStore {
       isEditable,
       ctrlKey,
       shiftKey,
-      didStartEdit: isEditable && !shiftKey
+      didStartEdit: isEditable && !shiftKey && !ctrlKey
     })
+  }
+
+  /**
+   * Get data context for range selection (MobX stores)
+   */
+  private getDataContext(): { rows: any[], columns: any[], columnVisibility: Record<string, boolean> } | undefined {
+    if (!this.tableCoreStore || !this.visualStateStore) {
+      log.warn('Cannot get data context - stores not set')
+      return undefined
+    }
+
+    try {
+      const rows = this.tableCoreStore.processedRows || []
+      const columns = this.visualStateStore.columns || []
+      const columnVisibility = this.visualStateStore.columnVisibility || {}
+
+      return { rows, columns, columnVisibility }
+    } catch (error) {
+      log.error('Error getting data context', error)
+      return undefined
+    }
   }
 
   /**

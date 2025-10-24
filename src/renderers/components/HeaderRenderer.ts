@@ -4,7 +4,7 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import { reaction } from 'mobx';
+import { reaction, runInAction } from 'mobx';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { VisualStateStore } from '../../stores/VisualStateStore';
@@ -237,10 +237,11 @@ export class HeaderRenderer {
     // Update sort indicator if column is sorted
     this.updateSortIndicator(headerCell, column);
     
-    // Add resize handle (MouseController will handle resize events)
+    // Add resize handle with event handlers
     const resizeHandle = this.domFactory.createResizeHandle();
+    this.setupResizeHandler(resizeHandle, column);
     headerCell.appendChild(resizeHandle);
-    
+
     // Set up passive interaction attributes for MouseController
     this.setupHeaderClickHandler(headerCell, column);
 
@@ -399,6 +400,114 @@ export class HeaderRenderer {
     fileLog.debug('🎯 Header cell setup for passive interaction', {
       columnId: column.id,
       field: column.field || column.id
+    });
+  }
+
+  /**
+   * Set up resize handler for column (MobX version)
+   */
+  private setupResizeHandler(resizeHandle: HTMLElement, column: any): void {
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = column.width || 150;
+
+    resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
+      e.stopPropagation();
+      isResizing = true;
+      startX = e.pageX;
+      startWidth = column.width || 150;
+
+      fileLog.info('🔧 Started column resize', {
+        columnId: column.id,
+        startWidth,
+        startX
+      });
+
+      // Update interaction state (MobX)
+      runInAction(() => {
+        this.interactionStore.columnResize = {
+          isResizing: true,
+          columnId: column.id,
+          startWidth: startWidth,
+          newWidth: startWidth
+        };
+      });
+
+      // Add document-level listeners for resize
+      let resizeRAF: number | null = null;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizing) return;
+
+        // Throttle resize updates with requestAnimationFrame
+        if (!resizeRAF) {
+          resizeRAF = requestAnimationFrame(() => {
+            const deltaX = e.pageX - startX;
+            const newWidth = Math.max(50, startWidth + deltaX); // Min width 50px
+
+            fileLog.info('[RESIZE-PREVIEW] 📏 Updating resize state', {
+              columnId: column.id,
+              startWidth,
+              deltaX,
+              newWidth,
+              pageX: e.pageX
+            });
+
+            // Update resize state (MobX)
+            runInAction(() => {
+              this.interactionStore.columnResize = {
+                isResizing: true,
+                columnId: column.id,
+                startWidth: startWidth,
+                newWidth: newWidth
+              };
+            });
+
+            fileLog.info('[RESIZE-PREVIEW] ✅ columnResize state set', {
+              state: this.interactionStore.columnResize
+            });
+
+            resizeRAF = null;
+          });
+        }
+      };
+
+      const handleMouseUp = () => {
+        if (!isResizing) return;
+        isResizing = false;
+
+        // Cancel any pending resize RAF
+        if (resizeRAF) {
+          cancelAnimationFrame(resizeRAF);
+          resizeRAF = null;
+        }
+
+        const resizeState = this.interactionStore.columnResize;
+        if (resizeState && resizeState.newWidth) {
+          // Apply the new width (MobX action)
+          this.visualStateStore.updateColumnWidth(column.id, resizeState.newWidth);
+
+          fileLog.info('✅ Column resize complete', {
+            columnId: column.id,
+            oldWidth: startWidth,
+            newWidth: resizeState.newWidth
+          });
+        }
+
+        // Clear resize state (MobX)
+        fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing columnResize state (mouseup)');
+        runInAction(() => {
+          this.interactionStore.columnResize = null;
+        });
+        fileLog.info('[RESIZE-PREVIEW] ✅ columnResize set to null');
+
+        // Clean up listeners
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
     });
   }
 

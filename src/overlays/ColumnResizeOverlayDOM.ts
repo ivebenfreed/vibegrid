@@ -67,70 +67,80 @@ export class ColumnResizeOverlayDOM {
    * Update the resize indicator based on current resize state
    */
   updateResizePreview(resizeState: ColumnResizeState | null): void {
+    fileLog.info('[RESIZE-PREVIEW] 🎯 ColumnResizeOverlay.updateResizePreview called', {
+      hasResizeState: !!resizeState,
+      isResizing: resizeState?.isResizing,
+      columnId: resizeState?.columnId,
+      newWidth: resizeState?.newWidth
+    });
+
     if (!resizeState?.isResizing || !resizeState.columnId) {
+      fileLog.info('[RESIZE-PREVIEW] 🧹 Clearing resize preview (no active resize)');
       this.clear();
       return;
     }
     
-    if (!this.coordinateMapping) {
-      fileLog.warn('ColumnResizeOverlayDOM: No coordinate mapping available');
+    // SIMPLER APPROACH: Get position directly from the column header element in the DOM
+    const headerCell = this.container.querySelector(`[data-column-id="${resizeState.columnId}"]`) as HTMLElement;
+    if (!headerCell) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column header element not found:', resizeState.columnId);
       return;
     }
-    
-    // Get column info from coordinate mapping
-    const column = this.coordinateMapping.columns.find(col => col.columnId === resizeState.columnId);
-    if (!column) {
-      fileLog.warn('ColumnResizeOverlayDOM: Column not found:', resizeState.columnId);
-      return;
-    }
-    
-    // Calculate new position based on resize (right edge of the column)
-    const newX = column.offset + (resizeState.newWidth || column.width);
-    
-    // Account for horizontal scroll position - get from header viewport which handles horizontal scrolling
-    const headerViewport = this.container.querySelector('.vibegridx-header-viewport') as HTMLElement;
-    const bodyViewport = this.container.querySelector('.vibegridx-viewport') as HTMLElement;
-    const scrollLeft = headerViewport ? headerViewport.scrollLeft : (bodyViewport ? bodyViewport.scrollLeft : 0);
-    
-    fileLog.debug('ColumnResizeOverlayDOM: Scroll debugging', {
-      headerViewportFound: !!headerViewport,
-      bodyViewportFound: !!bodyViewport,
-      headerScrollLeft: headerViewport?.scrollLeft,
-      bodyScrollLeft: bodyViewport?.scrollLeft,
-      finalScrollLeft: scrollLeft
+
+    const headerRect = headerCell.getBoundingClientRect();
+    const containerRect = this.container.getBoundingClientRect();
+
+    // Calculate position: left edge of column + new width
+    const columnLeft = headerRect.left - containerRect.left;
+    const newX = columnLeft + (resizeState.newWidth || 150);
+
+    fileLog.info('[RESIZE-PREVIEW] 📏 Column position from DOM', {
+      columnId: resizeState.columnId,
+      headerLeft: headerRect.left,
+      containerLeft: containerRect.left,
+      columnLeftRelative: columnLeft,
+      newWidth: resizeState.newWidth,
+      calculatedX: newX
     });
-    
+
     // Create or update resize indicator
     if (!this.resizeIndicator) {
+      fileLog.info('[RESIZE-PREVIEW] 🎨 Creating NEW resize indicator element');
       this.resizeIndicator = document.createElement('div');
       this.resizeIndicator.className = 'vibegridx-resize-indicator';
       this.overlayContainer?.appendChild(this.resizeIndicator);
+      fileLog.info('[RESIZE-PREVIEW] ✅ Resize indicator appended to overlay container');
+    } else {
+      fileLog.info('[RESIZE-PREVIEW] ♻️ Reusing existing resize indicator');
     }
-    
-    // Position indicator (adjust for scroll position so it stays aligned with the column)
-    const adjustedX = newX - scrollLeft;
-    
-    // Since overlay is inside viewport container, start from top of viewport
-    // The viewport container itself is positioned below the header
+
+    // Position indicator using absolute positioning within overlay container
     Object.assign(this.resizeIndicator.style, {
       position: 'absolute',
-      left: `${adjustedX - this.config.resizeIndicatorWidth! / 2}px`,
-      top: '0', // Start from top of viewport container
+      left: `${newX - this.config.resizeIndicatorWidth! / 2}px`,
+      top: '0',
       width: `${this.config.resizeIndicatorWidth}px`,
-      height: '100%', // Use full height of container
+      height: '100%',
       backgroundColor: this.config.resizeIndicatorColor,
       boxShadow: '0 0 4px rgba(59, 130, 246, 0.5)',
       pointerEvents: 'none',
       opacity: '1',
-      transition: 'none'
+      transition: 'none',
+      zIndex: '1000'
     });
     
-    fileLog.info('ColumnResizeOverlayDOM: Indicator updated', {
+    fileLog.info('[RESIZE-PREVIEW] 🎨 Resize indicator positioned', {
       columnId: resizeState.columnId,
       newWidth: resizeState.newWidth,
       indicatorX: newX,
       scrollLeft: scrollLeft,
-      adjustedX: adjustedX
+      adjustedX: adjustedX,
+      left: `${adjustedX - this.config.resizeIndicatorWidth! / 2}px`,
+      width: `${this.config.resizeIndicatorWidth}px`,
+      color: this.config.resizeIndicatorColor,
+      zIndex: this.resizeIndicator.style.zIndex,
+      display: this.resizeIndicator.style.display,
+      visibility: this.resizeIndicator.style.visibility
     });
   }
   

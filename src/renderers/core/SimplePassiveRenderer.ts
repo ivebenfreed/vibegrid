@@ -26,6 +26,7 @@ import { ScrollController } from '../modules/ScrollController';
 import { MouseController } from '../modules/MouseController';
 import { GroupRenderer } from '../components/GroupRenderer';
 import { ColumnWidthManager } from '../modules/ColumnWidthManager';
+import { DragDropManager } from '../../utils/drag-drop-handlers';
 
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
@@ -159,6 +160,7 @@ export class SimplePassiveRenderer {
   // Phase 2 manager additions
   private bodyRenderer: BodyRenderer | null = null;
   private eventManager: EventManager | null = null;
+  private dragDropManager: DragDropManager | null = null;
 
   private rendererInstanceId = Math.random().toString(36).substring(7);
   private isDestroyed = false;
@@ -306,6 +308,30 @@ export class SimplePassiveRenderer {
       this.selectionController.bodyRenderer = this.bodyRenderer;
     }
 
+    // Initialize DragDropManager for row reordering
+    this.dragDropManager = new DragDropManager({
+      onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => {
+        fileLog.info('🎯 Row moved', { draggedRowId, targetGroupId, newIndex });
+        // TODO: Implement row move logic
+        return true;
+      },
+      onFlatRowMove: (fromIndex: number, toIndex: number) => {
+        fileLog.info('🎯 Flat row moved', { fromIndex, toIndex });
+        // TODO: Implement flat row move logic
+        return true;
+      },
+      onDragStart: (rowId: string, groupId?: string) => {
+        fileLog.info('🎯 Row drag started', { rowId, groupId });
+      },
+      onDragEnd: (success: boolean) => {
+        fileLog.info('🎯 Row drag ended', { success });
+      },
+      isGroupMode: () => this.visualStateStore.groupBy.length > 0
+    });
+
+    // Set container for drag operations
+    this.dragDropManager.setContainer(this.container);
+
     // EventManager needs MobX migration (expects tableCore$, tableInteraction$, tableViewport$ from Legend State)
     // TODO: Migrate EventManager to use MobX stores
     // this.eventManager = new EventManager({
@@ -315,7 +341,7 @@ export class SimplePassiveRenderer {
     //   onEntityUpdate: this.options.onEntityUpdate
     // });
 
-    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer only, GroupRenderer and EventManager need migration)');
+    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager - GroupRenderer and EventManager need migration)');
   }
   
   /**
@@ -1539,9 +1565,17 @@ export class SimplePassiveRenderer {
 
     // Convert column layouts back to columns for compatibility with existing renderer
     // Use ALL visible columns like HeaderRenderer to maintain sync after column reorder
-    const virtualColumns = allVisibleColumnLayouts.map(layout =>
-      columns.find(col => col.id === layout.id)
-    ).filter(Boolean);
+    // CRITICAL: Enrich columns with actual widths from columnWidths state
+    const virtualColumns = allVisibleColumnLayouts.map(layout => {
+      const column = columns.find(col => col.id === layout.id);
+      if (!column) return null;
+
+      // Enrich with actual width from layout (which includes columnWidths state)
+      return {
+        ...column,
+        width: layout.width  // Use width from columnLayouts (respects columnWidths state)
+      };
+    }).filter(Boolean);
     
     // Render only visible rows using RowRenderer
     visibleRows.forEach((row, visibleIndex) => {

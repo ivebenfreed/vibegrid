@@ -321,8 +321,8 @@ export class MouseController {
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Start column drag
         fileLog.info('🎯 Column drag started', { columnId: this.dragColumnId });
-        this.interactionStore.isDragging.set(true);
-        this.interactionStore.dragSource.set(this.dragColumnId);
+        runInAction(() => { this.interactionStore.isDragging = true });
+        runInAction(() => { this.interactionStore.dragSource = this.dragColumnId });
         this.createDragPreview(this.dragColumnId);
       } else if (this.isRowDrag && this.dragRowId) {
         // Start row drag
@@ -330,8 +330,8 @@ export class MouseController {
           rowId: this.dragRowId,
           groupId: this.dragRowGroupId
         });
-        this.interactionStore.isDragging.set(true);
-        this.interactionStore.dragSource.set(this.dragRowId);
+        runInAction(() => { this.interactionStore.isDragging = true });
+        runInAction(() => { this.interactionStore.dragSource = this.dragRowId });
         this.createRowDragPreview(this.dragRowId);
       } else if (this.isColumnDrag) {
         // Column drag was attempted but failed - don't fall back to cell selection
@@ -341,7 +341,7 @@ export class MouseController {
         fileLog.warn('⚠️ Row drag detected but dragRowId is missing');
       } else {
         // PURE: Start drag selection with focused cell as anchor (only for cell drags)
-        const startCell = this.interactionStore.focusedCell.get();
+        const startCell = this.interactionStore.focusedCell;
         if (startCell) {
           this.interactionStore.startDragSelect(startCell);
           fileLog.info('🖱️ Started drag selection reactively', { startCell });
@@ -358,7 +358,7 @@ export class MouseController {
       if (targetHeaderElement) {
         const targetColumnId = targetHeaderElement.getAttribute('data-column-id');
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
-          this.interactionStore.dragTarget.set(targetColumnId);
+          runInAction(() => { this.interactionStore.dragTarget = targetColumnId });
           this.showDropLine(targetHeaderElement, e.clientX);
           fileLog.info('🎯 Column drag over target', {
             sourceColumnId: this.dragColumnId,
@@ -382,7 +382,7 @@ export class MouseController {
         const targetColumnId = targetCellElement?.getAttribute('data-column-id');
 
         if (targetRowId && targetRowId !== this.dragRowId) {
-          this.interactionStore.dragTarget.set(targetRowId);
+          runInAction(() => { this.interactionStore.dragTarget = targetRowId });
           this.showRowDropIndicator(targetRowElement, e.clientY);
           fileLog.info('🎯 Row drag over target', {
             sourceRowId: this.dragRowId,
@@ -396,7 +396,7 @@ export class MouseController {
     }
 
     // Handle cell drag selection updates
-    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting.get()) {
+    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting) {
       const target = e.target as HTMLElement;
       const cellElement = target.closest('[data-row-id][data-column-id]');
 
@@ -406,20 +406,16 @@ export class MouseController {
         const currentCellId = `${rowId}:${columnId}`;
 
         // Update drag selection if we're over a different cell
-        const currentDragCell = this.interactionStore.dragSelectCurrent.get();
+        const currentDragCell = this.interactionStore.dragSelectCurrent;
         if (currentCellId !== currentDragCell) {
           fileLog.info('🖱️ Drag selection updated to new cell', {
             previousCell: currentDragCell,
             currentCell: currentCellId
           });
 
-          // Get data context from visual state for proper range selection
+          // Get data context from MobX stores for proper range selection
           try {
-            // Try different data sources in order of preference
-            const rows = this.visualState.virtualizedData ||
-                        this.visualState.data ||
-                        this.visualState.processedRows$ ||
-                        [];
+            const rows = this.tableCoreStore?.processedRows || [];
             const columns = this.visualStateStore.columns || [];
             const columnVisibility = this.visualStateStore.columnVisibility || {};
 
@@ -507,17 +503,15 @@ export class MouseController {
         fileLog.info('[RESIZE] 📏 Attempting to persist column width', {
           hasResizeResult: !!resizeResult,
           columnId: resizeResult?.columnId,
-          newWidth: resizeResult?.newWidth,
-          hasVisualOperations: !!this.visualState?.visualOperations,
-          hasSetColumnWidth: !!this.visualState?.visualOperations?.setColumnWidth
+          newWidth: resizeResult?.newWidth
         });
 
         if (resizeResult?.columnId && resizeResult?.newWidth) {
-          fileLog.info('[RESIZE] 📏 Calling setColumnWidth to persist', {
+          fileLog.info('[RESIZE] 📏 Calling updateColumnWidth to persist', {
             columnId: resizeResult.columnId,
             newWidth: resizeResult.newWidth
           });
-          this.visualState.visualOperations.setColumnWidth(resizeResult.columnId, resizeResult.newWidth);
+          this.visualStateStore.updateColumnWidth(resizeResult.columnId, resizeResult.newWidth);
         } else {
           fileLog.warn('[RESIZE] ⚠️ Cannot persist column width - missing data', {
             resizeResult
@@ -530,7 +524,7 @@ export class MouseController {
         this.justEndedDrag = true; // Reuse the same flag to prevent clicks after resize
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Handle column drag completion
-        const targetColumnId = this.interactionStore.dragTarget.get();
+        const targetColumnId = this.interactionStore.dragTarget;
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
           // Calculate the same insertBefore logic used for drop line positioning
           const targetHeaderElement = this.container.querySelector(`[data-column-id="${targetColumnId}"]:not([data-row-id])`);
@@ -548,29 +542,29 @@ export class MouseController {
             insertBefore,
             mouseX: e.clientX
           });
-          this.visualState.visualOperations.reorderColumns(this.dragColumnId, targetColumnId, insertBefore);
+          this.visualStateStore.reorderColumns(this.dragColumnId, targetColumnId, insertBefore);
         }
 
         // Reset column drag state
         fileLog.info('🎯 Column drag ended', { columnId: this.dragColumnId });
-        this.interactionStore.isDragging.set(false);
-        this.interactionStore.dragSource.set(null);
-        this.interactionStore.dragTarget.set(null);
+        runInAction(() => { this.interactionStore.isDragging = false });
+        runInAction(() => { this.interactionStore.dragSource = null });
+        runInAction(() => { this.interactionStore.dragTarget = null });
         this.removeDragPreview();
         this.hideDropLine();
         fileLog.info('🎯 Column drag state reset, continuing to general reset');
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
-        const targetRowId = this.interactionStore.dragTarget.get();
+        const targetRowId = this.interactionStore.dragTarget;
         if (targetRowId && targetRowId !== this.dragRowId) {
           this.handleRowDrop(targetRowId, e.clientY);
         }
 
         // Reset row drag state
         fileLog.info('🏁 Row drag ended', { rowId: this.dragRowId });
-        this.interactionStore.isDragging.set(false);
-        this.interactionStore.dragSource.set(null);
-        this.interactionStore.dragTarget.set(null);
+        runInAction(() => { this.interactionStore.isDragging = false });
+        runInAction(() => { this.interactionStore.dragSource = null });
+        runInAction(() => { this.interactionStore.dragTarget = null });
         this.removeRowDragPreview();
         this.hideRowDropIndicator();
         fileLog.info('🎯 Row drag state reset, continuing to general reset');
@@ -685,7 +679,7 @@ export class MouseController {
         // Ctrl/Cmd+click -> disabled (treated as regular click)
         if (e.shiftKey) {
           // Shift+click: Range selection from last selected cell
-          const selectedCells = this.interactionStore.selectedCells.get();
+          const selectedCells = this.interactionStore.selectedCells;
           const lastSelectedCell = selectedCells.size > 0 ? Array.from(selectedCells).pop() : null;
 
           if (lastSelectedCell) {
@@ -694,9 +688,9 @@ export class MouseController {
               to: cellId
             });
 
-            // Get data context for range selection
-            const rows = this.tableCore$?.processedRows?.get() || [];
-            const columns = this.tableCore$?.columns?.get() || [];
+            // Get data context for range selection (MobX stores)
+            const rows = this.tableCoreStore?.processedRows || [];
+            const columns = this.visualStateStore?.columns || [];
             const columnVisibility = this.visualStateStore.columnVisibility;
 
             this.interactionStore.selectRange(lastSelectedCell, cellId, { rows, columns, columnVisibility });
@@ -760,17 +754,9 @@ export class MouseController {
               targetClass: target.className
             });
 
-            // Use visual state operations for group expansion (same pattern as sorting)
-            if (this.visualState?.visualOperations?.toggleGroupExpansion) {
-              this.visualState.visualOperations.toggleGroupExpansion(groupId);
-              fileLog.info('🔄 toggleGroupExpansion call completed', { groupId });
-            } else {
-              fileLog.warn('⚠️ Visual operations not available for group expansion', {
-                hasVisualState: !!this.visualState,
-                hasVisualOperations: !!this.visualState?.visualOperations,
-                hasToggleGroupExpansion: !!this.visualState?.visualOperations?.toggleGroupExpansion
-              });
-            }
+            // Toggle group expansion via MobX store
+            this.visualStateStore.toggleGroupExpansion(groupId);
+            fileLog.info('🔄 toggleGroupExpansion called', { groupId });
             return; // Important: exit early to prevent further processing
           }
         }
@@ -829,7 +815,7 @@ export class MouseController {
               field,
               isMultiSort
             });
-            this.visualState.visualOperations.toggleSort(field, isMultiSort);
+            this.visualStateStore.toggleSort(field, isMultiSort);
             fileLog.info('🔄 toggleSort call completed');
           }
         } else if (!cellElement) {
@@ -860,7 +846,7 @@ export class MouseController {
               isMultiSort,
               isShiftKey
             });
-            this.visualState.visualOperations.toggleSort(field, isMultiSort);
+            this.visualStateStore.toggleSort(field, isMultiSort);
             return; // Important: exit early to prevent "container click" message
           }
         }
@@ -1389,7 +1375,7 @@ export class MouseController {
             newWidth: result.newWidth,
             timeSinceLastUpdate
           });
-          this.visualState.visualOperations.setColumnWidth(result.columnId, result.newWidth);
+          this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth);
           this.lastResizeUpdate = now;
         } else {
           // Too soon, schedule an update
@@ -1400,7 +1386,7 @@ export class MouseController {
               newWidth: result.newWidth,
               delay
             });
-            this.visualState.visualOperations.setColumnWidth(result.columnId, result.newWidth);
+            this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth);
             this.lastResizeUpdate = Date.now();
             this.resizeThrottleTimeout = null;
           }, delay);
