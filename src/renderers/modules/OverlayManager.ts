@@ -151,6 +151,7 @@ export class OverlayManager {
     let lastSelectionString = '';
     let lastEditingCell: string | null = null;
     let lastResizeState: string = ''; // Track full resize state as string
+    let wasColumnResizing = false;
     let pendingUpdate: number | null = null;
 
     // SINGLE OBSERVER: Watches all relevant state in one place using MobX reaction

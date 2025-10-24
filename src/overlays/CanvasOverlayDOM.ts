@@ -421,6 +421,19 @@ export class CanvasOverlayDOM {
       this.selectionOverlay.clearSelection();
     }
   }
+
+  /**
+   * Temporarily destroy the selection overlay so column operations don't conflict
+   */
+  suspendSelectionOverlay(): void {
+    if (this.selectionOverlay) {
+      fileLog.info('CanvasOverlayDOM: Suspending selection overlay during column operation');
+      this.selectionOverlay.destroy();
+      this.selectionOverlay = null;
+    }
+
+    this.currentSelectedCells.clear();
+  }
   
   /**
    * Update drag selection range
