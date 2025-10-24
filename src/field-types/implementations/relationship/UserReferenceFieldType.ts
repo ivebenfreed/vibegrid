@@ -20,8 +20,7 @@ import type {
 } from '../../FieldTypeRegistry';
 import type { TableCoreStore } from '../../../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
-// TODO: Remove Legend State - migrating to MobX
-// import { getEntity$, universeOrgId$ } from '@/legend-state/observables';
+import { reaction } from 'mobx';
 
 const fileLog = createLogger('components/custom/vibegrid/field-types/implementations/relationship/UserReferenceFieldType.ts');
 
@@ -75,46 +74,48 @@ export class UserDataLoader implements AsyncDataLoader {
     column: EnhancedColumn,
     limit: number = 10
   ): Promise<RelationshipOption[]> {
-    const orgId = this.getOrgId();
-
     try {
-      // Use existing observables to get user data
-      const orgId = universeOrgId$.peek() || window.location.pathname.match(/\/org\/([^\/]+)/)?.[1] || '';
-      const userEntityName = `${orgId}_User`;
-      const userEntity$ = getEntity$(userEntityName);
-      const userData = userEntity$?.peek();
+      // Get members data from TableCoreStore (passed via tableCore$ parameter)
+      const membersData = (column as any).tableCore$?.membersData
 
-      if (!userData || typeof userData !== 'object') {
-        fileLog.warn('No user data available for search', { orgId });
+      if (!membersData || !(membersData instanceof Map)) {
+        fileLog.warn('No members data available in TableCoreStore');
         return [];
       }
 
-      // Convert user data to search suggestions and filter by query
-      const allUsers = Object.values(userData).map((user: any) => ({
-        value: user.id,
-        label: user.name || user.email || user.id,
+      // Convert Map to array and filter by query
+      const allMembers = Array.from(membersData.entries()).map(([userId, user]) => ({
+        userId,
+        user
+      }));
+
+      // Filter by query string
+      const filtered = allMembers.filter(({ user }) => {
+        const userName = user?.name || '';
+        const userEmail = user?.email || '';
+        const lowerQuery = query.toLowerCase();
+
+        return (
+          userName.toLowerCase().includes(lowerQuery) ||
+          userEmail.toLowerCase().includes(lowerQuery)
+        );
+      });
+
+      // Convert to RelationshipOption format
+      const suggestions = filtered.slice(0, limit).map(({ userId, user }) => ({
+        value: userId,
+        label: user?.name || user?.email || userId,
         metadata: user
       }));
 
-      // Filter by query if provided
-      const filteredUsers = query
-        ? allUsers.filter(user =>
-            user.label.toLowerCase().includes(query.toLowerCase()) ||
-            (user.metadata.email && user.metadata.email.toLowerCase().includes(query.toLowerCase()))
-          )
-        : allUsers;
-
-      // Apply limit
-      const limitedUsers = filteredUsers.slice(0, limit);
-
       fileLog.debug('User search completed', {
         query,
-        totalUsers: allUsers.length,
-        filteredUsers: filteredUsers.length,
-        returnedUsers: limitedUsers.length
+        totalMembers: allMembers.length,
+        filteredMembers: filtered.length,
+        returnedUsers: suggestions.length
       });
 
-      return limitedUsers;
+      return suggestions;
 
     } catch (error) {
       fileLog.error('Failed to search users', { error, query });
@@ -132,7 +133,7 @@ export class UserDataLoader implements AsyncDataLoader {
   }
 
   private getOrgId(): string {
-    return universeOrgId$.peek() || window.location.pathname.match(/\/org\/([^\/]+)/)?.[1] || '';
+    return getActiveOrganizationId() || window.location.pathname.match(/\/org\/([^\/]+)/)?.[1] || '';
   }
 }
 
@@ -140,6 +141,8 @@ export class UserDataLoader implements AsyncDataLoader {
  * User Reference Cell Renderer
  */
 export class UserReferenceRenderer implements CellRenderer {
+  private disposers: Array<() => void> = []
+
   constructor(private dataLoader: UserDataLoader) {}
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
@@ -168,15 +171,50 @@ export class UserReferenceRenderer implements CellRenderer {
       return container;
     }
 
-    // If it's a UUID, show loading and try to resolve asynchronously
+    // If it's a UUID, try to render immediately from membersData
+    const tableCore$ = (column as any).tableCore$;
+    const userId = value;
+
+    fileLog.debug('Rendering UserReference', {
+      userId,
+      hasTableCore: !!tableCore$,
+      hasMembersData: !!tableCore$?.membersData,
+      membersDataSize: tableCore$?.membersData?.size,
+      membersDataType: tableCore$?.membersData?.constructor?.name
+    });
+
+    if (tableCore$?.membersData) {
+      const user = tableCore$.membersData.get(userId);
+      if (user) {
+        fileLog.debug('User found in membersData immediately', { userId, userName: user.name });
+        container.innerHTML = this.createUserBadge(user, userId);
+        return container;
+      }
+    }
+
+    // Show loading state initially
     container.textContent = 'Loading...';
     container.style.opacity = '0.7';
 
-    // ⚡ PERFORMANCE: Don't await - let it load async without blocking
-    this.loadAndRenderUser(container, value, column).catch(err => {
-      console.error('Failed to load user', err);
-      container.textContent = `User ${value.slice(-4)}`;
-    });
+    // Setup MobX reaction to update when members data loads
+    const dispose = reaction(
+      () => {
+        const user = tableCore$?.membersData?.get(userId);
+        fileLog.debug('MobX reaction tracking', { userId, hasUser: !!user, userName: user?.name });
+        return user;
+      },
+      (user) => {
+        if (user) {
+          fileLog.info('MobX reaction fired - user loaded!', { userId, userName: user.name });
+          container.innerHTML = this.createUserBadge(user, userId);
+          container.style.opacity = '1';
+          dispose(); // Stop watching after first update
+        }
+      },
+      { fireImmediately: true }
+    );
+
+    this.disposers.push(dispose);
 
     return container;
   }
@@ -271,17 +309,25 @@ export class UserReferenceRenderer implements CellRenderer {
 
   private async loadAndRenderUser(container: HTMLElement, userId: string, column: EnhancedColumn) {
     try {
-      // ⚡ PERFORMANCE: Use setTimeout to defer observable access off the main thread
+      // ⚡ PERFORMANCE: Use setTimeout to defer lookup off the main thread
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      // Use existing observables to get user data
-      const orgId = universeOrgId$.peek() || window.location.pathname.match(/\/org\/([^\/]+)/)?.[1] || '';
-      const userEntityName = `${orgId}_User`;
-      const userEntity$ = getEntity$(userEntityName);
-      const userData = userEntity$?.peek();
+      // Get members data from TableCoreStore (passed via column.tableCore$)
+      const tableCore$ = (column as any).tableCore$
+      const membersData = tableCore$?.membersData
 
-      if (userData && typeof userData === 'object' && userData[userId]) {
-        const user = userData[userId];
+      if (!membersData || !(membersData instanceof Map)) {
+        fileLog.warn('No members data available in TableCoreStore', { userId });
+        container.textContent = `User ${userId.slice(-4)}`;
+        container.style.opacity = '0.6';
+        container.style.fontStyle = 'italic';
+        return;
+      }
+
+      // Lookup user from members Map
+      const user = membersData.get(userId);
+
+      if (user) {
         container.innerHTML = this.createUserBadge(user, userId);
         container.style.opacity = '1';
       } else {
@@ -293,7 +339,7 @@ export class UserReferenceRenderer implements CellRenderer {
 
     } catch (error) {
       fileLog.error('Failed to load user data', { error, userId });
-      container.textContent = `User ${userId}`;
+      container.textContent = `User ${userId.slice(-4)}`;
       container.className += ' vibegridx-user-reference-error';
       container.style.color = '#dc2626';
     }

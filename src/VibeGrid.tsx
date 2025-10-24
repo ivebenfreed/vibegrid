@@ -12,12 +12,14 @@
 
 import React, { useEffect, useRef } from 'react'
 import { observer } from 'mobx-react-lite'
+import { useLiveQuery } from '@tanstack/react-db'
 import { createLogger } from '@/lib/logging'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { VibeGridStoreProvider, useVibeGridStores } from './stores/context'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
+import { membersCollection } from '@/data/db/collections/member-collection'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -103,6 +105,22 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   const { rows, isLoading: isDataLoading, createEntity, updateEntity, deleteEntity } =
     useVibeGridData(entityType, visualStateStore)
 
+  // Fetch organization members for UserReference fields (automatic org context)
+  const { data: members = [], isLoading: membersLoading, status: membersStatus } = useLiveQuery((q) =>
+    q.from({ members: membersCollection })
+  )
+
+  // Log members query status
+  useEffect(() => {
+    log.info('[MEMBERS] useLiveQuery status', {
+      status: membersStatus,
+      isLoading: membersLoading,
+      memberCount: members?.length || 0,
+      hasMembersData: members && members.length > 0,
+      firstMember: members?.[0]
+    })
+  }, [members, membersLoading, membersStatus])
+
   // ====================================
   // REFS
   // ====================================
@@ -127,6 +145,13 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     stores.initStore.markReady('entityDataLoaded')
     log.info('[VGDEBUG] 📊 Entity data loaded', { rowCount: rows?.length || 0 })
   }, [rows, tableCoreStore, stores])
+
+  // Sync members data to store for UserReference fields
+  useEffect(() => {
+    if (!tableCoreStore) return
+    log.debug('Syncing members to TableCoreStore', { memberCount: members.length })
+    tableCoreStore.setMembersData(members)
+  }, [members, tableCoreStore])
 
   // ====================================
   // INITIALIZATION

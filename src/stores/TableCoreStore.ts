@@ -204,6 +204,9 @@ export class TableCoreStore implements IStore {
   // Raw entity data (from TanStack DB)
   @observable private rawRows: any[] = []
 
+  // Members data for UserReference fields (from TanStack DB membersCollection)
+  @observable membersData: Map<string, any> = new Map()
+
   // ====================================
   // DEPENDENCIES (injected)
   // ====================================
@@ -268,6 +271,23 @@ export class TableCoreStore implements IStore {
     log.debug('📊 Raw rows updated', {
       entityType: this.entityType,
       rowCount: rows.length
+    })
+  }
+
+  /**
+   * Set members data for UserReference fields
+   * Called from React hook with useLiveQuery results
+   */
+  @action
+  setMembersData(members: any[]): void {
+    this.membersData.clear()
+    members.forEach(member => {
+      if (member.user_id && member.user) {
+        this.membersData.set(member.user_id, member.user)
+      }
+    })
+    log.debug('👥 Members data updated', {
+      memberCount: this.membersData.size
     })
   }
 
