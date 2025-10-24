@@ -11,11 +11,26 @@ import { COLUMN_DEFAULTS } from '../column-defaults';
 import type { CellType } from '../column-types';
 // IMPORTANT: Import field-types index to trigger all field type registrations
 import '../field-types';
-import { modularCellBridge } from '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
 import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStore';
 
 const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
+
+function deriveTargetEntityFromField(fieldName: string | undefined): string | null {
+  if (!fieldName) return null;
+  const base = fieldName
+    .replace(/_id$/i, '')
+    .replace(/Id$/i, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim();
+
+  if (!base) return null;
+
+  return base
+    .split(/\s+/)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
 
 interface EntityField {
   name: string;
@@ -138,7 +153,23 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     // Map DataForge field types to VibeGrid cell types
     const cellType = mapFieldTypeToVibeGridCellType(fieldType, fieldName);
 
+    let relationshipMetadata: {
+      targetEntityType: string | null;
+      displayField: string;
+      searchFields: string[];
+    } | null = null;
+
     if (cellType.includes('entity_reference')) {
+      const targetEntityType = safeFieldDef.relationshipTable || safeFieldDef.targetEntityType || safeFieldDef.referenceEntity || deriveTargetEntityFromField(fieldName) || null;
+      const displayField = safeFieldDef.relationshipDisplayField || safeFieldDef.displayField || 'name';
+      const searchFields = safeFieldDef.relationshipSearchFields || safeFieldDef.searchFields || ['name', 'title'];
+
+      relationshipMetadata = {
+        targetEntityType,
+        displayField,
+        searchFields
+      };
+
       fileLog.debug('[COLUMN-GEN] Entity reference field detected', {
         entityType,
         fieldName,
@@ -146,7 +177,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         relationshipType: safeFieldDef.relationshipType,
         relationshipTable: safeFieldDef.relationshipTable,
         relationshipDisplayField: safeFieldDef.relationshipDisplayField,
-        targetEntityType: safeFieldDef.targetEntityType,
+        targetEntityType,
         rawField: safeFieldDef
       });
     }
@@ -238,6 +269,20 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         resolvedAt: performance.now()
       }
     };
+
+    if (relationshipMetadata) {
+      (column as any).relationshipTargetEntity = relationshipMetadata.targetEntityType;
+      (column as any).relationshipDisplayField = relationshipMetadata.displayField;
+      (column as any).relationshipSearchFields = relationshipMetadata.searchFields;
+      if (relationshipMetadata.targetEntityType) {
+        (column as any).relationshipConfig = {
+          targetEntityType: relationshipMetadata.targetEntityType,
+          cardinality: 'many-to-one',
+          displayField: relationshipMetadata.displayField,
+          searchFields: relationshipMetadata.searchFields
+        };
+      }
+    }
 
     fileLog.debug('🔧 Generated column', {
       fieldName,

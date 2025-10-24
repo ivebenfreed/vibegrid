@@ -206,6 +206,7 @@ export class TableCoreStore implements IStore {
 
   // Raw entity data (from TanStack DB)
   @observable private rawRows: any[] = []
+  @observable private hasLoadedRows: boolean = false
 
   // Members data for UserReference fields (from TanStack DB membersCollection)
   @observable membersData: ObservableMap<string, any> = observable.map<string, any>()
@@ -277,6 +278,7 @@ export class TableCoreStore implements IStore {
   @action
   setRows(rows: any[]): void {
     this.rawRows = rows
+    this.hasLoadedRows = true
     log.debug('📊 Raw rows updated', {
       entityType: this.entityType,
       rowCount: rows.length
@@ -322,7 +324,7 @@ export class TableCoreStore implements IStore {
       return map.get(entityId)
     }
 
-    const loadKey = `${targetEntity.toLowerCase()}:${entityId}`
+    const loadKey = `${(targetEntity || '').toLowerCase()}:${entityId}`
     if (!this.pendingEntityReferenceLoads.has(loadKey)) {
       const promise = this.loadEntityReferenceRecord(targetEntity, entityId, map, loader)
       this.pendingEntityReferenceLoads.set(loadKey, promise)
@@ -335,7 +337,7 @@ export class TableCoreStore implements IStore {
       entityId,
       hasRecord: !!result
     })
-    return map.get(entityId)
+    return result
   }
 
   private getOrCreateEntityReferenceMap(targetEntity: string): ObservableMap<string, any> {
@@ -354,6 +356,7 @@ export class TableCoreStore implements IStore {
     map: ObservableMap<string, any>,
     loader?: () => Promise<any>
   ): Promise<void> {
+    const loadKey = `${(targetEntity || '').toLowerCase()}:${entityId}`
     try {
       const collectionRecord = await this.loadFromEntityCollection(targetEntity, entityId)
       if (collectionRecord) {
@@ -381,7 +384,7 @@ export class TableCoreStore implements IStore {
         }
       }
 
-      log.warn('Entity reference record could not be loaded', {
+      log.debug('Entity reference record could not be loaded', {
         targetEntity,
         entityId
       })
@@ -392,25 +395,29 @@ export class TableCoreStore implements IStore {
         error
       })
     } finally {
-      this.pendingEntityReferenceLoads.delete(`${targetEntity.toLowerCase()}:${entityId}`)
+      this.pendingEntityReferenceLoads.delete(loadKey)
     }
   }
 
   private async loadFromEntityCollection(targetEntity: string, entityId: string): Promise<any | null> {
     try {
-      const orgId = this.visualStateStore?.orgId
+      const orgId = this.visualStateStore?.orgId || getActiveOrganizationId()
       if (!orgId) {
-        log.warn('Entity reference collection load skipped - no orgId', {
+        log.debug('Entity reference collection load skipped - no orgId', {
           targetEntity,
           entityId
         })
         return null
       }
 
-      const normalizedEntity = targetEntity || this.entityType
-      if (!normalizedEntity) {
+      if (!targetEntity) {
+        log.debug('Entity reference collection load skipped - unknown target entity', {
+          entityId
+        })
         return null
       }
+
+      const normalizedEntity = targetEntity
 
       const collection = getOrCreateEntityCollection(
         normalizedEntity,
@@ -421,12 +428,16 @@ export class TableCoreStore implements IStore {
       await collection.preload()
       const record = collection.get(entityId)
       if (record) {
+        log.debug('Entity reference record found in TanStack collection', {
+          targetEntity: normalizedEntity,
+          entityId
+        })
         return record
       }
 
       return null
     } catch (error) {
-      log.warn('Entity reference collection load failed, will fall back to loader', {
+      log.debug('Entity reference collection load failed, will fall back to loader', {
         targetEntity,
         entityId,
         error
@@ -447,6 +458,13 @@ export class TableCoreStore implements IStore {
   get processedRows(): any[] {
     if (!this.isSchemaLoaded) {
       log.debug('⏳ Schema not ready for processedRows', { entityType: this.entityType })
+      return []
+    }
+
+    if (!this.hasLoadedRows) {
+      log.debug('⏳ Entity data not yet loaded for processedRows', {
+        entityType: this.entityType
+      })
       return []
     }
 
@@ -475,7 +493,7 @@ export class TableCoreStore implements IStore {
       const data = this.entityDataProvider.getEntityData() || {}
       rows = Object.values(data)
     } else {
-      log.warn('⚠️ No entity data available', { entityType: this.entityType })
+      log.debug('ℹ️ No entity data available from provider', { entityType: this.entityType })
       return []
     }
 
@@ -1002,6 +1020,11 @@ export class TableCoreStore implements IStore {
     this.isSchemaLoaded = false
     this.schemaError = null
     this.columns = []
+    this.rawRows = []
+    this.hasLoadedRows = false
+    this.membersData.clear()
+    this.entityReferenceData.clear()
+    this.pendingEntityReferenceLoads.clear()
     log.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }
 }

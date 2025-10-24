@@ -12,35 +12,39 @@ import { setLogLevel, getLogConfig } from '@/lib/logging';
  */
 export const VIBEGRID_LOG_PRESETS = {
   /**
-   * Quiet mode - Only warnings and errors
-   * Use this for normal development when you don't need Vibegrid logs
+   * Warn level - Only warnings and errors
+   * Quietest mode for production-like experience
    */
-  quiet: () => {
+  warn: () => {
     setLogLevel('warn', 'components/vibegrid/*');
-    console.log('📵 Vibegrid logs set to QUIET mode (warn+ only)');
+    console.log('📵 Vibegrid logs: WARN level (warnings and errors only)');
   },
 
   /**
-   * Normal mode - Balanced logging
-   * Shows important lifecycle events but hides diagnostic spam
+   * Info level - Balanced logging (DEFAULT)
+   * Shows lifecycle events but hides diagnostic spam
    */
-  normal: () => {
+  info: () => {
     setLogLevel('info', 'components/vibegrid/*');
     // Hide noisy subsystems
     setLogLevel('warn', 'components/vibegrid/renderers/modules/OverlayManager');
     setLogLevel('warn', 'components/vibegrid/coordinates/*');
     setLogLevel('warn', 'components/vibegrid/performance/*');
-    console.log('📊 Vibegrid logs set to NORMAL mode (info+ with reduced spam)');
+    console.log('ℹ️ Vibegrid logs: INFO level (lifecycle + warnings + errors)');
   },
 
   /**
-   * Debug mode - All logs visible
+   * Debug level - All logs visible
    * Use when you need to see everything happening in Vibegrid
    */
   debug: () => {
     setLogLevel('debug', 'components/vibegrid/*');
-    console.log('🔍 Vibegrid logs set to DEBUG mode (all logs visible)');
+    console.log('🔍 Vibegrid logs: DEBUG level (all logs visible)');
   },
+
+  // Aliases for clarity
+  quiet: function() { return this.warn(); },
+  normal: function() { return this.info(); },
 
   /**
    * Debug overlays - Focus on overlay system
@@ -121,12 +125,8 @@ export const VIBEGRID_LOG_PRESETS = {
  * Reduces spam while keeping important logs visible
  */
 function initializeDefaultLevels() {
-  // Set Vibegrid-specific overrides (don't touch global level)
-  // The global level defaults to 'warn' from config.ts
-  setLogLevel('info', 'components/vibegrid/*');
-  setLogLevel('warn', 'components/vibegrid/renderers/modules/OverlayManager');
-  setLogLevel('warn', 'components/vibegrid/coordinates/*');
-  setLogLevel('warn', 'components/vibegrid/performance/*');
+  // Use the info preset as default
+  VIBEGRID_LOG_PRESETS.info();
 }
 
 /**
@@ -140,9 +140,14 @@ if (typeof window !== 'undefined') {
 
   // Log availability on module load
   console.log('✅ Vibegrid logging presets available: __VIBEGRID_LOGS__');
-  console.log('   Examples:');
-  console.log('   - __VIBEGRID_LOGS__.quiet()       // Quiet mode');
+  console.log('   Log Levels:');
+  console.log('   - __VIBEGRID_LOGS__.warn()        // Warn+ only');
+  console.log('   - __VIBEGRID_LOGS__.info()        // Info+ (default)');
   console.log('   - __VIBEGRID_LOGS__.debug()       // All logs');
+  console.log('   Focus Modes:');
   console.log('   - __VIBEGRID_LOGS__.debugOverlays() // Overlay debugging');
+  console.log('   - __VIBEGRID_LOGS__.debugMouse()  // Mouse events');
+  console.log('   - __VIBEGRID_LOGS__.debugEditors() // Cell editors');
+  console.log('   Other:');
   console.log('   - __VIBEGRID_LOGS__.status()      // Show config');
 }

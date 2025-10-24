@@ -139,7 +139,18 @@ export class EntityReferenceRenderer implements CellRenderer {
     }
 
     const tableCoreStore = this.getTableCoreStore(column);
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
+    const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column);
+    if (!rawTargetEntity) {
+      fileLog.warn('EntityReferenceRenderer: unable to determine target entity type; displaying raw value', {
+        columnId: column.id,
+        value
+      });
+      container.textContent = String(value);
+      container.style.opacity = '0.6';
+      return container;
+    }
+
+    const targetEntity = rawTargetEntity;
     const entityId = String(value);
 
     if (tableCoreStore) {
@@ -184,17 +195,29 @@ export class EntityReferenceRenderer implements CellRenderer {
     return container;
   }
 
+  destroy(): void {
+    this.disposers.forEach(dispose => dispose());
+    this.disposers = [];
+  }
+
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     element.className = 'vibegridx-entity-reference';
 
     if (!value) {
       element.className += ' vibegridx-entity-reference-empty';
-      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
+      const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column);
+      const targetEntity = rawTargetEntity || 'Entity';
       element.textContent = column.editable ? `Select ${targetEntity}...` : `No ${targetEntity}`;
       element.style.opacity = '0.6';
     } else {
       element.textContent = 'Loading...';
       const tableCoreStore = this.getTableCoreStore(column);
+      const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column);
+      if (!rawTargetEntity) {
+        element.textContent = String(value);
+        element.style.opacity = '0.6';
+        return;
+      }
       this.loadAndRenderEntity(element, String(value), column, tableCoreStore);
     }
   }
@@ -205,8 +228,8 @@ export class EntityReferenceRenderer implements CellRenderer {
   }
 
   private createEntityBadge(entityData: any, entityId: string, column: EnhancedColumn): string {
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
-    const displayField = column.relationshipConfig?.displayField || 'name';
+    const targetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column) || 'Entity';
+    const displayField = this.getDisplayField(column);
     const displayName = entityData[displayField] || entityData.name || entityData.title || `${targetEntity} ${entityId}`;
 
     return `
@@ -251,7 +274,18 @@ export class EntityReferenceRenderer implements CellRenderer {
     tableCoreStore?: TableCoreStore
   ) {
     try {
-      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
+      const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column);
+      if (!rawTargetEntity) {
+        container.textContent = String(entityId);
+        container.style.opacity = '0.6';
+        fileLog.warn('loadAndRenderEntity: unable to determine target entity; displaying raw id', {
+          columnId: column.id,
+          entityId
+        });
+        return;
+      }
+
+      const targetEntity = rawTargetEntity;
 
       if (tableCoreStore) {
         const record = await tableCoreStore.ensureEntityReferenceRecord(targetEntity, entityId, async () => {
@@ -272,7 +306,8 @@ export class EntityReferenceRenderer implements CellRenderer {
         }
       }
 
-      container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
+      const fallbackEntity = this.getTargetEntityType(column) || 'Entity';
+      container.textContent = `${fallbackEntity} ${entityId}`;
       container.style.opacity = '0.6';
       fileLog.debug('EntityReferenceRenderer: fallback display', {
         entityId,
@@ -280,7 +315,8 @@ export class EntityReferenceRenderer implements CellRenderer {
       });
     } catch (error) {
       fileLog.error('Failed to load entity data', { error, entityId });
-      container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
+      const fallbackEntity = this.getTargetEntityType(column) || 'Entity';
+      container.textContent = `${fallbackEntity} ${entityId}`;
       container.className += ' vibegridx-entity-reference-error';
     }
   }
@@ -291,7 +327,7 @@ export class EntityReferenceRenderer implements CellRenderer {
     tableCoreStore?: TableCoreStore
   ): Promise<any | null> {
     try {
-      const targetEntity = column.relationshipConfig?.targetEntityType || column.targetEntityType || this.inferTargetEntity(column);
+      const targetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column);
       if (!targetEntity) {
         fileLog.warn('fetchEntityRecord: Unable to determine target entity type', {
           columnId: column.id,
@@ -317,80 +353,39 @@ export class EntityReferenceRenderer implements CellRenderer {
     }
   }
 
-  private inferTargetEntity(column: EnhancedColumn): string | null {
-    if (column.relationshipConfig?.targetEntityType) {
-      return column.relationshipConfig.targetEntityType;
-    }
-
-    if ((column as any).targetEntityType) {
-      return (column as any).targetEntityType;
-    }
-
-    if (column.id?.includes('project')) {
-      return 'BuildProject';
-    }
-
-    return null;
+  private getTargetEntityType(column: EnhancedColumn): string | null {
+    return (
+      column.relationshipConfig?.targetEntityType ||
+      (column as any).relationshipTargetEntity ||
+      (column as any).targetEntityType ||
+      null
+    )
   }
 
-  private storeRelationshipData(
-    tableCoreStore: TableCoreStore,
-    column: EnhancedColumn,
-    relationshipData: RelationshipData | null | undefined
-  ): void {
-    if (!relationshipData || typeof relationshipData !== 'object') {
-      fileLog.debug('storeRelationshipData: empty relationship data', {
-        hasData: !!relationshipData
-      });
-      return;
-    }
+  private getDisplayField(column: EnhancedColumn): string {
+    return (
+      column.relationshipConfig?.displayField ||
+      (column as any).relationshipDisplayField ||
+      'name'
+    )
+  }
 
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'entity';
-    const dataForEntity = relationshipData[targetEntity.toLowerCase()] ?? relationshipData[targetEntity] ?? null;
+  private inferTargetEntity(column: EnhancedColumn): string | null {
+    const fieldName = (column.field || column.id || '').toString();
+    if (!fieldName) return null;
 
-    if (!dataForEntity) {
-      fileLog.debug('storeRelationshipData: no data for target entity key', {
-        targetEntity,
-        availableKeys: Object.keys(relationshipData)
-      });
-      return;
-    }
+    const base = fieldName
+      .replace(/_id$/i, '')
+      .replace(/Id$/i, '')
+      .replace(/[^a-zA-Z0-9]/g, ' ')
+      .trim();
 
-    if (Array.isArray(dataForEntity)) {
-      dataForEntity.forEach((item: any) => {
-        if (item && item.id) {
-          tableCoreStore.setEntityReferenceRecord(targetEntity, item.id, item);
-        }
-      });
-      fileLog.debug('storeRelationshipData: cached array records', {
-        targetEntity,
-        count: dataForEntity.length
-      });
-      return;
-    }
+    if (!base) return null;
 
-    if (dataForEntity instanceof Map) {
-      dataForEntity.forEach((item: any, id: string) => {
-        if (id && item) {
-          tableCoreStore.setEntityReferenceRecord(targetEntity, id, item);
-        }
-      });
-      fileLog.debug('storeRelationshipData: cached map records', {
-        targetEntity,
-        count: dataForEntity.size
-      });
-      return;
-    }
-
-    Object.entries(dataForEntity as Record<string, any>).forEach(([id, item]) => {
-      if (id && item) {
-        tableCoreStore.setEntityReferenceRecord(targetEntity, id, item);
-      }
-    });
-    fileLog.debug('storeRelationshipData: cached object records', {
-      targetEntity,
-      count: Object.keys(dataForEntity as Record<string, any>).length
-    });
+    return base
+      .split(/\s+/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
   }
 
   private getTableCoreStore(column: EnhancedColumn): TableCoreStore | undefined {
