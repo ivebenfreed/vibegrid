@@ -1241,7 +1241,29 @@ export class MouseController {
    */
   private calculateRowDropIndex(targetRowElement: HTMLElement, groupId: string | null, insertBefore: boolean): number {
     if (groupId) {
-      // Grouped mode - find position within the specific group
+      // Check if target is a group header
+      const isGroupHeader = targetRowElement.classList.contains('vibegridx-group-header');
+
+      if (isGroupHeader) {
+        // Dropping on a group header - insert at beginning or end of group
+        const groupContainer = targetRowElement.parentElement;
+        if (!groupContainer) return 0;
+
+        const dataRows = Array.from(groupContainer.querySelectorAll(`.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`));
+        const calculatedIndex = insertBefore ? 0 : dataRows.length;
+
+        fileLog.debug('🎯 calculateRowDropIndex for group header drop', {
+          groupId,
+          insertBefore,
+          calculatedIndex,
+          dataRowsInGroup: dataRows.length,
+          interpretation: insertBefore ? 'Insert at beginning of group' : 'Insert at end of group'
+        });
+
+        return calculatedIndex;
+      }
+
+      // Target is a data row - find position within the specific group
       const groupContainer = targetRowElement.closest(`[data-group-id="${groupId}"]`)?.parentElement;
       if (!groupContainer) return 0;
 
@@ -1252,9 +1274,16 @@ export class MouseController {
       if (targetIndex === -1) {
         fileLog.error('❌ Target row not found in group data rows', {
           targetRowId: targetRowElement.dataset.rowId,
-          groupId,
+          targetGroupId: targetRowElement.dataset.groupId,
+          searchGroupId: groupId,
           dataRowsCount: dataRows.length,
-          insertBefore
+          insertBefore,
+          targetClasses: targetRowElement.className,
+          groupContainerTag: groupContainer.tagName,
+          groupContainerClass: groupContainer.className,
+          dataRowIds: dataRows.map(r => (r as HTMLElement).dataset.rowId),
+          targetIsInDOM: document.body.contains(targetRowElement),
+          closestResult: targetRowElement.closest(`[data-group-id="${groupId}"]`)?.tagName
         });
         return 0;
       }

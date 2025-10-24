@@ -224,6 +224,7 @@ export class TableCoreStore implements IStore {
   private visualStateInputs: VisualStateInputs | null = null
   private visualStateStore: VisualStateStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
+  private collection: any = null // TanStack DB collection for entity mutations
   private schemaRegistry: import('@/stores/experience/SchemaRegistryStore').SchemaRegistryStore | null = null
   private disposers = new DisposerManager()
 
@@ -256,10 +257,23 @@ export class TableCoreStore implements IStore {
   /**
    * Set entity data provider (TanStack DB integration)
    * Called by parent component after store creation
+   * @deprecated Use setCollection instead for TanStack DB integration
    */
   @action
   setEntityDataProvider(provider: EntityDataProvider): void {
     this.entityDataProvider = provider
+  }
+
+  /**
+   * Set TanStack DB collection for entity mutations
+   * Called by parent component after store creation
+   */
+  @action
+  setCollection(collection: any): void {
+    this.collection = collection
+    log.info('TanStack DB collection set on TableCoreStore', {
+      hasCollection: !!collection
+    })
   }
 
   /**
@@ -822,15 +836,25 @@ export class TableCoreStore implements IStore {
 
     const { field: fieldName, value: newValue } = targetGroupInfo
 
-    if (!this.entityDataProvider) {
-      log.error('❌ Entity data provider not available for cross-group move')
+    if (!this.collection) {
+      log.error('❌ TanStack DB collection not available for cross-group move', {
+        hint: 'Call setCollection() before performing cross-group moves'
+      })
       return false
     }
 
-    // Update the actual row data using entity provider
+    // Update the actual row data using TanStack DB collection
     try {
       const updateData = { [fieldName]: newValue }
-      await this.entityDataProvider.updateEntity(draggedRowId, updateData)
+
+      // Use TanStack DB collection's update method with optimistic updates
+      const tx = this.collection.update(String(draggedRowId), (draft: any) => {
+        draft[fieldName] = newValue
+        draft.updatedAt = new Date().toISOString()
+      })
+
+      // Wait for the update to complete (handles optimistic state + server sync)
+      await tx
 
       log.info('🔄 Cross-group move completed via field update', {
         draggedRowId,

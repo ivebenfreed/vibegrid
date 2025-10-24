@@ -167,6 +167,16 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     interactionStore.setCollection(collection)
   }, [collection, interactionStore, entityType])
 
+  // Set TanStack DB collection on TableCoreStore for cross-group moves
+  useEffect(() => {
+    if (!tableCoreStore || !collection) return
+    log.info('Setting TanStack DB collection on TableCoreStore', {
+      hasCollection: !!collection,
+      entityType
+    })
+    tableCoreStore.setCollection(collection)
+  }, [collection, tableCoreStore, entityType])
+
   // ====================================
   // INITIALIZATION
   // ====================================
