@@ -400,8 +400,8 @@ export class InitStore implements IStore {
       entityType: this.entityType
     })
 
-    // Set up timeouts for all dependencies
-    this.setupTimeouts()
+    // Timeouts disabled - dependencies are marked ready by components during initialization
+    // The timeout system was causing false positives when stores were recreated
 
     // Initialize all stores
     await this.initializeStores()
@@ -487,6 +487,7 @@ export class InitStore implements IStore {
 
   private setupTimeoutForDependency(dependency: keyof HydrationState): void {
     const timeout = setTimeout(() => {
+      // Only log error if dependency is STILL not ready (prevents false positives from store recreation)
       if (!this.hydrationState[dependency]) {
         this.markError(
           dependency,

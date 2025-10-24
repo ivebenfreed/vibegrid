@@ -212,11 +212,12 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     }
 
     // Initialize when stores and data are ready
-    if (stores && visualStateStore.columns.length > 0) {
+    // Only initialize once - guard prevents re-initialization
+    if (stores && visualStateStore.columns.length > 0 && !rendererRef.current) {
       initializeRenderer()
     }
 
-    // Cleanup
+    // Cleanup only on unmount
     return () => {
       if (rendererRef.current) {
         log.debug('🧹 Cleaning up VibeGrid')
@@ -230,7 +231,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         rendererRef.current = null
       }
     }
-  }, [stores, visualStateStore.columns.length, entityType, tableId, rows])
+  }, [stores, visualStateStore.columns.length, rows]) // Need rows to trigger initial render
 
   // ====================================
   // DERIVED STATE

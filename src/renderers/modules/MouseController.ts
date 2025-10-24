@@ -702,12 +702,16 @@ export class MouseController {
             this.interactionStore.selectRange(lastSelectedCell, cellId, { rows, columns, columnVisibility });
           } else {
             // No previous selection, just select this cell
-            this.interactionStore.selectedCells.set(new Set([cellId]));
+            runInAction(() => {
+              this.interactionStore.selectedCells = new Set([cellId]);
+            });
           }
         } else {
           // Regular click or Ctrl/Cmd+click: Replace selection with this cell
           // (Ctrl/Cmd+click is disabled in this system)
-          this.interactionStore.selectedCells.set(new Set([cellId]));
+          runInAction(() => {
+            this.interactionStore.selectedCells = new Set([cellId]);
+          });
         }
 
         // Prevent event propagation

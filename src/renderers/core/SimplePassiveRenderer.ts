@@ -237,34 +237,30 @@ export class SimplePassiveRenderer {
   private initControllers(): void {
     fileLog.info('🎮 Initializing modular controllers');
 
-    // TODO: SelectionController and KeyboardNavigationController need MobX migration (Day 3-4)
-    // Temporarily disabled until controllers are migrated to MobX
-    fileLog.warn('⚠️ Controllers disabled - awaiting MobX migration (Day 3-4)');
+    // Initialize selection controller (MobX version)
+    this.selectionController = new SelectionController({
+      interactionStore: this.interactionStore,
+      getProcessedRows: () => this.tableCoreStore.processedRows,
+      getVisibleColumns: () => {
+        const columns = this.visualStateStore.columns;
+        const columnVisibility = this.visualStateStore.columnVisibility;
+        return columns.filter(col => columnVisibility[col.id] !== false);
+      },
+      bodyRenderer: null
+    });
 
-    // Initialize selection controller (MobX version - COMMENTED OUT until Day 3)
-    // this.selectionController = new SelectionController({
-    //   interactionStore: this.interactionStore,
-    //   getProcessedRows: () => this.tableCoreStore.processedRows,
-    //   getVisibleColumns: () => {
-    //     const columns = this.visualStateStore.columns;
-    //     const columnVisibility = this.visualStateStore.columnVisibility;
-    //     return columns.filter(col => columnVisibility[col.id] !== false);
-    //   },
-    //   bodyRenderer: null
-    // });
-
-    // Initialize keyboard navigation controller (MobX version - COMMENTED OUT until Day 4)
-    // this.keyboardNavController = new KeyboardNavigationController({
-    //   interactionStore: this.interactionStore,
-    //   selectionController: this.selectionController,
-    //   getProcessedRows: () => this.tableCoreStore.processedRows,
-    //   getVisibleColumns: () => {
-    //     const columns = this.visualStateStore.columns;
-    //     const columnVisibility = this.visualStateStore.columnVisibility;
-    //     return columns.filter(col => columnVisibility[col.id] !== false);
-    //   },
-    //   container: this.container
-    // });
+    // Initialize keyboard navigation controller (MobX version)
+    this.keyboardNavController = new KeyboardNavigationController({
+      interactionStore: this.interactionStore,
+      selectionController: this.selectionController,
+      getProcessedRows: () => this.tableCoreStore.processedRows,
+      getVisibleColumns: () => {
+        const columns = this.visualStateStore.columns;
+        const columnVisibility = this.visualStateStore.columnVisibility;
+        return columns.filter(col => columnVisibility[col.id] !== false);
+      },
+      container: this.container
+    });
 
     // Initialize ColumnWidthManager
     this.columnWidthManager = new ColumnWidthManager({
@@ -328,24 +324,18 @@ export class SimplePassiveRenderer {
   private initOverlayManager(): void {
     fileLog.info('🎨 Initializing overlay manager');
 
-    // TODO: OverlayManager needs MobX migration (Day 3)
-    // Temporarily disabled until OverlayManager is migrated to MobX
-    fileLog.warn('⚠️ OverlayManager disabled - awaiting MobX migration (Day 3)');
+    // Initialize OverlayManager (MobX version)
+    this.overlayManager = new OverlayManager({
+      container: this.container,
+      tableCoreStore: this.tableCoreStore,
+      interactionStore: this.interactionStore,
+      enableSelectionColumn: this.options.enableSelectionColumn,
+      headerContainer: this.headerContainer,
+      bodyContainer: this.bodyContainer,
+      getProcessedRows: () => this.tableCoreStore.processedRows
+    });
 
-    // Initialize OverlayManager (MobX version - COMMENTED OUT until Day 3)
-    // this.overlayManager = new OverlayManager({
-    //   container: this.container,
-    //   tableCoreStore: this.tableCoreStore,
-    //   visualStateStore: this.visualStateStore,
-    //   interactionStore: this.interactionStore,
-    //   enableSelectionColumn: this.options.enableSelectionColumn,
-    //   headerContainer: this.headerContainer,
-    //   bodyContainer: this.bodyContainer,
-    //   getProcessedRows: () => this.tableCoreStore.processedRows
-    // });
-
-    // Initialize the canvas overlay after the DOM is ready (Day 3)
-    // this.overlayManager.initializeOverlay();
+    // Note: initializeOverlay() is called later in postInitialization() after DOM is ready
 
     fileLog.info('✅ Overlay manager initialized');
   }

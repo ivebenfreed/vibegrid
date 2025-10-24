@@ -51,15 +51,14 @@ const VibeGridStoreContext = createContext<VibeGridStores | null>(null)
  */
 export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
   ({ children, entityType, orgId, tableId = 'default' }) => {
-    const [isInitialized, setIsInitialized] = useState(false)
     const [initError, setInitError] = useState<string | null>(null)
 
     // Get schema registry from root store
     const schemaRegistry = useSchemaRegistry()
 
-    // Create stores once using useMemo
+    // Create and initialize stores once using useMemo
     const stores = useMemo(() => {
-      log.info('🏗️ Creating VibeGrid stores', {
+      log.info('🏗️ Creating and initializing VibeGrid stores', {
         entityType,
         orgId,
         tableId
@@ -90,7 +89,18 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
       initStore.setInteractionStore(interactionStore)
       initStore.setPersistenceStore(persistenceStore)
 
-      log.info('✅ VibeGrid stores created and wired', {
+      // Initialize synchronously
+      initStore.init().catch(error => {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        setInitError(errorMessage)
+        log.error('❌ VibeGrid store initialization failed', {
+          entityType,
+          tableId,
+          error: errorMessage
+        })
+      })
+
+      log.info('✅ VibeGrid stores created, wired, and initialized', {
         entityType,
         tableId
       })
@@ -102,56 +112,25 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
         persistenceStore,
         initStore
       }
-    }, [entityType, orgId, tableId, schemaRegistry])
+    }, [entityType, orgId, tableId])
 
-    // Initialize stores on mount
+    // Cleanup on unmount
     useEffect(() => {
-      let isMounted = true
-
-      const initializeStores = async () => {
-        try {
-          log.info('🔄 Initializing VibeGrid stores...', {
-            entityType,
-            tableId
-          })
-
-          await stores.initStore.init()
-
-          if (isMounted) {
-            setIsInitialized(true)
-            setInitError(null)
-            log.info('✅ VibeGrid stores initialized successfully', {
-              entityType,
-              tableId
-            })
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-
-          if (isMounted) {
-            setInitError(errorMessage)
-            log.error('❌ VibeGrid store initialization failed', {
-              entityType,
-              tableId,
-              error: errorMessage
-            })
-          }
-        }
-      }
-
-      initializeStores()
-
-      // Cleanup on unmount
       return () => {
-        isMounted = false
         log.info('🧹 Cleaning up VibeGrid stores...', {
           entityType,
           tableId
         })
 
+        // Dispose ALL stores to clear timeouts and prevent memory leaks
+        stores.tableCoreStore.dispose()
+        stores.visualStateStore.dispose()
+        stores.interactionStore.dispose()
+        stores.persistenceStore.dispose()
         stores.initStore.dispose()
       }
-    }, [stores, entityType, tableId])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Run cleanup only on unmount
 
     // Show error state if initialization failed
     if (initError) {
@@ -163,18 +142,7 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
       )
     }
 
-    // Show loading state while initializing
-    if (!isInitialized) {
-      return (
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded">
-          <p className="text-blue-600 text-sm">
-            Initializing VibeGrid... ({stores.initStore.hydrationProgress}%)
-          </p>
-        </div>
-      )
-    }
-
-    // Provide stores to children
+    // Provide stores to children immediately (initialization happens in useMemo)
     return (
       <VibeGridStoreContext.Provider value={stores}>{children}</VibeGridStoreContext.Provider>
     )
