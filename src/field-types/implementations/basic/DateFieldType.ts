@@ -27,28 +27,28 @@ const fileLog = createLogger('components/vibegrid/field-types/implementations/ba
  */
 export class DateRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('span');
-    container.className = column.editable === false
-      ? 'vibegridx-cell-date'
-      : 'vibegridx-cell-date-editable';
+    const container = document.createElement('div');
 
     // Handle null/undefined values
     if (value == null || value === '') {
-      container.className += ' vibegridx-cell-empty';
+      container.className = 'vibegridx-cell-empty';
       container.textContent = column.editable === false ? '' : 'Click to edit';
       container.style.opacity = '0.6';
       container.style.fontSize = '12px';
       return container;
     }
 
+    // Determine hover class based on editability
+    const hoverClass = column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable';
+    container.className = `vibegridx-date-badge ${hoverClass}`;
+
     // Use the exact same formatting as original BodyRenderer
     const cellType = column.cellType || column.type || 'date';
     const displayValue = this.formatCellValue(value, cellType, column);
-    container.textContent = displayValue;
 
-    // Apply date-specific styling
-    container.style.fontVariantNumeric = 'tabular-nums';
-    container.style.whiteSpace = 'nowrap';
+    // Create badge with calendar icon
+    const dateType = this.getDateType(cellType);
+    container.innerHTML = this.createDateBadge(displayValue, dateType);
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -56,6 +56,45 @@ export class DateRenderer implements CellRenderer {
     }
 
     return container;
+  }
+
+  private getDateType(cellType: string): 'date' | 'datetime' | 'time' {
+    if (['time'].includes(cellType)) return 'time';
+    if (['datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(cellType)) return 'datetime';
+    return 'date';
+  }
+
+  private createDateBadge(displayValue: string, type: 'date' | 'datetime' | 'time'): string {
+    // Icon varies by type
+    const icon = type === 'time' ? '🕐' : type === 'datetime' ? '📅🕐' : '📅';
+
+    return `
+      <div style="
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        background-color: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+        max-width: 100%;
+        min-width: 0;
+        font-variant-numeric: tabular-nums;
+      ">
+        <span style="font-size: 12px; flex-shrink: 0;">${icon}</span>
+        <span style="
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+          flex: 1;
+        ">${displayValue}</span>
+      </div>
+    `;
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {

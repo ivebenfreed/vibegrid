@@ -22,35 +22,27 @@ import type {
  */
 export class BooleanRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('span');
-    container.className = column.editable === false
-      ? 'vibegridx-cell-boolean'
-      : 'vibegridx-cell-boolean-editable';
+    const container = document.createElement('div');
 
     // Handle null/undefined values
     if (value == null) {
-      container.className += ' vibegridx-cell-empty';
+      container.className = 'vibegridx-cell-empty';
       container.textContent = column.editable === false ? '' : 'Click to edit';
       container.style.opacity = '0.6';
       container.style.fontSize = '12px';
       return container;
     }
 
+    // Determine hover class based on editability
+    const hoverClass = column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable';
+    container.className = `vibegridx-boolean-badge ${hoverClass}`;
+
     // Format value for display
-    const displayValue = this.formatValue(value, column);
-    container.textContent = displayValue;
-
-    // Apply boolean-specific styling
-    container.style.textAlign = 'center';
-    container.style.fontWeight = '500';
-
-    // Apply color coding
     const boolValue = this.parseBoolean(value);
-    if (boolValue === true) {
-      container.style.color = '#059669'; // green
-    } else if (boolValue === false) {
-      container.style.color = '#dc2626'; // red
-    }
+    const displayValue = this.formatValue(value, column);
+
+    // Create boolean badge
+    container.innerHTML = this.createBooleanBadge(displayValue, boolValue);
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -58,6 +50,50 @@ export class BooleanRenderer implements CellRenderer {
     }
 
     return container;
+  }
+
+  private createBooleanBadge(displayValue: string, boolValue: boolean | null): string {
+    // Determine colors based on boolean value
+    let backgroundColor = '#f3f4f6';
+    let textColor = '#6b7280';
+    let icon = '○';
+
+    if (boolValue === true) {
+      backgroundColor = '#d1fae5';
+      textColor = '#065f46';
+      icon = '✓';
+    } else if (boolValue === false) {
+      backgroundColor = '#fee2e2';
+      textColor = '#991b1b';
+      icon = '✗';
+    }
+
+    return `
+      <div style="
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        background-color: ${backgroundColor};
+        color: ${textColor};
+        border: 1px solid ${backgroundColor};
+        max-width: 100%;
+        min-width: 0;
+      ">
+        <span style="font-size: 10px; flex-shrink: 0;">${icon}</span>
+        <span style="
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+          flex: 1;
+        ">${displayValue}</span>
+      </div>
+    `;
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {

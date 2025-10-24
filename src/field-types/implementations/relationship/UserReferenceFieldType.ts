@@ -274,8 +274,12 @@ export class UserReferenceRenderer implements CellRenderer {
   }
 
   private createUserBadgeHTML(displayName: string, initials: string): string {
+    // Determine if badge is editable based on column context
+    // For now, assume editable - will be refined with column.editable check
+    const hoverClass = 'vibegridx-badge-editable';
+
     return `
-      <div class="vibegridx-user-badge" title="${displayName}" style="
+      <div class="vibegridx-user-badge ${hoverClass}" title="${displayName}" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -289,7 +293,6 @@ export class UserReferenceRenderer implements CellRenderer {
         border: 1px solid #d1d5db;
         max-width: 100%;
         min-width: 0;
-        cursor: pointer;
       ">
         <div class="vibegridx-user-avatar" style="
           width: 18px;

@@ -233,8 +233,12 @@ export class EntityReferenceRenderer implements CellRenderer {
     const displayField = this.getDisplayField(column);
     const displayName = entityData[displayField] || entityData.name || entityData.title || `${targetEntity} ${entityId}`;
 
+    // Determine if badge is editable based on column context
+    // For now, assume editable - will be refined with column.editable check
+    const hoverClass = 'vibegridx-badge-editable';
+
     return `
-      <div class="vibegridx-entity-badge" title="${displayName}" style="
+      <div class="vibegridx-entity-badge ${hoverClass}" title="${displayName}" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -248,7 +252,6 @@ export class EntityReferenceRenderer implements CellRenderer {
         border: 1px solid #bae6fd;
         max-width: 100%;
         min-width: 0;
-        cursor: pointer;
       ">
         <div class="vibegridx-entity-icon" style="
           width: 14px;

@@ -36,10 +36,9 @@ export class TextRenderer implements CellRenderer {
     const container = document.createElement('span');
     const fieldType = column.cellType || column.type || 'text';
 
-    // Set appropriate CSS class based on field type
-    container.className = column.editable === false
-      ? `vibegridx-cell-${fieldType}`
-      : `vibegridx-cell-${fieldType}-editable`;
+    // Set appropriate CSS class based on editability (plain text hover pattern)
+    const hoverClass = column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable';
+    container.className = `vibegridx-cell-${fieldType} ${hoverClass}`;
 
     // Handle null/undefined values
     if (value == null || value === '') {
@@ -61,7 +60,6 @@ export class TextRenderer implements CellRenderer {
     container.style.textOverflow = 'ellipsis';
     container.style.whiteSpace = 'nowrap';
     container.style.display = 'block';
-    container.style.cursor = 'pointer';
 
     // Apply field-specific styling
     this.applyFieldTypeSpecificStyling(container, fieldType);

@@ -23,9 +23,10 @@ import type {
 export class NumberRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span');
-    container.className = column.editable === false
-      ? 'vibegridx-cell-number'
-      : 'vibegridx-cell-number-editable';
+
+    // Add hover class based on editability (plain text hover pattern)
+    const hoverClass = column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable';
+    container.className = `vibegridx-cell-number ${hoverClass}`;
 
     // Handle null/undefined values
     if (value == null || value === '') {

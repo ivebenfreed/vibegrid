@@ -47,26 +47,109 @@
   border-radius: 2px;
 }
 
-/* User Reference Badge Styles */
-.vibegridx-user-badge {
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+/* ====================================
+   CENTRALIZED BADGE HOVER STYLES
+   ==================================== */
+
+/* CSS Variables for Hover Effects */
+:root {
+  --badge-hover-scale: 1.02;
+  --badge-hover-scale-large: 1.05;
+  --badge-hover-transition: all 0.15s ease;
+  --badge-hover-brightness: 0.95; /* Darken by 5% */
+  --badge-hover-brightness-strong: 0.90; /* Darken by 10% */
+
+  /* Plain text hover - concrete fallback color */
+  --text-hover-bg: rgba(0, 0, 0, 0.04); /* Light mode: subtle gray */
 }
 
-.vibegridx-user-badge:hover {
-  background-color: #e5e7eb !important; /* Darker gray on hover */
-  border-color: #9ca3af !important;
+/* Base Badge Hover Class (All Badge Types) */
+.vibegridx-badge-base {
+  transition: var(--badge-hover-transition);
+}
+
+/* Editable Badge Hover (with scale + stronger darken) */
+.vibegridx-badge-editable {
+  cursor: pointer;
+  transition: var(--badge-hover-transition);
+}
+
+.vibegridx-badge-editable:hover {
+  filter: brightness(var(--badge-hover-brightness-strong));
+  transform: scale(var(--badge-hover-scale));
+}
+
+/* Non-Editable Badge Hover (subtle darken only, no scale) */
+.vibegridx-badge-readonly {
+  cursor: default;
+  transition: var(--badge-hover-transition);
+}
+
+.vibegridx-badge-readonly:hover {
+  filter: brightness(var(--badge-hover-brightness));
+}
+
+/* Large Badge Hover (Select/Enum with dropdown indicator) */
+.vibegridx-badge-dropdown:hover {
+  filter: brightness(var(--badge-hover-brightness-strong));
+  transform: scale(var(--badge-hover-scale-large));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ====================================
+   SPECIFIC BADGE TYPE STYLES
+   ==================================== */
+
+/* User Reference Badge Styles */
+.vibegridx-user-badge {
+  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
 }
 
 /* Entity Reference Badge Styles */
 .vibegridx-entity-badge {
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
 }
 
-.vibegridx-entity-badge:hover {
-  background-color: #e0f2fe !important; /* Darker blue on hover */
-  border-color: #7dd3fc !important;
+/* Date Badge Styles */
+.vibegridx-date-badge {
+  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
+}
+
+/* Boolean Badge Styles */
+.vibegridx-boolean-badge {
+  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
+}
+
+/* ====================================
+   PLAIN TEXT HOVER STYLES
+   ==================================== */
+
+/* Editable Plain Text Hover */
+.vibegridx-text-editable {
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, padding 0.15s ease;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  display: inline-block !important;
+}
+
+/* Light Mode ONLY - Highest Specificity */
+html:not(.dark) .vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-text.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-number.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-email.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-url.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-phone.vibegridx-text-editable:hover,
+html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
+  background-color: #e5e7eb !important; /* Light gray - visible on zebra stripes */
+  padding: 4px 8px !important;
+  cursor: pointer !important;
+}
+
+/* Non-Editable Plain Text (No Hover) */
+.vibegridx-text-readonly {
+  cursor: default !important;
 }
 
 /* Number Cell Styles */
@@ -469,110 +552,141 @@
   outline-offset: -2px;
 }
 
-/* Dark Mode Support */
+/* Dark Mode Support - Media Query */
 @media (prefers-color-scheme: dark) {
+  /* Dark Mode Hover Variables */
+  :root {
+    --badge-hover-brightness: 1.05; /* Lighten by 5% in dark mode */
+    --badge-hover-brightness-strong: 1.10; /* Lighten by 10% in dark mode */
+  }
+
   .vibegridx-cell-content {
     color: var(--foreground, #f9fafb);
   }
-  
-  /* .vibegridx-cell:hover .vibegridx-cell-content {
-    background-color: var(--accent, #1f2937);
-  } */
-  
-  .vibegridx-enum-tag {
-    background-color: var(--muted, #374151);
-  }
-  
-  .vibegridx-boolean-badge-null {
-    background-color: var(--muted, #374151);
-  }
-  
-  /* Dark mode enum badge colors */
-  .vibegridx-enum-badge-open {
-    background-color: #1e3a8a;
-    color: #dbeafe;
-    border: 1px solid #3b82f6;
-  }
-  
-  .vibegridx-enum-badge-in-progress {
-    background-color: #78350f;
-    color: #fef3c7;
-    border: 1px solid #f59e0b;
-  }
-  
-  .vibegridx-enum-badge-completed {
-    background-color: #064e3b;
-    color: #d1fae5;
-    border: 1px solid #10b981;
-  }
-  
-  .vibegridx-enum-badge-low {
-    background-color: #374151;
-    color: #e5e7eb;
-    border: 1px solid #6b7280;
-  }
-  
-  .vibegridx-enum-badge-medium {
-    background-color: #78350f;
-    color: #fef3c7;
-    border: 1px solid #f59e0b;
-  }
-  
-  .vibegridx-enum-badge-high {
-    background-color: #7f1d1d;
-    color: #fee2e2;
-    border: 1px solid #ef4444;
-  }
-  
-  .vibegridx-enum-badge-active {
-    background-color: #064e3b;
-    color: #d1fae5;
-    border: 1px solid #10b981;
-  }
-  
-  .vibegridx-enum-badge-inactive {
-    background-color: #374151;
-    color: #e5e7eb;
-    border: 1px solid #6b7280;
-  }
-  
-  .vibegridx-enum-badge-pending {
-    background-color: #78350f;
-    color: #fef3c7;
-    border: 1px solid #f59e0b;
-  }
-  
-  .vibegridx-enum-badge-approved {
-    background-color: #064e3b;
-    color: #d1fae5;
-    border: 1px solid #10b981;
-  }
-  
-  .vibegridx-enum-badge-rejected {
-    background-color: #7f1d1d;
-    color: #fee2e2;
-    border: 1px solid #ef4444;
-  }
-  
-  .vibegridx-enum-badge-unknown {
-    background-color: #374151;
-    color: #d1d5db;
-    border: 1px solid #6b7280;
-  }
-  
-  /* Dark mode relationship badge colors */
-  .vibegridx-badge--primary {
-    background-color: hsl(var(--primary) / 0.2);
-    color: hsl(var(--primary));
-    border-color: hsl(var(--primary) / 0.3);
-  }
-  
-  .vibegridx-badge--muted {
-    background-color: hsl(var(--muted));
-    color: hsl(var(--muted-foreground));
-    border-color: hsl(var(--border));
+
+  /* Dark mode text hover - explicit color override */
+  .vibegridx-text-editable:hover,
+  span.vibegridx-cell-text.vibegridx-text-editable:hover,
+  span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
+  span.vibegridx-cell-number.vibegridx-text-editable:hover,
+  span.vibegridx-cell-email.vibegridx-text-editable:hover,
+  span.vibegridx-cell-url.vibegridx-text-editable:hover,
+  span.vibegridx-cell-phone.vibegridx-text-editable:hover,
+  span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
+    background-color: #374151 !important; /* Medium gray for dark mode */
   }
 }
+
+/* Dark Mode Support - Class-based (Tailwind/shadcn) */
+html.dark .vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-text.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-number.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-email.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-url.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-phone.vibegridx-text-editable:hover,
+html.dark span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
+  background-color: #374151 !important; /* Medium gray for dark mode */
+}
+
+/* .vibegridx-cell:hover .vibegridx-cell-content {
+  background-color: var(--accent, #1f2937);
+} */
+
+.dark .vibegridx-enum-tag {
+  background-color: var(--muted, #374151);
+}
+
+.dark .vibegridx-boolean-badge-null {
+  background-color: var(--muted, #374151);
+}
+
+/* Dark mode enum badge colors */
+.dark .vibegridx-enum-badge-open {
+  background-color: #1e3a8a;
+  color: #dbeafe;
+  border: 1px solid #3b82f6;
+  }
+  
+.dark .vibegridx-enum-badge-in-progress {
+  background-color: #78350f;
+  color: #fef3c7;
+  border: 1px solid #f59e0b;
+  }
+  
+.dark .vibegridx-enum-badge-completed {
+  background-color: #064e3b;
+  color: #d1fae5;
+  border: 1px solid #10b981;
+  }
+  
+.dark .vibegridx-enum-badge-low {
+  background-color: #374151;
+  color: #e5e7eb;
+  border: 1px solid #6b7280;
+  }
+  
+.dark .vibegridx-enum-badge-medium {
+  background-color: #78350f;
+  color: #fef3c7;
+  border: 1px solid #f59e0b;
+  }
+  
+.dark .vibegridx-enum-badge-high {
+  background-color: #7f1d1d;
+  color: #fee2e2;
+  border: 1px solid #ef4444;
+  }
+  
+.dark .vibegridx-enum-badge-active {
+  background-color: #064e3b;
+  color: #d1fae5;
+  border: 1px solid #10b981;
+  }
+  
+.dark .vibegridx-enum-badge-inactive {
+  background-color: #374151;
+  color: #e5e7eb;
+  border: 1px solid #6b7280;
+  }
+  
+.dark .vibegridx-enum-badge-pending {
+  background-color: #78350f;
+  color: #fef3c7;
+  border: 1px solid #f59e0b;
+  }
+  
+.dark .vibegridx-enum-badge-approved {
+  background-color: #064e3b;
+  color: #d1fae5;
+  border: 1px solid #10b981;
+  }
+  
+.dark .vibegridx-enum-badge-rejected {
+  background-color: #7f1d1d;
+  color: #fee2e2;
+  border: 1px solid #ef4444;
+  }
+  
+.dark .vibegridx-enum-badge-unknown {
+  background-color: #374151;
+  color: #d1d5db;
+  border: 1px solid #6b7280;
+  }
+
+/* Dark mode relationship badge colors */
+.dark .vibegridx-badge--primary {
+  background-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.3);
+}
+
+.dark .vibegridx-badge--muted {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  border-color: hsl(var(--border));
+}
+
 /* Cell borders with dark mode support */
 .vibegridx-cell {
   border-right: 1px solid hsl(var(--border));

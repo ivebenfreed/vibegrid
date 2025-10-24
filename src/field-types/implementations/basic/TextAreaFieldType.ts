@@ -7,7 +7,11 @@ import type { VibeGridFieldType, CellRenderer, CellEditor, EnhancedColumn } from
 export class TextAreaRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('span');
-    container.className = 'vibegridx-cell-textarea';
+
+    // Add hover class based on editability (plain text hover pattern)
+    const hoverClass = column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable';
+    container.className = `vibegridx-cell-textarea ${hoverClass}`;
+
     container.style.cssText = `
       padding: 4px;
       font-size: 13px;
@@ -16,13 +20,12 @@ export class TextAreaRenderer implements CellRenderer {
       overflow: hidden;
       text-overflow: ellipsis;
       display: block;
-      cursor: pointer;
     `;
 
     if (!value) {
       container.style.opacity = '0.6';
       container.style.fontSize = '12px';
-      container.textContent = 'Click to edit...';
+      container.textContent = column.editable === false ? '' : 'Click to edit...';
       return container;
     }
 

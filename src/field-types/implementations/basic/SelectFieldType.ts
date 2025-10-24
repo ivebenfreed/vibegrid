@@ -96,6 +96,10 @@ export class SelectRenderer implements CellRenderer {
     const option = this.findOption(value, column);
 
     if (option) {
+      // Add hover class for dropdown indicator (editable badges get larger scale)
+      const hoverClass = column.editable !== false ? 'vibegridx-badge-dropdown' : 'vibegridx-badge-readonly';
+      container.className = `vibegridx-enum-badge ${hoverClass}`;
+
       // Apply badge styling directly to container instead of creating nested element
       container.textContent = option.label;
       container.style.cssText = `
