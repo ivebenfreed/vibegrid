@@ -148,6 +148,7 @@ export class UserReferenceRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div');
     container.className = 'vibegridx-user-reference';
+    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden; cursor: pointer;';
 
     if (!value) {
       container.className += ' vibegridx-user-reference-empty';
@@ -274,21 +275,25 @@ export class UserReferenceRenderer implements CellRenderer {
 
   private createUserBadgeHTML(displayName: string, initials: string): string {
     return `
-      <div class="vibegridx-user-badge" style="
-        display: flex;
+      <div class="vibegridx-user-badge" title="${displayName}" style="
+        display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 2px 6px;
+        padding: 4px 8px;
         border-radius: 6px;
-        background-color: #f3f4f6;
-        border: 1px solid #d1d5db;
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: 500;
+        white-space: nowrap;
+        background-color: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
         max-width: 100%;
+        min-width: 0;
+        cursor: pointer;
       ">
         <div class="vibegridx-user-avatar" style="
-          width: 20px;
-          height: 20px;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
           background-color: #6366f1;
           color: white;
@@ -303,6 +308,8 @@ export class UserReferenceRenderer implements CellRenderer {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          min-width: 0;
+          flex: 1;
         ">${displayName}</span>
       </div>
     `;

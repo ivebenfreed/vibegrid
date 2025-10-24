@@ -357,7 +357,16 @@ export class PersistenceStore implements IStore {
           filters: this.visualStateStore!.filters,
           groupConfig: this.visualStateStore!.groupConfig
         }),
-        () => {
+        (data) => {
+          log.debug('[PERSIST] 🔥 Reaction fired - changes detected', {
+            hasColumnWidths: Object.keys(data.columnWidths || {}).length > 0,
+            hasColumnOrder: (data.columnOrder || []).length > 0,
+            hasColumnVisibility: Object.keys(data.columnVisibility || {}).length > 0,
+            hasSortBy: (data.sortBy || []).length > 0,
+            hasFilters: (data.filters || []).length > 0,
+            hasGroupConfig: !!data.groupConfig,
+            groupConfigFields: data.groupConfig?.fields?.length || 0
+          })
           this.debouncedSave()
         },
         {
@@ -377,10 +386,17 @@ export class PersistenceStore implements IStore {
    */
   private debouncedSave(): void {
     if (this.saveTimer) {
+      log.debug('[PERSIST] ⏱️ Debounce timer reset - clearing previous timer')
       clearTimeout(this.saveTimer)
     }
 
+    log.debug('[PERSIST] ⏱️ Debounce timer started', {
+      delayMs: this.SAVE_DEBOUNCE_MS,
+      willSaveIn: `${this.SAVE_DEBOUNCE_MS}ms`
+    })
+
     this.saveTimer = setTimeout(() => {
+      log.debug('[PERSIST] ⏱️ Debounce timer expired - saving now')
       this.saveToStorage()
       this.saveTimer = null
     }, this.SAVE_DEBOUNCE_MS)
@@ -430,10 +446,15 @@ export class PersistenceStore implements IStore {
 
       localStorage.setItem(this.storageKey, serialized)
 
-      log.debug('💾 Preferences saved', {
+      log.info('[PERSIST] 💾 Saved to localStorage', {
         entityType: this.entityType,
         size: serialized.length,
-        storageKey: this.storageKey
+        storageKey: this.storageKey,
+        hasColumnWidths: Object.keys(prefs.columnWidths || {}).length > 0,
+        hasColumnVisibility: Object.keys(prefs.columnVisibility || {}).length > 0,
+        hasGroupConfig: !!prefs.groupConfig,
+        groupConfigFields: prefs.groupConfig?.fields?.length || 0,
+        timestamp: prefs.lastUpdated
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

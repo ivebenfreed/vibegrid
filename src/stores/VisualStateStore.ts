@@ -335,30 +335,55 @@ export class VisualStateStore implements IStore {
     orgId: string,
     userId: string
   ): void {
-    const savedPrefs = this.loadAllSavedPreferences(columns, entityType, orgId)
+    // NOTE: PersistenceStore loads preferences BEFORE this method is called.
+    // We should only apply defaults for values that haven't been loaded yet.
+    // Check if values already exist before overwriting them.
 
-    // Calculate final values
-    const finalColumnOrder = (savedPrefs.columnOrder && savedPrefs.columnOrder.length > 0)
-      ? savedPrefs.columnOrder
-      : columns.map(col => col.id)
+    // Only set columns if not already set
+    if (this.columns.length === 0) {
+      this.columns = columns
+    }
 
-    this.columns = columns
-    this.columnWidths = savedPrefs.columnWidths || Object.fromEntries(columns.map(col => [col.id, col.width || 150]))
-    this.columnVisibility = savedPrefs.columnVisibility || Object.fromEntries(columns.map(col => [col.id, true]))
-    this.columnOrder = finalColumnOrder
-    this.groupConfig = savedPrefs.groupConfig || null
-    this.sortBy = savedPrefs.sortBy || []
-    this.filters = savedPrefs.filters || []
+    // Only set columnWidths if empty (PersistenceStore may have already loaded them)
+    if (Object.keys(this.columnWidths).length === 0) {
+      this.columnWidths = Object.fromEntries(columns.map(col => [col.id, col.width || 150]))
+    }
+
+    // Only set columnVisibility if empty (PersistenceStore may have already loaded them)
+    if (Object.keys(this.columnVisibility).length === 0) {
+      this.columnVisibility = Object.fromEntries(columns.map(col => [col.id, true]))
+    }
+
+    // Only set columnOrder if empty (PersistenceStore may have already loaded it)
+    if (this.columnOrder.length === 0) {
+      this.columnOrder = columns.map(col => col.id)
+    }
+
+    // Only set groupConfig if null (PersistenceStore may have already loaded it)
+    // groupConfig is intentionally left as-is if already set
+
+    // Only set sortBy if empty (PersistenceStore may have already loaded it)
+    // sortBy is intentionally left as-is if already set
+
+    // Only set filters if empty (PersistenceStore may have already loaded it)
+    // filters is intentionally left as-is if already set
+
+    // Always set metadata
     this.entityType = entityType
     this.orgId = orgId
     this.userId = userId
 
-    log.info('Columns initialized with preferences', {
+    log.info('Columns initialized (preserving loaded preferences)', {
       entityType,
       orgId,
       userId,
       columnsCount: columns.length,
-      hasSavedPreferences: !!(savedPrefs.columnOrder || savedPrefs.columnWidths)
+      hasColumnWidths: Object.keys(this.columnWidths).length > 0,
+      hasColumnVisibility: Object.keys(this.columnVisibility).length > 0,
+      hasColumnOrder: this.columnOrder.length > 0,
+      hasGroupConfig: !!this.groupConfig,
+      hasSortBy: this.sortBy.length > 0,
+      hasFilters: this.filters.length > 0
     })
   }
 

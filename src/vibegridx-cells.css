@@ -47,6 +47,28 @@
   border-radius: 2px;
 }
 
+/* User Reference Badge Styles */
+.vibegridx-user-badge {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.vibegridx-user-badge:hover {
+  background-color: #e5e7eb !important; /* Darker gray on hover */
+  border-color: #9ca3af !important;
+}
+
+/* Entity Reference Badge Styles */
+.vibegridx-entity-badge {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.vibegridx-entity-badge:hover {
+  background-color: #e0f2fe !important; /* Darker blue on hover */
+  border-color: #7dd3fc !important;
+}
+
 /* Number Cell Styles */
 .vibegridx-number-content {
   font-variant-numeric: tabular-nums;

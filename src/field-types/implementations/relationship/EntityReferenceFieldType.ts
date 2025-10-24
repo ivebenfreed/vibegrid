@@ -114,6 +114,7 @@ export class EntityReferenceRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div');
     container.className = 'vibegridx-entity-reference';
+    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden; cursor: pointer;';
 
     if (!value) {
       container.className += ' vibegridx-entity-reference-empty';
@@ -233,21 +234,25 @@ export class EntityReferenceRenderer implements CellRenderer {
     const displayName = entityData[displayField] || entityData.name || entityData.title || `${targetEntity} ${entityId}`;
 
     return `
-      <div class="vibegridx-entity-badge" style="
-        display: flex;
+      <div class="vibegridx-entity-badge" title="${displayName}" style="
+        display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 2px 6px;
+        padding: 4px 8px;
         border-radius: 6px;
-        background-color: #f0f9ff;
-        border: 1px solid #0ea5e9;
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: 500;
+        white-space: nowrap;
+        background-color: #f0f9ff;
+        color: #0369a1;
+        border: 1px solid #bae6fd;
         max-width: 100%;
+        min-width: 0;
+        cursor: pointer;
       ">
         <div class="vibegridx-entity-icon" style="
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           border-radius: 3px;
           background-color: #0ea5e9;
           color: white;
@@ -262,6 +267,8 @@ export class EntityReferenceRenderer implements CellRenderer {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          min-width: 0;
+          flex: 1;
         ">${displayName}</span>
       </div>
     `;

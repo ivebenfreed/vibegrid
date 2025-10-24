@@ -53,6 +53,7 @@ export class TextRenderer implements CellRenderer {
     // Format value for display based on field type
     const displayValue = this.formatValueByType(value, column);
     container.textContent = displayValue;
+    container.title = displayValue; // Tooltip for overflow text
 
     // Apply common text overflow handling
     container.style.maxWidth = '100%';
@@ -83,9 +84,12 @@ export class TextRenderer implements CellRenderer {
     if (value == null || value === '') {
       element.className += ' vibegridx-cell-empty';
       element.textContent = column.editable === false ? '' : 'Click to edit';
+      element.title = '';
       element.style.opacity = '0.6';
     } else {
-      element.textContent = this.formatValue(value, column);
+      const displayValue = this.formatValue(value, column);
+      element.textContent = displayValue;
+      element.title = displayValue; // Tooltip for overflow text
       element.style.opacity = '1';
     }
   }
