@@ -5,6 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
+import { createLogger } from '@/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,
@@ -18,6 +19,8 @@ import type {
 } from '../../FieldTypeRegistry';
 import { fieldTypeRegistry } from '../../FieldTypeRegistry';
 import { formatFieldForDisplay } from '@/server/dataforge/fields/display-formatters';
+
+const fileLog = createLogger('components/vibegrid/field-types/implementations/basic/DateFieldType');
 
 /**
  * Date Cell Renderer
@@ -88,7 +91,7 @@ export class DateRenderer implements CellRenderer {
         }
       } catch (error) {
         // Fall back to simple formatting if DataForge formatter fails
-        console.warn('DataForge formatter failed, using fallback', error);
+        fileLog.warn('DataForge formatter failed, using fallback', { error, type, value });
       }
     }
     // Fallback to basic date formatting

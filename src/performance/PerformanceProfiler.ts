@@ -212,24 +212,18 @@ export class VibeGridPerformanceProfiler {
 
     const report = this.generateReport();
 
-    console.group('🚀 VibeGrid Performance Report');
-    console.log(`Session: ${report.sessionId}`);
-    console.log(`Total Duration: ${report.totalDuration?.toFixed(2)}ms`);
-    console.log('\n📊 Breakdown:');
-    console.log(`  Initialization: ${report.summary.initializationTime.toFixed(2)}ms`);
-    console.log(`  Rendering: ${report.summary.renderingTime.toFixed(2)}ms`);
-    console.log(`  Cell Creation: ${report.summary.cellCreationTime.toFixed(2)}ms`);
-    console.log(`  DOM Operations: ${report.summary.domManipulationTime.toFixed(2)}ms`);
-
-    if (report.summary.bottlenecks.length > 0) {
-      console.log('\n🐌 Bottlenecks (>100ms):');
-      report.summary.bottlenecks.forEach(bottleneck => {
-        console.log(`  ${bottleneck}`);
-      });
-    }
-
-    console.log(`\n📈 Total Metrics: ${report.metrics.length}`);
-    console.groupEnd();
+    fileLog.info('🚀 VibeGrid Performance Report', {
+      sessionId: report.sessionId,
+      totalDuration: report.totalDuration?.toFixed(2),
+      breakdown: {
+        initialization: report.summary.initializationTime.toFixed(2),
+        rendering: report.summary.renderingTime.toFixed(2),
+        cellCreation: report.summary.cellCreationTime.toFixed(2),
+        domOperations: report.summary.domManipulationTime.toFixed(2)
+      },
+      bottlenecks: report.summary.bottlenecks.length > 0 ? report.summary.bottlenecks : undefined,
+      totalMetrics: report.metrics.length
+    });
   }
 
   /**

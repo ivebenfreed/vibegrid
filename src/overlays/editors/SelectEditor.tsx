@@ -1,6 +1,9 @@
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 import { ComboboxEditor } from './ComboboxEditor';
 import type { CellRef, Column, RelationshipContext } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/SelectEditor');
 
 interface SelectEditorProps {
   cell: CellRef;
@@ -22,7 +25,7 @@ export function SelectEditor({
   onCancel,
   relationshipContext
 }: SelectEditorProps) {
-  console.log('📋 SelectEditor: Rendering', {
+  fileLog.debug('Rendering SelectEditor', {
     columnId: column.id,
     cellType: column.cellType || column.type,
     hasOptions: !!(column.options || column.enumOptions),

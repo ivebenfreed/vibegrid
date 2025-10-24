@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { observer } from 'mobx-react-lite';
+import { createLogger } from '@/lib/logging';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,8 @@ import { Plus, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { EntityNameUtils } from '@/lib/entity-name-utils';
 import type { VibeGridStores } from '../stores/context';
+
+const fileLog = createLogger('components/vibegrid/components/VibeGridEntityAdd');
 
 interface VibeGridEntityAddProps {
   stores: VibeGridStores;
@@ -179,7 +182,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   };
 
   const isFormValid = useMemo(() => {
-    console.log('🔍 [VibeGridEntityAdd] Form validation check:', {
+    fileLog.debug('Form validation check', {
       formData,
       allFields: Object.keys(formData),
       invalidFields: Object.entries(formData).filter(([key, field]) => !field.isValid).map(([key]) => key),
@@ -205,7 +208,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
     });
 
     if (validationErrors.length > 0) {
-      console.log('🚨 [VibeGridEntityAdd] Validation errors:', validationErrors);
+      fileLog.warn('Validation errors', { validationErrors });
       // Don't show alert - the status indicator will show the error message
       return;
     }
@@ -237,7 +240,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
         entityData.priority = 'medium';
       }
 
-      console.log('🚀 [VibeGridEntityAdd] Creating entity:', {
+      fileLog.info('Creating entity', {
         entityName,
         data: entityData
       });
@@ -245,13 +248,13 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       // Create the entity using TanStack DB mutation
       createEntity(entityData);
 
-      console.log('✅ [VibeGridEntityAdd] Entity created successfully');
+      fileLog.info('Entity created successfully');
 
       // Reset form and close dialog
       setFormData({});
       setIsOpen(false);
     } catch (error) {
-      console.error('❌ [VibeGridEntityAdd] Error creating entity:', error);
+      fileLog.error('Error creating entity', { error });
       // You could add a toast notification here
       alert(`Error creating ${displayName}: ${error.message || 'Unknown error'}`);
     } finally {

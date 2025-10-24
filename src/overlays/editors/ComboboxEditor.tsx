@@ -10,6 +10,7 @@
  */
 
 import React from 'react'
+import { createLogger } from '@/lib/logging'
 import { cn } from '@/lib/utils'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Check } from 'lucide-react'
@@ -18,6 +19,8 @@ import { getOptionIconDisplay } from '../../utils/icon-mapping'
 // TODO: Remove Legend State dependencies - not needed for this editor
 // import { use$ } from '@legendapp/state/react'
 // import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/ComboboxEditor');
 
 export interface ComboboxEditorProps {
   cell: CellRef
@@ -58,7 +61,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
 
   // Load options from provider if available
   React.useEffect(() => {
-    console.log('🔍 ComboboxEditor: Provider check', {
+    fileLog.debug('ComboboxEditor: Provider check', {
       columnId: column.id,
       hasProvider: !!column.relationshipOptionsProvider,
       hasContext: !!relationshipContext,
@@ -66,36 +69,36 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       relationshipTable: column.relationshipTable,
       relationshipEntityType: column.relationshipEntityType
     });
-    
+
     if (column.relationshipOptionsProvider && relationshipContext) {
-      console.log('🔍 ComboboxEditor: Loading relationship options', {
+      fileLog.debug('ComboboxEditor: Loading relationship options', {
         columnId: column.id,
         relationshipTable: column.relationshipTable,
         hasProvider: !!column.relationshipOptionsProvider,
         hasContext: !!relationshipContext
       });
-      
+
       setIsLoadingOptions(true)
-      
+
       const loadOptions = async () => {
         try {
           const providerOptions = await column.relationshipOptionsProvider!(relationshipContext)
-          
-          console.log('🔍 ComboboxEditor: Loaded relationship options', {
+
+          fileLog.debug('ComboboxEditor: Loaded relationship options', {
             columnId: column.id,
             optionCount: providerOptions.length,
             options: providerOptions.map(opt => ({ value: opt.value, label: opt.label }))
           });
-          
+
           setDynamicOptions(providerOptions)
         } catch (error) {
-          console.error('ComboboxEditor: Error loading relationship options:', error)
+          fileLog.error('ComboboxEditor: Error loading relationship options', { error })
           setDynamicOptions([])
         } finally {
           setIsLoadingOptions(false)
         }
       }
-      
+
       loadOptions()
     }
   }, [column.relationshipOptionsProvider, relationshipContext])
@@ -111,7 +114,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       rawOptions = column.enumOptions || column.options || []
     }
     
-    console.log('🔍 ComboboxEditor: Computing options', {
+    fileLog.debug('ComboboxEditor: Computing options', {
       columnId: column.id,
       hasProvider: !!column.relationshipOptionsProvider,
       dynamicOptionsCount: dynamicOptions.length,
@@ -141,7 +144,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       standardOptions.unshift({ value: '__null__', label: column.nullLabel || 'None' })
     }
 
-    console.log('🔍 ComboboxEditor: Final options', {
+    fileLog.debug('ComboboxEditor: Final options', {
       columnId: column.id,
       optionCount: standardOptions.length,
       options: standardOptions.map(opt => ({ value: opt.value, label: opt.label })),
@@ -308,11 +311,11 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                           key={option.value}
                           value={option.value}
                           onSelect={() => {
-                            console.log('ComboboxEditor: onSelect called', option.value);
+                            fileLog.debug('ComboboxEditor: onSelect called', { value: option.value });
                             handleSelect(option.value);
                           }}
                           onClick={(e) => {
-                            console.log('ComboboxEditor: onClick called', option.value);
+                            fileLog.debug('ComboboxEditor: onClick called', { value: option.value });
                             e.stopPropagation();
                             handleSelect(option.value);
                           }}

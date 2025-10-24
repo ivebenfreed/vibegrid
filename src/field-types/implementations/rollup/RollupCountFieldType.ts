@@ -5,6 +5,7 @@
  * and proper display formatting. Integrates with RollupCalculationManager.
  */
 
+import { createLogger } from '@/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,
@@ -17,6 +18,8 @@ import type {
   FieldMetadata
 } from '../../FieldTypeRegistry';
 import { RollupCountCalculator } from '../../../managers/RollupCalculationManager';
+
+const fileLog = createLogger('components/vibegrid/field-types/implementations/rollup/RollupCountFieldType');
 
 /**
  * Rollup Count Cell Renderer
@@ -35,7 +38,7 @@ export class RollupCountRenderer implements CellRenderer {
         const sourceData = this.getSourceData(column, rowData);
         displayValue = this.calculator.calculate(column.rollupConfig, sourceData, rowData.id);
       } catch (error) {
-        console.warn('Failed to calculate rollup count', error);
+        fileLog.warn('Failed to calculate rollup count', { error, columnId: column.id, rowId: rowData.id });
         displayValue = value || 0;
       }
     }

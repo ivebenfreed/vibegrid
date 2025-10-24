@@ -24,6 +24,9 @@ import { membersCollection } from '@/data/db/collections/member-collection'
 // Import VibeGrid CSS styles
 import './vibegridx.css'
 
+// Import logging presets (exposes __VIBEGRID_LOGS__ on window)
+import './utils/logging-presets'
+
 const log = createLogger('components/vibegrid/VibeGrid')
 
 // ====================================

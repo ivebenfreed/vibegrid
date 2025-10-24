@@ -1,6 +1,6 @@
 /**
  * MultiRelationshipEditor - For multi-relationship/many-to-many fields
- * 
+ *
  * ✅ ADAPTED: Uses ComboboxEditor with multi-select for consistency
  * ✅ TAG INTERFACE: Shows selected items as removable badges
  * ✅ SEARCH: Instant filtering for relationship options
@@ -9,8 +9,11 @@
  */
 
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 import { ComboboxEditor } from './ComboboxEditor';
 import type { CellRef, Column, RelationshipContext } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/MultiRelationshipEditor');
 
 interface MultiRelationshipEditorProps {
   cell: CellRef;
@@ -54,14 +57,14 @@ export function MultiRelationshipEditor({
   };
 
   // Create proper RelationshipContext for ComboboxEditor
-  const relationshipContextForCombobox: RelationshipContext | undefined = 
+  const relationshipContextForCombobox: RelationshipContext | undefined =
     relationshipContext ? {
       currentEntity: (relationshipContext as any).currentEntity || null,
       column: column,
       fieldName: column.field || column.id
     } : undefined;
 
-  console.log('🔍 MultiRelationshipEditor: Creating relationship context', {
+  fileLog.debug('Creating relationship context', {
     columnId: column.id,
     hasRelationshipContext: !!relationshipContext,
     relationshipTable: column.relationshipTable,

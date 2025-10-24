@@ -1,5 +1,8 @@
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 import type { CellRef, Column } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/TextEditor');
 
 interface TextEditorProps {
   cell: CellRef;
@@ -34,7 +37,7 @@ function TextEditorComponent({
       if (inputRef.current) {
         inputRef.current.focus();
         inputRef.current.select();
-        console.log('🔍 TextEditor: Initial focus and select completed');
+        fileLog.debug('TextEditor: Initial focus and select completed');
       }
     }, 10); // Small delay to ensure DOM is ready
 
@@ -48,26 +51,26 @@ function TextEditorComponent({
       case 'Enter':
         if (!multiline || !e.shiftKey) {
           e.preventDefault();
-          console.log('🔍 TextEditor: Commit via Enter key');
+          fileLog.debug('TextEditor: Commit via Enter key');
           onCommit(value);
         }
         break;
       case 'Escape':
         e.preventDefault();
         e.stopPropagation(); // Stop the event from reaching KeyboardNavigationController
-        console.log('🔍 TextEditor: Cancel via Escape key');
+        fileLog.debug('TextEditor: Cancel via Escape key');
         onCancel();
         break;
       case 'Tab':
         e.preventDefault();
-        console.log('🔍 TextEditor: Commit via Tab key');
+        fileLog.debug('TextEditor: Commit via Tab key');
         onCommit(value);
         break;
     }
   };
 
   const handleBlur = () => {
-    console.log('🔍 TextEditor: Blur event triggered', {
+    fileLog.debug('TextEditor: Blur event triggered', {
       hasUserInteracted: hasUserInteracted.current,
       value,
       cellId: `${cell.rowId}:${cell.columnId}`
@@ -77,12 +80,12 @@ function TextEditorComponent({
     if (hasUserInteracted.current && onCommit) {
       // Add a small delay to distinguish between accidental blur and intentional blur
       blurTimeoutRef.current = setTimeout(() => {
-        console.log('🔍 TextEditor: Committing value on blur after delay');
+        fileLog.debug('TextEditor: Committing value on blur after delay');
         onCommit(value);
       }, 100);
     } else {
       // If no user interaction, don't commit - let outside click handler decide
-      console.log('🔍 TextEditor: Blur without user interaction - not committing, leaving edit active');
+      fileLog.debug('TextEditor: Blur without user interaction - not committing, leaving edit active');
     }
   };
 
@@ -91,7 +94,7 @@ function TextEditorComponent({
     if (blurTimeoutRef.current) {
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
-      console.log('🔍 TextEditor: Cancelled blur commit due to refocus');
+      fileLog.debug('TextEditor: Cancelled blur commit due to refocus');
     }
   };
 
@@ -125,14 +128,14 @@ function TextEditorComponent({
 
   const handleChange = (newValue: string) => {
     hasUserInteracted.current = true; // Mark as user-initiated change
-    console.log('🔍 TextEditor handleChange called with:', newValue);
+    fileLog.debug('TextEditor handleChange called with', { newValue });
     setValue(newValue);
     // Only call onUpdate if it's provided
     if (onUpdate) {
-      console.log('🔍 TextEditor calling onUpdate with:', newValue);
+      fileLog.debug('TextEditor calling onUpdate with', { newValue });
       onUpdate(newValue);
     } else {
-      console.log('🔍 TextEditor onUpdate is not provided!');
+      fileLog.debug('TextEditor onUpdate is not provided');
     }
   };
 

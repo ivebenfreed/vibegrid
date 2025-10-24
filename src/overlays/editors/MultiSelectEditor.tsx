@@ -1,6 +1,6 @@
 /**
  * MultiSelectEditor - For multi-selection fields using shadcn multi-select
- * 
+ *
  * ✅ SHADCN: Uses proper shadcn multi-select component with search
  * ✅ SEARCH: Instant filtering for options
  * ✅ KEYBOARD NAV: Full keyboard navigation support
@@ -9,9 +9,12 @@
  */
 
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 // TODO: MultiSelect component doesn't exist - needs to be created or use ComboboxEditor with isMultiSelect
 // import { MultiSelect } from '@/components/ui/multi-select';
 import type { CellRef, Column, EnumOption } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/MultiSelectEditor');
 
 interface MultiSelectEditorProps {
   cell: CellRef;
@@ -39,7 +42,7 @@ export function MultiSelectEditor({
       const currentTags = (initialValue as any).split(',').map((tag: any) => tag.trim()).filter((tag: any) => tag.length > 0);
       rawOptions = currentTags.map((tag: any) => ({ value: tag, label: tag }));
 
-      console.log('🏷️ MultiSelectEditor: Generated options from current tags', {
+      fileLog.debug('Generated options from current tags', {
         initialValue,
         currentTags,
         generatedOptions: rawOptions

@@ -16,6 +16,9 @@ import { Input } from '@/components/ui/input';
 import type { Column } from '../types';
 import type { VibeGridStores } from '../stores/context';
 import { formatFieldName } from '../column-defaults';
+import { createLogger } from '@/lib/logging';
+
+const fileLog = createLogger('components/vibegrid/components/VibeGridXColumnVisibilityPure');
 
 interface VibeGridXColumnVisibilityPureProps {
   stores: VibeGridStores;
@@ -40,7 +43,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   
   // Event handlers using store action methods
   const handleOpenChange = React.useCallback((open: boolean) => {
-    console.log('ColumnVisibility dropdown:', open ? 'opening' : 'closing');
+    fileLog.debug('ColumnVisibility dropdown state change', { isOpen: open });
     if (open) {
       interactionStore.openColumnVisibilityMenu();
     } else {

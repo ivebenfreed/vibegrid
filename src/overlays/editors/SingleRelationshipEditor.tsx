@@ -1,6 +1,6 @@
 /**
  * SingleRelationshipEditor - For single relationship/foreign key fields
- * 
+ *
  * ✅ ADAPTED: From VibeGridOptimus SingleRelationshipEditor
  * ✅ SEARCH: Instant filtering for relationship options
  * ✅ KEYBOARD NAV: Full keyboard navigation support
@@ -8,8 +8,11 @@
  */
 
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 import { ComboboxEditor } from './ComboboxEditor';
 import type { CellRef, Column, RelationshipContext } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/SingleRelationshipEditor');
 
 interface SingleRelationshipEditorProps {
   cell: CellRef;
@@ -54,14 +57,14 @@ export function SingleRelationshipEditor({
   };
 
   // Create proper RelationshipContext for ComboboxEditor
-  const relationshipContextForCombobox: RelationshipContext | undefined = 
+  const relationshipContextForCombobox: RelationshipContext | undefined =
     relationshipContext ? {
       currentEntity: (relationshipContext as any).currentEntity || null,
       column: column,
       fieldName: column.field || column.id
     } : undefined;
 
-  console.log('🔍 SingleRelationshipEditor: Creating relationship context', {
+  fileLog.debug('Creating relationship context', {
     columnId: column.id,
     hasRelationshipContext: !!relationshipContext,
     relationshipTable: column.relationshipTable,

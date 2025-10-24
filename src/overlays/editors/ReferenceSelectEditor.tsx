@@ -3,9 +3,12 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createLogger } from '@/lib/logging';
 // TODO: Replace with TanStack DB query for reference options
 // import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
 import type { EditorProps } from './index';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/ReferenceSelectEditor');
 
 /**
  * Infer entity type from field name for entity references
@@ -101,13 +104,13 @@ export function ReferenceSelectEditor({
 
   // Debug logging
   useEffect(() => {
-    console.log('[ReferenceSelectEditor] Options updated:', {
+    fileLog.debug('Options updated', {
       columnId: column.id,
       referenceType: column.referenceType,
       systemOptionType: column.systemOptionType,
       systemArchetype: column.systemArchetype,
       customOptionSet: column.customOptionSet,
-      referenceEntity: (column as any).referenceEntity,  // NEW: Log entity reference
+      referenceEntity: (column as any).referenceEntity,
       optionsCount: options.length,
       isLoading,
       error,

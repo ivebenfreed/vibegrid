@@ -398,7 +398,7 @@ export class UserReferenceEditor implements CellEditor {
       setTimeout(() => input.focus(), 0);
 
     } catch (error) {
-      console.error('Failed to create user reference editor', error);
+      fileLog.error('Failed to create user reference editor', { error, columnId: column.id });
       // Fallback to simple input
       const input = document.createElement('input');
       input.type = 'text';

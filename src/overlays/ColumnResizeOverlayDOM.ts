@@ -80,42 +80,50 @@ export class ColumnResizeOverlayDOM {
       return;
     }
 
-    if (!this.coordinateMapping || !this.coordinateMapping.columns) {
+    let indicatorX: number;
+    let overlayX: number;
+    let scrollLeft: number;
+
+    if (this.coordinateMapping && this.coordinateMapping.columns) {
+      const columnMapping = this.coordinateMapping.columns.find(
+        (col) => col.columnId === resizeState.columnId
+      );
+
+      if (!columnMapping) {
+        fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column not found in coordinate mapping', {
+          columnId: resizeState.columnId,
+          availableColumns: this.coordinateMapping.columns.map(col => col.columnId)
+        });
+        const fallback = this.calculateFallbackPosition(resizeState);
+        if (!fallback) {
+          return;
+        }
+        ({ indicatorX, overlayX, scrollLeft } = fallback);
+      } else {
+        const baseWidth = resizeState.newWidth ?? columnMapping.width ?? 150;
+        indicatorX = columnMapping.offset + baseWidth;
+
+        const viewportElement =
+          this.container.parentElement?.closest('.vibegridx-viewport') as HTMLElement ??
+          this.container.parentElement as HTMLElement ?? null;
+        scrollLeft = viewportElement?.scrollLeft ?? 0;
+        overlayX = indicatorX - scrollLeft;
+      }
+    } else {
       fileLog.warn('[RESIZE-PREVIEW] ⚠️ No coordinate mapping available for resize preview');
-      return;
+      const fallback = this.calculateFallbackPosition(resizeState);
+      if (!fallback) {
+        return;
+      }
+      ({ indicatorX, overlayX, scrollLeft } = fallback);
     }
-
-    const columnMapping = this.coordinateMapping.columns.find(
-      (col) => col.columnId === resizeState.columnId
-    );
-
-    if (!columnMapping) {
-      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column not found in coordinate mapping', {
-        columnId: resizeState.columnId,
-        availableColumns: this.coordinateMapping.columns.map(col => col.columnId)
-      });
-      return;
-    }
-
-    const baseWidth = resizeState.newWidth ?? columnMapping.width ?? 150;
-    const newX = columnMapping.offset + baseWidth;
-
-    // Determine current horizontal scroll from the viewport the overlay is attached to
-    const viewportElement =
-      this.container.parentElement?.closest('.vibegridx-viewport') as HTMLElement ??
-      this.container.parentElement as HTMLElement ?? null;
-    const scrollLeft = viewportElement?.scrollLeft ?? 0;
-
-    const adjustedX = newX - scrollLeft;
 
     fileLog.info('[RESIZE-PREVIEW] 📏 Column position from DOM', {
       columnId: resizeState.columnId,
-      columnOffset: columnMapping.offset,
-      mappedWidth: columnMapping.width,
       resizeWidth: resizeState.newWidth,
-      calculatedX: newX,
+      calculatedX: indicatorX,
       scrollLeft,
-      adjustedX
+      adjustedX: overlayX
     });
 
     // Create or update resize indicator
@@ -132,7 +140,7 @@ export class ColumnResizeOverlayDOM {
     // Position indicator using absolute positioning within overlay container
     Object.assign(this.resizeIndicator.style, {
       position: 'absolute',
-      left: `${newX - this.config.resizeIndicatorWidth! / 2}px`,
+      left: `${overlayX - this.config.resizeIndicatorWidth! / 2}px`,
       top: '0',
       width: `${this.config.resizeIndicatorWidth}px`,
       height: '100%',
@@ -147,10 +155,54 @@ export class ColumnResizeOverlayDOM {
     fileLog.info('[RESIZE-PREVIEW] 🎨 Resize indicator positioned', {
       columnId: resizeState.columnId,
       newWidth: resizeState.newWidth,
-      indicatorX: newX,
+      indicatorX,
       scrollLeft,
-      adjustedX
+      adjustedX: overlayX
     });
+  }
+
+  /**
+   * Fallback position calculation using live DOM when coordinate mapping is unavailable
+   */
+  private calculateFallbackPosition(resizeState: ColumnResizeState): { indicatorX: number; overlayX: number; scrollLeft: number } | null {
+    const headerCell = document.querySelector(
+      `.vibegridx-header-cell[data-column-id="${resizeState.columnId}"]`
+    ) as HTMLElement | null;
+
+    if (!headerCell) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Fallback: header cell not found for column', {
+        columnId: resizeState.columnId
+      });
+      return null;
+    }
+
+    const overlayRect = this.overlayContainer?.getBoundingClientRect();
+    const headerRect = headerCell.getBoundingClientRect();
+
+    if (!overlayRect) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Fallback: overlay container rect unavailable');
+      return null;
+    }
+
+    const viewportElement =
+      this.container.parentElement?.closest('.vibegridx-viewport') as HTMLElement ??
+      this.container.parentElement as HTMLElement ?? null;
+    const scrollLeft = viewportElement?.scrollLeft ?? 0;
+
+    const newWidth = resizeState.newWidth ?? headerRect.width;
+    const columnLeft = headerRect.left - overlayRect.left;
+    const overlayX = columnLeft + newWidth;
+    const indicatorX = overlayX + scrollLeft;
+
+    fileLog.info('[RESIZE-PREVIEW] 📏 Fallback position calculated', {
+      columnId: resizeState.columnId,
+      columnLeft,
+      overlayX,
+      indicatorX,
+      scrollLeft
+    });
+
+    return { indicatorX, overlayX, scrollLeft };
   }
   
   /**

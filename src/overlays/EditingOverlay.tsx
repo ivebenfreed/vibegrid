@@ -1,10 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { createLogger } from '@/lib/logging';
 import type { CellRef, Column } from '../types';
 import type { VisualCellPosition } from './OverlayTypes';
 // Pure Observable architecture - no XState dependencies
 import { createEditor, type EditorProps } from './editors';
 import { isDropdownType as isDropdownCellType } from '../column-types';
+
+const fileLog = createLogger('components/vibegrid/overlays/EditingOverlay');
 
 // ====================================
 // EDITING OVERLAY - React Portal for Cell Editing
@@ -40,7 +43,7 @@ export class EditingOverlay {
     this.container = viewportContainer;
     this.config = config;
 
-    console.log('🔧 EditingOverlay: Constructor called', {
+    fileLog.debug('EditingOverlay: Constructor called', {
       originalContainer: container,
       actualContainer: this.container,
       containerClass: this.container.className,
@@ -76,7 +79,7 @@ export class EditingOverlay {
     // Create React root
     this.root = ReactDOM.createRoot(this.portal);
     
-    console.log('🔧 EditingOverlay: Portal created', {
+    fileLog.debug('EditingOverlay: Portal created', {
       portal: this.portal,
       container: this.container,
       containerClass: this.container.className,
@@ -101,11 +104,11 @@ export class EditingOverlay {
     
     // Re-append portal if it's not in DOM (canvas container might have been cleared)
     if (!this.portal.parentElement) {
-      console.log('🔧 EditingOverlay: Re-appending portal to container');
+      fileLog.debug('EditingOverlay: Re-appending portal to container');
       this.container.appendChild(this.portal);
     }
     
-    console.log('🔍 EditingOverlay: Showing editor - VALUE DEBUG', {
+    fileLog.debug('EditingOverlay: Showing editor - VALUE DEBUG', {
       cell: cell,
       cellId: `${cell.rowId}:${cell.columnId}`,
       column: column.id,
@@ -129,7 +132,7 @@ export class EditingOverlay {
     // Position the portal
     this.portal.style.display = 'block';
     
-    console.log('🔧 EditingOverlay: Portal positioned with absolute coordinates', {
+    fileLog.debug('EditingOverlay: Portal positioned with absolute coordinates', {
       position,
       portalDisplay: this.portal.style.display,
       portalVisible: this.portal.offsetWidth > 0 && this.portal.offsetHeight > 0,
@@ -168,7 +171,7 @@ export class EditingOverlay {
       'reference-select'
     ].includes(column.cellType || column.type || 'text') || isDropdownCellType(column.cellType || column.type || 'text');
     
-    console.log('🔧 EditingOverlay: Editor type detection', {
+    fileLog.debug('EditingOverlay: Editor type detection', {
       columnType: column.cellType || column.type || 'text',
       isTextType,
       isDropdownType,
@@ -197,7 +200,7 @@ export class EditingOverlay {
       const dropdownWidth = Math.max(position.width, 300);
       const dropdownHeight = 300; // Max height
 
-      console.log('🔧 EditingOverlay: Using visual state coordinates', {
+      fileLog.debug('EditingOverlay: Using visual state coordinates', {
         position: { x: position.x, y: position.y, width: position.width, height: position.height },
         cellId: `${cell.rowId}:${cell.columnId}`
       });
@@ -256,7 +259,7 @@ export class EditingOverlay {
     }
     
     // Render the editor component using shadcn components
-    console.log('🔧 EditingOverlay: About to render editor', {
+    fileLog.debug('EditingOverlay: About to render editor', {
       hasRoot: !!this.root,
       hasPortal: !!this.portal,
       column: column.id,
@@ -274,7 +277,7 @@ export class EditingOverlay {
     // Get current row data for relationship context
     const currentEntity = this.config.getRowData ? this.config.getRowData(cell.rowId) : null;
     
-    console.log('🔧 EditingOverlay: Getting current entity', {
+    fileLog.debug('EditingOverlay: Getting current entity', {
       rowId: cell.rowId,
       hasGetRowData: !!this.config.getRowData,
       currentEntity,
@@ -291,10 +294,10 @@ export class EditingOverlay {
       cell,
       column,
       initialValue: value,
-      onCommit: this.config.tableInteraction$ ? 
+      onCommit: this.config.tableInteraction$ ?
         // Direct commit to observables (new architecture)
         async (value) => {
-          console.log('🔍 EditingOverlay direct commit with value:', value);
+          fileLog.debug('EditingOverlay direct commit with value', { value });
           // Don't call updateEditValue here - saveEdit should use the passed value directly
           await this.config.tableInteraction$.saveEdit(value);
         } :
@@ -304,7 +307,7 @@ export class EditingOverlay {
       onUpdate: this.config.tableInteraction$ ?
         // Direct update to observables (new architecture)
         (value) => {
-          console.log('🔍 EditingOverlay direct onUpdate with value:', value);
+          fileLog.debug('EditingOverlay direct onUpdate with value', { value });
           this.config.tableInteraction$.updateEditValue(value);
         } :
         // Fallback to renderer callback (old architecture)
@@ -312,7 +315,7 @@ export class EditingOverlay {
       relationshipContext: enhancedRelationshipContext
     });
     
-    console.log('🔧 EditingOverlay: Editor component created', {
+    fileLog.debug('EditingOverlay: Editor component created', {
       editorComponent,
       componentType: editorComponent.type?.name || 'unknown'
     });
@@ -325,7 +328,7 @@ export class EditingOverlay {
     
     // Use setTimeout to check portal contents after React has rendered
     setTimeout(() => {
-      console.log('🔧 EditingOverlay: Portal contents after render (delayed check)', {
+      fileLog.debug('EditingOverlay: Portal contents after render (delayed check)', {
         portalChildCount: this.portal?.childNodes.length || 0,
         portalVisible: this.portal?.offsetWidth > 0 && this.portal?.offsetHeight > 0,
         portalHTML: this.portal?.innerHTML?.substring(0, 100) || 'empty',
@@ -387,8 +390,8 @@ export class EditingOverlay {
 
   public hide(): void {
     if (!this.portal) return;
-    
-    console.log('EditingOverlay: Hiding editor');
+
+    fileLog.debug('EditingOverlay: Hiding editor');
     
     // Restore cell content if it was hidden
     if (this.currentCell) {

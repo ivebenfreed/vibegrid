@@ -4,6 +4,7 @@
  * Handles custom_entity_reference and entity_reference field types with dynamic target entities.
  */
 
+import { createLogger } from '@/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,
@@ -17,6 +18,8 @@ import type {
 } from '../../FieldTypeRegistry';
 import type { TableCoreStore } from '../../../stores/TableCoreStore';
 
+const fileLog = createLogger('components/vibegrid/field-types/implementations/relationship/EntityReferenceFieldType');
+
 export class EntityDataLoader implements AsyncDataLoader {
   async loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCoreStore): Promise<RelationshipData> {
     const orgId = this.getOrgId();
@@ -29,7 +32,7 @@ export class EntityDataLoader implements AsyncDataLoader {
       const result = await response.json();
       return result.data || {};
     } catch (error) {
-      console.error('Failed to load entity relationship data', { error, column: column.id });
+      fileLog.error('Failed to load entity relationship data', { error, column: column.id });
       throw error;
     }
   }
@@ -72,7 +75,7 @@ export class EntityDataLoader implements AsyncDataLoader {
         metadata: item
       }));
     } catch (error) {
-      console.error(`Failed to search ${targetEntity}`, { error, query });
+      fileLog.error('Failed to search target entity', { error, query, targetEntity });
       return [];
     }
   }
@@ -83,7 +86,7 @@ export class EntityDataLoader implements AsyncDataLoader {
   }
 
   invalidateCache(column: EnhancedColumn): void {
-    console.debug('Invalidating entity reference cache', { column: column.id });
+    fileLog.debug('Invalidating entity reference cache', { column: column.id });
   }
 
   private getOrgId(): string {
@@ -95,7 +98,7 @@ export class EntityDataLoader implements AsyncDataLoader {
       }
       return '01920000-1000-7000-8000-000000000001';
     } catch (error) {
-      console.warn('Failed to get org ID from URL:', error);
+      fileLog.warn('Failed to get org ID from URL', { error });
       return '01920000-1000-7000-8000-000000000001';
     }
   }
@@ -203,7 +206,7 @@ export class EntityReferenceRenderer implements CellRenderer {
       container.innerHTML = this.createEntityBadge(mockEntityData, entityId, column);
       container.style.opacity = '1';
     } catch (error) {
-      console.error('Failed to load entity data', { error, entityId });
+      fileLog.error('Failed to load entity data', { error, entityId });
       container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
       container.className += ' vibegridx-entity-reference-error';
     }

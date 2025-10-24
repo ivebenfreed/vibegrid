@@ -3,7 +3,10 @@
 // ====================================
 // Event handling and interaction utilities for unified renderer
 
+import { createLogger } from '@/lib/logging';
 import type { Column } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/renderers/utils/interaction-handlers');
 
 /**
  * Setup drag handlers for column reordering
@@ -137,7 +140,7 @@ export function setupColumnDragHandlers(
     e.preventDefault();
     e.stopPropagation();
 
-    console.log('🎯 DROP EVENT FIRED', {
+    fileLog.debug('Column drop event fired', {
       targetColumn: column.id,
       draggedColumn: e.dataTransfer!.getData('text/plain')
     });

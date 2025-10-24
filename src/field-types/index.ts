@@ -5,8 +5,12 @@
  * Imports all field type implementations to ensure they are registered.
  */
 
+import { createLogger } from '@/lib/logging';
+
 // Import registry first before any field type implementations
 import { fieldTypeRegistry } from './FieldTypeRegistry';
+
+const fileLog = createLogger('components/vibegrid/field-types/index');
 
 // Import all field type implementations to register them early
 // Basic types
@@ -122,7 +126,7 @@ export function initializeFieldTypeSystem(): void {
     // Field types are automatically registered via imports above
     const stats = fieldTypeRegistry.getRegisteredTypes();
 
-    console.log('🎯 [FIELD-SYSTEM] VibeGrid Modular Field Type System Initialized', {
+    fileLog.info('VibeGrid Modular Field Type System Initialized', {
       totalFieldTypes: stats.length,
       basicTypes: fieldTypeRegistry.getTypesByCategory('basic'),
       relationshipTypes: fieldTypeRegistry.getTypesByCategory('relationship'),
@@ -139,12 +143,12 @@ export function initializeFieldTypeSystem(): void {
           const bridge = (globalThis as any).modularCellBridge || modularCellBridge;
           bridge?.relationshipDataManager?.cleanupExpiredCache?.();
         } catch (error) {
-          console.warn('[FIELD-SYSTEM] Cache cleanup failed:', error);
+          fileLog.warn('Cache cleanup failed', { error });
         }
       }, 5 * 60 * 1000);
     }
   } catch (error) {
-    console.error('❌ [FIELD-SYSTEM] Failed to initialize field type system:', error);
+    fileLog.error('Failed to initialize field type system', { error });
     throw error; // FAIL FAST
   }
 }

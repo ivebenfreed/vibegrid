@@ -1,4 +1,5 @@
 import React from 'react';
+import { createLogger } from '@/lib/logging';
 import { TextEditor } from './TextEditor';
 import { NumberEditor } from './NumberEditor';
 import { SelectEditor } from './SelectEditor';
@@ -12,6 +13,8 @@ import { ReferenceMultiEditor } from './ReferenceMultiEditor';
 import { ModalTextEditor } from './ModalTextEditor';
 import { RelationshipEditor } from './RelationshipEditor';
 import type { CellRef, Column } from '../../types';
+
+const fileLog = createLogger('components/vibegrid/overlays/editors/index');
 
 // Helper function to detect if a field should be treated as tags
 function isTagsLikeField(column: Column, initialValue: any): boolean {
@@ -33,7 +36,7 @@ function isTagsLikeField(column: Column, initialValue: any): boolean {
   // The tags field should use MultiSelectEditor even without predefined options
   const result: boolean = isTagsName || hasCommaSeperatedValues || hasOptions;
   
-  console.log('🔍 isTagsLikeField analysis', {
+  fileLog.debug('isTagsLikeField analysis', {
     columnName,
     columnId: column.id,
     isTagsName,
@@ -83,7 +86,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
   // The Column type doesn't include all the extended types we support
   const cellType = (column.cellType || column.type) as string;
   
-  console.log('🔧 createEditor: Creating editor', {
+  fileLog.debug('createEditor: Creating editor', {
     cellType,
     columnId: column.id,
     columnName: column.name,
@@ -98,7 +101,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
   switch (cellType) {
     case 'text':
     case 'string':
-      console.log('🔧 createEditor: Creating TextEditor');
+      fileLog.debug('createEditor: Creating TextEditor');
       return <TextEditor {...props} />;
       
     case 'textarea':
@@ -106,14 +109,14 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
     case 'longtext':
       // For longtext, use ModalTextEditor which opens the long text overlay
-      console.log('📝 createEditor: Using ModalTextEditor for longtext');
+      fileLog.debug('createEditor: Using ModalTextEditor for longtext');
       return <ModalTextEditor {...props} editorType="longtext" />;
 
     case 'richtext':
     case 'rich-text':
     case 'rich_text':
       // For richtext, use ModalTextEditor which opens the rich text overlay
-      console.log('🎨 createEditor: Using ModalTextEditor for richtext');
+      fileLog.debug('createEditor: Using ModalTextEditor for richtext');
       return <ModalTextEditor {...props} editorType="richtext" />;
       
     case 'number':
@@ -133,25 +136,25 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'tags':
     case 'multiselect':
       // Tags fields should use MultiSelectEditor with dynamic options
-      console.log('🏷️ createEditor: Creating MultiSelectEditor for tags field');
+      fileLog.debug('createEditor: Creating MultiSelectEditor for tags field');
       return <MultiSelectEditor {...props} />;
       
     case 'json':
     case 'jsonb':
       // Check if this is a tags-like field based on column name or data
-      console.log('🔍 createEditor: Checking json field for tags pattern', {
+      fileLog.debug('createEditor: Checking json field for tags pattern', {
         columnId: column.id,
         columnName: column.name,
         initialValue: props.initialValue
       });
-      
+
       if (isTagsLikeField(column, props.initialValue)) {
-        console.log('🏷️ createEditor: JSON field detected as tags, using MultiSelectEditor');
+        fileLog.debug('createEditor: JSON field detected as tags, using MultiSelectEditor');
         return <MultiSelectEditor {...props} />;
       }
-      
+
       // Fallback to text editor for regular JSON
-      console.log('📝 createEditor: Using TextEditor for JSON field');
+      fileLog.debug('createEditor: Using TextEditor for JSON field');
       return <TextEditor {...props} multiline />;
       
     case 'boolean':
@@ -183,11 +186,11 @@ export function createEditor(props: EditorProps): React.ReactElement {
       return <MultiRelationshipEditor {...props} />;
       
     case 'reference-select':
-      console.log('🔧 createEditor: Creating ReferenceSelectEditor');
+      fileLog.debug('createEditor: Creating ReferenceSelectEditor');
       return <ReferenceSelectEditor {...props} />;
       
     case 'reference-multi':
-      console.log('🔧 createEditor: Creating ReferenceMultiEditor');
+      fileLog.debug('createEditor: Creating ReferenceMultiEditor');
       return <ReferenceMultiEditor {...props} />;
 
     // System option reference types
@@ -195,23 +198,23 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'status_option':
     case 'category_option':
     case 'task_type_option':
-      console.log('🔧 createEditor: Creating SelectEditor for system option type', cellType);
+      fileLog.debug('createEditor: Creating SelectEditor for system option type', { cellType });
       return <SelectEditor {...props} />;
 
     // User and entity reference types - use dedicated RelationshipEditor
     case 'user_reference':
     case 'custom_user_reference':
-      console.log('🔧 createEditor: Creating RelationshipEditor for user reference', cellType);
+      fileLog.debug('createEditor: Creating RelationshipEditor for user reference', { cellType });
       return <RelationshipEditor {...props} />;
 
     case 'entity_reference':
     case 'custom_entity_reference':
-      console.log('🔧 createEditor: Creating RelationshipEditor for entity reference', cellType);
+      fileLog.debug('createEditor: Creating RelationshipEditor for entity reference', { cellType });
       return <RelationshipEditor {...props} />;
 
     default:
       // Default to text editor for unknown types
-      console.warn(`Unknown cell type: ${cellType}, defaulting to text editor`);
+      fileLog.warn('Unknown cell type, defaulting to text editor', { cellType });
       return <TextEditor {...props} />;
   }
 }

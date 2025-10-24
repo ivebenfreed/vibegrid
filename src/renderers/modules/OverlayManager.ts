@@ -220,6 +220,7 @@ export class OverlayManager {
           const clipboardChanged = this.lastClipboardString !== clipboardString;
           const resizeStateString = state.columnResize ? `${state.columnResize.columnId}:${state.columnResize.newWidth}` : '';
           const resizeChanged = lastResizeState !== resizeStateString; // Detect width changes OR start/stop
+          const isColumnResizing = !!state.columnResize?.isResizing;
 
           // IMPORTANT: Don't skip if columnResize changed (resize preview needs immediate updates including clear)
           if (!selectionChanged && !editingChanged && !clipboardChanged && !resizeChanged) {
@@ -254,16 +255,35 @@ export class OverlayManager {
             pendingUpdate = null;
 
             // BATCHED: All DOM updates happen together in a single frame
-            // Handle selection updates
-            if (selectionChanged) {
+            if (isColumnResizing && this.canvasOverlay) {
+              if (!wasColumnResizing) {
+                fileLog.debug('[RESIZE] Selection overlay suspended for column resize');
+                this.canvasOverlay.suspendSelectionOverlay();
+                this.canvasOverlay.hideFillHandle();
+              }
+            } else if (wasColumnResizing && !isColumnResizing) {
+              fileLog.debug('[RESIZE] Column resize ended, selection overlay may be restored', {
+                selectedCount: state.selectedCells.size
+              });
+
               if (state.selectedCells.size > 0) {
                 this.performCanvasSelectionUpdate(state.selectedCells);
-              } else {
+              } else if (this.canvasOverlay) {
+                this.canvasOverlay.updateSelectionWithVisualPositions([]);
+                this.canvasOverlay.hideFillHandle();
+              }
+            }
+
+            // Handle selection updates
+            if (selectionChanged) {
+              if (isColumnResizing) {
+                fileLog.debug('[RESIZE] Skipping selection overlay update during column resize');
+              } else if (state.selectedCells.size > 0) {
+                this.performCanvasSelectionUpdate(state.selectedCells);
+              } else if (this.canvasOverlay) {
                 // Clear selection overlay when no cells selected
-                if (this.canvasOverlay) {
-                  this.canvasOverlay.updateSelectionWithVisualPositions([]);
-                  this.canvasOverlay.hideFillHandle();
-                }
+                this.canvasOverlay.updateSelectionWithVisualPositions([]);
+                this.canvasOverlay.hideFillHandle();
               }
             }
 
@@ -358,6 +378,8 @@ export class OverlayManager {
               fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing resize preview');
               this.canvasOverlay.updateColumnResizePreview(null);
             }
+
+            wasColumnResizing = isColumnResizing;
           });
         }
       )
@@ -480,7 +502,7 @@ export class OverlayManager {
     const processedRows = this.tableCoreStore.processedRows;
 
     // Debug the full data structure
-    console.log('🔍 getCellValue DETAILED DEBUG:', {
+    fileLog.debug('getCellValue DETAILED DEBUG', {
       targetRowId: rowId,
       targetColumnId: columnId,
       totalRows: processedRows?.length || 0,
@@ -492,7 +514,7 @@ export class OverlayManager {
     const row = processedRows.find((r: any) => r.id === rowId);
 
     if (!row) {
-      console.log('❌ getCellValue: Row NOT found!', {
+      fileLog.debug('getCellValue: Row NOT found', {
         targetRowId: rowId,
         availableRowIds: processedRows?.map((r: any) => r.id) || []
       });
@@ -501,7 +523,7 @@ export class OverlayManager {
 
     const value = row[columnId];
 
-    console.log('✅ getCellValue: Row found, extracting value', {
+    fileLog.debug('getCellValue: Row found, extracting value', {
       targetRowId: rowId,
       foundRowId: row.id,
       targetColumnId: columnId,

@@ -561,7 +561,7 @@ export class VibeGridXCoordinateManager {
       try {
         listener(event);
       } catch (error) {
-        console.error('VibeGridXCoordinateManager: Error in change listener', error);
+        fileLog.error('Error in coordinate change listener', { error, eventType: event.type });
       }
     });
   }
