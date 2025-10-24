@@ -48,8 +48,13 @@ const VibeGridStoreContext = createContext<VibeGridStores | null>(null)
 /**
  * Provider component for VibeGrid stores
  * Creates and initializes all stores, provides them to child components
+ *
+ * NOTE: This component should NOT be wrapped in observer() because:
+ * 1. It only renders once to provide stable store instances via useMemo
+ * 2. Wrapping in observer() causes remount when ANY MobX observable changes
+ * 3. Child components (VibeGridInner) use observer() for reactive updates
  */
-export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
+export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
   ({ children, entityType, orgId, tableId = 'default' }) => {
     const [initError, setInitError] = useState<string | null>(null)
 

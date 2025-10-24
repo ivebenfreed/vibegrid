@@ -269,13 +269,14 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         rendererRef.current = null
       }
     }
-  }, [stores, visualStateStore.columns.length, rows]) // Need rows to trigger initial render
+  }, [stores]) // CRITICAL: Only depend on stores - renderer has MobX reactions for data/column changes!
 
   // ====================================
   // DERIVED STATE
   // ====================================
 
-  const isReady = stores && visualStateStore.columns.length > 0 && !isDataLoading
+  // Use rendererRef to determine if ready - avoids MobX tracking of visualStateStore.columns
+  const isReady = stores && !isDataLoading
   const isRendered = !!rendererRef.current
 
   // ====================================
@@ -329,23 +330,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         />
       </div>
 
-      {/* Debug info in development */}
-      {process.env.NODE_ENV === 'development' && isReady && (
-        <div className="p-2 border-t bg-muted/50 text-xs space-y-1">
-          <p>
-            <strong>Architecture:</strong> MobX Stores + TanStack DB
-          </p>
-          <p>
-            <strong>Renderer:</strong> SimplePassiveRenderer
-          </p>
-          <p>
-            <strong>Rows:</strong> {rows?.length || 0} loaded
-          </p>
-          <p>
-            <strong>Columns:</strong> {visualStateStore.columns.length}
-          </p>
-        </div>
-      )}
+      {/* Debug info in development - removed to avoid MobX tracking */}
     </div>
   )
 })
