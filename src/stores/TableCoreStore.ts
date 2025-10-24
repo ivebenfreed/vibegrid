@@ -949,7 +949,7 @@ export class TableCoreStore implements IStore {
         throw new Error('Schema registry not set - call setSchemaRegistry() before init()')
       }
 
-      // Load schema and generate columns
+      // Load schema and generate columns (with fallback)
       const generatedColumns = await generateColumnsFromEntitySchema(this.entityType, this.schemaRegistry)
 
       if (generatedColumns.length === 0) {
@@ -964,11 +964,13 @@ export class TableCoreStore implements IStore {
 
       // 🚀 Initialize columns in VisualStateStore
       if (this.visualStateStore) {
+        const orgId = this.visualStateStore.orgId || getActiveOrganizationId() || ''
+        const userId = this.visualStateStore.userId || ''
         this.visualStateStore.initializeColumns(
           generatedColumns,
           this.entityType,
-          '', // orgId - TODO: pass from context
-          ''  // userId - TODO: pass from context
+          orgId,
+          userId
         )
         log.info('✅ Columns initialized in VisualStateStore', {
           entityType: this.entityType,

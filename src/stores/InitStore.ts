@@ -15,7 +15,7 @@
  * - Progress tracking for debugging and UI feedback
  */
 
-import { makeObservable, observable, action, computed } from 'mobx'
+import { makeObservable, observable, action, computed, when } from 'mobx'
 import { createLogger } from '@/lib/logging'
 import { DisposerManager } from '@/stores/utils/disposer'
 import type { IStore } from '@/stores/types'
@@ -23,6 +23,7 @@ import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 import type { InteractionStore } from './InteractionStore'
 import type { PersistenceStore } from './PersistenceStore'
+import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStore'
 
 const log = createLogger('components/vibegrid/stores/InitStore')
 
@@ -111,6 +112,7 @@ export class InitStore implements IStore {
   private visualStateStore: VisualStateStore | null = null
   private interactionStore: InteractionStore | null = null
   private persistenceStore: PersistenceStore | null = null
+  private schemaRegistryStore: SchemaRegistryStore | null = null
 
   private tableId: string
   private entityType: string
@@ -155,6 +157,10 @@ export class InitStore implements IStore {
 
   setPersistenceStore(store: PersistenceStore): void {
     this.persistenceStore = store
+  }
+
+  setSchemaRegistry(store: SchemaRegistryStore): void {
+    this.schemaRegistryStore = store
   }
 
   // ====================================
@@ -267,6 +273,7 @@ export class InitStore implements IStore {
 
       // Step 2: Initialize TableCoreStore (loads schema)
       if (this.tableCoreStore) {
+        await this.waitForSchemaRegistry()
         await this.tableCoreStore.init()
         this.markReady('tableCoreStoreReady')
         this.markReady('schemaLoaded')
@@ -477,6 +484,44 @@ export class InitStore implements IStore {
       startTime: Date.now(),
       dependencyTimings: {}
     }
+  }
+
+  private async waitForSchemaRegistry(): Promise<void> {
+    const registry = this.schemaRegistryStore
+    if (!registry) {
+      return
+    }
+
+    if (registry.isReady) {
+      return
+    }
+
+    if (registry.error) {
+      throw registry.error
+    }
+
+    log.info('⏳ Waiting for schema registry', {
+      tableId: this.tableId,
+      entityType: this.entityType
+    })
+
+    try {
+      await when(
+        () => registry.isReady || !!registry.error,
+        { timeout: 20000 }
+      )
+    } catch (error) {
+      throw new Error('Timed out waiting for schema registry to load')
+    }
+
+    if (registry.error) {
+      throw registry.error
+    }
+
+    log.info('✅ Schema registry ready', {
+      tableId: this.tableId,
+      entityType: this.entityType
+    })
   }
 
   private setupTimeouts(): void {

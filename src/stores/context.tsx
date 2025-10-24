@@ -92,6 +92,7 @@ export const VibeGridStoreProvider = observer<VibeGridStoreProviderProps>(
       initStore.setVisualStateStore(visualStateStore)
       initStore.setInteractionStore(interactionStore)
       initStore.setPersistenceStore(persistenceStore)
+      initStore.setSchemaRegistry(schemaRegistry)
 
       // Initialize synchronously
       initStore.init().catch(error => {
