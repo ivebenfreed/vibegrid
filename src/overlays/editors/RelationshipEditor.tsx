@@ -6,12 +6,12 @@
  */
 
 import React from 'react'
-// TODO: Migrate to TanStack DB for loading relationship options
-// import { use$ } from '@legendapp/state/react'
-// import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
 import { createLogger } from '@/lib/logging'
+import { getOrCreateEntityCollection, getOrCreateMembersCollection } from '@/data/db/collections/registry'
+import { createEntityCollection } from '@/data/db/collections/entity-collections'
+import { getActiveOrganizationId } from '@/stores/experience/OrganizationStore'
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
 
@@ -24,24 +24,58 @@ export function RelationshipEditor({
   onUpdate,
   onBlur
 }: EditorProps) {
-  // TODO: Load relationship data from TanStack DB
-  // Migration pattern:
-  // 1. Use useEntityCollection(userEntityName) for users
-  // 2. Use useEntityCollection(entityEntityName) for referenced entities
-  // 3. Transform collection data to options format
-
   const cellType = column.cellType || column.type
 
-  // STUB: Empty relationship options until TanStack DB integration
+  // Determine target entity type
+  const targetEntityType = (column as any).relationshipConfig?.targetEntityType ||
+                          (column as any).targetEntityType ||
+                          (column as any).relationshipTargetEntity
+
+  const isUserReference = cellType === 'user_reference' || cellType === 'custom_user_reference'
+
+  // Transform collection data to options format
   const relationshipOptions = React.useMemo(() => {
-    fileLog.warn('RelationshipEditor: Using stub options (TanStack DB migration pending)', {
+    const orgId = getActiveOrganizationId()
+    if (!orgId) {
+      fileLog.warn('No active organization - cannot load relationship options')
+      return []
+    }
+
+    if (isUserReference) {
+      // Load members collection
+      const membersCollection = getOrCreateMembersCollection(orgId)
+      const members = membersCollection?.toArray || []
+      return members.map((member: any) => ({
+        value: member.user_id || member.userId || member.id,
+        label: member.user?.name || member.name || member.user?.email || member.email || 'Unknown User',
+        color: undefined,
+        backgroundColor: undefined
+      }))
+    } else if (targetEntityType) {
+      // Load entity collection
+      const entityCollection = getOrCreateEntityCollection(targetEntityType, orgId, createEntityCollection)
+      const entities = entityCollection?.toArray || []
+      const displayField = (column as any).relationshipConfig?.displayField ||
+                          (column as any).relationshipDisplayField ||
+                          'name'
+
+      return entities.map((entity: any) => ({
+        value: entity.id,
+        label: entity[displayField] || entity.name || entity.title || `Entity ${entity.id}`,
+        color: undefined,
+        backgroundColor: undefined
+      }))
+    }
+
+    fileLog.debug('RelationshipEditor: No collection data available', {
       columnId: column.id,
-      cellType
+      cellType,
+      targetEntityType,
+      isUserReference
     })
 
-    // Return empty array for now - will be populated after TanStack DB migration
     return []
-  }, [cellType, column.id])
+  }, [cellType, column, isUserReference, targetEntityType])
 
   // Create enhanced column with relationship options
   const enhancedColumn = React.useMemo(() => ({

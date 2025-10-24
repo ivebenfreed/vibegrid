@@ -21,7 +21,7 @@
  * ```
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { autorun } from 'mobx'
 
 /**
@@ -33,16 +33,16 @@ import { autorun } from 'mobx'
 export function useMobxSnapshot<T>(getValue: () => T): T {
   // Initialize with current value
   const [snapshot, setSnapshot] = useState<T>(() => getValue())
+  const getterRef = useRef(getValue)
+  getterRef.current = getValue
   useEffect(() => {
-    // Create MobX autorun that tracks getValue dependencies
     const disposer = autorun(() => {
-      const newValue = getValue()
-      setSnapshot(newValue)
+      const newValue = getterRef.current()
+      setSnapshot(prev => (Object.is(prev, newValue) ? prev : newValue))
     })
 
-    // Clean up autorun on unmount
     return disposer
-  }, [getValue])
+  }, [])
 
   return snapshot
 }
