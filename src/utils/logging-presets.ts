@@ -121,21 +121,8 @@ export const VIBEGRID_LOG_PRESETS = {
  * Reduces spam while keeping important logs visible
  */
 function initializeDefaultLevels() {
-  // Clear any old config from localStorage to ensure fresh start
-  // Only clear if the stored config has globalLevel as 'debug' or 'info'
-  try {
-    const stored = localStorage.getItem('baseplane_log_config');
-    if (stored) {
-      const config = JSON.parse(stored);
-      if (config.globalLevel === 'debug' || config.globalLevel === 'info') {
-        localStorage.removeItem('baseplane_log_config');
-      }
-    }
-  } catch (e) {
-    // Ignore errors
-  }
-
-  // Set normal mode as default: info level with noisy subsystems at warn
+  // Set Vibegrid-specific overrides (don't touch global level)
+  // The global level defaults to 'warn' from config.ts
   setLogLevel('info', 'components/vibegrid/*');
   setLogLevel('warn', 'components/vibegrid/renderers/modules/OverlayManager');
   setLogLevel('warn', 'components/vibegrid/coordinates/*');
