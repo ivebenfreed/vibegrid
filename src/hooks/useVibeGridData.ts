@@ -216,8 +216,9 @@ export function useVibeGridData(
       query = applyAllFilters(query, filterSnapshot, 'entity')
     }
 
-    // Select all entity fields
-    return query.select(({ entity }: any) => entity)
+    // CRITICAL FIX: Select with spread to dereference the entity data
+    // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
+    return query.select(({ entity }: any) => ({ ...entity }))
   }, [collection, filterSnapshot, sortSnapshot])
 
   // Apply client-side sorting to results

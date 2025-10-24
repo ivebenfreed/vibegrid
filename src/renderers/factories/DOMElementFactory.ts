@@ -208,13 +208,11 @@ export class DOMElementFactory {
    */
   createCornerHeaderCell(): { cornerCell: HTMLElement; selectAllCheckbox?: HTMLInputElement } {
     const cornerCell = this.createElement('div', 'vibegridx-corner-header');
+    cornerCell.classList.add('vibegridx-header-corner-cell');
     cornerCell.style.cssText = `
       width: 40px;
       min-width: 40px;
       height: ${HEADER_HEIGHT}px;
-      background: #f8f9fa;
-      border-right: 1px solid #e9ecef;
-      border-bottom: 1px solid #e9ecef;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -256,11 +254,9 @@ export class DOMElementFactory {
       align-items: center;
       font-weight: 600;
       font-size: 14px;
-      border-right: 1px solid #e9ecef;
-      background: #f8f9fa;
       position: relative;
     `;
-    
+
     return headerCell;
   }
 

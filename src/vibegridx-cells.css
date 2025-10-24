@@ -2,6 +2,15 @@
    VIBEGRIDX CELL RENDERER STYLES
    ==================================== */
 
+/* Base Cell Container */
+.vibegridx-cell {
+  border-right: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-cell {
+  border-right: 1px solid var(--border) !important;
+}
+
 /* Base Cell Styles */
 .vibegridx-cell-content {
   display: inline-block;
@@ -541,4 +550,12 @@
     color: hsl(var(--muted-foreground));
     border-color: hsl(var(--border));
   }
+}
+/* Cell borders with dark mode support */
+.vibegridx-cell {
+  border-right: 1px solid hsl(var(--border));
+}
+
+.dark .vibegridx-cell {
+  border-right: 1px solid hsl(var(--border));
 }

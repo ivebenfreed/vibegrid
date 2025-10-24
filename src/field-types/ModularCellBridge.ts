@@ -153,7 +153,6 @@ export class ModularCellBridge {
         display: flex;
         align-items: center;
         font-size: 14px;
-        border-right: 1px solid #f1f3f5;
         overflow: hidden;
         cursor: default;
       `;
@@ -165,7 +164,6 @@ export class ModularCellBridge {
         display: flex;
         align-items: center;
         font-size: 14px;
-        border-right: 1px solid #f1f3f5;
         overflow: hidden;
         position: relative;
         cursor: default;

@@ -996,3 +996,80 @@ body.vibegridx-dragging-active * {
   transform: none;
   border: none;
 }
+/* Row header and drag column backgrounds with dark mode support */
+.vibegridx-row .vibegridx-drag-column,
+.vibegridx-row .vibegridx-row-header-cell {
+  background: var(--background) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.vibegridx-row-alt .vibegridx-drag-column,
+.vibegridx-row-alt .vibegridx-row-header-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.vibegridx-row-header-cell {
+  color: var(--muted-foreground) !important;
+}
+
+.dark .vibegridx-row .vibegridx-drag-column,
+.dark .vibegridx-row .vibegridx-row-header-cell {
+  background: var(--background) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-row-alt .vibegridx-drag-column,
+.dark .vibegridx-row-alt .vibegridx-row-header-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-row-header-cell {
+  color: var(--muted-foreground) !important;
+}
+
+/* Row backgrounds with dark mode support */
+.vibegridx-row {
+  background: var(--background) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.vibegridx-row-alt {
+  background: var(--muted) !important;
+}
+
+.dark .vibegridx-row {
+  background: var(--background) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-row-alt {
+  background: var(--muted) !important;
+}
+
+/* Header cells with dark mode support */
+.vibegridx-header-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-header-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+/* Header drag column and corner cell */
+.vibegridx-header-drag-column,
+.vibegridx-header-corner-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.dark .vibegridx-header-drag-column,
+.dark .vibegridx-header-corner-cell {
+  background: var(--muted) !important;
+  border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border) !important;
+}

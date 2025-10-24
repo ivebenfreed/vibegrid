@@ -493,13 +493,11 @@ export class HeaderRenderer {
     const dragColumnHeader = this.domFactory.createElement('div', 'vibegridx-drag-column-header');
 
     // Style to match drag column in body (30px wide)
+    dragColumnHeader.classList.add('vibegridx-header-drag-column');
     dragColumnHeader.style.cssText = `
       width: 30px;
       min-width: 30px;
       height: ${HEADER_HEIGHT}px;
-      background: #f8f9fa;
-      border-right: 1px solid #e9ecef;
-      border-bottom: 1px solid #e9ecef;
       display: flex;
       align-items: center;
       justify-content: center;

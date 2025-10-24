@@ -290,6 +290,22 @@ export class TableCoreStore implements IStore {
     let rows: any[]
     if (this.rawRows.length > 0) {
       rows = this.rawRows
+      // DEBUG: Log first row structure to understand the data format
+      if (rows.length > 0) {
+        const firstRow = rows[0]
+        log.info('🔍 [PROCESSEDROWS-DEBUG] First raw row structure', {
+          hasId: !!firstRow?.id,
+          hasData: !!firstRow?.data,
+          keys: Object.keys(firstRow || {}),
+          keyValues: Object.keys(firstRow || {}).reduce((acc, key) => {
+            acc[key] = typeof firstRow[key]
+            return acc
+          }, {} as Record<string, string>),
+          pathValue: firstRow?.path,
+          typeValue: firstRow?.type,
+          rawRowsLength: rows.length
+        })
+      }
     } else if (this.entityDataProvider) {
       // Fallback to entity data provider (future full implementation)
       const data = this.entityDataProvider.getEntityData() || {}
@@ -356,7 +372,22 @@ export class TableCoreStore implements IStore {
       })
     }
 
-    return rows
+    // CRITICAL FIX: Wrap flat rows in VirtualRow structure for consistency with grouped rows
+    // BodyRenderer.createCellElement expects rows with { type, id, data } structure
+    const virtualRows = rows.map((row, index) => ({
+      type: 'data' as const,
+      id: row.id,
+      index,
+      height: 40, // DATA_ROW_HEIGHT constant from GroupProcessor
+      data: row
+    }))
+
+    log.debug('✅ Wrapped flat rows in VirtualRow structure', {
+      inputRows: rows.length,
+      virtualRows: virtualRows.length
+    })
+
+    return virtualRows
   }
 
   // ====================================

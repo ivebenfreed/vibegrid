@@ -230,14 +230,17 @@ export class BodyRenderer {
     // startX now comes from visual state which already includes drag + checkbox columns (70px total)
     const adjustedStartX = startX;
 
+    // Add alternating row class for CSS styling (supports dark mode)
+    if (rowIndex % 2 !== 0) {
+      rowElement.classList.add('vibegridx-row-alt');
+    }
+
     rowElement.style.cssText = `
       position: absolute;
       top: ${rowIndex * ROW_HEIGHT}px;
       left: 0;
       right: 0;
       height: ${ROW_HEIGHT}px;
-      border-bottom: 1px solid #f1f3f5;
-      background: ${rowIndex % 2 === 0 ? '#ffffff' : '#f8f9fa'};
     `;
 
     // Add drag column (always present for consistent layout)
@@ -360,14 +363,13 @@ export class BodyRenderer {
     const isDataRow = row.type === 'data' && this.dragDropManager;
     const canDragRow = isDataRow; // Support drag in both grouped and flat modes
 
+    dragColumn.classList.add('vibegridx-drag-column');
     dragColumn.style.cssText = `
       width: ${GRID_DIMENSIONS.DRAG_COLUMN_WIDTH}px;
       height: ${ROW_HEIGHT}px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f8f9fa;
-      border-right: 1px solid #e9ecef;
       cursor: ${canDragRow ? 'grab' : 'default'};
       user-select: none;
       position: relative;
@@ -406,16 +408,14 @@ export class BodyRenderer {
   private createRowHeader(row: any, rowIndex: number): HTMLElement {
     const rowHeader = this.createElement('div', 'vibegridx-row-header');
 
+    rowHeader.classList.add('vibegridx-row-header-cell');
     rowHeader.style.cssText = `
       width: ${GRID_DIMENSIONS.ROW_HEADER_WIDTH}px;
       height: ${ROW_HEIGHT}px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f8f9fa;
-      border-right: 1px solid #e9ecef;
       font-size: 12px;
-      color: #6c757d;
       cursor: pointer;
       user-select: none;
       position: relative;
