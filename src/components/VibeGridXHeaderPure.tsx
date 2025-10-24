@@ -5,12 +5,15 @@
  * Includes: Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
+import { createLogger } from '@/lib/logging';
 import type { VibeGridStores } from '../stores/context';
 import { VibeGridEntityAdd } from './VibeGridEntityAdd';
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure';
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure';
+
+const log = createLogger('components/vibegrid/components/VibeGridXHeaderPure');
 
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores;
@@ -36,8 +39,39 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
     col => visualStateStore.columnVisibility[col.id] === false
   ).length;
 
+  // Log when component mounts and on every render
+  useEffect(() => {
+    log.info('🎨 VibeGridXHeaderPure MOUNTED', {
+      hasStores: !!stores,
+      hasVisualStateStore: !!visualStateStore,
+      columnCount: visualStateStore.columns.length,
+      hiddenColumnCount,
+      enableGrouping,
+      entityName,
+      hasOrgId: !!orgId,
+      hasCreateEntity: !!createEntity
+    });
+
+    return () => {
+      log.info('🧹 VibeGridXHeaderPure UNMOUNTED');
+    };
+  }, []);
+
+  // Log on every render (data changes)
+  log.debug('🔄 VibeGridXHeaderPure RENDER', {
+    columnCount: visualStateStore.columns.length,
+    hiddenColumnCount,
+    visibleColumnCount: visualStateStore.columns.length - hiddenColumnCount
+  });
+
   return (
-    <div className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}>
+    <div
+      className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}
+      style={{
+        minHeight: '44px',
+        flexShrink: 0
+      }}
+    >
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Table View</span>
         {hiddenColumnCount > 0 && (

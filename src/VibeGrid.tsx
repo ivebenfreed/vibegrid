@@ -291,6 +291,22 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   const isReady = stores && !isDataLoading
   const isRendered = !!rendererRef.current
 
+  // Header should show as soon as stores are ready (don't wait for renderer)
+  const shouldShowHeader = isReady && visualStateStore.columns.length > 0
+
+  // Log header visibility decision
+  useEffect(() => {
+    log.info('📊 Header visibility check', {
+      shouldShowHeader,
+      isReady,
+      isRendered,
+      showLoadingOverlay: (!isReady || !isRendered),
+      columnCount: visualStateStore.columns.length,
+      isDataLoading,
+      hasStores: !!stores
+    })
+  }, [shouldShowHeader, isReady, isRendered, visualStateStore.columns.length, isDataLoading, stores])
+
   // ====================================
   // RENDER
   // ====================================
@@ -316,8 +332,8 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         </div>
       )}
 
-      {/* Header with menu components */}
-      {isReady && !isDataLoading && isRendered && (
+      {/* Header with menu components - Show as soon as columns are ready */}
+      {shouldShowHeader && (
         <VibeGridXHeaderPure
           stores={stores}
           enableGrouping={enableGrouping}
@@ -356,13 +372,9 @@ VibeGridInner.displayName = 'VibeGridInner'
 export function VibeGrid<T extends Record<string, any> = any>(
   props: VibeGridProps<T>
 ): React.ReactElement {
-  const { entityType, tableId, orgId } = props
-
-  return (
-    <VibeGridStoreProvider entityType={entityType} tableId={tableId} orgId={orgId}>
-      <VibeGridInner {...props} />
-    </VibeGridStoreProvider>
-  )
+  // Note: VibeGrid expects to be wrapped in VibeGridStoreProvider by the parent
+  // This allows for better control over store lifecycle from the parent component
+  return <VibeGridInner {...props} />
 }
 
 export default VibeGrid

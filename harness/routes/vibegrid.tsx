@@ -24,27 +24,27 @@ function DebugVibeGridPage() {
         </p>
       </div>
 
-      <div className="flex-1 w-full overflow-hidden">
+      <div className="flex-1 w-full">
         <VibeGridStoreProvider tableId="debug-grid-1" entityType={entityType}>
           <VibeGrid
             tableId="debug-grid-1"
             entityType={entityType}
             height={600}
-            enableSelectionColumn={true}
-            enableGrouping={true}
-            enableFiltering={true}
-            enableSorting={true}
-            onSelectionChange={(selections) => {
-              setStats(s => ({ ...s, selections: selections.size }));
-            }}
-            onEditingChange={(editing) => {
-              if (editing) {
-                setStats(s => ({ ...s, edits: s.edits + 1 }));
-              }
-            }}
-            onPerformanceUpdate={(metrics) => {
-              setStats(s => ({ ...s, renders: s.renders + 1 }));
-            }}
+          enableSelectionColumn={true}
+          enableGrouping={true}
+          enableFiltering={true}
+          enableSorting={true}
+          onSelectionChange={(selections) => {
+            setStats(s => ({ ...s, selections: selections.size }));
+          }}
+          onEditingChange={(editing) => {
+            if (editing) {
+              setStats(s => ({ ...s, edits: s.edits + 1 }));
+            }
+          }}
+          onPerformanceUpdate={(metrics) => {
+            setStats(s => ({ ...s, renders: s.renders + 1 }));
+          }}
           />
         </VibeGridStoreProvider>
       </div>
