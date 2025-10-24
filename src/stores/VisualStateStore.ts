@@ -244,7 +244,7 @@ export class VisualStateStore implements IStore {
     const startRowIndex = Math.floor(this.scrollTop / this.rowHeight)
     const endRowIndex = Math.min(
       this.rowCount,
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
+      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight)
     )
 
     return {

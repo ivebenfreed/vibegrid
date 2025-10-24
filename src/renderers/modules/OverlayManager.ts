@@ -820,9 +820,18 @@ export class OverlayManager {
         const cellRect = cell.getBoundingClientRect();
         const viewportRect = viewportContainer.getBoundingClientRect();
 
+        // Calculate viewport-relative position
+        const relativeX = cellRect.left - viewportRect.left;
+        const relativeY = cellRect.top - viewportRect.top;
+
+        // CRITICAL: Add scroll offset to get absolute position within scrollable content
+        // This matches the logic in dom-position-state.ts:406-407
+        const scrollLeft = viewportContainer.scrollLeft || 0;
+        const scrollTop = viewportContainer.scrollTop || 0;
+
         const directPosition = {
-          x: cellRect.left - viewportRect.left,
-          y: cellRect.top - viewportRect.top,
+          x: relativeX + scrollLeft,
+          y: relativeY + scrollTop,
           width: cellRect.width,
           height: cellRect.height
         };

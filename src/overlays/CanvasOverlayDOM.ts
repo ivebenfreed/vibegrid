@@ -136,39 +136,10 @@ export class CanvasOverlayDOM {
     if (!this.selectionOverlay && this.overlayContainer) {
       fileLog.debug('CanvasOverlayDOM: Creating SelectionOverlayDOM');
 
-      // Create selection container positioned to match the actual viewport
-      const selectionContainer = document.createElement('div');
-      selectionContainer.className = 'vibegridx-selection-container';
-
-      // CRITICAL FIX: Ensure overlay container coordinate system matches the table body
-      fileLog.debug('🎯 DIAGNOSTIC: Setting up overlay container positioning with scroll context alignment');
-
-      // Find the scrollable table body container to ensure coordinate alignment
-      const tableBodyContainer = this.container?.querySelector('.vibegridx-body-container') as HTMLElement;
-      const scrollContext = tableBodyContainer || this.container;
-
-      fileLog.debug('🎯 DIAGNOSTIC: Overlay positioning context analysis', {
-        hasTableBodyContainer: !!tableBodyContainer,
-        scrollContextClass: scrollContext?.className,
-        containerClass: this.container?.className,
-        overlayContainerClass: this.overlayContainer?.className,
-        scrollLeft: scrollContext?.scrollLeft || 0
-      });
-
-      selectionContainer.style.position = 'absolute';
-      selectionContainer.style.top = '0';
-      selectionContainer.style.left = '0';
-      selectionContainer.style.right = '0';
-      selectionContainer.style.height = '100%';
-
-      fileLog.debug('✅ DIAGNOSTIC: Overlay container positioned to fill parent with scroll alignment');
-
-      selectionContainer.style.pointerEvents = 'none';
-      selectionContainer.style.overflow = 'hidden';
-      this.overlayContainer.appendChild(selectionContainer);
-      
+      // CRITICAL FIX: Use overlayContainer directly like FillHandleLayer does
+      // No wrapper needed - positions are already absolute within scrollable content
       this.selectionOverlay = new SelectionOverlayDOM(
-        selectionContainer,
+        this.overlayContainer,
         {
           selectionColor: this.config.selectionColor || 'rgba(59, 130, 246, 0.15)',
           selectionBorderColor: this.config.selectionBorderColor || 'rgba(59, 130, 246, 0.5)',

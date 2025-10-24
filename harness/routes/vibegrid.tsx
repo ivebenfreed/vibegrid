@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { VibeGrid } from '@/components/vibegrid';
 import { VibeGridStoreProvider } from '@/components/vibegrid/stores/context';
 
@@ -17,47 +16,38 @@ function DebugVibeGridPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex flex-col h-full w-full">
+      <div className="p-6 border-b">
         <h2 className="text-2xl font-bold tracking-tight">VibeGrid POC</h2>
         <p className="text-muted-foreground">
-          Test VibeGrid with new MobX stores + TanStack DB architecture
+          Test VibeGrid with new MobX stores + TanStack DB architecture - {entityType}
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>VibeGrid Instance</CardTitle>
-          <CardDescription>Testing entity: {entityType}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-lg overflow-hidden" style={{ height: '600px' }}>
-            <VibeGridStoreProvider tableId="debug-grid-1" entityType={entityType}>
-              <VibeGrid
-                tableId="debug-grid-1"
-                entityType={entityType}
-                height={600}
-                enableSelectionColumn={true}
-                enableGrouping={true}
-                enableFiltering={true}
-                enableSorting={true}
-                onSelectionChange={(selections) => {
-                  setStats(s => ({ ...s, selections: selections.size }));
-                }}
-                onEditingChange={(editing) => {
-                  if (editing) {
-                    setStats(s => ({ ...s, edits: s.edits + 1 }));
-                  }
-                }}
-                onPerformanceUpdate={(metrics) => {
-                  setStats(s => ({ ...s, renders: s.renders + 1 }));
-                }}
-              />
-            </VibeGridStoreProvider>
-          </div>
-        </CardContent>
-      </Card>
-
+      <div className="flex-1 w-full overflow-hidden">
+        <VibeGridStoreProvider tableId="debug-grid-1" entityType={entityType}>
+          <VibeGrid
+            tableId="debug-grid-1"
+            entityType={entityType}
+            height={600}
+            enableSelectionColumn={true}
+            enableGrouping={true}
+            enableFiltering={true}
+            enableSorting={true}
+            onSelectionChange={(selections) => {
+              setStats(s => ({ ...s, selections: selections.size }));
+            }}
+            onEditingChange={(editing) => {
+              if (editing) {
+                setStats(s => ({ ...s, edits: s.edits + 1 }));
+              }
+            }}
+            onPerformanceUpdate={(metrics) => {
+              setStats(s => ({ ...s, renders: s.renders + 1 }));
+            }}
+          />
+        </VibeGridStoreProvider>
+      </div>
     </div>
   );
 }
