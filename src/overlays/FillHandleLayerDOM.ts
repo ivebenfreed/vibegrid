@@ -236,8 +236,8 @@ export class FillHandleLayerDOM {
       const [rowId, columnId] = cellKey.split(':');
       
       // Find coordinates
-      const rowCoord = this.coordinateMapping.rows.find(r => r.rowId === rowId);
-      const colCoord = this.coordinateMapping.columns.find(c => c.columnId === columnId);
+      const rowCoord = this.coordinateMapping.rows.find((r: any) => r.rowId === rowId);
+      const colCoord = this.coordinateMapping.columns.find((c: any) => c.columnId === columnId);
       
       if (!rowCoord || !colCoord) continue;
       
@@ -472,8 +472,8 @@ export class FillHandleLayerDOM {
     for (const cellKey of selectedCells) {
       const [rowId, columnId] = cellKey.split(':');
       
-      const rowIndex = this.coordinateMapping.rows.findIndex(r => r.rowId === rowId);
-      const colIndex = this.coordinateMapping.columns.findIndex(c => c.columnId === columnId);
+      const rowIndex = this.coordinateMapping.rows.findIndex((r: any) => r.rowId === rowId);
+      const colIndex = this.coordinateMapping.columns.findIndex((c: any) => c.columnId === columnId);
       
       if (rowIndex !== -1 && colIndex !== -1) {
         minRowIndex = Math.min(minRowIndex, rowIndex);

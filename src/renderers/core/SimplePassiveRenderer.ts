@@ -1770,7 +1770,7 @@ export class SimplePassiveRenderer {
       const needsHeaderRender = !previousState ||
         previousState.columns.length !== visualState.columns.length ||
         JSON.stringify(previousState.columnVisibility) !== JSON.stringify(visualState.columnVisibility) ||
-        JSON.stringify(previousState.columns.map(c => c.width)) !== JSON.stringify(visualState.columns.map(c => c.width));
+        JSON.stringify(previousState.columns.map((c: any) => c.width)) !== JSON.stringify(visualState.columns.map((c: any) => c.width));
 
       // Check if body needs to be re-rendered (viewport changes affect body virtual scrolling)
       // Add scroll thresholds to prevent excessive re-renders on small scroll changes

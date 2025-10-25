@@ -239,8 +239,8 @@ export class ClipboardOverlayDOM {
     for (const cellKey of copiedCells) {
       const [rowId, columnId] = cellKey.split(':');
       
-      const rowCoord = this.coordinateMapping.rows.find(r => r.rowId === rowId);
-      const colCoord = this.coordinateMapping.columns.find(c => c.columnId === columnId);
+      const rowCoord = this.coordinateMapping.rows.find((r: any) => r.rowId === rowId);
+      const colCoord = this.coordinateMapping.columns.find((c: any) => c.columnId === columnId);
       
       if (!rowCoord || !colCoord) continue;
       

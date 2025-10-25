@@ -86,13 +86,13 @@ export class ColumnResizeOverlayDOM {
 
     if (this.coordinateMapping && this.coordinateMapping.columns) {
       const columnMapping = this.coordinateMapping.columns.find(
-        (col) => col.columnId === resizeState.columnId
+        (col: any) => col.columnId === resizeState.columnId
       );
 
       if (!columnMapping) {
         fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column not found in coordinate mapping', {
           columnId: resizeState.columnId,
-          availableColumns: this.coordinateMapping.columns.map(col => col.columnId)
+          availableColumns: this.coordinateMapping.columns.map((col: any) => col.columnId)
         });
         const fallback = this.calculateFallbackPosition(resizeState);
         if (!fallback) {

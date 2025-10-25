@@ -220,10 +220,10 @@ export class EventManager {
       // Find the minimum row index from selected cells
       const rowIds = Array.from(selectedCells).map(cellId => cellId.split(':')[0]);
       const uniqueRowIds = [...new Set(rowIds)];
-      const rows = this.tableCore$.processedRows.get();
-      
-      const rowIndices = uniqueRowIds.map(rowId => 
-        rows.findIndex(row => row.id === rowId)
+      const rows = this.tableCore$.processedRows;
+
+      const rowIndices = uniqueRowIds.map(rowId =>
+        rows.findIndex((row: any) => row.id === rowId)
       ).filter(index => index !== -1);
       
       if (rowIndices.length > 0) {
