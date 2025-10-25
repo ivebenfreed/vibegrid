@@ -66,7 +66,7 @@ export class ClipboardManager {
   async handleCopy(): Promise<boolean> {
     fileLog.debug('📋 ClipboardManager: Copy action triggered');
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells;
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select cells to copy first',
@@ -82,15 +82,7 @@ export class ClipboardManager {
       // Store in internal clipboard with metadata and type information
       this.tableInteraction$.setClipboard({
         data: clipboardData.cells.map(cell => [cell.value]), // Convert for backward compatibility
-        operation: 'copy',
-        metadata: {
-          columnTypes: clipboardData.columnTypes,
-          sourceColumns: clipboardData.cells.map(cell => ({
-            columnId: cell.columnId,
-            type: clipboardData.columnTypes[cell.columnId],
-            index: cell.columnIndex
-          }))
-        }
+        operation: 'copy'
       });
 
       toast.success('Copied to clipboard', {
@@ -116,7 +108,7 @@ export class ClipboardManager {
   async handlePaste(): Promise<PasteResult> {
     fileLog.debug('📋 ClipboardManager: Paste action triggered');
 
-    const clipboard = this.tableInteraction$.clipboard.get();
+    const clipboard = this.tableInteraction$.clipboard;
     if (!clipboard || !clipboard.data) {
       toast.warning('No clipboard data', {
         description: 'Copy some cells first before pasting',
@@ -133,7 +125,7 @@ export class ClipboardManager {
       };
     }
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells;
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select target cells before pasting',
@@ -323,8 +315,8 @@ export class ClipboardManager {
    * Extract rich clipboard data with column metadata
    */
   private extractRichClipboardData(selectedCells: Set<string>): VibeGridClipboardData {
-    const rows = this.tableCore$.processedRows.get();
-    const columns = this.tableCore$.columns.get();
+    const rows = this.tableCore$.processedRows;
+    const columns = this.tableCore$.columns;
 
     const cells: ClipboardCell[] = [];
     const columnTypes: Record<string, string> = {};
@@ -411,7 +403,7 @@ export class ClipboardManager {
    */
   private async performColumnAwarePaste(data: any[][], targetCells: Set<string>): Promise<PasteResult> {
     const processedRows = this.tableCore$.processedRows.get();
-    const allColumns = this.tableCore$.columns.get();
+    const allColumns = this.tableCore$.columns;
 
     if (processedRows.length === 0 || allColumns.length === 0) {
       return {
@@ -438,8 +430,8 @@ export class ClipboardManager {
     });
 
     const sortedRows = Array.from(cellsByRow.keys()).sort((a, b) => {
-      const indexA = processedRows.findIndex(row => row.id === a);
-      const indexB = processedRows.findIndex(row => row.id === b);
+      const indexA = processedRows.findIndex((row: any) => row.id === a);
+      const indexB = processedRows.findIndex((row: any) => row.id === b);
       return indexA - indexB;
     });
 
@@ -450,7 +442,7 @@ export class ClipboardManager {
     const details: PasteResult['details'] = [];
 
     // Get source column metadata from clipboard for type checking
-    const clipboard = this.tableInteraction$.clipboard.get();
+    const clipboard = this.tableInteraction$.clipboard;
     const sourceColumns = new Map<number, any>(); // Map column index to source column info
 
     // Extract source column type information if available
@@ -526,7 +518,7 @@ export class ClipboardManager {
 
         try {
           const processedValue = this.processValueForColumn(rawValue, column);
-          const originalValue = processedRows.find(r => r.id === rowId)?.[columnId];
+          const originalValue = processedRows.find((r: any) => r.id === rowId)?.[columnId];
 
           if (this.onEntityUpdate) {
             await this.onEntityUpdate(rowId, { [columnId]: processedValue });
@@ -891,7 +883,7 @@ export class ClipboardManager {
       };
     }
 
-    const columns = this.tableCore$.columns.get();
+    const columns = this.tableCore$.columns;
     const targetCellOperations: PasteValidationResult['targetCells'] = [];
 
     // Validate each target cell
