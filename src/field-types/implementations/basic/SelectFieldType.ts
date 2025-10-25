@@ -366,7 +366,7 @@ export class SelectEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select as HTMLElement;
+    return select as unknown as HTMLElement;
   }
 
   private createMultiSelectEditor(value: any, column: EnhancedColumn): HTMLElement {
@@ -399,7 +399,7 @@ export class SelectEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select as HTMLElement;
+    return select as unknown as HTMLElement;
   }
 
   private addOptions(select: HTMLSelectElement, column: EnhancedColumn, currentValue: any): void {

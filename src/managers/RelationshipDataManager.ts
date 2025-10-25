@@ -134,9 +134,9 @@ export class RelationshipDataManager {
         throw new Error(`Search request failed: ${response.status}`);
       }
 
-      const results = await response.json();
+      const results = await response.json() as { data?: any[] };
 
-      return results.data.map((item: any) => ({
+      return (results.data || []).map((item: any) => ({
         value: item.id,
         label: item[config.displayField] || item.name || item.title || item.id,
         metadata: item
@@ -221,13 +221,14 @@ export class RelationshipDataManager {
         throw new Error(`Failed to load relationship data: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { data?: any } | any;
 
       // Store in cache
       const cacheKey = this.getCacheKey(column, rowIds);
       const now = new Date();
+      const relationshipData = (data as any).data || data;
       this.cache.set(cacheKey, {
-        data: data.data || data,
+        data: relationshipData,
         loadedAt: now,
         expiresAt: new Date(now.getTime() + this.cacheExpiryMs),
         rowIds: [...rowIds]
@@ -236,7 +237,7 @@ export class RelationshipDataManager {
       fileLog.debug('Loaded relationship data', {
         columnId: column.id,
         targetEntity: config.targetEntityType,
-        recordCount: Object.keys(data.data || data).length
+        recordCount: Object.keys(relationshipData).length
       });
 
     } catch (error) {

@@ -228,7 +228,7 @@ export class BooleanEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select as HTMLElement;
+    return select as unknown as HTMLElement;
   }
 
   getValue(element: HTMLElement): any {
