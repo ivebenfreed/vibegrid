@@ -26,7 +26,7 @@ throw new Error('This file has not been migrated to MobX - see file header for d
  */
 
 // TODO: Remove Legend State - migrating to MobX
-// import { computed } from '@legendapp/state';
+import { computed } from 'mobx';
 import { domPositions$ } from '../stores/dom-position-state';
 import { virtualCellPosition$ } from '../virtualization/VirtualScrollManager';
 import type { CellCoordinates, CellRef } from '../types/coordinate-types';

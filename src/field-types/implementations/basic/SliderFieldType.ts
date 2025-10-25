@@ -41,9 +41,9 @@ export class SliderRenderer implements CellRenderer {
   update(element: HTMLElement, value: any): void {
     const valueSpan = element.querySelector('span');
     const progress = element.querySelector('div > div');
-    
+
     if (valueSpan) valueSpan.textContent = String(Number(value) || 0);
-    if (progress) {
+    if (progress instanceof HTMLElement) {
       const numValue = Number(value) || 0;
       const percentage = (numValue / 100) * 100; // Assuming 0-100 range
       progress.style.width = `${Math.max(0, Math.min(100, percentage))}%`;

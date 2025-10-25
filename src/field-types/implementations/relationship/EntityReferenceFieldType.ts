@@ -31,7 +31,7 @@ export class EntityDataLoader implements AsyncDataLoader {
       const response = await fetch(`/api/dataforge/orgs/${orgId}/relationships/${targetEntity.toLowerCase()}?rowIds=${rowIds.join(',')}`);
       if (!response.ok) throw new Error(`Failed to load ${targetEntity} data: ${response.status}`);
 
-      const result = await response.json();
+      const result = await response.json() as { data?: RelationshipData };
       return result.data || {};
     } catch (error) {
       fileLog.error('Failed to load entity relationship data', { error, column: column.id });
@@ -68,10 +68,10 @@ export class EntityDataLoader implements AsyncDataLoader {
       const response = await fetch(`/api/dataforge/orgs/${orgId}/data/${targetEntity}/search?${searchParams}`);
       if (!response.ok) throw new Error(`${targetEntity} search failed: ${response.status}`);
 
-      const results = await response.json();
+      const results = await response.json() as { data?: any[] };
       const displayField = column.relationshipConfig?.displayField || 'name';
 
-      return results.data.map((item: any) => ({
+      return (results.data || []).map((item: any) => ({
         value: item.id,
         label: item[displayField] || item.name || item.title || item.id,
         metadata: item

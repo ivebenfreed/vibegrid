@@ -538,19 +538,20 @@ export class CellFactory {
     // Validate the new value using the field type's validator
     try {
       const validationResult = fieldType.validator ?
-        fieldType.validator(value, column, {}) :
-        { isValid: true, value };
+        fieldType.validator.validate(value, column) :
+        { valid: true, errors: [], transformedValue: value };
 
-      if (validationResult.isValid) {
+      if (validationResult.valid) {
         // Re-render the cell with the validated value
-        this.updateCell(container, validationResult.value, column, {});
+        const finalValue = validationResult.transformedValue ?? value;
+        this.updateCell(container, finalValue, column, {});
         container.classList.remove('vibegridx-cell-editing');
       } else {
         // Show validation error
         fileLog.warn('Cell edit validation failed', {
           columnId: column.id,
           value,
-          error: validationResult.error
+          errors: validationResult.errors
         });
       }
     } catch (error) {

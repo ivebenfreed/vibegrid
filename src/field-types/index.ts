@@ -9,6 +9,7 @@ import { createLogger } from '@/lib/logging';
 
 // Import registry first before any field type implementations
 import { fieldTypeRegistry } from './FieldTypeRegistry';
+import { modularCellBridge } from './ModularCellBridge';
 
 const fileLog = createLogger('components/vibegrid/field-types/index');
 

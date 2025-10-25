@@ -244,7 +244,7 @@ export class SelectRenderer implements CellRenderer {
  * Select Cell Editor
  */
 export class SelectEditor implements CellEditor {
-  private currentElement: HTMLElement | HTMLSelectElement | null = null;
+  private currentElement: HTMLSelectElement | null = null;
   private onSaveCallback: ((value: any) => void) | null = null;
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
@@ -366,7 +366,7 @@ export class SelectEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select;
+    return select as HTMLElement;
   }
 
   private createMultiSelectEditor(value: any, column: EnhancedColumn): HTMLElement {
@@ -399,7 +399,7 @@ export class SelectEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select;
+    return select as HTMLElement;
   }
 
   private addOptions(select: HTMLSelectElement, column: EnhancedColumn, currentValue: any): void {

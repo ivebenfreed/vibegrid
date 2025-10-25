@@ -18,6 +18,7 @@ import type {
   AsyncDataLoader,
   FieldMetadata
 } from '../../FieldTypeRegistry';
+import { getActiveOrganizationId } from '@/stores/experience/OrganizationStore';
 import type { TableCoreStore } from '../../../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 import { reaction } from 'mobx';
@@ -42,7 +43,7 @@ export class UserDataLoader implements AsyncDataLoader {
         throw new Error(`Failed to load user data: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as { data?: RelationshipData };
       return result.data || {};
 
     } catch (error) {
@@ -84,13 +85,13 @@ export class UserDataLoader implements AsyncDataLoader {
       }
 
       // Convert Map to array and filter by query
-      const allMembers = Array.from(membersData.entries()).map(([userId, user]) => ({
+      const allMembers = Array.from(membersData.entries() as Iterable<[any, any]>).map(([userId, user]) => ({
         userId,
         user
       }));
 
       // Filter by query string
-      const filtered = allMembers.filter(({ user }) => {
+      const filtered = allMembers.filter(({ user }: { user: any }) => {
         const userName = user?.name || '';
         const userEmail = user?.email || '';
         const lowerQuery = query.toLowerCase();
@@ -102,7 +103,7 @@ export class UserDataLoader implements AsyncDataLoader {
       });
 
       // Convert to RelationshipOption format
-      const suggestions = filtered.slice(0, limit).map(({ userId, user }) => ({
+      const suggestions: RelationshipOption[] = filtered.slice(0, limit).map(({ userId, user }: { userId: any; user: any }) => ({
         value: userId,
         label: user?.name || user?.email || userId,
         metadata: user

@@ -24,7 +24,7 @@ throw new Error('This file has not been migrated to MobX - see file header for d
  */
 
 // TODO: Remove Legend State - migrating to MobX
-// import { computed } from '@legendapp/state';
+import { computed } from 'mobx';
 import { useCellPosition$, useMultipleCellPositions$ } from './use-cell-position';
 import { CoordinateUtils } from '../types/coordinate-types';
 import type { CellCoordinates, Position, Bounds } from '../types/coordinate-types';
@@ -38,8 +38,8 @@ export function useSelectionBounds$(cellKeys: string[]) {
   return computed(() => {
     const positionsData = positions$.get();
     const validPositions = positionsData
-      .map(item => item.position)
-      .filter((pos): pos is NonNullable<typeof pos> => pos !== null);
+      .map((item: any) => item.position)
+      .filter((pos: any): pos is NonNullable<typeof pos> => pos !== null);
 
     if (validPositions.length === 0) return null;
 
@@ -92,7 +92,7 @@ export function useClosestCell$(targetPosition: Position, candidateCellKeys: str
     const positionsData = positions$.get();
     let closestCell: { cellKey: string; distance: number; position: CellCoordinates } | null = null;
 
-    positionsData.forEach(({ cellKey, position }) => {
+    positionsData.forEach(({ cellKey, position }: { cellKey: any; position: any }) => {
       if (!position) return;
 
       const cellCenter: Position = {
@@ -121,7 +121,7 @@ export function useOverlappingCells$(targetBounds: Bounds, candidateCellKeys: st
     const positionsData = positions$.get();
     const overlapping: Array<{ cellKey: string; position: CellCoordinates; overlap: Bounds }> = [];
 
-    positionsData.forEach(({ cellKey, position }) => {
+    positionsData.forEach(({ cellKey, position }: { cellKey: any; position: any }) => {
       if (!position) return;
 
       const overlap = CoordinateUtils.getIntersection(targetBounds, position);

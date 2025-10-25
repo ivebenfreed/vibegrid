@@ -100,7 +100,7 @@ export class TextRenderer implements CellRenderer {
   private formatValueByType(value: any, column: EnhancedColumn): string {
     if (value == null) return '';
 
-    const fieldType = column.cellType || column.type || 'text';
+    const fieldType = (column.cellType || column.type || 'text') as string;
     let strValue = String(value);
 
     // For multi-line fields, convert to single line for display
@@ -232,7 +232,7 @@ export class TextEditor implements CellEditor {
 
     // Event handlers
     input.addEventListener('blur', () => this.handleSave());
-    input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    input.addEventListener('keydown', this.handleKeyDown.bind(this) as EventListener);
 
     // Auto-focus
     setTimeout(() => input.focus(), 0);
@@ -326,7 +326,7 @@ export class TextEditor implements CellEditor {
         element.maxLength = validationMetadata.maxLength;
       }
 
-      if (validationMetadata.pattern) {
+      if (validationMetadata.pattern && element instanceof HTMLInputElement) {
         element.pattern = validationMetadata.pattern;
       }
 

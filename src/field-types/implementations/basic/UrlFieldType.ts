@@ -300,7 +300,7 @@ export class UrlEditor implements CellEditor {
     }
 
     if (editorMetadata.autoComplete !== false) {
-      input.autocomplete = 'url';
+      input.setAttribute('autocomplete', 'url');
     }
   }
 

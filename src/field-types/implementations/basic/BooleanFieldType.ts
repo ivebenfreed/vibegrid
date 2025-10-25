@@ -184,7 +184,7 @@ export class BooleanRenderer implements CellRenderer {
  * Boolean Cell Editor
  */
 export class BooleanEditor implements CellEditor {
-  private currentElement: HTMLElement | HTMLSelectElement | null = null;
+  private currentElement: HTMLSelectElement | null = null;
   private onSaveCallback: ((value: any) => void) | null = null;
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
@@ -228,7 +228,7 @@ export class BooleanEditor implements CellEditor {
     // Auto-focus
     setTimeout(() => select.focus(), 0);
 
-    return select;
+    return select as HTMLElement;
   }
 
   getValue(element: HTMLElement): any {

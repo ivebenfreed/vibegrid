@@ -185,12 +185,12 @@ export class CurrencyEditor implements CellEditor {
   }
 
   setValue(element: HTMLElement, value: any): void {
-    const amountInput = element.querySelector('.vibegridx-currency-amount') as HTMLInputElement;
-    const currencySelect = element.querySelector('.vibegridx-currency-code') as HTMLSelectElement;
+    const amountInput = element.querySelector('.vibegridx-currency-amount');
+    const currencySelect = element.querySelector('.vibegridx-currency-code');
     const currencyData = this.parseCurrencyValue(value);
 
-    if (amountInput) amountInput.value = String(currencyData.amount);
-    if (currencySelect) currencySelect.value = currencyData.currency;
+    if (amountInput instanceof HTMLInputElement) amountInput.value = String(currencyData.amount);
+    if (currencySelect instanceof HTMLSelectElement) currencySelect.value = currencyData.currency;
   }
 
   validate(value: any, column: EnhancedColumn): ValidationResult {
