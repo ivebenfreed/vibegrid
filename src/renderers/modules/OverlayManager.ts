@@ -92,6 +92,12 @@ export class OverlayManager {
         selectionColor: 'rgba(59, 130, 246, 0.1)',
         selectionBorderColor: 'rgb(59, 130, 246)',
         selectionBorderWidth: 2,
+        borderWidth: 2,
+        dragIndicatorColor: 'rgb(59, 130, 246)',
+        enableAnimations: true,
+        animationDuration: 200,
+        enableLayerCaching: true,
+        maxSelectableCells: 10000,
         cellHeight: ROW_HEIGHT,
         cellWidth: 150 // Default width, updated by coordinate mapping
       },
@@ -607,7 +613,19 @@ export class OverlayManager {
     }>;
   }): void {
     if (this.contextMenu) {
-      this.contextMenu.show(options);
+      // Transform options into ContextMenuProps format
+      this.contextMenu.show({
+        isVisible: true,
+        position: { x: options.x, y: options.y, clientX: options.x, clientY: options.y },
+        context: {
+          type: 'cell' as const,
+          rowId: options.rowId,
+          columnId: options.columnId
+        },
+        onClose: () => this.hideContextMenu(),
+        onCopy: () => {}, // Handled by context menu items
+        onPaste: () => {} // Handled by context menu items
+      });
     }
   }
   
@@ -696,7 +714,7 @@ export class OverlayManager {
     const cellKey = `${rowId}:${columnId}`;
 
     // Try DOM position first (highest accuracy)
-    const domPositions = domPositions$.cellPositions;
+    const domPositions = domPositions$.cellPositions.get();
     const domPosition = domPositions.get(cellKey);
 
     if (domPosition && domPosition.isVisible) {

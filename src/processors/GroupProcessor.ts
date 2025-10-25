@@ -7,6 +7,7 @@
 import type {
   TableRow,
   Column,
+  CellType,
   GroupNode,
   GroupConfig,
   GroupField,
@@ -613,8 +614,8 @@ export class GroupProcessor {
       return value ? (column.trueLabel || 'Yes') : (column.falseLabel || 'No');
     }
 
-    if ((column?.cellType as CellType) === 'enum' && column.enumOptions) {
-      const option = column.enumOptions.find(opt => opt.value === value);
+    if ((column?.cellType as CellType) === 'enum' && column?.enumOptions) {
+      const option = column?.enumOptions.find(opt => opt.value === value);
       return option?.label || String(value);
     }
 

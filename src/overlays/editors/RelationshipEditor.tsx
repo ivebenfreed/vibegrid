@@ -8,6 +8,7 @@
 import React from 'react'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
+import type { CellType } from '../../types'
 import { createLogger } from '@/lib/logging'
 import { getOrCreateEntityCollection, getOrCreateMembersCollection } from '@/data/db/collections/registry'
 import { createEntityCollection } from '@/data/db/collections/entity-collections'
