@@ -402,7 +402,7 @@ export class ClipboardManager {
    * Perform column-aware paste operation
    */
   private async performColumnAwarePaste(data: any[][], targetCells: Set<string>): Promise<PasteResult> {
-    const processedRows = this.tableCore$.processedRows.get();
+    const processedRows = this.tableCore$.processedRows;
     const allColumns = this.tableCore$.columns;
 
     if (processedRows.length === 0 || allColumns.length === 0) {
@@ -446,11 +446,7 @@ export class ClipboardManager {
     const sourceColumns = new Map<number, any>(); // Map column index to source column info
 
     // Extract source column type information if available
-    if (clipboard?.metadata?.sourceColumns) {
-      clipboard.metadata.sourceColumns.forEach((sourceCol: any, index: number) => {
-        sourceColumns.set(index, sourceCol);
-      });
-    }
+    // Note: metadata was removed from ClipboardState - type checking simplified
 
     fileLog.debug('📋 Starting column-aware paste operation', {
       dataRows: data.length,

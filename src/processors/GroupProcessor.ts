@@ -161,22 +161,22 @@ export class GroupProcessor {
       if (index === 0) {
         fileLog.debug('🔍 GroupProcessor: Examining first row structure', {
           row: row,
-          hasData: !!row?.data,
-          hasDirectAccess: !!row?.[fieldName],
+          hasData: !!(row as any)?.data,
+          hasDirectAccess: !!(row as any)?.[fieldName],
           rowKeys: Object.keys(row || {}),
           fieldName,
-          fieldValue: row?.[fieldName] || row?.data?.[fieldName]
+          fieldValue: (row as any)?.[fieldName] || (row as any)?.data?.[fieldName]
         });
       }
 
       // Handle different data structures - try both row.data and direct row access
       let value;
-      if (row && row.data) {
+      if (row && (row as any).data) {
         // Structured format: row.data.fieldName
-        value = row.data[fieldName];
+        value = (row as any).data[fieldName];
       } else if (row && typeof row === 'object') {
         // Direct format: row.fieldName
-        value = row[fieldName];
+        value = (row as any)[fieldName];
       } else {
         fileLog.warn('GroupProcessor: Skipping invalid row', { row, fieldName });
         return;
@@ -212,12 +212,12 @@ export class GroupProcessor {
         });
       } else {
         // Non-empty group - get value from first row
-        if (firstRow && firstRow.data) {
+        if (firstRow && (firstRow as any).data) {
           // Structured format: row.data.fieldName
-          value = firstRow.data[fieldName];
+          value = (firstRow as any).data[fieldName];
         } else if (firstRow && typeof firstRow === 'object') {
           // Direct format: row.fieldName
-          value = firstRow[fieldName];
+          value = (firstRow as any)[fieldName];
         } else {
           fileLog.warn('GroupProcessor: Invalid firstRow in groupMap', { firstRow, fieldName });
           return;
@@ -387,10 +387,10 @@ export class GroupProcessor {
         const fieldValues = groupRows
           .map(row => {
             // Handle different data structures - try both row.data and direct row access
-            if (row && row.data) {
-              return row.data[aggConfig.field];
+            if (row && (row as any).data) {
+              return (row as any).data[aggConfig.field];
             } else if (row && typeof row === 'object') {
-              return row[aggConfig.field];
+              return (row as any)[aggConfig.field];
             } else {
               return null;
             }
@@ -412,7 +412,7 @@ export class GroupProcessor {
             
           case 'sum':
             result = fieldValues.reduce((sum, val) => sum + (Number(val) || 0), 0);
-            displayValue = this.formatNumber(result);
+            displayValue = this.formatNumber(result as number);
             break;
             
           case 'avg':
