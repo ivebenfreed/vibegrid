@@ -38,6 +38,7 @@ export interface RowMapping {
   rowId: string;
   originalIndex: number;
   sortedIndex: number;
+  y?: number; // Vertical position for rendering
 }
 
 export interface ColumnMapping {
@@ -45,6 +46,7 @@ export interface ColumnMapping {
   index: number;
   offset: number;
   width: number;
+  x?: number; // Horizontal position for rendering
 }
 
 export interface CoordinateChangeEvent {

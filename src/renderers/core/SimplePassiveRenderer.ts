@@ -62,6 +62,9 @@ interface VisualState {
   visibleRowEnd: number;
   visibleColumnStart: number;
   visibleColumnEnd: number;
+  columns?: any[]; // Column definitions
+  columnVisibility?: any; // Column visibility state
+  viewport?: any; // Viewport information
 }
 
 // Import MobX store types

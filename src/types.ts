@@ -67,6 +67,7 @@ export interface TableRow {
     isNew?: boolean;
     isDirty?: boolean;
   };
+  [key: string]: any; // Allow dynamic property access for GroupProcessor
 }
 
 // Runtime column type with all options
@@ -372,6 +373,7 @@ export interface ViewportInfo {
   end: number;
   height: number;
   width: number;
+  viewportWidth?: number;
   scrollTop: number;
   scrollLeft?: number;
   itemHeight: number;
