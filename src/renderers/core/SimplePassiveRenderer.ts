@@ -301,7 +301,7 @@ export class SimplePassiveRenderer {
       keyboardNavController: this.keyboardNavController!,
       enableSelectionColumn: this.options.enableSelectionColumn,
       container: this.container,
-      createElement: this.createElement.bind(this),
+      createElement: ((tag: string, className?: string) => this.createElement(tag, className ?? '')) as (tag: string, className?: string) => HTMLElement,
       onEntityUpdate: this.options.onEntityUpdate,
       modularCellBridge: modularCellBridge
     });
@@ -873,7 +873,7 @@ export class SimplePassiveRenderer {
       interactionStore: this.interactionStore,
       visualStateStore: this.visualStateStore,
       domFactory: this.domFactory,
-      selectionController: this.selectionController,
+      selectionController: this.selectionController ?? undefined,
       coordinateMapping: this.coordinateMapping,
       enableSelectionColumn: this.options.enableSelectionColumn,
       updateCoordinateMapping: (mapping: CoordinateMapping) => {
@@ -1005,7 +1005,7 @@ export class SimplePassiveRenderer {
       // Initialize KeyboardController for centralized keyboard event handling
       this.keyboardController = new KeyboardController({
         container: this.container,
-        keyboardNavController: this.keyboardNavController,
+        keyboardNavController: this.keyboardNavController ?? undefined,
         onCopy: () => this.eventManager?.handleCopyAction(),
         onPaste: () => this.eventManager?.handlePasteAction(),
         onCut: () => this.eventManager?.handleCutAction(),
@@ -1608,9 +1608,9 @@ export class SimplePassiveRenderer {
           isExpanded: row.isExpanded,
           data: row.data
         });
-        rowElement = this.bodyRenderer.createGroupHeaderElement(row, actualRowIndex);
+        rowElement = this.bodyRenderer!.createGroupHeaderElement(row, actualRowIndex);
       } else {
-        rowElement = this.bodyRenderer.createRowElement(row, actualRowIndex, virtualColumns, columnVisibility, startX);
+        rowElement = this.bodyRenderer!.createRowElement(row, actualRowIndex, virtualColumns, columnVisibility, startX);
       }
 
       // PERFORMANCE FIX: Append to DocumentFragment instead of directly to DOM
@@ -1748,7 +1748,7 @@ export class SimplePassiveRenderer {
    */
   private formatCellValue(value: any, type?: string, column?: any): string {
     // Delegate to the modular CellFormatter
-    return CellFormatter.formatCellValue(value, type, column);
+    return CellFormatter.formatCellValue(value);
   }
   
   // Removed redundant formatting methods - now using centralized display formatters
@@ -1759,8 +1759,8 @@ export class SimplePassiveRenderer {
    */
   private handleConsolidatedVisualStateChange(visualState: VisualState): void {
     fileLog.debug('🎨 Consolidated visual state change - batched render coordination', {
-      columnCount: visualState.columns.length,
-      hiddenColumns: Object.values(visualState.columnVisibility).filter(v => v === false).length,
+      columnCount: visualState.columns?.length ?? 0,
+      hiddenColumns: visualState.columnVisibility ? Object.values(visualState.columnVisibility).filter(v => v === false).length : 0,
       viewport: visualState.viewport
     });
 
@@ -1771,9 +1771,9 @@ export class SimplePassiveRenderer {
 
       // Check if header needs to be re-rendered
       const needsHeaderRender = !previousState ||
-        previousState.columns.length !== visualState.columns.length ||
+        (previousState.columns?.length ?? 0) !== (visualState.columns?.length ?? 0) ||
         JSON.stringify(previousState.columnVisibility) !== JSON.stringify(visualState.columnVisibility) ||
-        JSON.stringify(previousState.columns.map((c: any) => c.width)) !== JSON.stringify(visualState.columns.map((c: any) => c.width));
+        JSON.stringify((previousState.columns ?? []).map((c: any) => c.width)) !== JSON.stringify((visualState.columns ?? []).map((c: any) => c.width));
 
       // Check if body needs to be re-rendered (viewport changes affect body virtual scrolling)
       // Add scroll thresholds to prevent excessive re-renders on small scroll changes
@@ -1807,9 +1807,10 @@ export class SimplePassiveRenderer {
 
       // Store current state for next comparison
       this.lastVisualState = {
-        columns: [...visualState.columns],
-        columnVisibility: { ...visualState.columnVisibility },
-        viewport: { ...visualState.viewport }
+        ...visualState,
+        columns: visualState.columns ? [...visualState.columns] : [],
+        columnVisibility: visualState.columnVisibility ? { ...visualState.columnVisibility } : {},
+        viewport: visualState.viewport ? { ...visualState.viewport } : {}
       };
     });
 
@@ -1905,11 +1906,11 @@ export class SimplePassiveRenderer {
   private isGroupedMode(): boolean {
     try {
       const groupConfig = this.visualStateStore.groupConfig;
-      return groupConfig && groupConfig.fields && groupConfig.fields.length > 0;
+      return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0);
     } catch (error) {
       // If visual operations aren't available, fallback to direct check (MobX)
       const groupConfig = this.visualStateStore.groupConfig;
-      return groupConfig && groupConfig.fields && groupConfig.fields.length > 0;
+      return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0);
     }
   }
 

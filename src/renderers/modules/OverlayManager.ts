@@ -331,7 +331,7 @@ export class OverlayManager {
                 });
 
                 // Get visual positions for clipboard cells (same approach as selection)
-                const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
+                const clipboardVisualCells = this.getVisualCellPositions(state.clipboard.copiedCells);
                 this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
               } else if (this.canvasOverlay) {
                 // Clear clipboard overlay only when clipboard is explicitly null
@@ -353,7 +353,7 @@ export class OverlayManager {
               });
 
               // Get visual positions for clipboard cells (same approach as selection)
-              const clipboardVisualCells = this.getVisualCellPositions(Array.from(state.clipboard.copiedCells));
+              const clipboardVisualCells = this.getVisualCellPositions(state.clipboard.copiedCells);
               this.canvasOverlay.updateClipboardWithVisualPositions(clipboardVisualCells, clipboardState.isCut);
             }
 
