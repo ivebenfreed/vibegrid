@@ -1048,6 +1048,23 @@ export class BodyRenderer {
 // ====================================
 
 export class CellFormatter {
+  // Legacy properties for type compatibility (these methods should be in BodyRenderer)
+  lastClickedCell: any = null;
+  interactionStore: any = null;
+  tableCoreStore: any = null;
+  visualStateStore: any = null;
+  renderTimeoutId: any = null;
+  cellRenderingStats: any = null;
+  activeRows: any = null;
+  container: any = null;
+
+  /**
+   * Static method for formatting cell values (legacy compatibility)
+   */
+  static formatCellValue(value: any): string {
+    return value != null ? String(value) : '';
+  }
+
   /**
    * Get display text for empty values based on type
    */
