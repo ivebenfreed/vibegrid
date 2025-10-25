@@ -194,7 +194,7 @@ export class SchemaAdapter {
     };
 
     // Type-specific validation
-    switch (type) {
+    switch (type as string) {
       case 'email':
         defaultValidation.emailFormat = true;
         defaultValidation.pattern = '^[^@]+@[^@]+\\.[^@]+$';
@@ -239,7 +239,7 @@ export class SchemaAdapter {
     };
 
     // Type-specific display
-    switch (type) {
+    switch (type as string) {
       case 'number':
       case 'integer':
       case 'decimal':
@@ -287,7 +287,7 @@ export class SchemaAdapter {
     };
 
     // Type-specific editor settings
-    switch (type) {
+    switch (type as string) {
       case 'longtext':
       case 'textarea':
         defaultEditor.multiline = true;
@@ -310,9 +310,9 @@ export class SchemaAdapter {
       case 'integer':
       case 'decimal':
         defaultEditor.showSpinners = true;
-        if (type === 'integer') {
+        if ((type as string) === 'integer') {
           defaultEditor.step = 1;
-        } else if (type === 'decimal') {
+        } else if ((type as string) === 'decimal') {
           defaultEditor.step = 0.01;
         }
         break;

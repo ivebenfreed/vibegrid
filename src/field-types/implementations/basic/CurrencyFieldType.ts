@@ -65,7 +65,7 @@ export class CurrencyRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'currency';
+    return (type as string) === 'currency';
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {

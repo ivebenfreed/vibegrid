@@ -31,7 +31,7 @@ export class MarkdownRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'markdown';
+    return ((column.cellType || column.type) as string) === 'markdown';
   }
 
   private createMarkdownPreview(markdown: string): string {

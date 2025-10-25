@@ -129,7 +129,7 @@ export class ColorRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'color';
+    return (type as string) === 'color';
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {

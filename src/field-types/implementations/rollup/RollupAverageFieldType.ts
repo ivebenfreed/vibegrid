@@ -42,7 +42,7 @@ export class RollupAverageRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'rollup_average';
+    return ((column.cellType || column.type) as string) === 'rollup_average';
   }
 }
 

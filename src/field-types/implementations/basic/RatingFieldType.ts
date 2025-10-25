@@ -44,7 +44,7 @@ export class RatingRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'rating';
+    return ((column.cellType || column.type) as string) === 'rating';
   }
 }
 

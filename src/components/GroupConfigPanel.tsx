@@ -47,7 +47,7 @@ export function GroupConfigPanel({
       // Only include select and enum fields for grouping
       const cellType = col.cellType || col.type;
       const hasOptions = col.options && col.options.length > 0;
-      const isSelectType = cellType === 'select' || cellType === 'select-multi' || cellType === 'reference-select';
+      const isSelectType = (cellType as string) === 'select' || (cellType as string) === 'select-multi' || (cellType as string) === 'reference-select';
       
       // Include if it's explicitly a select type OR has options (indicating enum values)
       return isSelectType || hasOptions;

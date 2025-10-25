@@ -80,7 +80,7 @@ export class PhoneRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'phone';
+    return (type as string) === 'phone';
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {

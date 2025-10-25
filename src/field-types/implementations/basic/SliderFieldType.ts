@@ -51,7 +51,7 @@ export class SliderRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'slider';
+    return ((column.cellType || column.type) as string) === 'slider';
   }
 }
 

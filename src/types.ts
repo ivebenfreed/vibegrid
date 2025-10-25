@@ -14,7 +14,10 @@ export type FilterConfig = {
   negate?: boolean;
 };
 // Import our local column types
-import type { Column as BaseColumn, CellType } from './column-types';
+import type { Column as BaseColumn, CellType as BaseCellType } from './column-types';
+
+// Re-export CellType for external use
+export type { BaseCellType as CellType };
 
 // EnumOption for backwards compatibility
 export interface EnumOption {

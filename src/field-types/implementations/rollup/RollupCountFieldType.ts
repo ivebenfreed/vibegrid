@@ -101,7 +101,7 @@ export class RollupCountRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'rollup_count';
+    return (type as string) === 'rollup_count';
   }
 
   private getSourceData(column: EnhancedColumn, rowData: any): any[] {

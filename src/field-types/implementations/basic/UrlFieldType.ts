@@ -85,7 +85,7 @@ export class UrlRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'url';
+    return (type as string) === 'url';
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {

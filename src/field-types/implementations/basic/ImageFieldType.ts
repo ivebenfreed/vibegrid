@@ -37,7 +37,7 @@ export class ImageRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'image';
+    return ((column.cellType || column.type) as string) === 'image';
   }
 }
 

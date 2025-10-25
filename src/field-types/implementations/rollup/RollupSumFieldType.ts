@@ -62,7 +62,7 @@ export class RollupSumRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'rollup_sum';
+    return ((column.cellType || column.type) as string) === 'rollup_sum';
   }
 
   private formatSumValue(value: number, column: EnhancedColumn): string {

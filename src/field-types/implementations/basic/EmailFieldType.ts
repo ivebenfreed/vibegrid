@@ -79,7 +79,7 @@ export class EmailRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || '';
-    return type === 'email';
+    return (type as string) === 'email';
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {

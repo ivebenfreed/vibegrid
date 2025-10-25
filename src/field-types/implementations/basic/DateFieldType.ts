@@ -154,7 +154,7 @@ export class DateRenderer implements CellRenderer {
     }
 
     // Format based on type
-    switch (type) {
+    switch (type as string) {
       case 'date':
         return dateObj.toLocaleDateString();
 
@@ -508,7 +508,7 @@ export class DateFormatter implements CellFormatter {
       options.timeZone = timezone;
     }
 
-    switch (type) {
+    switch (type as string) {
       case 'date':
         return dateObj.toLocaleDateString(locale, options);
 
@@ -554,7 +554,7 @@ export class DateFormatter implements CellFormatter {
 
     const type = column.cellType || column.type || 'date';
 
-    switch (type) {
+    switch (type as string) {
       case 'date':
         return dateObj.toISOString().split('T')[0];
       case 'time':

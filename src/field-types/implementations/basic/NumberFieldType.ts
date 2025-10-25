@@ -84,7 +84,7 @@ export class NumberRenderer implements CellRenderer {
 
     const type = column.cellType || column.type || 'number';
 
-    switch (type) {
+    switch (type as string) {
       case 'integer':
         return Math.round(numValue).toLocaleString();
 
@@ -228,7 +228,7 @@ export class NumberEditor implements CellEditor {
 
     // Type-specific validation
     const type = column.cellType || column.type || 'number';
-    if (type === 'integer' && !Number.isInteger(numValue)) {
+    if ((type as string) === 'integer' && !Number.isInteger(numValue)) {
       errors.push(`${column.name} must be a whole number`);
     }
 
@@ -242,7 +242,7 @@ export class NumberEditor implements CellEditor {
     }
 
     // Percentage specific validation
-    if (type === 'percentage') {
+    if ((type as string) === 'percentage') {
       if (numValue < 0 || numValue > 100) {
         errors.push(`${column.name} must be between 0 and 100`);
       }
@@ -269,7 +269,7 @@ export class NumberEditor implements CellEditor {
   }
 
   private applyTypeSpecificAttributes(input: HTMLInputElement, column: EnhancedColumn, type: string): void {
-    switch (type) {
+    switch (type as string) {
       case 'integer':
         input.step = '1';
         break;
@@ -357,7 +357,7 @@ export class NumberFormatter implements CellFormatter {
     const type = column.cellType || column.type || 'number';
     const locale = context?.locale || 'en-US';
 
-    switch (type) {
+    switch (type as string) {
       case 'integer':
         return Math.round(numValue).toLocaleString(locale);
 
@@ -430,7 +430,7 @@ export class NumberValidator implements CellValidator {
     }
 
     const type = column.cellType || column.type || 'number';
-    if (type === 'integer') {
+    if ((type as string) === 'integer') {
       constraints.step = 1;
     }
 

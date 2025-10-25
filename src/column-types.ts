@@ -75,19 +75,20 @@ export type CellType =
   // Basic types
   | 'text'
   | 'longtext'
-  | 'textarea'  // Added: multi-line text input
+  | 'textarea'  // Multi-line text input
   | 'rich-text'
+  | 'rich_text'  // DataForge variant
   | 'number'
   | 'integer'
   | 'decimal'
-  | 'percentage'  // Added: number formatted as percentage
+  | 'percentage'  // Number formatted as percentage
   | 'boolean'
   | 'date'
   | 'datetime'
-  | 'datetime-local'  // Added: HTML5 datetime-local input
-  | 'time'  // Added: time picker
-  | 'timestamp'  // Added: Unix timestamp
-  | 'timestamptz'  // Added: timestamp with timezone
+  | 'datetime-local'  // HTML5 datetime-local input
+  | 'time'  // Time picker
+  | 'timestamp'  // Unix timestamp
+  | 'timestamptz'  // Timestamp with timezone
   // Selection types
   | 'select'
   | 'single-select'
@@ -99,12 +100,22 @@ export type CellType =
   | 'phone'
   // Rich data types
   | 'file'
-  | 'image'  // Added: image upload/display
+  | 'image'  // Image upload/display
   | 'currency'
   | 'color'
+  | 'json'  // JSON field type
+  // System option types (DataForge)
+  | 'status'
+  | 'status_option'
+  | 'priority_option'
+  | 'category_option'
+  | 'task_type_option'
+  | 'discussion_type_option'
   // Reference types
   | 'reference-select'
+  | 'user_reference'  // DataForge variant
   | 'custom_user_reference'
+  | 'entity_reference'  // DataForge variant
   | 'custom_entity_reference'
   // Computed/rollup types
   | 'rollup_count'

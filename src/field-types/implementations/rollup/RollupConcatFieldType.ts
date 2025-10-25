@@ -42,7 +42,7 @@ export class RollupConcatRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'rollup_concat';
+    return ((column.cellType || column.type) as string) === 'rollup_concat';
   }
 }
 

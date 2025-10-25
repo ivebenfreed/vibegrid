@@ -55,7 +55,7 @@ export class FileRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'file';
+    return ((column.cellType || column.type) as string) === 'file';
   }
 
   private parseFileValue(value: any): FileValue {

@@ -183,7 +183,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
       const isSelectType = singleSelectTypes.includes(cellType as string);
 
       // Exclude multi-select types from grouping
-      const isMultiSelect = cellType === 'select-multi' || cellType === 'multi-select';
+      const isMultiSelect = (cellType as string) === 'select-multi' || (cellType as string) === 'multi-select';
 
       // Include if it's a single-select type OR has options (but not multi-select)
       return (isSelectType || hasOptions) && !isMultiSelect;
@@ -311,13 +311,13 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
                 typeLabel = 'User';
               } else if (['entity_reference', 'custom_entity_reference'].includes(cellType as string)) {
                 typeLabel = 'Relationship';
-              } else if (cellType === 'priority_option') {
+              } else if ((cellType as string) === 'priority_option') {
                 typeLabel = 'Priority';
-              } else if (cellType === 'status_option' || cellType === 'status') {
+              } else if ((cellType as string) === 'status_option' || (cellType as string) === 'status') {
                 typeLabel = 'Status';
-              } else if (cellType === 'category_option') {
+              } else if ((cellType as string) === 'category_option') {
                 typeLabel = 'Category';
-              } else if (cellType === 'task_type_option') {
+              } else if ((cellType as string) === 'task_type_option') {
                 typeLabel = 'Type';
               } else if (['select', 'single-select', 'reference-select'].includes(cellType as string)) {
                 typeLabel = 'Select';
