@@ -612,12 +612,12 @@ export class GroupProcessor {
     if (column?.cellType === 'boolean') {
       return value ? (column.trueLabel || 'Yes') : (column.falseLabel || 'No');
     }
-    
-    if (column?.cellType === 'enum' && column.enumOptions) {
+
+    if ((column?.cellType as CellType) === 'enum' && column.enumOptions) {
       const option = column.enumOptions.find(opt => opt.value === value);
       return option?.label || String(value);
     }
-    
+
     return String(value);
   }
   

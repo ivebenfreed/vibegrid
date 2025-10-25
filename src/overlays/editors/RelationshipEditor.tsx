@@ -24,7 +24,7 @@ export function RelationshipEditor({
   onUpdate,
   onBlur
 }: EditorProps) {
-  const cellType = column.cellType || column.type
+  const cellType = (column.cellType || column.type) as CellType
 
   // Determine target entity type
   const targetEntityType = (column as any).relationshipConfig?.targetEntityType ||

@@ -58,7 +58,7 @@ export function MultiSelectEditor({
         label: option.label,
         color: option.color,
         group: option.group,
-        disabled: option.disabled
+        disabled: (option as any).disabled
       };
     });
   }, [column.options, column.enumOptions, initialValue]);
