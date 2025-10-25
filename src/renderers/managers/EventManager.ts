@@ -162,7 +162,7 @@ export class EventManager {
   async handleCutAction(): Promise<void> {
     fileLog.debug('✂️ Cut action triggered');
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells;
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select cells to cut first',
@@ -211,11 +211,11 @@ export class EventManager {
    */
   private handleInsertRowAction(): void {
     fileLog.debug('➕ Insert row action triggered');
-    
+
     // Get the current selection to determine insertion point
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells;
     let insertionIndex = 0;
-    
+
     if (selectedCells.size > 0) {
       // Find the minimum row index from selected cells
       const rowIds = Array.from(selectedCells).map(cellId => cellId.split(':')[0]);
@@ -242,8 +242,8 @@ export class EventManager {
    */
   private handleDeleteRowAction(): void {
     fileLog.debug('➖ Delete row action triggered');
-    
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+
+    const selectedCells = this.tableInteraction$.selectedCells;
     if (selectedCells.size === 0) {
       fileLog.debug('➖ No cells selected for row deletion');
       return;
