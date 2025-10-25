@@ -96,10 +96,10 @@ export class MouseController {
     const clickHandler = this.onClick.bind(this);
 
     // Add global listeners to document to catch all mouse events
-    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler);
-    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler);
-    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler);
-    this.addEventListenerTracked(document, 'click', clickHandler);
+    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener);
+    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener);
+    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener);
+    this.addEventListenerTracked(document, 'click', clickHandler as EventListener);
 
     // NOTE: No HTML5 drag events needed - we use pure mouse events for column drag
 

@@ -121,7 +121,7 @@ export class KeyboardController {
       }
     };
 
-    this.addEventListenerTracked(this.container, 'keydown', keydownHandler);
+    this.addEventListenerTracked(this.container, 'keydown', keydownHandler as EventListener);
 
     // Make container focusable to receive keyboard events
     this.container.tabIndex = 0;

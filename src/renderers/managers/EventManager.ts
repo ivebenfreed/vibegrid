@@ -125,7 +125,7 @@ export class EventManager {
       }
     };
 
-    this.addEventListenerTracked(this.container, 'contextmenu', contextMenuHandler);
+    this.addEventListenerTracked(this.container, 'contextmenu', contextMenuHandler as EventListener);
   }
 
 
