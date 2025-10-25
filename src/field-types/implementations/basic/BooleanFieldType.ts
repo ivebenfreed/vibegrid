@@ -352,7 +352,7 @@ export class BooleanEditor implements CellEditor {
 
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
-      const value = this.getValue(this.currentElement);
+      const value = this.getValue(this.currentElement as unknown as HTMLElement);
       this.onSaveCallback(value);
     }
   }

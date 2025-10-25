@@ -190,12 +190,14 @@ export class SelectionOverlayDOM {
         elementInDom: document.body.contains(element),
         parentClass: element.parentElement?.className
       });
-      
+
       // Trigger animation on next frame
       requestAnimationFrame(() => {
-        element.style.opacity = '1'; // Full opacity - the color has transparency
-        element.style.transform = 'scale(1)';
-        myLog.info(`SelectionOverlayDOM: Animation triggered for ${cellKey}`);
+        if (element) {
+          element.style.opacity = '1'; // Full opacity - the color has transparency
+          element.style.transform = 'scale(1)';
+          myLog.info(`SelectionOverlayDOM: Animation triggered for ${cellKey}`);
+        }
       });
     }
     

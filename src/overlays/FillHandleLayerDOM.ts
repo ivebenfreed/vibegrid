@@ -248,9 +248,9 @@ export class FillHandleLayerDOM {
       
       // Calculate position
       const viewportOffset = viewport.start * this.config.cellHeight;
-      const x = colCoord.x;
-      const y = rowCoord.y - viewportOffset;
-      
+      const x = colCoord.x ?? 0;
+      const y = (rowCoord.y ?? 0) - viewportOffset;
+
       // Create preview element
       const preview = document.createElement('div');
       preview.className = 'vibegridx-fill-preview';
@@ -260,7 +260,7 @@ export class FillHandleLayerDOM {
         left: `${x}px`,
         top: `${y}px`,
         width: `${colCoord.width}px`,
-        height: `${rowCoord.height}px`,
+        height: `${rowCoord.height ?? this.config.cellHeight}px`,
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         border: '2px dashed rgba(59, 130, 246, 0.5)',
         boxSizing: 'border-box',
@@ -342,7 +342,9 @@ export class FillHandleLayerDOM {
         
         // Animate in (same as selections)
         requestAnimationFrame(() => {
-          element.style.opacity = '1';
+          if (element) {
+            element.style.opacity = '1';
+          }
         });
       }
     }

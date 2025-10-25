@@ -209,7 +209,7 @@ export class ClipboardOverlayDOM {
     this.animationInterval = window.setInterval(() => {
       if (this.indicator) {
         dashOffset = (dashOffset + 1) % 10;
-        this.indicator.style.borderDashOffset = `${dashOffset}px`;
+        this.indicator.style.setProperty('border-dash-offset', `${dashOffset}px`);
       }
     }, 50);
   }
@@ -252,12 +252,12 @@ export class ClipboardOverlayDOM {
         
         // Calculate position adjusted for viewport
         const viewportOffset = viewport.start * this.config.cellHeight;
-        const cellY = rowCoord.y - viewportOffset;
-        
-        minX = Math.min(minX, colCoord.x);
+        const cellY = (rowCoord.y ?? 0) - viewportOffset;
+
+        minX = Math.min(minX, colCoord.x ?? 0);
         minY = Math.min(minY, cellY);
-        maxX = Math.max(maxX, colCoord.x + colCoord.width);
-        maxY = Math.max(maxY, cellY + rowCoord.height);
+        maxX = Math.max(maxX, (colCoord.x ?? 0) + colCoord.width);
+        maxY = Math.max(maxY, cellY + (rowCoord.height ?? this.config.cellHeight));
       }
     }
     

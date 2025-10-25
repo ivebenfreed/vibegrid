@@ -39,6 +39,7 @@ export interface RowMapping {
   originalIndex: number;
   sortedIndex: number;
   y?: number; // Vertical position for rendering
+  height?: number; // Row height for rendering
 }
 
 export interface ColumnMapping {
