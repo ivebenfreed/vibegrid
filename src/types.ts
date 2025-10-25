@@ -224,6 +224,24 @@ export interface SelectionRange {
 export type SelectionMode = 'single' | 'range' | 'column' | 'row';
 
 // ====================================
+// INTERACTION TYPES
+// ====================================
+
+export interface ColumnDragState {
+  isDragging: boolean;
+  draggedColumnId: string | null;
+  startIndex: number;
+  currentIndex: number;
+}
+
+export interface ColumnResizeState {
+  isResizing: boolean;
+  columnId: string;
+  startWidth: number;
+  newWidth: number;
+}
+
+// ====================================
 // EDIT TYPES
 // ====================================
 

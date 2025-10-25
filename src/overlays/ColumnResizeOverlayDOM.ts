@@ -1,5 +1,5 @@
 import type { ColumnResizeState } from '../types';
-import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
+import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
 import { createLogger } from '@/lib/logging';
 const fileLog = createLogger('components/custom/vibegrid/overlays/ColumnResizeOverlayDOM.ts');
 

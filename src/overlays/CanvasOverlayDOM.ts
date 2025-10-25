@@ -1,10 +1,10 @@
-import type { 
-  ViewportInfo, 
+import type {
+  ViewportInfo,
   SelectionContext,
   ColumnDragState,
   ColumnResizeState
 } from '../types';
-import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
+import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
 import type { OverlayConfig, VisualCellPosition } from './OverlayTypes';
 
 import { SelectionOverlayDOM } from './SelectionOverlayDOM';

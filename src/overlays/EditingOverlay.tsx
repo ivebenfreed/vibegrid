@@ -20,6 +20,7 @@ interface EditingOverlayConfig {
   zIndex?: number;
   // Direct access to table interactions for self-contained commits
   tableInteraction$?: any;
+  interactionStore?: any; // MobX InteractionStore for state management
   // Relationship context for dropdown editors
   relationshipContext?: {
     relationshipResolvers?: Record<string, (id: string | string[]) => string>;

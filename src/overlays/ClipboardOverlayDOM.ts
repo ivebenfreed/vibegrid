@@ -1,5 +1,5 @@
 import type { ViewportInfo } from '../types';
-import type { CoordinateMapping } from '../machines/table-machine/slices/dimensions-slice';
+import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
 import type { VisualCellPosition } from './OverlayTypes';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
 import { createLogger } from '@/lib/logging';

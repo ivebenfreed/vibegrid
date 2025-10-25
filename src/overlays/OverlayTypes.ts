@@ -27,7 +27,8 @@ export interface OverlayConfig {
   cellWidth: number;
   cellHeight: number;
   borderWidth: number;
-  
+  selectionBorderWidth?: number;
+
   // Colors
   selectionColor: string;
   selectionBorderColor: string;
@@ -81,6 +82,7 @@ export const DEFAULT_CONFIG: OverlayConfig = {
   cellWidth: 120,
   cellHeight: 40,
   borderWidth: 2,
+  selectionBorderWidth: 2,
   selectionColor: '#3b82f6',
   selectionBorderColor: '#1d4ed8',
   dragIndicatorColor: '#6366f1',
