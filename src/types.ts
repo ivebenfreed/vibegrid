@@ -30,7 +30,7 @@ export interface EnumOption {
   icon?: string;
   description?: string;
   group?: string;
-  disabled?: boolean;
+  disabled?: boolean; // For disabling specific options in select dropdowns
 }
 
 // ====================================

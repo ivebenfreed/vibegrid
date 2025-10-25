@@ -318,7 +318,7 @@ export class EditingOverlay {
     
     fileLog.debug('EditingOverlay: Editor component created', {
       editorComponent,
-      componentType: editorComponent.type?.name || 'unknown'
+      componentType: typeof editorComponent.type === 'function' ? editorComponent.type.name : 'unknown'
     });
     
     this.root.render(editorComponent);
@@ -331,7 +331,7 @@ export class EditingOverlay {
     setTimeout(() => {
       fileLog.debug('EditingOverlay: Portal contents after render (delayed check)', {
         portalChildCount: this.portal?.childNodes.length || 0,
-        portalVisible: this.portal?.offsetWidth > 0 && this.portal?.offsetHeight > 0,
+        portalVisible: (this.portal?.offsetWidth ?? 0) > 0 && (this.portal?.offsetHeight ?? 0) > 0,
         portalHTML: this.portal?.innerHTML?.substring(0, 100) || 'empty',
         hasFirstChild: !!this.portal?.firstChild,
         firstChildType: this.portal?.firstChild?.nodeType,

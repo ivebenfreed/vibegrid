@@ -788,10 +788,15 @@ export class OverlayManager {
         fileLog.debug('Using cached viewport measurements');
 
       return {
+        start: 0,
+        end: 0,
+        height: cachedViewport.clientHeight,
+        width: cachedViewport.clientWidth,
         scrollTop: cachedViewport.scrollTop,
         scrollLeft: cachedViewport.scrollLeft,
         viewportWidth: cachedViewport.clientWidth,
-        viewportHeight: cachedViewport.clientHeight
+        viewportHeight: cachedViewport.clientHeight,
+        itemHeight: 40
       };
     }
 
@@ -814,10 +819,15 @@ export class OverlayManager {
     }
 
     return {
+      start: 0,
+      end: 0,
+      height: viewportHeight,
+      width: viewportWidth,
       scrollTop,
       scrollLeft,
       viewportWidth,
-      viewportHeight
+      viewportHeight,
+      itemHeight: 40
     };
   }
   

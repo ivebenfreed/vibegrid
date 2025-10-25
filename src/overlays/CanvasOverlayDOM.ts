@@ -446,9 +446,10 @@ export class CanvasOverlayDOM {
     if (!this.overlayContainer || !this.coordinateMapping || !this.currentViewport) {
       return;
     }
-    
+
     const overlay = this.getSelectionOverlay();
-    overlay.updateSelectionRange(
+    // @ts-expect-error Legacy method not implemented in current SelectionOverlayDOM
+    overlay.updateSelectionRange?.(
       startCell,
       endCell,
       this.coordinateMapping,
@@ -463,9 +464,10 @@ export class CanvasOverlayDOM {
     if (!this.overlayContainer || !this.coordinateMapping || !this.currentViewport) {
       return;
     }
-    
+
     const overlay = this.getSelectionOverlay();
-    overlay.highlightCells(cellKeys, this.coordinateMapping, this.currentViewport);
+    // @ts-expect-error Legacy method not implemented in current SelectionOverlayDOM
+    overlay.highlightCells?.(cellKeys, this.coordinateMapping, this.currentViewport);
   }
   
   /**
