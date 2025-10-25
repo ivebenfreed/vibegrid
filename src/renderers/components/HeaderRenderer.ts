@@ -111,8 +111,7 @@ export class HeaderRenderer {
         this.lastRenderState.visibleColumnsLength === currentRenderState.visibleColumnsLength &&
         this.lastRenderState.visibleRangeStart === currentRenderState.visibleRangeStart &&
         this.lastRenderState.visibleRangeEnd === currentRenderState.visibleRangeEnd &&
-        this.lastRenderState.columnOrderString === currentRenderState.columnOrderString &&
-        this.lastRenderState.columnWidthsString === currentRenderState.columnWidthsString) {
+        this.lastRenderState.columnOrderString === currentRenderState.columnOrderString) {
 
       fileLog.debug('🔄 HEADER RENDER SKIPPED - no changes detected', currentRenderState);
       return;
@@ -309,8 +308,8 @@ export class HeaderRenderer {
         if (columns.length > 0) {
           const lastColumn = columns[columns.length - 1];
           if (lastColumn.id !== draggedColumnId) {
-            // Insert after the last column (insertBefore=false)
-            this.tableCore$.reorderColumn(draggedColumnId, lastColumn.id, false);
+            // Insert after the last column - reorderColumn not yet implemented
+            fileLog.warn('Column reordering not yet implemented');
           }
         }
       }
@@ -644,7 +643,7 @@ export class HeaderRenderer {
   private isGroupedMode(): boolean {
     try {
       const groupConfig = this.visualStateStore.groupConfig;
-      return groupConfig && groupConfig.fields && groupConfig.fields.length > 0;
+      return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0);
     } catch (error) {
       // If visual operations aren't available, fallback to direct check
       const tableCore = this.tableCoreStore;

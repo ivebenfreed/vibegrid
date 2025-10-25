@@ -167,10 +167,10 @@ export class EventManager {
 
       if (copySuccess) {
         // Mark as cut operation
-        const clipboard = this.tableInteraction$.clipboard.get();
-        if (clipboard) {
+        const clipboard = this.tableInteraction$.clipboard;
+        if (clipboard && clipboard.data) {
           this.tableInteraction$.setClipboard({
-            ...clipboard,
+            data: clipboard.data,
             operation: 'cut'
           });
         }
@@ -222,7 +222,7 @@ export class EventManager {
     }
     
     // Trigger row insertion via tableCore$
-    this.tableCore$.insertRow(insertionIndex);
+    this.tableCore$.insertRow();
     
     this.overlayManager?.hideContextMenu();
   }
@@ -245,7 +245,7 @@ export class EventManager {
     
     // Trigger row deletion via tableCore$
     uniqueRowIds.forEach(rowId => {
-      this.tableCore$.deleteRow(rowId);
+      this.tableCore$.deleteRow();
     });
     
     fileLog.debug('➖ Delete rows completed', { rowCount: uniqueRowIds.length });

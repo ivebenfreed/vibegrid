@@ -43,8 +43,8 @@ export function RelationshipEditor({
     }
 
     if (isUserReference) {
-      // Load members collection
-      const membersCollection = getOrCreateMembersCollection(orgId)
+      // Load members collection - toArray is a getter, not a method call
+      const membersCollection = getOrCreateMembersCollection()
       const members = membersCollection?.toArray || []
       return members.map((member: any) => ({
         value: member.user_id || member.userId || member.id,

@@ -777,7 +777,7 @@ export class BodyRenderer {
    */
   private initializeDragDrop(): void {
     this.dragDropManager = new DragDropManager({
-      onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => {
+      onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number): boolean => {
         fileLog.debug('🔄 Row move requested via drag and drop (grouped)', {
           draggedRowId,
           targetGroupId,
@@ -800,17 +800,19 @@ export class BodyRenderer {
         }
 
         // Move row within group using data state method
-        const success = this.tableCoreStore.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex);
-
-        fileLog.debug('✅ Row move delegated to drag handler', {
-          draggedRowId,
-          sourceGroupId,
-          targetGroupId,
-          newIndex,
-          success
-        });
-
-        return success;
+        try {
+          this.tableCoreStore.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex);
+          fileLog.debug('✅ Row move delegated to drag handler', {
+            draggedRowId,
+            sourceGroupId,
+            targetGroupId,
+            newIndex
+          });
+          return true;
+        } catch (error) {
+          fileLog.error('❌ Row move failed', { error });
+          return false;
+        }
       },
 
       onFlatRowMove: (fromIndex: number, toIndex: number) => {
