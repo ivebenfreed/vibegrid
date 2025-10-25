@@ -29,6 +29,7 @@ export class MouseController {
   private selectionController?: any;
   private interactionStore: any;
   private visualStateStore: VisualStateStore;
+  private visualState?: any; // Legacy visual state reference
   private tableCoreStore?: any;
   private keyboardController?: any;
 
@@ -359,7 +360,7 @@ export class MouseController {
         const targetColumnId = targetHeaderElement.getAttribute('data-column-id');
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
           runInAction(() => { this.interactionStore.dragTarget = targetColumnId });
-          this.showDropLine(targetHeaderElement, e.clientX);
+          this.showDropLine(targetHeaderElement as HTMLElement, e.clientX);
           fileLog.debug('🎯 Column drag over target', {
             sourceColumnId: this.dragColumnId,
             targetColumnId
@@ -383,7 +384,7 @@ export class MouseController {
 
         if (targetRowId && targetRowId !== this.dragRowId) {
           runInAction(() => { this.interactionStore.dragTarget = targetRowId });
-          this.showRowDropIndicator(targetRowElement, e.clientY);
+          this.showRowDropIndicator(targetRowElement as HTMLElement, e.clientY);
           fileLog.debug('🎯 Row drag over target', {
             sourceRowId: this.dragRowId,
             targetRowId
@@ -1086,7 +1087,7 @@ export class MouseController {
     this.dragPreviewElement = document.createElement('div');
     this.dragPreviewElement.className = 'vibegridx-row-drag-preview';
     // Clone visible cells to create cell-styled preview
-    const cells = rowElement.querySelectorAll('.vibegridx-cell');
+    const cells = rowElement!.querySelectorAll('.vibegridx-cell');
     const visibleCells = Array.from(cells).slice(0, 4); // First 4 cells
 
     if (visibleCells.length > 0) {
@@ -1212,7 +1213,7 @@ export class MouseController {
     const targetGroupId = targetGroupElement?.getAttribute('data-group-id') || null;
 
     // Calculate target index
-    const targetIndex = this.calculateRowDropIndex(targetRowElement, targetGroupId, insertBefore);
+    const targetIndex = this.calculateRowDropIndex(targetRowElement as HTMLElement, targetGroupId, insertBefore);
 
     fileLog.debug('🎯 Row dropped for reordering', {
       sourceRowId: this.dragRowId,

@@ -374,6 +374,7 @@ export interface ViewportInfo {
   height: number;
   width: number;
   viewportWidth?: number;
+  viewportHeight?: number;
   scrollTop: number;
   scrollLeft?: number;
   itemHeight: number;

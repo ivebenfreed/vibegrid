@@ -3,7 +3,12 @@
 // ====================================
 // Extracted shared row rendering utilities for unified renderer
 
-import type { UnifiedTableRow } from '../core/UnifiedTableRenderer';
+// UnifiedTableRow type - simplified for utilities
+type UnifiedTableRow = {
+  type: 'group' | 'data' | 'summary';
+  id: string;
+  [key: string]: any;
+};
 
 export const ROW_HEIGHT = 40;
 export const GROUP_ROW_HEIGHT = 44;

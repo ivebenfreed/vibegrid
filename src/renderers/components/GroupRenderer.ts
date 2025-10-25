@@ -4,7 +4,6 @@
  */
 
 import { createLogger } from '@/lib/logging';
-import type { createVibeGridVisualState } from '../../stores/visual-state';
 import type { DOMElementFactory } from '../factories/DOMElementFactory';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/components/GroupRenderer.ts');
@@ -14,13 +13,13 @@ const ROW_HEIGHT = 40;
 export interface GroupRendererOptions {
   domFactory: DOMElementFactory;
   createElement: (tag: string, className: string) => HTMLElement;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
+  visualState?: any; // Legacy visual state - not used in current implementation
 }
 
 export class GroupRenderer {
   private domFactory: DOMElementFactory;
   private createElement: (tag: string, className: string) => HTMLElement;
-  private visualState: ReturnType<typeof createVibeGridVisualState>;
+  private visualState?: any; // Legacy visual state - not used in current implementation
 
   constructor(options: GroupRendererOptions) {
     this.domFactory = options.domFactory;

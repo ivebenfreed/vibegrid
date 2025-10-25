@@ -307,7 +307,8 @@ export class OverlayManager {
                       value: actualValue
                     });
 
-                    this.editingOverlay.showAt(position, cell, column, actualValue);
+                    const positionWithKey = { ...position, cellKey: state.editingCell };
+                    this.editingOverlay.showAt(positionWithKey, cell, column, actualValue);
                   }
                 }
               } else if (!state.isEditing && this.editingOverlay) {
