@@ -91,6 +91,7 @@ export class VisualStateStore implements IStore {
 
   @observable rowCount: number = 0
   @observable rowHeight: number = 40
+  @observable groupBy: any = null // Legacy grouping configuration
 
   // ====================================
   // VISUAL CONFIGURATION (Display Preferences)

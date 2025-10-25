@@ -1053,4 +1053,41 @@ export class TableCoreStore implements IStore {
     this.pendingEntityReferenceLoads.clear()
     log.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }
+
+  // ====================================
+  // LEGACY/STUB METHODS (for type compatibility)
+  // ====================================
+
+  /**
+   * @deprecated Stub method for type compatibility
+   */
+  insertRow(): void {
+    log.warn('insertRow() not implemented - legacy method stub')
+  }
+
+  /**
+   * @deprecated Stub method for type compatibility
+   */
+  deleteRow(): void {
+    log.warn('deleteRow() not implemented - legacy method stub')
+  }
+
+  /**
+   * @deprecated Stub method for type compatibility
+   */
+  undo(): void {
+    log.warn('undo() not implemented - legacy method stub')
+  }
+
+  /**
+   * @deprecated Stub method for type compatibility
+   */
+  redo(): void {
+    log.warn('redo() not implemented - legacy method stub')
+  }
+
+  /**
+   * @observable Grouping configuration
+   */
+  @observable grouping: any = null
 }
