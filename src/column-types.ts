@@ -1,5 +1,26 @@
 /**
- * Type-safe column definitions with compile-time field type validation
+ * @deprecated This file contains experimental strict generic Column types that are no longer used.
+ *
+ * **DO NOT USE THIS FILE** - Use the runtime Column type from './types.ts' instead.
+ *
+ * **Background:**
+ * This was an experiment in compile-time type safety using generics (Column<T, K extends keyof T>).
+ * However, the runtime Column from types.ts with 100+ display/formatting properties became
+ * the de facto standard used throughout the codebase.
+ *
+ * **Migration Status:**
+ * - All core files now import Column from './types.ts'
+ * - EnhancedColumn extends the runtime Column (not this strict one)
+ * - Field type implementations use runtime Column properties
+ *
+ * **This file is kept for:**
+ * - CellType export (re-exported from types.ts)
+ * - Historical reference
+ * - Potential future strict typing experiments
+ *
+ * **Removal plan:** Consider removing once CellType is consolidated into types.ts
+ *
+ * Type-safe column definitions with compile-time field type validation (DEPRECATED - see above)
  */
 
 // Map entity field types to allowed cell types
@@ -54,13 +75,19 @@ export type CellType =
   // Basic types
   | 'text'
   | 'longtext'
+  | 'textarea'  // Added: multi-line text input
   | 'rich-text'
   | 'number'
   | 'integer'
   | 'decimal'
+  | 'percentage'  // Added: number formatted as percentage
   | 'boolean'
   | 'date'
   | 'datetime'
+  | 'datetime-local'  // Added: HTML5 datetime-local input
+  | 'time'  // Added: time picker
+  | 'timestamp'  // Added: Unix timestamp
+  | 'timestamptz'  // Added: timestamp with timezone
   // Selection types
   | 'select'
   | 'single-select'
@@ -72,6 +99,7 @@ export type CellType =
   | 'phone'
   // Rich data types
   | 'file'
+  | 'image'  // Added: image upload/display
   | 'currency'
   | 'color'
   // Reference types

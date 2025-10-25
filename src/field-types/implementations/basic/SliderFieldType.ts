@@ -146,6 +146,10 @@ export const SliderFieldType: VibeGridFieldType = {
     supportsAggregation: true,
     requiresSpecialEditor: true,
     hasRichDisplay: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

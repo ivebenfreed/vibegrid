@@ -688,6 +688,10 @@ export const UserReferenceFieldType: VibeGridFieldType = {
     supportsValidation: true,
     supportsFormatting: true,
     requiresAsyncData: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

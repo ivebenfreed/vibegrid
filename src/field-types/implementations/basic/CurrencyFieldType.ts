@@ -367,6 +367,10 @@ export const CurrencyFieldType: VibeGridFieldType = {
     hasRichDisplay: true,
     supportsValidation: true,
     supportsFormatting: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

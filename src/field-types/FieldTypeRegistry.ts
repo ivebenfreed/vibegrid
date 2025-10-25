@@ -5,7 +5,7 @@
  * Bridges the gap between frontend rendering and backend Enhanced Field Handler metadata.
  */
 
-import type { Column } from '../column-types';
+import type { Column } from '../types';
 import type { TableCoreStore } from '../stores/TableCoreStore';
 import { createLogger } from '@/lib/logging';
 

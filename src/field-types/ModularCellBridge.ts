@@ -5,7 +5,7 @@
  * Provides a migration path from the old hardcoded cell creation to the new unified system.
  */
 
-import type { Column } from '../column-types';
+import type { Column } from '../types';
 import { FieldTypeRegistry, fieldTypeRegistry } from './FieldTypeRegistry';
 import { SchemaAdapter } from '../schema/SchemaAdapter';
 import { CellFactory } from '../factories/CellFactory';

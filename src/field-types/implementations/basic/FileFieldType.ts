@@ -269,6 +269,10 @@ export const FileFieldType: VibeGridFieldType = {
     requiresSpecialEditor: true,
     hasRichDisplay: true,
     supportsValidation: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

@@ -2,7 +2,7 @@
  * Default column configurations by cell type
  */
 
-import type { CellType, Column } from './column-types';
+import type { CellType, Column } from './types';
 
 export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number; maxWidth: number }> = {
   text: { width: 200, minWidth: 120, maxWidth: 400 },

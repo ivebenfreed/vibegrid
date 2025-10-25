@@ -285,6 +285,10 @@ export const RollupCountFieldType: VibeGridFieldType = {
     supportsFormatting: true,
     isCalculatedField: true,
     isReadOnly: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

@@ -447,6 +447,10 @@ export const EntityReferenceFieldType: VibeGridFieldType = {
     requiresSpecialEditor: true,
     hasRichDisplay: true,
     requiresAsyncData: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 

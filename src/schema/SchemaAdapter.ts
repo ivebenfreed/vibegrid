@@ -5,7 +5,7 @@
  * Enhances columns with validation, display, editor, capabilities, and accessibility metadata.
  */
 
-import type { Column } from '../column-types';
+import type { Column } from '../types';
 import type { EnhancedColumn, RelationshipConfig, RollupConfig } from '../field-types/FieldTypeRegistry';
 
 // Backend schema interface (simplified for now, can be expanded as needed)

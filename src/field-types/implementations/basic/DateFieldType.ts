@@ -612,6 +612,10 @@ export const DateFieldType: VibeGridFieldType = {
     hasRichDisplay: false,
     supportsValidation: true,
     supportsFormatting: true
+  },
+  getFormatter() {
+    const fmt = this.formatter;
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
   }
 };
 
