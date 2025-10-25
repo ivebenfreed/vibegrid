@@ -86,41 +86,31 @@ export class EventManager {
       if (cellElement && this.overlayManager) {
         const rowId = cellElement.dataset.rowId;
         const columnId = cellElement.dataset.columnId;
-        
+
+        if (!rowId || !columnId) return;
+
         fileLog.debug('🖱️ Context menu triggered', { rowId, columnId });
-        
+
         // Show context menu
         this.overlayManager.showContextMenu({
-          isVisible: true,
-          position: {
-            x: e.pageX,
-            y: e.pageY,
-            clientX: e.clientX,
-            clientY: e.clientY
-          },
-          context: {
-            type: 'cell' as const,
-            rowId,
-            columnId
-          },
-          onClose: () => {
-            this.overlayManager?.hideContextMenu();
-          },
-          onCopy: () => {
-            this.clipboardManager.handleCopy();
-          },
-          onPaste: () => {
-            this.clipboardManager.handlePaste();
-          },
-          onCut: () => {
-            this.handleCutAction();
-          },
-          onInsertRow: () => {
-            this.handleInsertRowAction();
-          },
-          onDeleteRow: () => {
-            this.handleDeleteRowAction();
-          }
+          x: e.pageX,
+          y: e.pageY,
+          rowId,
+          columnId,
+          items: [
+            {
+              label: 'Copy',
+              action: () => this.clipboardManager.handleCopy()
+            },
+            {
+              label: 'Paste',
+              action: () => this.clipboardManager.handlePaste()
+            },
+            {
+              label: 'Cut',
+              action: () => this.handleCutAction()
+            }
+          ]
         });
       }
     };

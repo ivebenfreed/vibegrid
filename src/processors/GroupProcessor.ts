@@ -614,7 +614,8 @@ export class GroupProcessor {
       return value ? (column.trueLabel || 'Yes') : (column.falseLabel || 'No');
     }
 
-    if ((column?.cellType as CellType) === 'enum' && column?.enumOptions) {
+    // Check for select/enum types that have options
+    if (column?.cellType && ['select', 'single-select', 'select-multi', 'multi-select'].includes(column.cellType as string) && column?.enumOptions) {
       const option = column?.enumOptions.find(opt => opt.value === value);
       return option?.label || String(value);
     }
