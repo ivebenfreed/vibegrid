@@ -23,9 +23,9 @@ export type {
 export interface FieldMetadata {
   supportsSorting: boolean;
   supportsFiltering: boolean;
-  supportsGrouping: boolean;
+  supportsGrouping?: boolean; // Optional - defaults to false
   supportsAggregation?: boolean;
-  requiresSpecialEditor: boolean;
+  requiresSpecialEditor?: boolean; // Optional - defaults to false
   hasRichDisplay: boolean;
   supportsValidation?: boolean;
   supportsFormatting?: boolean;
@@ -180,6 +180,7 @@ export interface EnhancedColumn extends Column {
   // Relationship-specific metadata
   relationshipConfig?: RelationshipConfig;
   rollupConfig?: RollupConfig;
+  targetEntityType?: string; // Target entity for relationships
 
   // Runtime data loading state
   asyncDataState?: {
@@ -200,7 +201,7 @@ export interface VibeGridFieldType {
   metadata: FieldMetadata;
 
   // 🚀 NEW: Simple formatter interface for pre-computation
-  getFormatter(): (value: any, rowData?: any, column?: any) => string;
+  getFormatter?(): (value: any, rowData?: any, column?: any) => string;
 
   // 🚀 NEW: Optional editor interface
   getEditor?(): any;

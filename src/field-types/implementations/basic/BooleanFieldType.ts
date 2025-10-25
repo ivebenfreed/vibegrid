@@ -184,7 +184,7 @@ export class BooleanRenderer implements CellRenderer {
  * Boolean Cell Editor
  */
 export class BooleanEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null;
+  private currentElement: HTMLElement | HTMLSelectElement | null = null;
   private onSaveCallback: ((value: any) => void) | null = null;
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {

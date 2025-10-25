@@ -222,11 +222,11 @@ export class SelectRenderer implements CellRenderer {
     }
 
     if (column.validation?.enum && Array.isArray(column.validation.enum)) {
-      return column.validation.enum.map(val => ({ value: String(val), label: String(val) }));
+      return column.validation.enum.map((val: any) => ({ value: String(val), label: String(val) }));
     }
 
     if (column.editor?.options && Array.isArray(column.editor.options)) {
-      return column.editor.options.map(opt =>
+      return column.editor.options.map((opt: any) =>
         typeof opt === 'string' ? { value: opt, label: opt } : opt
       );
     }
@@ -244,7 +244,7 @@ export class SelectRenderer implements CellRenderer {
  * Select Cell Editor
  */
 export class SelectEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null;
+  private currentElement: HTMLElement | HTMLSelectElement | null = null;
   private onSaveCallback: ((value: any) => void) | null = null;
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
@@ -443,11 +443,11 @@ export class SelectEditor implements CellEditor {
     }
 
     if (column.validation?.enum && Array.isArray(column.validation.enum)) {
-      return column.validation.enum.map(val => ({ value: String(val), label: String(val) }));
+      return column.validation.enum.map((val: any) => ({ value: String(val), label: String(val) }));
     }
 
     if (column.editor?.options && Array.isArray(column.editor.options)) {
-      return column.editor.options.map(opt =>
+      return column.editor.options.map((opt: any) =>
         typeof opt === 'string' ? { value: opt, label: opt } : opt
       );
     }
@@ -551,11 +551,11 @@ export class SelectFormatter implements CellFormatter {
     }
 
     if (column.validation?.enum && Array.isArray(column.validation.enum)) {
-      return column.validation.enum.map(val => ({ value: String(val), label: String(val) }));
+      return column.validation.enum.map((val: any) => ({ value: String(val), label: String(val) }));
     }
 
     if (column.editor?.options && Array.isArray(column.editor.options)) {
-      return column.editor.options.map(opt =>
+      return column.editor.options.map((opt: any) =>
         typeof opt === 'string' ? { value: opt, label: opt } : opt
       );
     }
@@ -600,7 +600,7 @@ export class SelectValidator implements CellValidator {
     }
 
     if (column.validation?.enum && Array.isArray(column.validation.enum)) {
-      return column.validation.enum.map(val => ({ value: String(val), label: String(val) }));
+      return column.validation.enum.map((val: any) => ({ value: String(val), label: String(val) }));
     }
 
     return [];

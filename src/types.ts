@@ -15,6 +15,7 @@ export type FilterConfig = {
 };
 // Import our local column types
 import type { Column as BaseColumn, CellType as BaseCellType } from './column-types';
+import type { VibeGridClipboardData } from './types/clipboard-types';
 
 // Re-export CellType for external use
 export type { BaseCellType as CellType };
@@ -69,19 +70,43 @@ export interface TableRow {
 }
 
 // Runtime column type with all options
-export interface Column<T = any> extends BaseColumn<T> {
+export interface Column<T = any> extends Omit<BaseColumn<T>, 'options'> {
   // Legacy support
   label?: string; // Alias for name
+  title?: string; // Alias for name (legacy)
+  header?: string; // Alias for name (legacy)
   type?: string; // Legacy field
 
-  // Additional runtime options
-  options?: string[] | EnumOption[]; // Allow string[] for backward compatibility
+  // Additional runtime options - override base type to include string[] for backward compatibility
+  options?: string[] | EnumOption[] | Array<{ value: string; label: string; color?: string; group?: string }>;
 
   // Dynamic options provider for relationship fields
   relationshipOptionsProvider?: RelationshipOptionsProvider;
 
   // Entity type for filtering relationship options (e.g., 'task' for StatusDefinition filtering)
   relationshipEntityType?: string;
+
+  // Relationship metadata
+  relationshipType?: 'many-to-one' | 'one-to-many' | 'many-to-many';
+
+  // Rollup field configuration
+  rollupRelationship?: string;
+  rollupSourceEntity?: string;
+  rollupSourceField?: string;
+  rollupConditions?: any;
+
+  // Validation
+  required?: boolean;
+  min?: number;
+  max?: number;
+  validation?: any; // Validation rules
+
+  // Editor configuration
+  editor?: any;
+
+  // Default values and metadata
+  defaultValue?: any;
+  meta?: any; // Additional metadata
 
   // 🚀 NEW: Pre-computed field type metadata for instant cell rendering
   fieldType?: any; // VibeGridFieldType instance
@@ -290,12 +315,16 @@ export interface GroupConfig {
 export interface GroupField {
   field: string; // Column field name
   displayName: string; // Human-readable name
+  label?: string; // Alias for displayName
+  sortDirection?: 'asc' | 'desc'; // Sort direction for this group
 }
 
 export interface AggregationConfig {
   field: string; // Field to aggregate
   function: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'unique';
   displayName?: string; // Custom display name
+  type?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'unique'; // Alias for function
+  label?: string; // Alias for displayName
 }
 
 // ====================================

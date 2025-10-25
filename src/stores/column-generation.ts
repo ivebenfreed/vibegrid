@@ -16,6 +16,14 @@ import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStor
 
 const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
 
+/**
+ * Fallback function that returns basic columns when schema is not available
+ */
+function getBasicColumns<T = any>(): Column<T>[] {
+  fileLog.warn('Using fallback basic columns - schema not available');
+  return [];
+}
+
 function deriveTargetEntityFromField(fieldName: string | undefined): string | null {
   if (!fieldName) return null;
   const base = fieldName
@@ -50,6 +58,19 @@ interface EntityField {
     enum?: string[];
   };
   syncable?: boolean;
+
+  // Unique identifier
+  id?: string;
+
+  // Relationship properties
+  relationshipTable?: string;
+  targetEntityType?: string;
+  referenceEntity?: string;
+  relationshipDisplayField?: string;
+  displayField?: string;
+  relationshipSearchFields?: string[];
+  searchFields?: string[];
+  relationshipType?: 'many-to-one' | 'one-to-many' | 'many-to-many';
 }
 
 /**
@@ -226,7 +247,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         fieldName,
         fieldType,
         cellType,
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       });
     }
 
@@ -294,7 +315,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     });
 
     return column;
-  }).filter(Boolean); // Remove any null entries from skipped fields
+  }).filter((col): col is Column<T> => col !== null); // Remove any null entries from skipped fields
 
   // Separate business fields from system fields
   const businessFields = allColumns.filter(col => !['created_at', 'updated_at'].includes(col.id));

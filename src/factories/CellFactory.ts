@@ -7,31 +7,17 @@
 
 import type {
   FieldTypeRegistry,
-  VibeGridFieldType
+  VibeGridFieldType,
+  EnhancedColumn
 } from '../field-types/FieldTypeRegistry';
 import { createLogger } from '@/lib/logging';
 
 // Practical column type that works with current usage patterns
-interface CellFactoryColumn {
-  id: string;
-  field?: string;
-  name?: string;
-  label?: string;
-  cellType?: string;
-  type?: string;
-  width?: number;
-  editable?: boolean;
-
-  // Enhanced properties from the new system
-  validation?: any;
-  display?: any;
-  editor?: any;
-  capabilities?: any;
-  accessibility?: any;
-  relationshipConfig?: any;
-  rollupConfig?: any;
+// Make it compatible with EnhancedColumn by using it as a base
+type CellFactoryColumn = EnhancedColumn & {
+  // Additional optional properties for backwards compatibility
   asyncDataState?: any;
-}
+};
 
 const fileLog = createLogger('components/custom/vibegrid/factories/CellFactory.ts');
 
@@ -608,5 +594,17 @@ export class CellFactory {
       fileLog.error('❌ [ASYNC-LOAD] Relationship data loading failed - FAIL FAST', { error, column: column.id });
       // Don't throw - just log and continue with basic rendering
     }
+  }
+
+  /**
+   * Update selection state for a cell
+   */
+  private updateSelectionState(cellElement: HTMLElement, column: CellFactoryColumn, rowData: any): void {
+    // Stub method for selection state management
+    // TODO: Implement selection state logic when needed
+    fileLog.debug('Selection state update requested', {
+      columnId: column.id,
+      rowData
+    });
   }
 }

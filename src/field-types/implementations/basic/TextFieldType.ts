@@ -85,7 +85,7 @@ export class TextRenderer implements CellRenderer {
       element.title = '';
       element.style.opacity = '0.6';
     } else {
-      const displayValue = this.formatValue(value, column);
+      const displayValue = this.formatValueByType(value, column);
       element.textContent = displayValue;
       element.title = displayValue; // Tooltip for overflow text
       element.style.opacity = '1';

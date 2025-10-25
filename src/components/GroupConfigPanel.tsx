@@ -69,6 +69,7 @@ export function GroupConfigPanel({
 
     const newField: GroupField = {
       field: column.field || column.id,
+      displayName: column.name || column.id,
       label: column.name || column.id,
       sortDirection: 'asc'
     };
@@ -131,6 +132,7 @@ export function GroupConfigPanel({
 
     const newAggregation: AggregationConfig = {
       field: column.field || column.id,
+      function: type as 'count' | 'sum' | 'avg' | 'min' | 'max' | 'unique',
       type: type as 'count' | 'sum' | 'avg' | 'min' | 'max' | 'unique',
       label: `${type.toUpperCase()} of ${column.name}`
     };
@@ -339,7 +341,7 @@ export function GroupConfigPanel({
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm truncate">{agg.label}</div>
                                 <div className="text-xs text-muted-foreground truncate">
-                                  {agg.type.toUpperCase()} • {agg.field}
+                                  {(agg.type || agg.function || 'unknown').toUpperCase()} • {agg.field}
                                 </div>
                               </div>
                               <Button

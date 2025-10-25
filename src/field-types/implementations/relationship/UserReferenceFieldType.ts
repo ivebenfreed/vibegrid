@@ -380,8 +380,11 @@ export class UserReferenceRenderer implements CellRenderer {
  */
 export class UserReferenceEditor implements CellEditor {
   private dataLoader = new UserDataLoader();
+  private currentElement: HTMLElement | null = null;
+  private onSaveCallback: ((value: any) => void) | null = null;
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+    this.onSaveCallback = onSave;
     // Create React ComboboxEditor with user options
     const container = document.createElement('div');
     container.className = 'vibegridx-user-editor-container';
@@ -394,6 +397,7 @@ export class UserReferenceEditor implements CellEditor {
     // Load user options synchronously
     this.loadUserOptionsAndRender(container, value, column, onSave);
 
+    this.currentElement = container;
     return container;
   }
 

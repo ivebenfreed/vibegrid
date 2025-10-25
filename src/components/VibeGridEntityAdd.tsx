@@ -256,7 +256,8 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
     } catch (error) {
       fileLog.error('Error creating entity', { error });
       // You could add a toast notification here
-      alert(`Error creating ${displayName}: ${error.message || 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Error creating ${displayName}: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -277,7 +278,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
     // Use enhanced display metadata for label and placeholder
     const fieldLabel = field.label ||
                       field.display?.label ||
-                      field.id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                      field.id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
 
     const placeholder = field.display?.placeholder ||
                        field.validation?.messages?.placeholder ||
@@ -347,7 +348,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     className={getInputClassName("w-full justify-between")}
                   >
                     {fieldValue.value
-                      ? options.find(option => option === fieldValue.value)?.charAt(0).toUpperCase() + options.find(option => option === fieldValue.value)?.slice(1)
+                      ? (options.find(option => option === fieldValue.value)?.charAt(0).toUpperCase() || '') + (options.find(option => option === fieldValue.value)?.slice(1) || '')
                       : `Select ${fieldLabel.toLowerCase()}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>

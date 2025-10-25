@@ -204,7 +204,9 @@ export const CoordinateTypeGuards = {
 
   isBounds(obj: any): obj is Bounds {
     return (
-      this.isPosition(obj) &&
+      obj &&
+      typeof obj.x === 'number' &&
+      typeof obj.y === 'number' &&
       typeof obj.width === 'number' &&
       typeof obj.height === 'number'
     );
