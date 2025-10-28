@@ -390,7 +390,7 @@ export class NumberFormatter implements CellFormatter {
     if (text.trim() === '') return null;
 
     // Remove common formatting characters
-    let cleanText = text.replace(/[,$%]/g, '');
+    const cleanText = text.replace(/[,$%]/g, '');
 
     const numValue = Number(cleanText);
     return isNaN(numValue) ? null : numValue;

@@ -306,7 +306,7 @@ export class SelectionController {
     // Use reactive checkbox states from interaction store
     const checkboxStates = this.interactionStore.getRowCheckboxStates(processedRows, visibleColumns);
 
-    let totalRows = processedRows.length;
+    const totalRows = processedRows.length;
     let selectedRowCount = 0;
 
     for (const row of processedRows) {

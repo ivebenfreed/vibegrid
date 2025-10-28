@@ -517,7 +517,7 @@ export class SimplePassiveRenderer {
 
     // VISUAL OBSERVER: Only watches layout changes (columns, viewport dimensions)
     // Track non-scroll visual changes to avoid duplicate renders with scroll observer
-    let lastVisualLayout = '';
+    const lastVisualLayout = '';
 
     fileLog.debug('🎯 CREATING VISUAL OBSERVER', {
       visualStateStoreExists: !!this.visualStateStore,
