@@ -36,7 +36,7 @@ import { positionTracker } from '../../stores/dom-position-state';
 // Utility imports
 import type { ViewportInfo, TableRow } from '../../types';
 import type { VisualCellPosition } from '../../overlays/OverlayTypes';
-import { formatFieldForDisplay } from '@/server/dataforge/fields/display-formatters';
+import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters';
 import { modularCellBridge } from '../../field-types';
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler';
 

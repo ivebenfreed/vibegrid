@@ -18,7 +18,7 @@ export type {
   EditorMetadata,
   FieldCapabilities,
   AccessibilityMetadata
-} from '@/server/dataforge/fields/types';
+} from '@/server/domain/dataforge/fields/types';
 
 export interface FieldMetadata {
   supportsSorting: boolean;

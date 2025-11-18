@@ -18,7 +18,7 @@ import type {
   FieldMetadata
 } from '../../FieldTypeRegistry';
 import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-import { formatFieldForDisplay } from '@/server/dataforge/fields/display-formatters';
+import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters';
 
 const fileLog = createLogger('components/vibegrid/field-types/implementations/basic/DateFieldType');
 

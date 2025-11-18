@@ -18,7 +18,7 @@ import type {
   FieldMetadata
 } from '../../FieldTypeRegistry';
 import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-import { formatFieldForDisplay } from '@/server/dataforge/fields/display-formatters';
+import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters';
 import { getOptionIconDisplay } from '../../../utils/icon-mapping';
 
 const fileLog = createLogger('components/custom/vibegrid/field-types/implementations/basic/SelectFieldType');
