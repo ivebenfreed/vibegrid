@@ -168,7 +168,7 @@ export class CurrencyEditor implements CellEditor {
 
   getValue(element: HTMLElement): any {
     const amountInput = element.querySelector('.vibegridx-currency-amount') as HTMLInputElement | null;
-    const currencySelect = element.querySelector('.vibegridx-currency-code') as HTMLSelectElement | null;
+    const currencySelect = element.querySelector('.vibegridx-currency-code') as unknown as HTMLSelectElement | null;
 
     if (amountInput && currencySelect) {
       const amount = parseFloat(amountInput.value);
