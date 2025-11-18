@@ -8,6 +8,7 @@
 import { createLogger } from '@/shared/lib/logging';
 import { runInAction } from 'mobx';
 import type { VisualStateStore } from '../../stores/VisualStateStore';
+import type { InteractionCoordinator } from '../../coordination/InteractionCoordinator';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts');
 
@@ -20,6 +21,7 @@ export interface MouseControllerOptions {
   visualStateStore: VisualStateStore;
   tableCoreStore?: any; // For accessing processed rows and columns
   keyboardController?: any; // For ensuring focus after interactions
+  coordinator?: InteractionCoordinator; // ✅ NEW: InteractionCoordinator for clean event delegation
 }
 
 export class MouseController {
@@ -32,6 +34,7 @@ export class MouseController {
   private visualState?: any; // Legacy visual state reference
   private tableCoreStore?: any;
   private keyboardController?: any;
+  private coordinator?: InteractionCoordinator; // ✅ NEW: Coordinator for clean event handling
 
   // Mouse state tracking
   private isDragging = false;
@@ -75,6 +78,7 @@ export class MouseController {
     this.visualStateStore = options.visualStateStore;
     this.tableCoreStore = options.tableCoreStore;
     this.keyboardController = options.keyboardController;
+    this.coordinator = options.coordinator; // ✅ NEW: Store coordinator for event delegation
 
     // Prevent text selection during drag operations
     this.container.style.userSelect = 'none';
@@ -231,16 +235,33 @@ export class MouseController {
         cellId,
         tagName: target.tagName,
         className: target.className,
-        isEditableElement
+        isEditableElement,
+        hasCoordinator: !!this.coordinator
       });
 
-      // PURE: Update mouse coordinates
-      this.interactionStore.setMousePosition(e.clientX, e.clientY);
-      this.interactionStore.setMouseDown(true);
+      // ✅ Delegate to InteractionCoordinator (coordinator is always initialized)
+      if (!this.coordinator) {
+        fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen');
+        return;
+      }
 
-      // PURE: ALWAYS select the cell when clicked - this is the universal interaction pattern
-      // Pass isEditableElement=false for content elements since they handle their own editing
-      this.interactionStore.handleCellClick(cellId, isEditableElement, e.ctrlKey, e.shiftKey);
+      fileLog.debug('🎯 Delegating pointer down to InteractionCoordinator');
+
+      this.coordinator.handlePointerDown({
+        cellId,
+        rowId: rowId!,
+        columnId: columnId!,
+        x: e.clientX,
+        y: e.clientY,
+        target: e.target as Element,
+        modifiers: {
+          ctrl: e.ctrlKey,
+          shift: e.shiftKey,
+          alt: e.altKey,
+          meta: e.metaKey
+        },
+        nativeEvent: e as PointerEvent
+      });
 
       // Ensure container gets focus for keyboard navigation after cell selection
       if (this.keyboardController && !isEditableElement) {
@@ -671,46 +692,37 @@ export class MouseController {
           rowId,
           columnId,
           isShiftKey: e.shiftKey,
-          isCtrlKey: e.ctrlKey || e.metaKey
+          isCtrlKey: e.ctrlKey || e.metaKey,
+          hasCoordinator: !!this.coordinator
         });
 
-        // Handle different click types:
-        // Regular click -> single cell selection
-        // Shift+click -> range selection
-        // Ctrl/Cmd+click -> disabled (treated as regular click)
-        if (e.shiftKey) {
-          // Shift+click: Range selection from last selected cell
-          const selectedCells = this.interactionStore.selectedCells;
-          const lastSelectedCell = selectedCells.size > 0 ? Array.from(selectedCells).pop() : null;
-
-          if (lastSelectedCell) {
-            fileLog.debug('🖱️ Shift+click range selection', {
-              from: lastSelectedCell,
-              to: cellId
-            });
-
-            // Get data context for range selection (MobX stores)
-            const rows = this.tableCoreStore?.processedRows || [];
-            const columns = this.visualStateStore?.columns || [];
-            const columnVisibility = this.visualStateStore.columnVisibility;
-
-            this.interactionStore.selectRange(lastSelectedCell, cellId, { rows, columns, columnVisibility });
-          } else {
-            // No previous selection, just select this cell
-            runInAction(() => {
-              this.interactionStore.selectedCells = new Set([cellId]);
-            });
-          }
-        } else {
-          // Regular click or Ctrl/Cmd+click: Replace selection with this cell
-          // (Ctrl/Cmd+click is disabled in this system)
-          runInAction(() => {
-            this.interactionStore.selectedCells = new Set([cellId]);
-          });
+        // ✅ Delegate to InteractionCoordinator (coordinator is always initialized)
+        if (!this.coordinator) {
+          fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen');
+          return;
         }
+
+        fileLog.debug('🎯 Delegating cell click to InteractionCoordinator');
+
+        this.coordinator.handleClick({
+          cellId,
+          rowId: rowId!,
+          columnId: columnId!,
+          x: e.clientX,
+          y: e.clientY,
+          target: e.target as Element,
+          modifiers: {
+            ctrl: e.ctrlKey,
+            shift: e.shiftKey,
+            alt: e.altKey,
+            meta: e.metaKey
+          },
+          nativeEvent: e
+        });
 
         // Prevent event propagation
         e.stopPropagation();
+        return;
 
       } else if (rowHeaderElement && this.selectionController) {
         // Handle row header clicks

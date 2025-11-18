@@ -12,7 +12,7 @@ export interface ScrollControllerOptions {
   headerViewport?: HTMLElement | null;
   container?: HTMLElement;
   onScroll?: (scrollLeft: number, scrollTop: number) => void;
-  onClickOutside?: () => void;
+  onClickOutside?: (e: MouseEvent) => void;
   keyboardNavController?: any;
   selectionController?: any;
   interactionStore?: any;
@@ -24,7 +24,7 @@ export class ScrollController {
   private container?: HTMLElement;
   private scrollRAF: number | null = null;
   private onScroll?: (scrollLeft: number, scrollTop: number) => void;
-  private onClickOutside?: () => void;
+  private onClickOutside?: (e: MouseEvent) => void;
   private keyboardNavController?: any;
   private selectionController?: any;
   private interactionStore?: any;
@@ -254,7 +254,7 @@ export class ScrollController {
 
       // Just delegate the event, don't manage state
       if (this.onClickOutside) {
-        this.onClickOutside();
+        this.onClickOutside(e);
       } else {
         fileLog.warn('⚠️ No outside click handler provided');
       }

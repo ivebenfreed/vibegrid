@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { createLogger } from '@/shared/lib/logging';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
+import { cn } from '@/shared/lib/utils';
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/LongTextEditor.tsx');
 
@@ -146,68 +147,32 @@ export function LongTextEditor({
   return ReactDOM.createPortal(
     <div
       ref={modalRef}
-      className="vibegrid-long-text-editor-overlay"
+      className="vibegrid-long-text-editor-overlay fixed inset-0 bg-black/50 flex items-center justify-center p-5"
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_BACKDROP,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
+        zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_BACKDROP
       }}
       onClick={handleBackdropClick}
     >
       <div
+        className="bg-background rounded-lg shadow-lg w-[90%] max-w-[600px] min-w-[400px] max-h-[70vh] min-h-[300px] flex flex-col overflow-hidden"
         style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-          width: '90%',
-          maxWidth: '600px',
-          minWidth: '400px',
-          maxHeight: '70vh',
-          minHeight: '300px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
           zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_CONTENT
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #e5e5e5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: '#f8f9fa'
-          }}
-        >
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-muted">
           <div>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+            <h3 className="m-0 text-base font-semibold text-foreground">
               Edit {column.name}
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#666' }}>
+            <p className="mt-1 mb-0 text-xs text-muted-foreground">
               Cell: {cell.rowId}:{cell.columnId}
             </p>
           </div>
           <button
             onClick={handleCancel}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#666'
-            }}
+            className="bg-transparent border-none text-lg cursor-pointer p-1 text-muted-foreground hover:text-foreground"
             title="Close (Esc)"
           >
             ×
@@ -215,52 +180,24 @@ export function LongTextEditor({
         </div>
 
         {/* Content Area */}
-        <div
-          style={{
-            flex: 1,
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
+        <div className="flex-1 p-5 flex flex-col overflow-hidden">
           <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => handleChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={column.placeholder || `Enter ${column.name.toLowerCase()}...`}
-            style={{
-              flex: 1,
-              minHeight: '150px',
-              maxHeight: '400px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              padding: '12px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              lineHeight: '1.5',
-              resize: 'vertical',
-              outline: 'none',
-              backgroundColor: isOverLimit ? '#fef2f2' : 'white',
-              borderColor: isOverLimit ? '#ef4444' : '#d1d5db'
-            }}
+            className={cn(
+              "flex-1 min-h-[150px] max-h-[400px] border rounded p-3 text-sm font-inherit leading-relaxed resize-y outline-none bg-background text-foreground",
+              isOverLimit ? "bg-destructive/10 border-destructive" : "border-border"
+            )}
           />
 
           {/* Character Count */}
-          <div
-            style={{
-              marginTop: '8px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '12px',
-              color: '#666'
-            }}
-          >
+          <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
             <div>
               {hasMaxLength && (
-                <span style={{ color: isOverLimit ? '#ef4444' : '#666' }}>
+                <span className={isOverLimit ? "text-destructive" : "text-muted-foreground"}>
                   {characterCount.toLocaleString()} / {column.maxLength!.toLocaleString()} characters
                   {isOverLimit && ' (over limit)'}
                 </span>
@@ -269,50 +206,27 @@ export function LongTextEditor({
                 <span>{characterCount.toLocaleString()} characters</span>
               )}
             </div>
-            <div style={{ color: '#9ca3af' }}>
-              Ctrl+Enter to save
-            </div>
+            <div>Ctrl+Enter to save</div>
           </div>
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderTop: '1px solid #e5e5e5',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            backgroundColor: '#f8f9fa'
-          }}
-        >
+        <div className="px-5 py-4 border-t border-border flex justify-end gap-3 bg-muted">
           <button
             onClick={handleCancel}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              color: '#374151',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
+            className="px-4 py-2 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isOverLimit}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor: isOverLimit ? '#d1d5db' : '#3b82f6',
-              color: 'white',
-              cursor: isOverLimit ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              opacity: isOverLimit ? 0.6 : 1
-            }}
+            className={cn(
+              "px-4 py-2 border-none rounded text-sm",
+              isOverLimit
+                ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                : "bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90"
+            )}
           >
             Save {isDirty && '*'}
           </button>

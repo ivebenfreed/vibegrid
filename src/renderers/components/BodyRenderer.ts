@@ -113,8 +113,8 @@ export class BodyRenderer {
 
     // Check if modular cell system is already available globally (from init manager)
     // This allows synchronous access if it's already initialized
-    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
-      this.modularCellBridge = (window as any).vibegridCellBridge;
+    if (typeof window !== 'undefined' && window.vibegridCellBridge) {
+      this.modularCellBridge = window.vibegridCellBridge;
       fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already available from init manager');
     } else {
       // Initialize modular cell system asynchronously as fallback
@@ -144,8 +144,8 @@ export class BodyRenderer {
    */
   private async initializeModularCellSystem(): Promise<void> {
     // First check if it's already available globally (from init manager)
-    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
-      this.modularCellBridge = (window as any).vibegridCellBridge;
+    if (typeof window !== 'undefined' && window.vibegridCellBridge) {
+      this.modularCellBridge = window.vibegridCellBridge;
       fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already initialized (from init manager)', {
         supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
         basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
@@ -688,31 +688,19 @@ export class BodyRenderer {
     column: any,
     value: any
   ): void {
-    // Add click handler for edit mode (only for editable columns)
-    if (column.editable !== false) {
-      const contentElement = cellElement.querySelector('span') || cellElement.firstElementChild;
-      if (contentElement) {
-        contentElement.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const cellId = `${row.id}:${column.id}`;
+    // ✅ REMOVED: Old content click handler (now handled by CellActionRouter spatial detection)
+    // CellActionRouter detects content vs padding clicks and routes accordingly:
+    // - Content click → editSessionManager.start() (via CellActionRouter)
+    // - Padding click → selection only (via SelectionService)
 
-          fileLog.debug('📝 Content clicked - entering edit mode', {
-            rowId: row.id,
-            columnId: column.id,
-            value,
-            cellType: column.cellType || column.type
-          });
-
-          // Start edit immediately
-          this.interactionStore.startEdit(cellId, value ? String(value) : '');
-        });
-      }
-    }
-
-    // Mouse down handler for cell selection will be handled by event delegation
-    // Just ensure proper data attributes are set
+    // Set data attributes for InteractionCoordinator
     cellElement.setAttribute('data-row-id', row.id);
     cellElement.setAttribute('data-column-id', column.id);
+
+    // Set field type metadata for CellActionRouter
+    if (column.fieldType) {
+      cellElement.setAttribute('data-field-type', column.fieldType.type || column.cellType || 'text');
+    }
   }
 
   // Note: Cell formatting methods removed - now handled by unified CellFactory

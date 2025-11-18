@@ -46,13 +46,10 @@ export class UrlRenderer implements CellRenderer {
     container.style.cursor = 'pointer';
     container.title = urlValue; // Show full URL on hover
 
-    // Make it clickable to open in new tab
-    container.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (this.isValidUrl(urlValue)) {
-        window.open(urlValue, '_blank', 'noopener,noreferrer');
-      }
-    });
+    // Store URL href for coordinator to handle (no stopPropagation)
+    if (this.isValidUrl(urlValue)) {
+      container.dataset.urlHref = urlValue;
+    }
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -431,6 +428,13 @@ export const UrlFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'navigate',     // URL fields navigate to the URL
+    editTrigger: 'icon',           // Click icon to edit (e.g., pencil icon)
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

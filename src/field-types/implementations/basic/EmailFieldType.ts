@@ -45,11 +45,8 @@ export class EmailRenderer implements CellRenderer {
     container.style.textDecoration = 'none';
     container.style.cursor = 'pointer';
 
-    // Make it clickable to open email client
-    container.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.open(`mailto:${displayValue}`, '_blank');
-    });
+    // Store email href for coordinator to handle (no stopPropagation)
+    container.dataset.emailHref = `mailto:${displayValue}`;
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -353,6 +350,13 @@ export const EmailFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'navigate',     // Email fields navigate to mailto: URL
+    editTrigger: 'icon',           // Click icon to edit (e.g., pencil icon)
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

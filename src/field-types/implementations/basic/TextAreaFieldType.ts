@@ -131,6 +131,13 @@ export const TextAreaFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',         // Textarea fields are for editing
+    editTrigger: 'content-click',  // Click content to edit
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

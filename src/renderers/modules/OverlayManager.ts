@@ -9,6 +9,7 @@ import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM';
 import { EditingOverlay } from '../../overlays/EditingOverlay';
 import { ContextMenuManager } from '../../components/ContextMenu';
 import { ColumnDragOverlayDOM } from '../../overlays/ColumnDragOverlayDOM';
+import { EditSessionManager } from '../../services/EditSessionManager';
 // SelectionManager functionality consolidated into interaction-state
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
@@ -57,6 +58,9 @@ export class OverlayManager {
   private contextMenu: ContextMenuManager | null = null;
   private columnDragOverlay: ColumnDragOverlayDOM | null = null;
   // Note: FillHandleLayer is managed by CanvasOverlayDOM, not created here
+
+  // Service layer
+  private editSessionManager: EditSessionManager;
   
   // Performance optimization caches
   private lastSelectionString: string = ''; // More reliable deduplication
@@ -76,6 +80,12 @@ export class OverlayManager {
     this.headerContainer = options.headerContainer || null;
     this.bodyContainer = options.bodyContainer || null;
     this.getProcessedRows = options.getProcessedRows;
+
+    // Create EditSessionManager (service layer)
+    this.editSessionManager = new EditSessionManager(
+      this.interactionStore,
+      this.tableCoreStore
+    );
 
     this.initOverlays();
   }
@@ -116,11 +126,17 @@ export class OverlayManager {
     // Create editing overlay
     this.editingOverlay = new EditingOverlay(this.container, {
       interactionStore: this.interactionStore,
+      onUpdate: (value) => {
+        // ✅ Delegate to EditSessionManager for session tracking
+        this.editSessionManager.updateValue(value);
+      },
       onCommit: async (value) => {
-        await this.interactionStore.saveEdit(value);
+        // ✅ Delegate to EditSessionManager for proper commit handling
+        await this.editSessionManager.commit('user-action', value);
       },
       onCancel: () => {
-        this.interactionStore.cancelEdit();
+        // ✅ Delegate to EditSessionManager for proper cancel handling
+        this.editSessionManager.cancel('user-action');
       },
       relationshipContext: {
         relationshipResolvers: {}
@@ -862,7 +878,14 @@ export class OverlayManager {
   setBodyContainer(bodyContainer: HTMLElement | null): void {
     this.bodyContainer = bodyContainer;
   }
-  
+
+  /**
+   * Get EditSessionManager for use by InteractionCoordinator
+   */
+  getEditSessionManager(): EditSessionManager {
+    return this.editSessionManager;
+  }
+
   /**
    * Clean up all overlays
    */

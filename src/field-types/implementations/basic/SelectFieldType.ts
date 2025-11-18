@@ -96,13 +96,19 @@ export class SelectRenderer implements CellRenderer {
     const option = this.findOption(value, column);
 
     if (option) {
+      // Create badge element (content that triggers edit)
+      const badge = document.createElement('span');
+
+      // ✅ Explicit action: clicking badge opens dropdown
+      badge.dataset.action = 'edit';
+
       // Add hover class for dropdown indicator (editable badges get larger scale)
       const hoverClass = column.editable !== false ? 'vibegridx-badge-dropdown' : 'vibegridx-badge-readonly';
-      container.className = `vibegridx-enum-badge ${hoverClass}`;
+      badge.className = `vibegridx-enum-badge ${hoverClass}`;
 
-      // Apply badge styling directly to container instead of creating nested element
-      container.textContent = option.label;
-      container.style.cssText = `
+      // Apply badge styling
+      badge.textContent = option.label;
+      badge.style.cssText = `
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -114,6 +120,7 @@ export class SelectRenderer implements CellRenderer {
         background-color: ${option.backgroundColor || '#f3f4f6'};
         color: ${option.color || '#374151'};
         border: 1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'};
+        cursor: pointer;
       `;
 
       if (option.icon) {
@@ -122,11 +129,14 @@ export class SelectRenderer implements CellRenderer {
           const icon = document.createElement('span');
           icon.textContent = iconSymbol;
           icon.style.fontSize = '10px';
-          container.insertBefore(icon, container.firstChild);
+          badge.insertBefore(icon, badge.firstChild);
         }
       }
+
+      // Append badge to container (padding around badge allows selection-only clicks)
+      container.appendChild(badge);
     } else {
-      // Unknown value
+      // Unknown value - no badge, just text
       container.textContent = String(value);
       container.style.fontStyle = 'italic';
       container.style.opacity = '0.7';
@@ -174,6 +184,9 @@ export class SelectRenderer implements CellRenderer {
     badge.className = 'vibegridx-select-badge';
     badge.textContent = option.label;
 
+    // ✅ Explicit action: clicking badge opens dropdown (multi-select will handle multiple values)
+    badge.dataset.action = 'edit';
+
     badge.style.cssText = `
       display: inline-flex;
       align-items: center;
@@ -186,6 +199,7 @@ export class SelectRenderer implements CellRenderer {
       background-color: ${option.backgroundColor || '#f3f4f6'};
       color: ${option.color || '#374151'};
       border: 1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'};
+      cursor: pointer;
     `;
 
     if (option.icon) {
@@ -655,6 +669,13 @@ export const SelectFieldType: VibeGridFieldType = {
   // 🚀 NEW: Optional editor interface
   getEditor(): any {
     return new SelectEditor();
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',        // Select fields open dropdown on click
+    editTrigger: 'content-click', // Click badge content to open dropdown (padding = selection only)
+    blurPolicy: 'commit'          // Save on blur
   }
 };
 

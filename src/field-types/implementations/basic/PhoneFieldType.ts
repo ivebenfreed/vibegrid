@@ -45,14 +45,11 @@ export class PhoneRenderer implements CellRenderer {
     container.style.cursor = 'pointer';
     container.style.fontVariantNumeric = 'tabular-nums';
 
-    // Make it clickable to initiate phone call
-    container.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const cleanPhone = this.cleanPhoneNumber(String(value));
-      if (cleanPhone) {
-        window.open(`tel:${cleanPhone}`, '_self');
-      }
-    });
+    // Store phone number for coordinator to handle (no stopPropagation)
+    const cleanPhone = this.cleanPhoneNumber(String(value));
+    if (cleanPhone) {
+      container.dataset.phoneHref = `tel:${cleanPhone}`;
+    }
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -500,6 +497,13 @@ export const PhoneFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'navigate',     // Phone fields navigate to tel: URL
+    editTrigger: 'icon',           // Click icon to edit (e.g., pencil icon)
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

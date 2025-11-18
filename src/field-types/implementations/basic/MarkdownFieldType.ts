@@ -76,8 +76,17 @@ export const MarkdownFieldType: VibeGridFieldType = {
     supportsFiltering: true,
     requiresSpecialEditor: true,
     hasRichDisplay: true
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',         // Markdown/rich-text fields open editor
+    editTrigger: 'content-click',  // Click content to edit
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry';
 fieldTypeRegistry.register('markdown', MarkdownFieldType);
+fieldTypeRegistry.register('rich-text', MarkdownFieldType);  // With hyphen
+fieldTypeRegistry.register('richtext', MarkdownFieldType);   // Without hyphen

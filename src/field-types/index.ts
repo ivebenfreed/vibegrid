@@ -16,6 +16,7 @@ const fileLog = createLogger('components/vibegrid/field-types/index');
 // Import all field type implementations to register them early
 // Basic types
 import './implementations/basic/TextFieldType';
+import './implementations/basic/EntityNameFieldType'; // Special renderer for name/title fields
 import './implementations/basic/TextAreaFieldType';
 import './implementations/basic/NumberFieldType';
 import './implementations/basic/DateFieldType';

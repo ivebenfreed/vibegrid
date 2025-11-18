@@ -209,10 +209,8 @@ export class CellFactory {
 
     container.appendChild(content);
 
-    // Add editing support if enabled and column is editable
-    if (this.options.enableEditing && column.editable !== false) {
-      this.addEditingSupport(container, value, column, fieldType);
-    }
+    // ✅ REMOVED: addEditingSupport() call
+    // Editing now handled by CellActionRouter via spatial click detection
 
     return container;
   }
@@ -253,10 +251,8 @@ export class CellFactory {
 
     container.appendChild(contentWrapper);
 
-    // Add relationship editing support
-    if (this.options.enableEditing && column.editable !== false) {
-      this.addRelationshipEditingSupport(container, value, column, fieldType);
-    }
+    // ✅ REMOVED: addRelationshipEditingSupport() call
+    // Editing now handled by CellActionRouter via spatial click detection
 
     return container;
   }
@@ -452,42 +448,23 @@ export class CellFactory {
   }
 
   /**
-   * Add editing support to a cell
+   * ✅ REMOVED: addEditingSupport method
+   *
+   * Editing is now handled by the service layer:
+   * - CellActionRouter detects content vs padding clicks (spatial pattern)
+   * - Content click → EditSessionManager.start()
+   * - Padding click → SelectionService (selection only)
+   * - Keyboard (F2/Enter) → KeyboardController delegates to coordinator
+   *
+   * This method previously added click handlers that conflicted with
+   * the new service layer and prevented proper spatial click detection.
    */
-  private addEditingSupport(
-    container: HTMLElement,
-    value: any,
-    column: CellFactoryColumn,
-    fieldType: VibeGridFieldType
-  ): void {
-    container.classList.add('vibegridx-cell-editable');
-
-    container.addEventListener('click', (event) => {
-      event.stopPropagation();
-      this.startEditing(container, value, column, fieldType);
-    });
-
-    container.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === 'F2') {
-        event.preventDefault();
-        this.startEditing(container, value, column, fieldType);
-      }
-    });
-  }
 
   /**
-   * Add relationship editing support
+   * ✅ REMOVED: addRelationshipEditingSupport method
+   *
+   * Relationship editing now handled by service layer like all other field types.
    */
-  private addRelationshipEditingSupport(
-    container: HTMLElement,
-    value: any,
-    column: CellFactoryColumn,
-    fieldType: VibeGridFieldType
-  ): void {
-    // Relationship editing uses specialized UI components
-    // For now, delegate to standard editing with additional relationship context
-    this.addEditingSupport(container, value, column, fieldType);
-  }
 
   /**
    * Start editing a cell

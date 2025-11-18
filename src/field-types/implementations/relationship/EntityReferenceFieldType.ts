@@ -238,7 +238,7 @@ export class EntityReferenceRenderer implements CellRenderer {
     const hoverClass = 'vibegridx-badge-editable';
 
     return `
-      <div class="vibegridx-entity-badge ${hoverClass}" title="${displayName}" style="
+      <div class="vibegridx-entity-badge ${hoverClass}" data-action="edit" title="${displayName}" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -451,6 +451,13 @@ export const EntityReferenceFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',        // Relationship fields open picker on click
+    editTrigger: 'content-click', // Click badge to open picker (padding = selection only)
+    blurPolicy: 'commit'          // Save on blur
   }
 };
 

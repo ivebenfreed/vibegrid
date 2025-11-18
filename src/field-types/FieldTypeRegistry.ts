@@ -88,6 +88,41 @@ export interface FormattingContext {
   [key: string]: any;
 }
 
+/**
+ * Field Interaction Policy
+ *
+ * Defines how a field type responds to user interactions.
+ * Used by CellActionRouter to determine what action to take after selection.
+ */
+export interface FieldInteractionPolicy {
+  /**
+   * Default action when cell is clicked (after selection)
+   * - navigate: Invoke onCellClick callback (e.g., EntityName opens detail view)
+   * - edit: Start editing session
+   * - custom: Delegate to field type's custom handler
+   * - none: Selection only, no additional action
+   */
+  defaultAction: 'navigate' | 'edit' | 'custom' | 'none';
+
+  /**
+   * What user action triggers editing
+   * - content-click: Click content element starts edit (spatial: content vs padding)
+   * - click: Any click on cell starts edit
+   * - f2: Only F2 key starts edit
+   * - icon: Only clicking an edit icon starts edit (e.g., pencil for EntityName)
+   * - none: Field is not editable
+   */
+  editTrigger: 'content-click' | 'click' | 'f2' | 'icon' | 'none';
+
+  /**
+   * What happens when user clicks outside or editor loses focus
+   * - commit: Save changes and close editor
+   * - cancel: Discard changes and close editor
+   * - keep-open: Keep editor open (e.g., for multi-field forms)
+   */
+  blurPolicy: 'commit' | 'cancel' | 'keep-open';
+}
+
 // Base interfaces
 export interface CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement;
@@ -209,6 +244,12 @@ export interface VibeGridFieldType {
   // 🚀 NEW: Optional styling
   getStyles?(value: any, column: any): Record<string, string>;
 
+  // 🚀 NEW: Interaction policy for click/edit behavior
+  interactionPolicy?: FieldInteractionPolicy;
+
+  // 🚀 NEW: Custom click handler (for custom action types)
+  handleClick?(context: any): void;
+
   // Relationship-specific properties
   relationshipConfig?: RelationshipConfig;
   rollupConfig?: RollupConfig;
@@ -274,6 +315,40 @@ export class FieldTypeRegistry {
    * Resolve the field type from column definition
    */
   private resolveFieldType(column: EnhancedColumn): string {
+    // ✅ Check SPECIFIC field types BEFORE generic ones
+    // This ensures EntityName (id='title'|'name') matches before Text (type='text')
+    const specificTypes = ['entity-name', 'user-reference', 'entity-reference'];
+
+    for (const typeName of specificTypes) {
+      const fieldType = this.types.get(typeName);
+      if (fieldType?.renderer.canHandle && fieldType.renderer.canHandle(column)) {
+        fieldLog.debug('🎯 [FIELD-REGISTRY] Specific field type matched via canHandle()', {
+          columnId: column.id,
+          matchedType: typeName,
+          columnType: column.type
+        });
+        return typeName;
+      }
+    }
+
+    // ✅ Check GENERIC field types (Text, Number, etc.)
+    for (const [typeName, fieldType] of this.types.entries()) {
+      // Skip specific types we already checked
+      if (specificTypes.includes(typeName)) {
+        continue;
+      }
+
+      if (fieldType.renderer.canHandle && fieldType.renderer.canHandle(column)) {
+        fieldLog.debug('🎯 [FIELD-REGISTRY] Generic field type matched via canHandle()', {
+          columnId: column.id,
+          matchedType: typeName,
+          columnType: column.type
+        });
+        return typeName;
+      }
+    }
+
+    // Fallback: Use column metadata
     // Priority: cellType > type > 'text'
     const resolvedType = column.cellType || column.type || 'text';
 

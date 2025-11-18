@@ -488,6 +488,13 @@ export const BooleanFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',    // Boolean fields toggle on click
+    editTrigger: 'click',     // Click anywhere to toggle
+    blurPolicy: 'commit'      // Save on blur
   }
 };
 

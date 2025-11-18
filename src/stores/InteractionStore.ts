@@ -16,7 +16,7 @@
  * This is the most complex interaction layer with sophisticated selection logic.
  */
 
-import { makeObservable, observable, action, computed } from 'mobx'
+import { makeObservable, observable, action, computed, runInAction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import type { IStore } from '@/app/stores/types'
@@ -375,7 +375,12 @@ export class InteractionStore implements IStore {
   }
 
   /**
-   * Handle cell click with editing logic
+   * Handle cell click with selection logic only
+   *
+   * @param cellId - The cell ID to handle
+   * @param isEditable - DEPRECATED: No longer used (editing handled by CellActionRouter)
+   * @param ctrlKey - Whether Ctrl key was pressed (for multi-select)
+   * @param shiftKey - Whether Shift key was pressed (for range select)
    */
   @action
   handleCellClick(cellId: string, isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
@@ -412,32 +417,15 @@ export class InteractionStore implements IStore {
       log.info('Normal click single selection', { cellId })
     }
 
-    // 3. For editable cells, start editing (but not during multi-select)
-    if (isEditable && !shiftKey && !ctrlKey) {
-      // Get the actual cell value for editing
-      const [rowId, columnId] = cellId.split(':')
-      const processedRows = this.tableCore$?.processedRows?.get() || []
-      const row = processedRows.find((r: any) => r.id === rowId)
-      const cellValue = row ? row[columnId] : ''
-
-      log.info('Cell value retrieval', {
-        cellId,
-        rowId,
-        columnId,
-        hasTableCore: !!this.tableCore$,
-        foundRow: !!row,
-        cellValue
-      })
-
-      this.startEdit(cellId, cellValue)
-    }
+    // ✅ REFACTORED: Auto-edit removed
+    // Editing is now handled by CellActionRouter based on interaction policies
+    // This method only handles selection, not editing
 
     log.info('Cell click handled', {
       cellId,
-      isEditable,
       ctrlKey,
       shiftKey,
-      didStartEdit: isEditable && !shiftKey && !ctrlKey
+      selectedCells: this.selectedCells.size
     })
   }
 
@@ -537,7 +525,8 @@ export class InteractionStore implements IStore {
   async handleOutsideClick(): Promise<void> {
     if (this.isEditing) {
       log.info('Outside click while editing - saving edit and preserving selection')
-      await this.saveEdit()
+      // ✅ Pass editValue to ensure latest typed value is saved (fix stale value bug)
+      await this.saveEdit(this.editValue)
     } else {
       log.info('Outside click - clearing selection')
       this.clearSelection()
@@ -943,12 +932,22 @@ export class InteractionStore implements IStore {
   cancelEdit(): void {
     const editingCell = this.editingCell
 
+    // ✅ Set flag to block any pending saveEdit calls
+    this.isCancelling = true
+
     this.editingCell = null
     this.editValue = null
     this.isEditing = false
     this.editValidation = null
 
     log.info('Edit cancelled', { cellId: editingCell })
+
+    // ✅ Clear flag after microtask (allows current event loop to complete)
+    queueMicrotask(() => {
+      runInAction(() => {
+        this.isCancelling = false
+      })
+    })
   }
 
   // ====================================

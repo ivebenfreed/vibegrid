@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { createLogger } from '@/shared/lib/logging';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
+import { cn } from '@/shared/lib/utils';
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx');
 
@@ -231,68 +232,32 @@ export function RichTextEditor({
   return ReactDOM.createPortal(
     <div
       ref={modalRef}
-      className="vibegrid-rich-text-editor-overlay"
+      className="vibegrid-rich-text-editor-overlay fixed inset-0 bg-black/50 flex items-center justify-center p-5"
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_BACKDROP,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
+        zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_BACKDROP
       }}
       onClick={handleBackdropClick}
     >
       <div
+        className="bg-background rounded-lg shadow-lg w-[90%] max-w-[700px] min-w-[500px] max-h-[75vh] min-h-[400px] flex flex-col overflow-hidden"
         style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-          width: '90%',
-          maxWidth: '700px',
-          minWidth: '500px',
-          maxHeight: '75vh',
-          minHeight: '400px',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
           zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_CONTENT
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #e5e5e5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: '#f8f9fa'
-          }}
-        >
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-muted">
           <div>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+            <h3 className="m-0 text-base font-semibold text-foreground">
               Edit {column.name} (Rich Text)
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#666' }}>
+            <p className="mt-1 mb-0 text-xs text-muted-foreground">
               Cell: {cell.rowId}:{cell.columnId}
             </p>
           </div>
           <button
             onClick={handleCancel}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#666'
-            }}
+            className="bg-transparent border-none text-lg cursor-pointer p-1 text-muted-foreground hover:text-foreground"
             title="Close (Esc)"
           >
             ×
@@ -300,30 +265,15 @@ export function RichTextEditor({
         </div>
 
         {/* Toolbar */}
-        <div
-          style={{
-            padding: '12px 20px',
-            borderBottom: '1px solid #e5e5e5',
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-            backgroundColor: '#fafbfc'
-          }}
-        >
+        <div className="px-5 py-3 border-b border-border flex gap-3 items-center bg-muted">
           {/* Format buttons */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="flex gap-1">
             {formatButtons.map((button) => (
               <button
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
+                className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px',
                   fontWeight: button.command === 'bold' ? 'bold' : 'normal',
                   fontStyle: button.command === 'italic' ? 'italic' : 'normal',
                   textDecoration: button.command === 'underline' ? 'underline' :
@@ -336,22 +286,15 @@ export function RichTextEditor({
             ))}
           </div>
 
-          <div style={{ width: '1px', height: '24px', backgroundColor: '#d1d5db' }} />
+          <div className="w-px h-6 bg-border" />
 
           {/* List buttons */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="flex gap-1">
             {listButtons.map((button) => (
               <button
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
-                style={{
-                  padding: '6px 8px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
+                className="px-2 py-1.5 border border-border rounded bg-background text-foreground cursor-pointer text-xs hover:bg-accent"
                 title={button.title}
               >
                 {button.icon}
@@ -359,23 +302,15 @@ export function RichTextEditor({
             ))}
           </div>
 
-          <div style={{ width: '1px', height: '24px', backgroundColor: '#d1d5db' }} />
+          <div className="w-px h-6 bg-border" />
 
           {/* Alignment buttons */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="flex gap-1">
             {alignButtons.map((button) => (
               <button
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor: 'white',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
+                className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
                 title={button.title}
               >
                 {button.icon}
@@ -383,20 +318,12 @@ export function RichTextEditor({
             ))}
           </div>
 
-          <div style={{ width: '1px', height: '24px', backgroundColor: '#d1d5db' }} />
+          <div className="w-px h-6 bg-border" />
 
           {/* Clear formatting */}
           <button
             onClick={() => executeCommand('removeFormat')}
-            style={{
-              padding: '6px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              fontSize: '12px',
-              color: '#666'
-            }}
+            className="px-3 py-1.5 border border-border rounded bg-background text-foreground cursor-pointer text-xs hover:bg-accent"
             title="Clear formatting"
           >
             Clear
@@ -404,15 +331,7 @@ export function RichTextEditor({
         </div>
 
         {/* Content Area */}
-        <div
-          style={{
-            flex: 1,
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-        >
+        <div className="flex-1 p-5 flex flex-col overflow-hidden">
           <div
             ref={editorRef}
             contentEditable
@@ -420,37 +339,17 @@ export function RichTextEditor({
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             dangerouslySetInnerHTML={{ __html: htmlValue }}
-            style={{
-              flex: 1,
-              minHeight: '200px',
-              maxHeight: '350px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              padding: '12px',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              lineHeight: '1.5',
-              outline: 'none',
-              overflow: 'auto',
-              backgroundColor: isOverLimit ? '#fef2f2' : 'white',
-              borderColor: isOverLimit ? '#ef4444' : '#d1d5db'
-            }}
+            className={cn(
+              "flex-1 min-h-[200px] max-h-[350px] border rounded p-3 text-sm font-inherit leading-relaxed outline-none overflow-auto",
+              isOverLimit ? "bg-destructive/10 border-destructive" : "bg-background text-foreground border-border"
+            )}
           />
 
           {/* Character Count */}
-          <div
-            style={{
-              marginTop: '8px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '12px',
-              color: '#666'
-            }}
-          >
+          <div className="mt-2 flex justify-between items-center text-xs text-muted-foreground">
             <div>
               {hasMaxLength && (
-                <span style={{ color: isOverLimit ? '#ef4444' : '#666' }}>
+                <span className={isOverLimit ? "text-destructive" : "text-muted-foreground"}>
                   {textLength.toLocaleString()} / {column.maxLength!.toLocaleString()} characters
                   {isOverLimit && ' (over limit)'}
                 </span>
@@ -459,50 +358,27 @@ export function RichTextEditor({
                 <span>{textLength.toLocaleString()} characters</span>
               )}
             </div>
-            <div style={{ color: '#9ca3af' }}>
-              Ctrl+Enter to save
-            </div>
+            <div>Ctrl+Enter to save</div>
           </div>
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderTop: '1px solid #e5e5e5',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            backgroundColor: '#f8f9fa'
-          }}
-        >
+        <div className="px-5 py-4 border-t border-border flex justify-end gap-3 bg-muted">
           <button
             onClick={handleCancel}
-            style={{
-              padding: '8px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '4px',
-              backgroundColor: 'white',
-              color: '#374151',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
+            className="px-4 py-2 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={isOverLimit}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '4px',
-              backgroundColor: isOverLimit ? '#d1d5db' : '#3b82f6',
-              color: 'white',
-              cursor: isOverLimit ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              opacity: isOverLimit ? 0.6 : 1
-            }}
+            className={cn(
+              "px-4 py-2 border-none rounded text-sm",
+              isOverLimit
+                ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                : "bg-primary text-primary-foreground cursor-pointer hover:bg-primary/90"
+            )}
           >
             Save {isDirty && '*'}
           </button>

@@ -462,6 +462,13 @@ export const TextFieldType: VibeGridFieldType = {
   // 🚀 NEW: Optional editor interface
   getEditor(): any {
     return new TextEditor();
+  },
+
+  // 🚀 NEW: Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',         // Text fields are for editing
+    editTrigger: 'content-click',  // ✅ Click content to edit, click padding to select
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

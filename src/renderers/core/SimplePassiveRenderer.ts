@@ -28,6 +28,11 @@ import { GroupRenderer } from '../components/GroupRenderer';
 import { ColumnWidthManager } from '../modules/ColumnWidthManager';
 import { DragDropManager } from '../../utils/drag-drop-handlers';
 
+// Service layer
+import { InteractionCoordinator } from '../../coordination/InteractionCoordinator';
+import { SelectionService } from '../../services/SelectionService';
+import { CellActionRouter } from '../../routing/CellActionRouter';
+
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 import { updateVirtualBounds, updateVirtualViewport, updateVirtualColumns } from '../../virtualization/VirtualScrollManager';
@@ -82,6 +87,7 @@ export interface SimplePassiveRendererOptions {
   bufferSize?: number;
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
   onBatchEntityUpdate?: (updates: Array<{ id: string; updates: Record<string, any> }>) => Promise<void> | void;
+  onCellClick?: (rowId: string, columnId: string) => void;
 }
 
 export class SimplePassiveRenderer {
@@ -139,6 +145,11 @@ export class SimplePassiveRenderer {
   private mouseController: MouseController | null = null;
   private groupRenderer: GroupRenderer | null = null;
   private columnWidthManager: ColumnWidthManager | null = null;
+
+  // Service layer
+  private interactionCoordinator: InteractionCoordinator | null = null;
+  private selectionService: SelectionService | null = null;
+  private cellActionRouter: CellActionRouter | null = null;
   
   // Focused observers - replacing mega-observer pattern
   private dataObserverDisposer: (() => void) | null = null;
@@ -205,8 +216,8 @@ export class SimplePassiveRenderer {
     this.initDOM();
     this.initControllers();
     this.initDOMFactory();
-    this.initPhase2Managers();
-    this.initOverlayManager();
+    this.initOverlayManager(); // ✅ MUST be before initPhase2Managers (creates EditSessionManager)
+    this.initPhase2Managers(); // ✅ MUST be after initOverlayManager (accesses EditSessionManager)
     this.initHeaderRenderer();
 
     fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction');
@@ -941,9 +952,14 @@ export class SimplePassiveRenderer {
         viewport: this.viewport,
         headerViewport: this.headerViewport || undefined,
         container: this.container,
-        onClickOutside: () => {
-          // Delegate to interaction state with proper editing logic
-          this.interactionStore.handleOutsideClick();
+        onClickOutside: (e: MouseEvent) => {
+          // ✅ Route through InteractionCoordinator for proper service layer handling
+          if (this.interactionCoordinator) {
+            this.interactionCoordinator.handleOutsidePointer(e as PointerEvent);
+          } else {
+            // Fallback to legacy path if coordinator not available
+            this.interactionStore.handleOutsideClick();
+          }
         },
         onScroll: (scrollLeft: number, scrollTop: number) => {
           // Update scroll position in VisualStateStore
@@ -990,6 +1006,43 @@ export class SimplePassiveRenderer {
         interactionStore: this.interactionStore
       });
 
+      // Create service layer before MouseController
+      // Note: EditSessionManager is created in OverlayManager and accessed via its getter
+      const editSessionManager = this.overlayManager?.getEditSessionManager();
+
+      if (!editSessionManager) {
+        const error = new Error(
+          'EditSessionManager not available from OverlayManager. ' +
+          'Ensure initOverlayManager() is called before initPhase2Managers().'
+        );
+        fileLog.error('FATAL: EditSessionManager not available', { error });
+        throw error;
+      }
+
+      // Create SelectionService
+      this.selectionService = new SelectionService(
+        this.interactionStore,
+        this.tableCoreStore,
+        this.visualStateStore
+      );
+
+      // Create CellActionRouter
+      this.cellActionRouter = new CellActionRouter(
+        editSessionManager,
+        this.options.onCellClick
+      );
+
+      // Create InteractionCoordinator
+      this.interactionCoordinator = new InteractionCoordinator(
+        this.container,
+        this.interactionStore,
+        this.selectionService,
+        this.cellActionRouter,
+        editSessionManager,
+        this.tableCoreStore,
+        this.visualStateStore
+      );
+
       // Initialize MouseController for centralized mouse event handling
       this.mouseController = new MouseController({
         container: this.container,
@@ -999,7 +1052,8 @@ export class SimplePassiveRenderer {
         interactionStore: this.interactionStore,
         visualStateStore: this.visualStateStore,
         tableCoreStore: this.tableCoreStore,
-        keyboardController: null // Will be set after KeyboardController is created
+        keyboardController: null, // Will be set after KeyboardController is created
+        coordinator: this.interactionCoordinator // ✅ Pass coordinator
       });
 
       // Initialize KeyboardController for centralized keyboard event handling

@@ -461,6 +461,13 @@ export const NumberFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 NEW: Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',         // Number fields are for editing
+    editTrigger: 'content-click',  // ✅ Click content to edit, click padding to select
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 

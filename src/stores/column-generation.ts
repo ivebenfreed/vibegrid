@@ -161,7 +161,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
 
   // Generate columns from schema fields - Synchronous approach with lazy color loading
   const allColumns = schemaFields.map((fieldDef: any) => {
-    // FieldDefinition uses "fieldName" property (from @/shared/types/dataforge)
+    // FieldDefinition uses "fieldName" property (from @/types/dataforge)
     const fieldName = fieldDef?.fieldName || fieldDef?.name;
     if (!fieldName) {
       fileLog.warn("⚠️ Field missing fieldName/name property, skipping", { fieldDef });

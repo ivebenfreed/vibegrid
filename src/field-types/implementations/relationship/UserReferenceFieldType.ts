@@ -280,7 +280,7 @@ export class UserReferenceRenderer implements CellRenderer {
     const hoverClass = 'vibegridx-badge-editable';
 
     return `
-      <div class="vibegridx-user-badge ${hoverClass}" title="${displayName}" style="
+      <div class="vibegridx-user-badge ${hoverClass}" data-action="edit" title="${displayName}" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -697,6 +697,13 @@ export const UserReferenceFieldType: VibeGridFieldType = {
   getFormatter() {
     const fmt = this.formatter;
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+  },
+
+  // 🚀 Interaction policy
+  interactionPolicy: {
+    defaultAction: 'edit',        // User reference fields open picker on click
+    editTrigger: 'content-click', // Click badge to open picker (padding = selection only)
+    blurPolicy: 'commit'          // Save on blur
   }
 };
 
