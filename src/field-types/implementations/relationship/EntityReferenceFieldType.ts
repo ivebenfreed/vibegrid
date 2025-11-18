@@ -4,9 +4,9 @@
  * Handles custom_entity_reference and entity_reference field types with dynamic target entities.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { reaction } from 'mobx';
-import { orpcClient } from '@/data/orpc/client';
+import { orpcClient } from '@/shared/data/orpc/client';
 import type {
   VibeGridFieldType,
   CellRenderer,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { CellRef, Column } from '../../types';
 
 const fileLog = createLogger('components/vibegrid/overlays/editors/TextEditor');

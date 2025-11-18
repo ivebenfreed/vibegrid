@@ -7,7 +7,7 @@
 
 import type { Column } from '../types';
 import type { TableCoreStore } from '../stores/TableCoreStore';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fieldLog = createLogger('components/custom/vibegrid/field-types/FieldTypeRegistry.ts');
 

@@ -10,7 +10,7 @@
  * - modules/CellFormatter.ts (245 lines)
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { reaction } from 'mobx';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';

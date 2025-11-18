@@ -14,9 +14,9 @@
  */
 
 import { makeObservable, observable, action, computed, runInAction } from 'mobx'
-import { createLogger } from '@/lib/logging'
-import { DisposerManager } from '@/stores/utils/disposer'
-import type { IStore } from '@/stores/types'
+import { createLogger } from '@/shared/lib/logging'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import type { IStore } from '@/app/stores/types'
 import type { Column, GroupConfig, SortConfig, FilterConfig, VirtualRow } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
 

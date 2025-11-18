@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { ComboboxEditor } from './ComboboxEditor';
 import type { CellRef, Column, RelationshipContext } from '../../types';
 

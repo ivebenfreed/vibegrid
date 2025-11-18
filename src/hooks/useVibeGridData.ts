@@ -20,11 +20,11 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from '@tanstack/react-db'
 import { eq } from '@tanstack/db'
-import { useEntityCollection } from '@/data/db/hooks/useEntityCollection'
+import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { useMobxSnapshot } from './useMobxSnapshot'
 import type { FilterConfig, SortConfig } from '../types'
 import type { VisualStateStore } from '../stores/VisualStateStore'
-import { createLogger } from '@/lib/logging'
+import { createLogger } from '@/shared/lib/logging'
 
 const log = createLogger('components/vibegrid/hooks/useVibeGridData')
 

@@ -1,22 +1,22 @@
 import { useState, useMemo } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, GripVertical, Settings2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { createLogger } from '@/lib/logging';
+import { Button } from '@/shared/components/ui/button';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('GroupConfigPanel');
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Label } from '@/shared/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
+import { Separator } from '@/shared/components/ui/separator';
+import { Badge } from '@/shared/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
+} from '@/shared/components/ui/dropdown-menu';
 
 import type { Column, GroupConfig, GroupField, AggregationConfig } from '../types';
 

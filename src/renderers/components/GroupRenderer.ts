@@ -3,7 +3,7 @@
  * Handles group row creation, expansion/collapse, and visual styling
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { DOMElementFactory } from '../factories/DOMElementFactory';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/components/GroupRenderer.ts');

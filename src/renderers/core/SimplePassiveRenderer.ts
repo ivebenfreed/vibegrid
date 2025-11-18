@@ -6,7 +6,7 @@
  */
 
 import { reaction, runInAction } from 'mobx';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 // New modular architecture imports - ObserverManager will be removed
 // import { ObserverManager, type ObserverManagerOptions, type VisualState } from './ObserverManager';
 import { DOMElementFactory, type DOMElementFactoryOptions } from '../factories/DOMElementFactory';

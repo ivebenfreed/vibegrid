@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { CellRef, Column } from '../types';
 import type { VisualCellPosition } from './OverlayTypes';
 // Pure Observable architecture - no XState dependencies

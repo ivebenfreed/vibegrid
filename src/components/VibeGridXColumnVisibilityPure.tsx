@@ -1,8 +1,8 @@
 import React from 'react';
 import { observer } from 'mobx-react-lite';
 import { Columns3, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/shared/components/ui/button';
+import { Checkbox } from '@/shared/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,13 +10,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem
-} from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Input } from '@/components/ui/input';
+} from '@/shared/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
+import { Input } from '@/shared/components/ui/input';
 import type { Column } from '../types';
 import type { VibeGridStores } from '../stores/context';
 import { formatFieldName } from '../column-defaults';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('components/vibegrid/components/VibeGridXColumnVisibilityPure');
 

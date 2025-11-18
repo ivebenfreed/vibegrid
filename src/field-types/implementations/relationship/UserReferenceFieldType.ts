@@ -18,9 +18,9 @@ import type {
   AsyncDataLoader,
   FieldMetadata
 } from '../../FieldTypeRegistry';
-import { getActiveOrganizationId } from '@/stores/experience/OrganizationStore';
+import { getActiveOrganizationId } from '@/app/stores/experience/OrganizationStore';
 import type { TableCoreStore } from '../../../stores/TableCoreStore';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { reaction } from 'mobx';
 
 const fileLog = createLogger('components/custom/vibegrid/field-types/implementations/relationship/UserReferenceFieldType.ts');

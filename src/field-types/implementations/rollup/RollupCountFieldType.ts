@@ -5,7 +5,7 @@
  * and proper display formatting. Integrates with RollupCalculationManager.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,

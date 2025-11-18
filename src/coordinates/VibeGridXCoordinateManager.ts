@@ -19,7 +19,7 @@
 // ====================================
 
 import type { CellRef, TableRow, Column, ViewportInfo } from '../types';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/coordinates/VibeGridXCoordinateManager.ts');
 

@@ -9,7 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { LongTextEditor } from './LongTextEditor';
 import { RichTextEditor } from './RichTextEditor';
 import type { CellRef, Column } from '../../types';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx');
 

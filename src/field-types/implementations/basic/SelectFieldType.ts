@@ -5,7 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type {
   VibeGridFieldType,
   CellRenderer,

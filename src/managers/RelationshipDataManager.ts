@@ -12,7 +12,7 @@ import type {
   RelationshipConfig
 } from '../field-types/FieldTypeRegistry';
 import type { TableCoreStore } from '../stores/TableCoreStore';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/managers/RelationshipDataManager.ts');
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/shared/components/ui/input';
 import type { CellRef, Column } from '../../types';
 
 interface NumberEditorProps {

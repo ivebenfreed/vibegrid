@@ -2,7 +2,7 @@ import type { ViewportInfo } from '../types';
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
 import type { VisualCellPosition } from './OverlayTypes';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 const fileLog = createLogger('components/custom/vibegrid/overlays/ClipboardOverlayDOM.ts');
 
 // ====================================

@@ -1,5 +1,5 @@
 import React from 'react';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { TextEditor } from './TextEditor';
 import { NumberEditor } from './NumberEditor';
 import { SelectEditor } from './SelectEditor';

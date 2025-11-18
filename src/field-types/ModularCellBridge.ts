@@ -11,7 +11,7 @@ import { SchemaAdapter } from '../schema/SchemaAdapter';
 import { CellFactory } from '../factories/CellFactory';
 import { RelationshipDataManager } from '../managers/RelationshipDataManager';
 import { RollupCalculationManager } from '../managers/RollupCalculationManager';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 // Field type implementations are now imported in the main index.ts
 

@@ -6,13 +6,13 @@
 
 import React, { createContext, useContext, useMemo, useEffect, useState } from 'react'
 import { observer } from 'mobx-react-lite'
-import { createLogger } from '@/lib/logging'
+import { createLogger } from '@/shared/lib/logging'
 import { TableCoreStore } from './TableCoreStore'
 import { VisualStateStore } from './VisualStateStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { InitStore } from './InitStore'
-import { useSchemaRegistry } from '@/stores'
+import { useSchemaRegistry } from '@/app/stores'
 
 const log = createLogger('components/vibegrid/stores/context')
 

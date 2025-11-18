@@ -5,7 +5,7 @@
  * Use these in browser console to control log verbosity.
  */
 
-import { setLogLevel, getLogConfig } from '@/lib/logging';
+import { setLogLevel, getLogConfig } from '@/shared/lib/logging';
 
 /**
  * Vibegrid logging presets for quick debugging

@@ -3,7 +3,7 @@
 // ====================================
 // Event handling and interaction utilities for unified renderer
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { Column } from '../../types';
 
 const fileLog = createLogger('components/vibegrid/renderers/utils/interaction-handlers');

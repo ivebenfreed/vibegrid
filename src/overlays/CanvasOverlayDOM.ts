@@ -13,7 +13,7 @@ import { ClipboardOverlayDOM } from './ClipboardOverlayDOM';
 import { DragPreviewOverlayDOM } from './DragPreviewOverlayDOM';
 import { ColumnDragOverlayDOM } from './ColumnDragOverlayDOM';
 import { ColumnResizeOverlayDOM } from './ColumnResizeOverlayDOM';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 const fileLog = createLogger('components/custom/vibegrid/overlays/CanvasOverlayDOM.ts');
 // EditingOverlay is already DOM-based (React portal) - handled separately
 // SelectionColumnOverlay not needed - checkboxes are DOM elements

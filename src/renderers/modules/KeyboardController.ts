@@ -5,7 +5,7 @@
  * Follows the same pattern as MouseController for centralized event management.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { KeyboardNavigationController } from './KeyboardNavigationController';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/modules/KeyboardController.ts');

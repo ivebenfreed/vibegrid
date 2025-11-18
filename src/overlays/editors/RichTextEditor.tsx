@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx');

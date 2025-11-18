@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 // TODO: Replace with TanStack DB query for reference options
 // import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
 import type { EditorProps } from './index';

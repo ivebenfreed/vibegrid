@@ -1,6 +1,6 @@
 import type { ColumnDragState } from '../types';
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 const fileLog = createLogger('components/custom/vibegrid/overlays/ColumnDragOverlayDOM.ts');
 
 // ====================================

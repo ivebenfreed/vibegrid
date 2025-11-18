@@ -7,7 +7,7 @@
 
 import React, { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { VibeGridStores } from '../stores/context';
 import { VibeGridEntityAdd } from './VibeGridEntityAdd';
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure';

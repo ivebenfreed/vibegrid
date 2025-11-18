@@ -16,9 +16,9 @@
  */
 
 import { makeObservable, reaction } from 'mobx'
-import { createLogger } from '@/lib/logging'
-import { DisposerManager } from '@/stores/utils/disposer'
-import type { IStore } from '@/stores/types'
+import { createLogger } from '@/shared/lib/logging'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import type { IStore } from '@/app/stores/types'
 import type { SortConfig, FilterConfig, GroupConfig } from '../types'
 import type { TableCoreStore, GroupRowOrderConfig } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'

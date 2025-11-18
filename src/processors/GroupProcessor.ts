@@ -17,7 +17,7 @@ import type {
   VirtualRowType
 } from '../types';
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('GroupProcessor');
 

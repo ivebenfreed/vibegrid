@@ -5,14 +5,14 @@
  * as cell renderers for consistent behavior.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { Column } from '../types';
 import { COLUMN_DEFAULTS } from '../column-defaults';
 import type { CellType } from '../column-types';
 // IMPORTANT: Import field-types index to trigger all field type registrations
 import '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
-import type { SchemaRegistryStore } from '@/stores/experience/SchemaRegistryStore';
+import type { SchemaRegistryStore } from '@/app/stores/experience/SchemaRegistryStore';
 
 const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
 
@@ -161,7 +161,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
 
   // Generate columns from schema fields - Synchronous approach with lazy color loading
   const allColumns = schemaFields.map((fieldDef: any) => {
-    // FieldDefinition uses "fieldName" property (from @/types/dataforge)
+    // FieldDefinition uses "fieldName" property (from @/shared/types/dataforge)
     const fieldName = fieldDef?.fieldName || fieldDef?.name;
     if (!fieldName) {
       fileLog.warn("⚠️ Field missing fieldName/name property, skipping", { fieldDef });

@@ -4,7 +4,7 @@
  * Simplified implementation following VibeGrid patterns for row drag and drop.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore';
 
 const fileLog = createLogger('components/custom/vibegrid/utils/drag-drop-handlers.ts');

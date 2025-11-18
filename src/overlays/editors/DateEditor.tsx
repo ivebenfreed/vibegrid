@@ -1,8 +1,8 @@
 import React from 'react';
-import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/shared/components/ui/input';
+import { Calendar } from '@/shared/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
+import { Button } from '@/shared/components/ui/button';
 import { CalendarIcon, ClockIcon, XIcon } from 'lucide-react';
 import { format, parseISO, set, getHours, getMinutes } from 'date-fns';
 import type { CellRef, Column } from '../../types';

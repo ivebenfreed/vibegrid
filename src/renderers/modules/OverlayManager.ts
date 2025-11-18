@@ -3,7 +3,7 @@
  * Handles canvas overlay, selection manager, editing overlay, and context menu
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { runInAction, reaction } from 'mobx';
 import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM';
 import { EditingOverlay } from '../../overlays/EditingOverlay';

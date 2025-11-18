@@ -5,7 +5,7 @@
  * Manages drag state and delegates click events to appropriate handlers.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { runInAction } from 'mobx';
 import type { VisualStateStore } from '../../stores/VisualStateStore';
 

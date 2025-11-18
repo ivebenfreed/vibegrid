@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
-import { VibeGrid } from '@/components/vibegrid';
-import { VibeGridStoreProvider } from '@/components/vibegrid/stores/context';
+import { VibeGrid } from '@/systems/vibegrid';
+import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context';
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
   component: DebugVibeGridPage

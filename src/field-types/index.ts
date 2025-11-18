@@ -5,7 +5,7 @@
  * Imports all field type implementations to ensure they are registered.
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 // Import registry first before any field type implementations
 import { fieldTypeRegistry } from './FieldTypeRegistry';

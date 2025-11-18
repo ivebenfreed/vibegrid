@@ -1,6 +1,6 @@
 import type { VisualCellPosition } from './OverlayTypes';
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 const myLog = createLogger('components/custom/vibegrid/overlays/SelectionOverlayDOM.ts');
 
 // ====================================

@@ -3,7 +3,7 @@
  * Provides consistent element creation patterns and styling
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { SelectionController } from '../modules/SelectionController';

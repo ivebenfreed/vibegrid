@@ -5,7 +5,7 @@
  * MIGRATED TO MOBX - uses InteractionStore directly
  */
 
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 import { runInAction } from 'mobx';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import { SelectionController } from './SelectionController';

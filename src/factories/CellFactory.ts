@@ -10,7 +10,7 @@ import type {
   VibeGridFieldType,
   EnhancedColumn
 } from '../field-types/FieldTypeRegistry';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 // Practical column type that works with current usage patterns
 // Make it compatible with EnhancedColumn by using it as a base

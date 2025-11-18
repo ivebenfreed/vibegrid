@@ -10,9 +10,9 @@
  */
 
 import React from 'react'
-import { createLogger } from '@/lib/logging'
-import { cn } from '@/lib/utils'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { createLogger } from '@/shared/lib/logging'
+import { cn } from '@/shared/lib/utils'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/shared/components/ui/command'
 import { Check } from 'lucide-react'
 import type { CellRef, Column, RelationshipContext, EnumOption } from '../../types'
 import { getOptionIconDisplay } from '../../utils/icon-mapping'

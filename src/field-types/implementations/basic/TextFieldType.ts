@@ -17,7 +17,7 @@ import type {
   FieldMetadata
 } from '../../FieldTypeRegistry';
 import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fieldLog = createLogger('components/custom/vibegrid/field-types/implementations/basic/TextFieldType.ts');
 

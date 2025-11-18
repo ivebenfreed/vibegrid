@@ -9,10 +9,10 @@ import React from 'react'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
 import type { CellType } from '../../types'
-import { createLogger } from '@/lib/logging'
-import { getOrCreateEntityCollection, getOrCreateMembersCollection } from '@/data/db/collections/registry'
-import { createEntityCollection } from '@/data/db/collections/entity-collections'
-import { getActiveOrganizationId } from '@/stores/experience/OrganizationStore'
+import { createLogger } from '@/shared/lib/logging'
+import { getOrCreateEntityCollection, getOrCreateMembersCollection } from '@/shared/data/db/collections/registry'
+import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
+import { getActiveOrganizationId } from '@/app/stores/experience/OrganizationStore'
 
 const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
 

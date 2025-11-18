@@ -17,7 +17,7 @@ import type {
   RowLayout
 } from '../types/coordinate-types';
 import { CoordinateUtils } from '../types/coordinate-types';
-import { createLogger } from '@/lib/logging';
+import { createLogger } from '@/shared/lib/logging';
 
 const fileLog = createLogger('components/custom/vibegrid/virtualization/VirtualScrollManager.ts');
 
