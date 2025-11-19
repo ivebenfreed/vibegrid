@@ -18,7 +18,7 @@ import type {
   AsyncDataLoader,
   FieldMetadata
 } from '../../FieldTypeRegistry';
-import { getActiveOrganizationId } from '@/app/stores/experience/OrganizationStore';
+import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore';
 import type { TableCoreStore } from '../../../stores/TableCoreStore';
 import { createLogger } from '@/shared/lib/logging';
 import { reaction } from 'mobx';

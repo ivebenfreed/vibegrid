@@ -20,7 +20,7 @@ import { createLogger } from '@/shared/lib/logging'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getOrCreateEntityCollection } from '@/shared/data/db/collections/registry'
 import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
-import { getActiveOrganizationId } from '@/app/stores/experience/OrganizationStore'
+import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import type { IStore } from '@/app/stores/types'
 import type { Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
@@ -225,7 +225,7 @@ export class TableCoreStore implements IStore {
   private visualStateStore: VisualStateStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
   private collection: any = null // TanStack DB collection for entity mutations
-  private schemaRegistry: import('@/app/stores/experience/SchemaRegistryStore').SchemaRegistryStore | null = null
+  private schemaRegistry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore | null = null
   private disposers = new DisposerManager()
 
   // ====================================
@@ -281,7 +281,7 @@ export class TableCoreStore implements IStore {
    * Called by parent component after store creation
    */
   @action
-  setSchemaRegistry(registry: import('@/app/stores/experience/SchemaRegistryStore').SchemaRegistryStore): void {
+  setSchemaRegistry(registry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore): void {
     this.schemaRegistry = registry
   }
 

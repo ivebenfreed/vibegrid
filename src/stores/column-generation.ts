@@ -12,7 +12,7 @@ import type { CellType } from '../column-types';
 // IMPORTANT: Import field-types index to trigger all field type registrations
 import '../field-types';
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry';
-import type { SchemaRegistryStore } from '@/app/stores/experience/SchemaRegistryStore';
+import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore';
 
 const fileLog = createLogger('components/custom/vibegrid/stores/column-generation');
 
