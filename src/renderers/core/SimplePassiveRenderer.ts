@@ -285,6 +285,7 @@ export class SimplePassiveRenderer {
       headerViewport: null   // Will be set after DOM initialization
     });
 
+    // Note: KeyboardController will be initialized in initPhase2Managers after EventManager is ready
     // Scroll controller will be initialized after DOM is ready in postInitialization()
   }
   
@@ -292,7 +293,8 @@ export class SimplePassiveRenderer {
    * Initialize Phase 2 managers
    */
   private initPhase2Managers(): void {
-    fileLog.debug('🚀 Initializing Phase 2 managers');
+    fileLog.info('🚀 Initializing Phase 2 managers - START');
+    console.log('🔍 DEBUG: initPhase2Managers called');
 
     // GroupRenderer needs MobX migration (expects visualState from Legend State)
     // TODO: Migrate GroupRenderer to use VisualStateStore
@@ -346,16 +348,29 @@ export class SimplePassiveRenderer {
     // Set container for drag operations
     this.dragDropManager.setContainer(this.container);
 
-    // EventManager needs MobX migration (expects tableCore$, tableInteraction$, tableViewport$ from Legend State)
-    // TODO: Migrate EventManager to use MobX stores
-    // this.eventManager = new EventManager({
-    //   tableCore$: this.tableCoreStore, // ERROR: Type mismatch
-    //   tableInteraction$: this.interactionStore, // ERROR: Type mismatch
-    //   container: this.container,
-    //   onEntityUpdate: this.options.onEntityUpdate
-    // });
+    // Initialize EventManager with MobX stores
+    this.eventManager = new EventManager({
+      tableCore$: this.tableCoreStore as any,
+      tableInteraction$: this.interactionStore as any,
+      tableViewport$: null as any, // Legacy parameter, not used
+      container: this.container,
+      onEntityUpdate: this.options.onEntityUpdate
+    });
 
-    fileLog.debug('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager - GroupRenderer and EventManager need migration)');
+    // Initialize KeyboardController for centralized keyboard event handling
+    // Must be after EventManager is created since KeyboardController calls eventManager methods
+    this.keyboardController = new KeyboardController({
+      container: this.container,
+      keyboardNavController: this.keyboardNavController ?? undefined,
+      onCopy: () => this.eventManager?.handleCopyAction(),
+      onPaste: () => this.eventManager?.handlePasteAction(),
+      onCut: () => this.eventManager?.handleCutAction(),
+      onUndo: () => this.eventManager?.handleUndoAction(),
+      onRedo: () => this.eventManager?.handleRedoAction()
+    });
+
+    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager, EventManager, KeyboardController)');
+    console.log('🔍 DEBUG: initPhase2Managers completed successfully');
   }
   
   /**
@@ -1053,23 +1068,12 @@ export class SimplePassiveRenderer {
         interactionStore: this.interactionStore,
         visualStateStore: this.visualStateStore,
         tableCoreStore: this.tableCoreStore,
-        keyboardController: null, // Will be set after KeyboardController is created
+        keyboardController: this.keyboardController, // Already initialized in Phase 2
         coordinator: this.interactionCoordinator // ✅ Pass coordinator
       });
 
-      // Initialize KeyboardController for centralized keyboard event handling
-      this.keyboardController = new KeyboardController({
-        container: this.container,
-        keyboardNavController: this.keyboardNavController ?? undefined,
-        onCopy: () => this.eventManager?.handleCopyAction(),
-        onPaste: () => this.eventManager?.handlePasteAction(),
-        onCut: () => this.eventManager?.handleCutAction(),
-        onUndo: () => this.eventManager?.handleUndoAction(),
-        onRedo: () => this.eventManager?.handleRedoAction()
-      });
-
       // Connect MouseController to KeyboardController for focus management
-      if (this.mouseController) {
+      if (this.mouseController && this.keyboardController) {
         this.mouseController.setKeyboardController(this.keyboardController);
       }
 
