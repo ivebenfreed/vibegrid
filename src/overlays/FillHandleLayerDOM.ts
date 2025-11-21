@@ -397,45 +397,55 @@ export class FillHandleLayerDOM {
     if (!this.coordinateMapping || selectedCells.size === 0) {
       return new Set();
     }
-    
+
     // Get bounds of selected cells
     const bounds = this.getSelectionBounds(selectedCells);
     if (!bounds) {
       return new Set();
     }
-    
-    // Force vertical-only direction as requested (vertical only)
-    const dragDeltaY = Math.abs(dragPos.y - bounds.centerY);
-    
-    // Only vertical filling (as requested by user)
-    const rowsToFill = Math.floor(dragDeltaY / this.config.cellHeight);
-    const fillDown = dragPos.y > bounds.centerY;
-    
-    const previewCells = new Set<string>();
-    
-    // Early return if no cells to fill (user dragged back to original selection)
-    if (rowsToFill === 0) {
-      // Clear any existing preview immediately
-      this.clearFillPreview();
-      // Also send empty preview through callback to ensure state machine clears its preview
-      this.callbacks.onFillPreview(previewCells);
-      return previewCells; // Return empty set
+
+    // Find which row the mouse is currently over (same approach as selection)
+    let targetRowIndex = -1;
+    for (let i = 0; i < this.coordinateMapping.rows.length; i++) {
+      const row = this.coordinateMapping.rows[i];
+      const rowY = row.y ?? (i * this.config.cellHeight);
+      const rowHeight = row.height ?? this.config.cellHeight;
+
+      if (dragPos.y >= rowY && dragPos.y < rowY + rowHeight) {
+        targetRowIndex = i;
+        break;
+      }
+    }
+
+    // If no row found, return empty
+    if (targetRowIndex === -1) {
+      return new Set();
+    }
+
+    // Determine fill direction and range
+    const fillDown = targetRowIndex > bounds.maxRowIndex;
+    const fillUp = targetRowIndex < bounds.minRowIndex;
+
+    if (!fillDown && !fillUp) {
+      // Mouse is still within selection - no fill
+      return new Set();
     }
     
-    // Add cells in vertical direction only
-    for (let i = 1; i <= rowsToFill; i++) {
-      const targetRowIndex = fillDown ? 
-        bounds.maxRowIndex + i : 
-        bounds.minRowIndex - i;
-      
-      if (targetRowIndex >= 0 && targetRowIndex < this.coordinateMapping.rows.length) {
-        const targetRow = this.coordinateMapping.rows[targetRowIndex];
-        
-        // Add cells for each column in selection
+    const previewCells = new Set<string>();
+
+    // Fill from selection boundary to target row (inclusive)
+    const startRow = fillDown ? bounds.maxRowIndex + 1 : targetRowIndex;
+    const endRow = fillDown ? targetRowIndex : bounds.minRowIndex - 1;
+
+    for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
+      if (rowIdx >= 0 && rowIdx < this.coordinateMapping.rows.length) {
+        const row = this.coordinateMapping.rows[rowIdx];
+
+        // Add cells for each column in selection (vertical fill, locked columns)
         for (let c = bounds.minColIndex; c <= bounds.maxColIndex; c++) {
           const col = this.coordinateMapping.columns[c];
           if (col) {
-            const cellKey = `${targetRow.rowId}:${col.columnId}`;
+            const cellKey = `${row.rowId}:${col.columnId}`;
             previewCells.add(cellKey);
           }
         }
