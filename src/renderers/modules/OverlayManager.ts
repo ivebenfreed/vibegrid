@@ -39,6 +39,7 @@ export interface OverlayManagerOptions {
   headerContainer?: HTMLElement | null;
   bodyContainer?: HTMLElement | null;
   getProcessedRows: () => any[];
+  onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
 }
 
 
@@ -50,7 +51,8 @@ export class OverlayManager {
   private headerContainer: HTMLElement | null;
   private bodyContainer: HTMLElement | null;
   private getProcessedRows: () => any[];
-  
+  private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
+
   // Overlay instances
   private canvasOverlay: CanvasOverlayDOM | null = null;
   // Selection now managed through tableInteraction$ observable
@@ -61,7 +63,7 @@ export class OverlayManager {
 
   // Service layer
   private editSessionManager: EditSessionManager;
-  
+
   // Performance optimization caches
   private lastSelectionString: string = ''; // More reliable deduplication
   private lastClipboardString: string = ''; // Clipboard state deduplication
@@ -71,7 +73,7 @@ export class OverlayManager {
 
   // MobX reaction disposers
   private disposers: (() => void)[] = [];
-  
+
   constructor(options: OverlayManagerOptions) {
     this.container = options.container;
     this.tableCoreStore = options.tableCoreStore;
@@ -80,6 +82,7 @@ export class OverlayManager {
     this.headerContainer = options.headerContainer || null;
     this.bodyContainer = options.bodyContainer || null;
     this.getProcessedRows = options.getProcessedRows;
+    this.onEntityUpdate = options.onEntityUpdate;
 
     // Create EditSessionManager (service layer)
     this.editSessionManager = new EditSessionManager(
@@ -114,6 +117,9 @@ export class OverlayManager {
       (event) => {
         fileLog.debug('📋 Canvas overlay event:', event);
         // Handle fill events from the overlay system
+        if (event.type === 'FILL_COMPLETE' && 'fillCells' in event && event.fillCells) {
+          this.handleFillComplete(event.fillCells);
+        }
       }
     );
     
@@ -884,6 +890,78 @@ export class OverlayManager {
    */
   getEditSessionManager(): EditSessionManager {
     return this.editSessionManager;
+  }
+
+  /**
+   * Handle fill complete - copy values from selected cells to fill target cells
+   */
+  private async handleFillComplete(fillCells: Set<string>): Promise<void> {
+    fileLog.info('📋 Fill complete triggered', { fillCellsCount: fillCells.size });
+
+    if (!this.onEntityUpdate) {
+      fileLog.warn('📋 Fill skipped - no update callback available');
+      return;
+    }
+
+    const selectedCells = this.interactionStore.selectedCells;
+    if (selectedCells.size === 0) {
+      fileLog.warn('📋 Fill skipped - no source cells selected');
+      return;
+    }
+
+    const rows = this.getProcessedRows();
+    const columns = this.tableCoreStore.columns;
+
+    // Extract source values (with nested data handling like clipboard)
+    const sourceValues = new Map<string, any>(); // columnId -> value
+    selectedCells.forEach(cellId => {
+      const [rowId, columnId] = cellId.split(':');
+      const row = rows.find(r => r.id === rowId);
+
+      if (row) {
+        const value = (row as any).data ? (row as any).data[columnId] : row[columnId];
+        if (!sourceValues.has(columnId)) {
+          sourceValues.set(columnId, value);
+        }
+      }
+    });
+
+    fileLog.info('📋 Fill source values extracted', {
+      columnCount: sourceValues.size,
+      columns: Array.from(sourceValues.keys())
+    });
+
+    // Apply source values to fill target cells
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const fillCellId of fillCells) {
+      const [rowId, columnId] = fillCellId.split(':');
+
+      // Only fill if we have a source value for this column (vertical fill, locked columns)
+      if (sourceValues.has(columnId)) {
+        const value = sourceValues.get(columnId);
+
+        try {
+          if (this.onEntityUpdate) {
+            await this.onEntityUpdate(rowId, { [columnId]: value });
+            successCount++;
+          }
+        } catch (error) {
+          errorCount++;
+          fileLog.error('📋 Fill failed for cell', {
+            cellId: fillCellId,
+            error: error instanceof Error ? error.message : error
+          });
+        }
+      }
+    }
+
+    fileLog.info('📋 Fill operation completed', {
+      successCount,
+      errorCount,
+      totalAttempted: fillCells.size
+    });
   }
 
   /**

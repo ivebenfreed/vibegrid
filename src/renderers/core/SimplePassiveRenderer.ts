@@ -387,7 +387,8 @@ export class SimplePassiveRenderer {
       enableSelectionColumn: this.options.enableSelectionColumn,
       headerContainer: this.headerContainer,
       bodyContainer: this.bodyContainer,
-      getProcessedRows: () => this.tableCoreStore.processedRows
+      getProcessedRows: () => this.tableCoreStore.processedRows,
+      onEntityUpdate: this.options.onEntityUpdate
     });
 
     // Note: initializeOverlay() is called later in postInitialization() after DOM is ready
