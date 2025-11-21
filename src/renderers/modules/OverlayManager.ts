@@ -941,17 +941,30 @@ export class OverlayManager {
     // Apply source values to fill target cells
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
 
     for (const fillCellId of fillCells) {
       const [rowId, columnId] = fillCellId.split(':');
 
       // Only fill if we have a source value for this column (vertical fill, locked columns)
       if (sourceValues.has(columnId)) {
-        const value = sourceValues.get(columnId);
+        const newValue = sourceValues.get(columnId);
+
+        // Get current value of target cell
+        const targetRow = rows.find(r => r.id === rowId);
+        const currentValue = targetRow
+          ? ((targetRow as any).data ? (targetRow as any).data[columnId] : targetRow[columnId])
+          : undefined;
+
+        // Skip update if value is unchanged
+        if (currentValue === newValue) {
+          skippedCount++;
+          continue;
+        }
 
         try {
           if (this.onEntityUpdate) {
-            await this.onEntityUpdate(rowId, { [columnId]: value });
+            await this.onEntityUpdate(rowId, { [columnId]: newValue });
             successCount++;
           }
         } catch (error) {
@@ -967,6 +980,7 @@ export class OverlayManager {
     fileLog.info('📋 Fill operation completed', {
       successCount,
       errorCount,
+      skippedCount,
       totalAttempted: fillCells.size
     });
   }
