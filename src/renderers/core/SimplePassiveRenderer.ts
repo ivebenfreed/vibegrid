@@ -828,7 +828,7 @@ export class SimplePassiveRenderer {
       const rowCount = this.visualStateStore.rowCount;
 
       const startRowIndex = Math.floor(newScrollTop / rowHeight);
-      const endRowIndex = Math.min(rowCount, Math.ceil((newScrollTop + Math.max(viewportHeight, 400)) / rowHeight) + 1);
+      const endRowIndex = Math.min(rowCount, Math.ceil((newScrollTop + Math.max(viewportHeight, 400)) / rowHeight));
 
       const currentRowRange = { start: startRowIndex, end: endRowIndex };
       const previousRowRange = this.lastVisibleRows || { start: -1, end: -1 };
@@ -969,36 +969,37 @@ export class SimplePassiveRenderer {
           });
 
           // DEBUGGING: Log detailed width calculations during scroll
-          // TODO: Fix this debug code to use MobX store
-          // const visualState = this.visualStateStore;
-          const viewport = this.viewport;
-          const headerViewport = this.headerViewport;
+          // Wrapped in runInAction to access MobX computed values in reactive context
+          runInAction(() => {
+            const viewport = this.viewport;
+            const headerViewport = this.headerViewport;
 
-          fileLog.debug('📜 SCROLL DEBUG - Width Calculations', {
-            scrollLeft,
-            scrollTop,
-            // Visual state geometry
-            visualStateTotalWidth: this.visualStateStore.geometry.totalWidth,
-            visualStateViewportWidth: this.visualStateStore.geometry.viewportWidth,
-            // Visible columns analysis
-            visibleColumnsCount: this.visualStateStore.visibleColumns.length,
-            columnLayouts: this.visualStateStore.visibleColumns.map((col: any) => ({
-              id: col.id,
-              width: col.width,
-              xOffset: col.xOffset,
-              visible: col.visible
-            })),
-            // DOM dimensions
-            viewportClientWidth: viewport?.clientWidth,
-            viewportScrollWidth: viewport?.scrollWidth,
-            headerViewportClientWidth: headerViewport?.clientWidth,
-            headerViewportScrollWidth: headerViewport?.scrollWidth,
-            // Transform states
-            headerTransform: headerViewport?.style.transform,
-            // Scroll edge analysis
-            scrollRightEdge: scrollLeft + (viewport?.clientWidth || 0),
-            totalScrollableWidth: (viewport?.scrollWidth || 0) - (viewport?.clientWidth || 0),
-            scrollProgress: viewport?.scrollWidth ? (scrollLeft / ((viewport.scrollWidth - viewport.clientWidth) || 1) * 100).toFixed(1) + '%' : '0%'
+            fileLog.debug('📜 SCROLL DEBUG - Width Calculations', {
+              scrollLeft,
+              scrollTop,
+              // Visual state geometry
+              visualStateTotalWidth: this.visualStateStore.geometry.totalWidth,
+              visualStateViewportWidth: this.visualStateStore.geometry.viewportWidth,
+              // Visible columns analysis
+              visibleColumnsCount: this.visualStateStore.visibleColumns.length,
+              columnLayouts: this.visualStateStore.visibleColumns.map((col: any) => ({
+                id: col.id,
+                width: col.width,
+                xOffset: col.xOffset,
+                visible: col.visible
+              })),
+              // DOM dimensions
+              viewportClientWidth: viewport?.clientWidth,
+              viewportScrollWidth: viewport?.scrollWidth,
+              headerViewportClientWidth: headerViewport?.clientWidth,
+              headerViewportScrollWidth: headerViewport?.scrollWidth,
+              // Transform states
+              headerTransform: headerViewport?.style.transform,
+              // Scroll edge analysis
+              scrollRightEdge: scrollLeft + (viewport?.clientWidth || 0),
+              totalScrollableWidth: (viewport?.scrollWidth || 0) - (viewport?.clientWidth || 0),
+              scrollProgress: viewport?.scrollWidth ? (scrollLeft / ((viewport.scrollWidth - viewport.clientWidth) || 1) * 100).toFixed(1) + '%' : '0%'
+            });
           });
         },
         keyboardNavController: this.keyboardNavController,

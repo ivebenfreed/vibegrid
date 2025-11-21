@@ -39,7 +39,6 @@ export class EntityNameRenderer implements CellRenderer {
     container.style.display = 'flex'
     container.style.alignItems = 'center'
     container.style.gap = '8px'
-    container.style.cursor = 'pointer'
     container.style.width = '100%'
     container.style.height = '100%'
 
@@ -53,6 +52,7 @@ export class EntityNameRenderer implements CellRenderer {
     textElement.style.color = 'var(--primary)'
     textElement.style.textDecoration = 'none'
     textElement.style.transition = 'text-decoration 0.2s'
+    textElement.style.cursor = 'pointer'
 
     // ✅ Explicit action: clicking text navigates
     textElement.dataset.action = 'navigate'
@@ -66,11 +66,11 @@ export class EntityNameRenderer implements CellRenderer {
       textElement.textContent = String(value)
     }
 
-    // Add underline on hover
-    container.addEventListener('mouseenter', () => {
+    // Add underline only when hovering over the text element itself
+    textElement.addEventListener('mouseenter', () => {
       textElement.style.textDecoration = 'underline'
     })
-    container.addEventListener('mouseleave', () => {
+    textElement.addEventListener('mouseleave', () => {
       textElement.style.textDecoration = 'none'
     })
 
@@ -82,6 +82,7 @@ export class EntityNameRenderer implements CellRenderer {
     pencilIcon.style.transition = 'opacity 0.2s'
     pencilIcon.style.fontSize = '14px'
     pencilIcon.style.flexShrink = '0'
+    pencilIcon.style.cursor = 'pointer'
     pencilIcon.title = 'Click to edit inline'
 
     // ✅ Add data attribute for CellActionRouter detection
