@@ -493,11 +493,15 @@ export class FillHandleLayerDOM {
     const maxRow = this.coordinateMapping.rows[maxRowIndex];
     const minCol = this.coordinateMapping.columns[minColIndex];
     const maxCol = this.coordinateMapping.columns[maxColIndex];
-    
+
     const centerX = (minCol.offset + maxCol.offset + maxCol.width) / 2;
-    // Since row offset is undefined, calculate it using row index * cell height
-    const minRowOffset = minRowIndex * this.config.cellHeight;
-    const centerY = minRowOffset + this.config.cellHeight / 2;
+
+    // Use actual visual Y from coordinate mapping (same as selection system)
+    const maxRowY = maxRow.y ?? (maxRowIndex * this.config.cellHeight);
+    const maxRowHeight = maxRow.height ?? this.config.cellHeight;
+
+    // Fill handle at bottom of selection - use maxRow bottom as reference
+    const centerY = maxRowY + maxRowHeight / 2;
     
     const bounds = {
       minRowIndex,
