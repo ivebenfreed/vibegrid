@@ -521,7 +521,7 @@ export class FillHandleLayerDOM {
   handleFillMove(dragPos: { x: number; y: number }): void {
     const selectedCells = this.callbacks.getSelectedCells();
     const viewport = this.currentViewport;
-    
+
     if (!viewport || !this.coordinateMapping || selectedCells.size === 0) {
       return;
     }
@@ -535,6 +535,15 @@ export class FillHandleLayerDOM {
     const dragDeltaY = Math.abs(dragPos.y - this.cachedBounds.centerY);
     const rowsToFill = Math.floor(dragDeltaY / this.config.cellHeight);
     const fillDown = dragPos.y > this.cachedBounds.centerY;
+
+    console.log('📋 Fill drag move', {
+      dragPos,
+      boundsCenter: this.cachedBounds.centerY,
+      dragDeltaY,
+      rowsToFill,
+      fillDown,
+      cellHeight: this.config.cellHeight
+    });
 
     // SEMANTIC THROTTLING: Only process if meaningful change occurred
     if (rowsToFill === this.lastRowsToFill && fillDown === this.lastFillDirection) {

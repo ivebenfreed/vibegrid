@@ -448,7 +448,12 @@ export class MouseController {
     // Handle fill drag updates
     if (this.isDragging && this.isFillDrag) {
       if (this.coordinator?.handleFillMove) {
-        this.coordinator.handleFillMove({ x: e.clientX, y: e.clientY });
+        // Convert page coordinates to grid-relative coordinates
+        const containerRect = this.container.getBoundingClientRect();
+        const gridRelativeX = e.clientX - containerRect.left;
+        const gridRelativeY = e.clientY - containerRect.top;
+
+        this.coordinator.handleFillMove({ x: gridRelativeX, y: gridRelativeY });
       }
       return; // Don't allow fill drag to trigger selection updates
     }
@@ -615,7 +620,12 @@ export class MouseController {
         // Handle fill drag completion
         fileLog.info('📋 Fill drag ended - completing fill operation');
         if (this.coordinator?.handleFillComplete) {
-          this.coordinator.handleFillComplete({ x: e.clientX, y: e.clientY });
+          // Convert page coordinates to grid-relative coordinates
+          const containerRect = this.container.getBoundingClientRect();
+          const gridRelativeX = e.clientX - containerRect.left;
+          const gridRelativeY = e.clientY - containerRect.top;
+
+          this.coordinator.handleFillComplete({ x: gridRelativeX, y: gridRelativeY });
         }
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
