@@ -84,7 +84,7 @@ export class FillHandleLayerDOM {
       right: '0',
       bottom: '0',
       pointerEvents: 'none',
-      zIndex: '16' // Above selection outline (which is typically 15)
+      zIndex: '101.5' // Above selection (101), below editing (102)
     });
     
     this.container.appendChild(this.previewContainer);
@@ -331,7 +331,7 @@ export class FillHandleLayerDOM {
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         border: '2px dashed rgba(59, 130, 246, 0.5)',
         boxSizing: 'border-box',
-        zIndex: '15',
+        zIndex: '101.5', // Match container - above selection (101)
         opacity: '0', // Start invisible for animation
         transition: 'opacity 150ms ease-out, left 150ms ease-out, top 150ms ease-out'
       });
