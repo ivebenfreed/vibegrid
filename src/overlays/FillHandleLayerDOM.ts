@@ -84,7 +84,7 @@ export class FillHandleLayerDOM {
       right: '0',
       bottom: '0',
       pointerEvents: 'none',
-      zIndex: '15'
+      zIndex: '16' // Above selection outline (which is typically 15)
     });
     
     this.container.appendChild(this.previewContainer);
