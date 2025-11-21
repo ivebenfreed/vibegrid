@@ -226,7 +226,8 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           entityType,
           enableSelectionColumn,
           bufferSize,
-          onEntityUpdate,
+          // Use updateEntity from hook as fallback if onEntityUpdate prop not provided
+          onEntityUpdate: onEntityUpdate || updateEntity,
           onBatchEntityUpdate,
           onCellClick // ✅ Thread onCellClick to InteractionCoordinator
         })

@@ -110,6 +110,7 @@ export class ClipboardManager {
 
     const clipboard = this.tableInteraction$.clipboard;
     if (!clipboard || !clipboard.data) {
+      fileLog.warn('📋 No clipboard data available');
       toast.warning('No clipboard data', {
         description: 'Copy some cells first before pasting',
         duration: 3000
@@ -127,6 +128,7 @@ export class ClipboardManager {
 
     const selectedCells = this.tableInteraction$.selectedCells;
     if (selectedCells.size === 0) {
+      fileLog.warn('📋 No target cells selected');
       toast.warning('No cells selected', {
         description: 'Select target cells before pasting',
         duration: 3000
@@ -142,8 +144,31 @@ export class ClipboardManager {
       };
     }
 
+    // Log clipboard data state
+    fileLog.info('📋 Starting paste operation', {
+      clipboardData: {
+        operation: clipboard.operation,
+        dataRows: clipboard.data.length,
+        dataCols: clipboard.data[0]?.length || 0,
+        firstRowSample: clipboard.data[0]
+      },
+      targetCellsCount: selectedCells.size,
+      firstFewTargetCells: Array.from(selectedCells).slice(0, 3)
+    });
+
     try {
       const result = await this.performColumnAwarePaste(clipboard.data, selectedCells);
+
+      // LOG FULL RESULT DETAILS
+      fileLog.info('📋 Paste operation completed', {
+        success: result.success,
+        pastedCount: result.pastedCount,
+        errorCount: result.errorCount,
+        skippedCount: result.skippedCount,
+        blockedCount: result.blockedCount,
+        errorMessage: result.errorMessage,
+        detailsCount: result.details.length
+      });
 
       // Clear copy overlay on successful paste
       if (result.success && result.pastedCount > 0) {
@@ -153,6 +178,7 @@ export class ClipboardManager {
 
       // Show appropriate toast based on results
       if (result.errorCount === 0 && result.skippedCount === 0 && result.blockedCount === 0) {
+        fileLog.info('📋 Paste successful - all cells updated');
         toast.success('Data pasted successfully', {
           description: `${result.pastedCount} cells updated`,
           duration: 2000
@@ -163,6 +189,12 @@ export class ClipboardManager {
         if (result.skippedCount > 0) issueDetails.push(`${result.skippedCount} skipped`);
         if (result.blockedCount > 0) issueDetails.push(`${result.blockedCount} blocked (incompatible types)`);
 
+        fileLog.warn('📋 Paste completed with issues', {
+          pastedCount: result.pastedCount,
+          issues: issueDetails,
+          errorDetails: result.details.filter(d => d.status !== 'success')
+        });
+
         toast.warning('Paste completed with issues', {
           description: `${result.pastedCount} updated, ${issueDetails.join(', ')}`,
           duration: 5000
@@ -172,11 +204,31 @@ export class ClipboardManager {
         const blockedDetails = result.details.filter(d => d.status === 'blocked');
         if (blockedDetails.length > 0) {
           const firstBlocked = blockedDetails[0];
+
+          fileLog.error('📋 Paste blocked - Incompatible types', {
+            blockedCount: blockedDetails.length,
+            firstError: {
+              rowId: firstBlocked.rowId,
+              columnId: firstBlocked.columnId,
+              sourceType: firstBlocked.sourceType,
+              targetType: firstBlocked.targetType,
+              reason: firstBlocked.errorReason
+            },
+            allBlockedDetails: blockedDetails
+          });
+
           toast.error('Paste blocked - Incompatible types', {
             description: firstBlocked.errorReason || 'Cannot paste between incompatible column types',
             duration: 5000
           });
         } else {
+          fileLog.error('📋 Paste failed - no cells updated', {
+            errorMessage: result.errorMessage,
+            errorCount: result.errorCount,
+            skippedCount: result.skippedCount,
+            allDetails: result.details
+          });
+
           toast.error('Paste failed', {
             description: result.errorMessage || 'All paste operations failed',
             duration: 4000
@@ -187,6 +239,14 @@ export class ClipboardManager {
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      fileLog.error('📋 Paste operation threw exception', {
+        errorMessage,
+        errorStack,
+        error
+      });
+
       toast.error('Paste operation failed', {
         description: errorMessage,
         duration: 4000
@@ -315,8 +375,19 @@ export class ClipboardManager {
    * Extract rich clipboard data with column metadata
    */
   private extractRichClipboardData(selectedCells: Set<string>): VibeGridClipboardData {
+    fileLog.info('📋 extractRichClipboardData called', {
+      selectedCellsCount: selectedCells.size,
+      selectedCellsArray: Array.from(selectedCells)
+    });
+
     const rows = this.tableCore$.processedRows;
     const columns = this.tableCore$.columns;
+
+    fileLog.info('📋 Got table data', {
+      rowCount: rows.length,
+      columnCount: columns.length,
+      firstRowSample: rows[0] ? { id: rows[0].id, keys: Object.keys(rows[0]).slice(0, 15) } : null
+    });
 
     const cells: ClipboardCell[] = [];
     const columnTypes: Record<string, string> = {};
@@ -328,9 +399,26 @@ export class ClipboardManager {
       const row = rows.find(r => r.id === rowId);
       const column = columns.find(c => c.id === columnId);
 
-      if (!row || !column) return;
+      if (!row || !column) {
+        fileLog.warn('📋 Cell not found during copy', { cellId, hasRow: !!row, hasColumn: !!column });
+        return;
+      }
 
-      const value = row[columnId];
+      // Extract value - handle both direct and nested data structures
+      const value = (row as any).data ? (row as any).data[columnId] : row[columnId];
+
+      fileLog.info('📋 Extracting cell value', {
+        cellId,
+        columnId,
+        columnType: column.type,
+        hasNestedData: !!(row as any).data,
+        extractedValue: value,
+        valueType: typeof value,
+        isUndefined: value === undefined,
+        isNull: value === null,
+        rowId: row.id
+      });
+
       const displayValue = this.getDisplayValue(value, column);
 
       cells.push({
@@ -597,11 +685,18 @@ export class ClipboardManager {
    * Process value based on column type
    */
   private processValueForColumn(rawValue: any, column: any): any {
+    const columnType = column.type || 'text';
+
+    // Handle null/undefined/empty values based on column type
     if (rawValue === null || rawValue === undefined || rawValue === '') {
+      // For text fields, preserve empty string to avoid violating NOT NULL constraints
+      if (columnType === 'text' || columnType === 'textarea') {
+        return '';
+      }
+      // For other types, return null
       return null;
     }
 
-    const columnType = column.type || 'text';
     const stringValue = String(rawValue).trim();
 
     switch (columnType) {
