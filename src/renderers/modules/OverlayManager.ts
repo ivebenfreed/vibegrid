@@ -117,7 +117,14 @@ export class OverlayManager {
       (event) => {
         fileLog.debug('📋 Canvas overlay event:', event);
         // Handle fill events from the overlay system
-        if (event.type === 'FILL_COMPLETE' && 'fillCells' in event && event.fillCells) {
+        if (event.type === 'FILL_PREVIEW' && 'previewCells' in event && event.previewCells) {
+          // Convert preview cell IDs to visual positions and render
+          const visualPositions = this.getVisualCellPositions(event.previewCells);
+          if (this.canvasOverlay) {
+            const fillHandleLayer = this.canvasOverlay.getFillHandleLayer();
+            fillHandleLayer.renderFillPreviewWithVisualPositions(visualPositions);
+          }
+        } else if (event.type === 'FILL_COMPLETE' && 'fillCells' in event && event.fillCells) {
           this.handleFillComplete(event.fillCells);
         }
       }
