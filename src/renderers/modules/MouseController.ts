@@ -626,12 +626,18 @@ export class MouseController {
         // Handle fill drag completion
         fileLog.info('📋 Fill drag ended - completing fill operation');
         if (this.coordinator?.handleFillComplete) {
-          // Convert page coordinates to grid-relative coordinates
-          const containerRect = this.container.getBoundingClientRect();
-          const gridRelativeX = e.clientX - containerRect.left;
-          const gridRelativeY = e.clientY - containerRect.top;
+          // Find cell under mouse (same as fillMove!)
+          const target = e.target as HTMLElement;
+          const cellElement = target.closest('[data-row-id][data-column-id]');
 
-          this.coordinator.handleFillComplete({ x: gridRelativeX, y: gridRelativeY });
+          if (cellElement) {
+            const rowId = cellElement.getAttribute('data-row-id');
+            const columnId = cellElement.getAttribute('data-column-id');
+
+            if (rowId && columnId) {
+              this.coordinator.handleFillComplete({ rowId, columnId });
+            }
+          }
         }
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion

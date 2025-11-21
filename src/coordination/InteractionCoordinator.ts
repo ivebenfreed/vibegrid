@@ -274,11 +274,11 @@ export class InteractionCoordinator {
   /**
    * Handle fill complete - delegate to overlay manager
    */
-  handleFillComplete(dragPos: { x: number; y: number }): void {
+  handleFillComplete(cell: { rowId: string; columnId: string }): void {
     fileLog.debug('Fill complete - delegating to overlay manager');
     const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
     if (fillHandleLayer) {
-      fillHandleLayer.handleFillComplete(dragPos);
+      fillHandleLayer.handleFillComplete(cell);
     }
   }
 

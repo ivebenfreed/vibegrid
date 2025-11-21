@@ -605,22 +605,42 @@ export class FillHandleLayerDOM {
   }
   
   /**
-   * Handle fill complete from EventDelegationManager
+   * Handle fill complete using cell under cursor (same as fillMove!)
    */
-  handleFillComplete(dragPos: { x: number; y: number }): void {
+  handleFillComplete(cell: { rowId: string; columnId: string }): void {
     const selectedCells = this.callbacks.getSelectedCells();
-    const viewport = this.currentViewport;
-    
-    if (viewport && this.coordinateMapping) {
-      const fillCells = this.calculateFillPreviewCells(dragPos, selectedCells, viewport);
-      
-      if (fillCells.size > 0) {
-        this.callbacks.onFillComplete(fillCells);
-      } else {
-        this.callbacks.onFillCancel();
-      }
+
+    if (!this.coordinateMapping || selectedCells.size === 0) {
+      this.callbacks.onFillCancel();
+      this.clearFillPreview();
+      return;
     }
-    
+
+    // Find target row index from rowId (same logic as fillMove)
+    const targetRowIndex = this.coordinateMapping.rows.findIndex((r: any) => r.rowId === cell.rowId);
+    if (targetRowIndex === -1) {
+      this.callbacks.onFillCancel();
+      this.clearFillPreview();
+      return;
+    }
+
+    // Get selection bounds
+    const bounds = this.getSelectionBounds(selectedCells);
+    if (!bounds) {
+      this.callbacks.onFillCancel();
+      this.clearFillPreview();
+      return;
+    }
+
+    // Calculate fill cells (same as preview)
+    const fillCells = this.calculateFillPreviewCellsByRowIndex(targetRowIndex, bounds);
+
+    if (fillCells.size > 0) {
+      this.callbacks.onFillComplete(fillCells);
+    } else {
+      this.callbacks.onFillCancel();
+    }
+
     // Clear preview after completion
     this.clearFillPreview();
   }
