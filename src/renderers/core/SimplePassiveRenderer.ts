@@ -1627,11 +1627,15 @@ export class SimplePassiveRenderer {
     const startIndex = Math.max(0, visibleRange.start);
     const endIndex = Math.min(rows.length, visibleRange.end);
     const visibleRows = rows.slice(startIndex, endIndex);
-    
-    fileLog.debug('🎨 Body rendering ALL columns (no virtualization) - matches HeaderRenderer', {
+
+    fileLog.info('🎨 ROW 16 DEBUG - Body rendering range', {
       totalRows: rows.length,
-      visibleRange: `${startIndex}-${endIndex}`,
+      visibleRangeRaw: visibleRange,
+      startIndex,
+      endIndex,
+      sliceArgs: `slice(${startIndex}, ${endIndex})`,
       rendering: visibleRows.length,
+      renderedRowIds: visibleRows.map((r: any) => r.id),
       totalColumns: visualState.visibleColumns.length
     });
     
