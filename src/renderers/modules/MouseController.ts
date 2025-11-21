@@ -448,12 +448,18 @@ export class MouseController {
     // Handle fill drag updates
     if (this.isDragging && this.isFillDrag) {
       if (this.coordinator?.handleFillMove) {
-        // Convert page coordinates to grid-relative coordinates
-        const containerRect = this.container.getBoundingClientRect();
-        const gridRelativeX = e.clientX - containerRect.left;
-        const gridRelativeY = e.clientY - containerRect.top;
+        // Find cell under mouse (same as selection!) instead of using coordinates
+        const target = e.target as HTMLElement;
+        const cellElement = target.closest('[data-row-id][data-column-id]');
 
-        this.coordinator.handleFillMove({ x: gridRelativeX, y: gridRelativeY });
+        if (cellElement) {
+          const rowId = cellElement.getAttribute('data-row-id');
+          const columnId = cellElement.getAttribute('data-column-id');
+
+          if (rowId && columnId) {
+            this.coordinator.handleFillMove({ rowId, columnId });
+          }
+        }
       }
       return; // Don't allow fill drag to trigger selection updates
     }

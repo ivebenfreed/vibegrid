@@ -264,10 +264,10 @@ export class InteractionCoordinator {
   /**
    * Handle fill move - delegate to overlay manager
    */
-  handleFillMove(dragPos: { x: number; y: number }): void {
+  handleFillMove(cell: { rowId: string; columnId: string }): void {
     const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
     if (fillHandleLayer) {
-      fillHandleLayer.handleFillMove(dragPos);
+      fillHandleLayer.handleFillMove(cell);
     }
   }
 

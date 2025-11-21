@@ -387,7 +387,46 @@ export class FillHandleLayerDOM {
   }
   
   /**
-   * Calculate fill preview cells based on drag position
+   * Calculate fill preview from target row index
+   */
+  private calculateFillPreviewCellsByRowIndex(
+    targetRowIndex: number,
+    bounds: { minRowIndex: number; maxRowIndex: number; minColIndex: number; maxColIndex: number }
+  ): Set<string> {
+    const previewCells = new Set<string>();
+
+    // Determine direction
+    const fillDown = targetRowIndex > bounds.maxRowIndex;
+    const fillUp = targetRowIndex < bounds.minRowIndex;
+
+    if (!fillDown && !fillUp) {
+      // Target is within selection - no fill
+      return previewCells;
+    }
+
+    // Fill from selection boundary to target row (inclusive)
+    const startRow = fillDown ? bounds.maxRowIndex + 1 : targetRowIndex;
+    const endRow = fillDown ? targetRowIndex : bounds.minRowIndex - 1;
+
+    for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
+      if (rowIdx >= 0 && rowIdx < this.coordinateMapping!.rows.length) {
+        const row = this.coordinateMapping!.rows[rowIdx];
+
+        // Add cells for each column in selection (vertical fill, locked columns)
+        for (let c = bounds.minColIndex; c <= bounds.maxColIndex; c++) {
+          const col = this.coordinateMapping!.columns[c];
+          if (col) {
+            previewCells.add(`${row.rowId}:${col.columnId}`);
+          }
+        }
+      }
+    }
+
+    return previewCells;
+  }
+
+  /**
+   * Calculate fill preview cells based on drag position (DEPRECATED - use row-based)
    */
   calculateFillPreviewCells(
     dragPos: { x: number; y: number },
@@ -530,9 +569,9 @@ export class FillHandleLayerDOM {
   // ====================================
   
   /**
-   * Handle fill move from EventDelegationManager with semantic throttling
+   * Handle fill move using cell under cursor (same as selection!)
    */
-  handleFillMove(dragPos: { x: number; y: number }): void {
+  handleFillMove(cell: { rowId: string; columnId: string }): void {
     const selectedCells = this.callbacks.getSelectedCells();
     const viewport = this.currentViewport;
 
@@ -540,37 +579,16 @@ export class FillHandleLayerDOM {
       return;
     }
 
-    // Use cached bounds if available (expensive operation)
-    if (!this.cachedBounds) {
-      this.cachedBounds = this.getSelectionBounds(selectedCells);
-      if (!this.cachedBounds) return;
-    }
+    // Find target row index from rowId
+    const targetRowIndex = this.coordinateMapping.rows.findIndex((r: any) => r.rowId === cell.rowId);
+    if (targetRowIndex === -1) return;
 
-    const dragDeltaY = Math.abs(dragPos.y - this.cachedBounds.centerY);
-    const rowsToFill = Math.floor(dragDeltaY / this.config.cellHeight);
-    const fillDown = dragPos.y > this.cachedBounds.centerY;
+    // Get selection bounds
+    const bounds = this.getSelectionBounds(selectedCells);
+    if (!bounds) return;
 
-    console.log('📋 Fill drag move', {
-      dragPos,
-      boundsCenter: this.cachedBounds.centerY,
-      dragDeltaY,
-      rowsToFill,
-      fillDown,
-      cellHeight: this.config.cellHeight
-    });
-
-    // SEMANTIC THROTTLING: Only process if meaningful change occurred
-    if (rowsToFill === this.lastRowsToFill && fillDown === this.lastFillDirection) {
-      // Same result as last calculation - skip expensive operations
-      return;
-    }
-
-    // Store semantic values for next comparison
-    this.lastRowsToFill = rowsToFill;
-    this.lastFillDirection = fillDown;
-
-    // Now do the expensive calculation only when needed
-    const previewCells = this.calculateFillPreviewCells(dragPos, selectedCells, viewport);
+    // Calculate preview cells from selection to target row
+    const previewCells = this.calculateFillPreviewCellsByRowIndex(targetRowIndex, bounds);
     this.callbacks.onFillPreview(previewCells);
   }
   
