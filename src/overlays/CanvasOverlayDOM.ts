@@ -257,7 +257,7 @@ export class CanvasOverlayDOM {
   /**
    * Get or create the fill handle layer
    */
-  private getFillHandleLayer(): FillHandleLayerDOM {
+  getFillHandleLayer(): FillHandleLayerDOM {
     if (!this.fillHandleLayer && this.overlayContainer) {
       fileLog.debug('CanvasOverlayDOM: Lazily creating FillHandleLayerDOM');
       

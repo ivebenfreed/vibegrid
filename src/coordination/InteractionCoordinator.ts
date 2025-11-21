@@ -68,6 +68,8 @@ interface CellData {
  * InteractionCoordinator - Central coordination point for all grid interactions
  */
 export class InteractionCoordinator {
+  private overlayManager?: any; // Optional reference for fill handle delegation
+
   constructor(
     private container: HTMLElement,
     private interactionStore: InteractionStore,
@@ -78,6 +80,13 @@ export class InteractionCoordinator {
     private visualStateStore: VisualStateStore
   ) {
     fileLog.info('InteractionCoordinator initialized')
+  }
+
+  /**
+   * Set overlay manager reference for fill handle delegation
+   */
+  setOverlayManager(overlayManager: any): void {
+    this.overlayManager = overlayManager;
   }
 
   /**
@@ -239,6 +248,38 @@ export class InteractionCoordinator {
     const value = row ? row[columnId] : null
 
     return { row, value }
+  }
+
+  /**
+   * Handle fill start - delegate to overlay manager
+   */
+  handleFillStart(): void {
+    fileLog.debug('Fill start - delegating to overlay manager');
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    if (fillHandleLayer) {
+      fillHandleLayer.handleFillStart();
+    }
+  }
+
+  /**
+   * Handle fill move - delegate to overlay manager
+   */
+  handleFillMove(dragPos: { x: number; y: number }): void {
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    if (fillHandleLayer) {
+      fillHandleLayer.handleFillMove(dragPos);
+    }
+  }
+
+  /**
+   * Handle fill complete - delegate to overlay manager
+   */
+  handleFillComplete(dragPos: { x: number; y: number }): void {
+    fileLog.debug('Fill complete - delegating to overlay manager');
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    if (fillHandleLayer) {
+      fillHandleLayer.handleFillComplete(dragPos);
+    }
   }
 
   /**

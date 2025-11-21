@@ -57,6 +57,9 @@ export class MouseController {
   // Column resize state
   private isColumnResize = false;
 
+  // Fill handle drag state
+  private isFillDrag = false;
+
   // Throttling for resize updates
   private resizeThrottleTimeout: number | null = null;
   private lastResizeUpdate: number = 0;
@@ -129,6 +132,7 @@ export class MouseController {
     this.dragRowId = null;
     this.dragRowGroupId = null;
     this.isColumnResize = false;
+    this.isFillDrag = false;
 
     // Provide immediate visual feedback on mouse down
     const target = e.target as HTMLElement;
@@ -142,10 +146,28 @@ export class MouseController {
       parentTagName: target.parentElement?.tagName,
       parentClassName: target.parentElement?.className,
       hasResizeHandle: target.classList.contains('vibegridx-resize-handle'),
-      closestResizeHandle: !!target.closest('.vibegridx-resize-handle')
+      closestResizeHandle: !!target.closest('.vibegridx-resize-handle'),
+      hasFillHandle: target.classList.contains('vibegridx-fill-handle'),
+      closestFillHandle: !!target.closest('.vibegridx-fill-handle')
     });
 
-    // Check for column resize handle first (highest priority)
+    // Check for fill handle first (highest priority - should not trigger selection)
+    const fillHandle = target.closest('.vibegridx-fill-handle');
+    if (fillHandle) {
+      this.isFillDrag = true;
+      fileLog.info('📋 Fill handle mousedown detected - starting fill drag');
+
+      // Notify coordinator or overlay manager about fill start
+      if (this.coordinator) {
+        this.coordinator.handleFillStart?.();
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    // Check for column resize handle second (high priority)
     const resizeHandle = target.closest('.vibegridx-resize-handle');
     if (resizeHandle) {
       const headerElement = resizeHandle.closest('[data-column-id]');
@@ -361,6 +383,12 @@ export class MouseController {
       } else if (this.isRowDrag) {
         // Row drag was attempted but failed - don't fall back to cell selection
         fileLog.warn('⚠️ Row drag detected but dragRowId is missing');
+      } else if (this.isFillDrag) {
+        // Start fill drag - notify coordinator/overlay about fill start
+        fileLog.info('📋 Fill drag started');
+        if (this.coordinator?.handleFillStart) {
+          this.coordinator.handleFillStart();
+        }
       } else {
         // PURE: Start drag selection with focused cell as anchor (only for cell drags)
         const startCell = this.interactionStore.focusedCell;
@@ -415,6 +443,14 @@ export class MouseController {
         // Clear drop indicator when not over a valid target
         this.hideRowDropIndicator();
       }
+    }
+
+    // Handle fill drag updates
+    if (this.isDragging && this.isFillDrag) {
+      if (this.coordinator?.handleFillMove) {
+        this.coordinator.handleFillMove({ x: e.clientX, y: e.clientY });
+      }
+      return; // Don't allow fill drag to trigger selection updates
     }
 
     // Handle cell drag selection updates
@@ -575,6 +611,12 @@ export class MouseController {
         this.removeDragPreview();
         this.hideDropLine();
         fileLog.debug('🎯 Column drag state reset, continuing to general reset');
+      } else if (this.isFillDrag) {
+        // Handle fill drag completion
+        fileLog.info('📋 Fill drag ended - completing fill operation');
+        if (this.coordinator?.handleFillComplete) {
+          this.coordinator.handleFillComplete({ x: e.clientX, y: e.clientY });
+        }
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
         const targetRowId = this.interactionStore.dragTarget;

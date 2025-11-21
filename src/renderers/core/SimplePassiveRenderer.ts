@@ -1116,6 +1116,11 @@ export class SimplePassiveRenderer {
           this.eventManager.setupEventHandling();
         }
 
+        // Link coordinator to overlay manager for fill handle delegation
+        if (this.interactionCoordinator) {
+          this.interactionCoordinator.setOverlayManager(this.overlayManager!);
+        }
+
         // Mark remaining dependencies as ready (if initManager exists)
         if (this.initStore) {
           // ✅ FIXED: InitStore DOES have markReady method - uncommented
