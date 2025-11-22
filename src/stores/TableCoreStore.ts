@@ -229,6 +229,9 @@ export class TableCoreStore implements IStore {
   // Maps rowId → Set of changed column IDs
   @observable lastChangedCells: Map<string, Set<string>> = new Map()
 
+  // Track last change detection stats for optimization
+  @observable lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 }
+
   // ====================================
   // DEPENDENCIES (injected)
   // ====================================
@@ -427,11 +430,19 @@ export class TableCoreStore implements IStore {
     // Update snapshot for next comparison
     this.previousRowsSnapshot = newSnapshot
 
+    // Store stats for optimization checks
+    const totalCellsChanged = Array.from(changedCells.values())
+      .reduce((sum, cols) => sum + cols.size, 0)
+
+    this.lastChangeStats = {
+      rowsChanged: changedCells.size,
+      totalCellsChanged
+    }
+
     log.info('📊 Change detection complete', {
       totalRows: newRows.length,
       rowsChanged: changedCells.size,
-      totalCellsChanged: Array.from(changedCells.values())
-        .reduce((sum, cols) => sum + cols.size, 0)
+      totalCellsChanged
     })
 
     return changedCells

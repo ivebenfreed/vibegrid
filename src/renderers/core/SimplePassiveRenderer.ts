@@ -217,11 +217,16 @@ export class SimplePassiveRenderer {
     this.initControllers();
     this.initDOMFactory();
     this.initOverlayManager(); // ✅ MUST be before initPhase2Managers (creates EditSessionManager)
-    this.initPhase2Managers(); // ✅ MUST be after initOverlayManager (accesses EditSessionManager)
+    this.initPhase2Managers(); // ✅ MUST be after initOverlayManager (accesses EditSessionManager) - CREATES bodyRenderer!
     this.initHeaderRenderer();
 
-    fileLog.debug('🎯 DEFERRED: Skipping initFocusedObservers during construction');
     this.postInitialization();
+
+    // Initialize observers at the VERY END after ALL components exist
+    // CRITICAL: Enable observers BEFORE initializing them so guards don't block
+    this.observersEnabled = true;
+    fileLog.info('🎯 Initializing focused observers after all components ready');
+    this.initFocusedObservers();
 
     fileLog.debug('✅ SimplePassiveRenderer initialized with PURE MobX (no bridge)', {
       timestamp: Date.now(),
@@ -294,7 +299,6 @@ export class SimplePassiveRenderer {
    */
   private initPhase2Managers(): void {
     fileLog.info('🚀 Initializing Phase 2 managers - START');
-    console.log('🔍 DEBUG: initPhase2Managers called');
 
     // GroupRenderer needs MobX migration (expects visualState from Legend State)
     // TODO: Migrate GroupRenderer to use VisualStateStore
@@ -370,7 +374,6 @@ export class SimplePassiveRenderer {
     });
 
     fileLog.info('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager, EventManager, KeyboardController)');
-    console.log('🔍 DEBUG: initPhase2Managers completed successfully');
   }
   
   /**
@@ -401,12 +404,12 @@ export class SimplePassiveRenderer {
    * Each observer handles only its specific concern for optimal performance
    */
   private initFocusedObservers(): void {
-    fileLog.debug('🎯 Initializing focused observers');
+    fileLog.info('🎯 Initializing focused observers');
 
     // SORTED DATA OBSERVER: MobX reaction for processed rows changes
     // TableCoreStore.processedRows is a computed that applies filtering, sorting, and grouping
     // This will trigger whenever the computed sorted data changes (due to sorting, filtering, or raw data changes)
-    fileLog.debug('🎯 Creating sorted data observer - MobX reaction on tableCoreStore.processedRows');
+    fileLog.info('🎯 Creating sorted data observer - MobX reaction on tableCoreStore.processedRows');
 
     this.dataObserverDisposer = reaction(
       () => this.tableCoreStore.processedRows,
@@ -463,9 +466,10 @@ export class SimplePassiveRenderer {
             fileLog.error('❌ BodyRenderer not available for granular update');
           }
 
-          // Clear the changed cells map for next update
+          // Clear the changed cells map AND stats for next update
           runInAction(() => {
             this.tableCoreStore.lastChangedCells.clear();
+            this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
           });
 
           return; // ✅ Exit early - no full re-render needed!
@@ -473,9 +477,20 @@ export class SimplePassiveRenderer {
 
         // FULL RE-RENDER PATH
         // Triggered when structure changed (sort, filter, new/deleted rows)
+
+        // OPTIMIZATION: Check if there were ANY changes at all
+        // If change detection found 0 rows changed, skip re-render entirely
+        const changeStats = this.tableCoreStore.lastChangeStats;
+
+        if (changeStats.rowsChanged === 0 && changeStats.totalCellsChanged === 0) {
+          fileLog.debug('⏭️ SKIPPING: No changes detected', changeStats);
+          return; // Exit early - nothing changed!
+        }
+
         fileLog.debug('🔄 Full table re-render (structural change)', {
           rowCount: processedRows.length,
-          reason: 'no_granular_changes_detected'
+          reason: 'no_granular_changes_detected',
+          changeStats
         });
 
         this.renderBody();
@@ -984,7 +999,7 @@ export class SimplePassiveRenderer {
    * Post-initialization setup after all managers are created
    */
   private postInitialization(): void {
-    fileLog.debug('[VGDEBUG] 🚀 Starting post-initialization');
+    fileLog.info('[VGDEBUG] 🚀 Starting post-initialization');
 
     // Phase 1: Quick synchronous operations that don't cause reflows
     // Initialize hybrid coordinate system position tracking (mostly calculations)
@@ -1000,7 +1015,7 @@ export class SimplePassiveRenderer {
         return;
       }
 
-      fileLog.debug('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)');
+      fileLog.info('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)');
 
       // Now safe to measure DOM
       const bounds = this.container.getBoundingClientRect();
@@ -1251,16 +1266,16 @@ export class SimplePassiveRenderer {
 
             // Enable observers after initialization is complete
             this.observersEnabled = true;
-            fileLog.debug('🔄 OBSERVERS ENABLED after initialization', {
+            fileLog.info('🔄 OBSERVERS ENABLED after initialization', {
               observersEnabled: this.observersEnabled,
               timestamp: Date.now(),
               visualObserverExists: !!this.visualObserverDisposer
             });
 
             // NOW attach reactive observers AFTER initialization is complete
-            fileLog.debug('🎯 Attaching focused observers after initialization complete');
+            fileLog.info('🎯 Attaching focused observers after initialization complete');
             this.initFocusedObservers();
-            fileLog.debug('✅ Reactive observers attached - performance optimized');
+            fileLog.info('✅ Focused observers initialized successfully');
 
             fileLog.debug('✅ Post-initialization complete');
           });
