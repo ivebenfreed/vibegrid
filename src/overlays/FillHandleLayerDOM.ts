@@ -1,6 +1,7 @@
 import type { ViewportInfo } from '../types';
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager';
 import type { VisualCellPosition } from './OverlayTypes';
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
 
 // ====================================
 // FILL HANDLE LAYER - DOM Implementation
@@ -71,9 +72,9 @@ export class FillHandleLayerDOM {
       right: '0',
       bottom: '0',
       pointerEvents: 'none',
-      zIndex: '20'
+      zIndex: `${GRID_DIMENSIONS.Z_INDEX.FILL_HANDLE}` // 103
     });
-    
+
     // Create preview container
     this.previewContainer = document.createElement('div');
     this.previewContainer.className = 'vibegridx-fill-preview-container';
@@ -84,7 +85,7 @@ export class FillHandleLayerDOM {
       right: '0',
       bottom: '0',
       pointerEvents: 'none',
-      zIndex: '101.5' // Above selection (101), below editing (102)
+      zIndex: `${GRID_DIMENSIONS.Z_INDEX.FILL_PREVIEW}` // 102 - Above selection (101)
     });
     
     this.container.appendChild(this.previewContainer);
@@ -180,7 +181,7 @@ export class FillHandleLayerDOM {
         borderRadius: '2px',
         cursor: 'crosshair',
         pointerEvents: 'auto',
-        zIndex: '25',
+        zIndex: `${GRID_DIMENSIONS.Z_INDEX.FILL_HANDLE}`, // 103
         boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
         transition: 'transform 150ms ease-out'
       });
@@ -331,7 +332,7 @@ export class FillHandleLayerDOM {
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
         border: '2px dashed rgba(59, 130, 246, 0.5)',
         boxSizing: 'border-box',
-        zIndex: '101.5', // Match container - above selection (101)
+        zIndex: `${GRID_DIMENSIONS.Z_INDEX.FILL_PREVIEW}`, // 102 - Above selection (101)
         opacity: '0', // Start invisible for animation
         transition: 'opacity 150ms ease-out, left 150ms ease-out, top 150ms ease-out'
       });

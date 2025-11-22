@@ -44,12 +44,14 @@ export const GRID_DIMENSIONS = {
   // Z-index layers
   Z_INDEX: {
     TABLE_CONTENT: 1,
-    OVERLAYS: 100,
-    CLIPBOARD: 100.5, // Just below selection for visibility
-    SELECTION: 101,
-    EDITING: 102,
-    DRAG_PREVIEW: 103,
-    CONTEXT_MENU: 104,
+    OVERLAYS: 100,           // Base overlay layer
+    CLIPBOARD: 100,          // Clipboard indicators (same as base, integer value)
+    SELECTION: 101,          // Selection highlighting
+    FILL_PREVIEW: 102,       // Fill drag preview (above selection)
+    FILL_HANDLE: 103,        // Fill handle knob (above preview)
+    EDITING: 104,            // Active cell editor (above fill layers)
+    DRAG_PREVIEW: 105,       // Row/column drag preview
+    CONTEXT_MENU: 106,       // Context menus
     MODAL_BACKDROP: 9990,
     MODAL_CONTENT: 9999
   }

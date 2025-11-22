@@ -22,6 +22,7 @@ export interface MouseControllerOptions {
   tableCoreStore?: any; // For accessing processed rows and columns
   keyboardController?: any; // For ensuring focus after interactions
   coordinator?: InteractionCoordinator; // ✅ NEW: InteractionCoordinator for clean event delegation
+  enableSelectionColumn?: boolean; // Control whether row header clicks select rows
 }
 
 export class MouseController {
@@ -35,6 +36,7 @@ export class MouseController {
   private tableCoreStore?: any;
   private keyboardController?: any;
   private coordinator?: InteractionCoordinator; // ✅ NEW: Coordinator for clean event handling
+  private enableSelectionColumn: boolean;
 
   // Mouse state tracking
   private isDragging = false;
@@ -82,6 +84,7 @@ export class MouseController {
     this.tableCoreStore = options.tableCoreStore;
     this.keyboardController = options.keyboardController;
     this.coordinator = options.coordinator; // ✅ NEW: Store coordinator for event delegation
+    this.enableSelectionColumn = options.enableSelectionColumn ?? true; // Default to true
 
     // Prevent text selection during drag operations
     this.container.style.userSelect = 'none';
@@ -789,7 +792,12 @@ export class MouseController {
         return;
 
       } else if (rowHeaderElement && this.selectionController) {
-        // Handle row header clicks
+        // Handle row header clicks (only if selection column is enabled)
+        if (!this.enableSelectionColumn) {
+          // Row header disabled - don't handle selection
+          return;
+        }
+
         const rowId = rowHeaderElement.getAttribute('data-row-id');
         if (rowId) {
           fileLog.debug('🖱️ Row header click detected', {
@@ -1298,17 +1306,22 @@ export class MouseController {
       targetGroupId,
       targetIndex,
       insertBefore,
-      mouseY
+      mouseY,
+      isGroupedMode: !!(this.dragRowGroupId || targetGroupId),
+      isFlatMode: !(this.dragRowGroupId || targetGroupId)
     });
 
     // Call the appropriate DragDropManager method
     if (this.dragRowGroupId || targetGroupId) {
       // Grouped mode - call onRowMove
+      fileLog.info('🔀 Using GROUPED mode row reorder');
       const finalTargetGroupId = targetGroupId || this.dragRowGroupId || '';
       this.callRowMoveHandler(this.dragRowId, finalTargetGroupId, targetIndex);
     } else {
       // Flat mode - call onFlatRowMove
+      fileLog.info('🔀 Using FLAT mode row reorder');
       const sourceIndex = this.calculateRowIndex(this.dragRowId);
+      fileLog.debug('📊 Flat mode indices', { sourceIndex, targetIndex });
       this.callFlatRowMoveHandler(sourceIndex, targetIndex);
     }
   }

@@ -228,7 +228,13 @@ export class KeyboardNavigationController {
           return true;
         }
 
-        // If not editing, clear selection
+        // If clipboard highlight exists, clear it first (independent of selection)
+        if (this.interactionStore.clipboard) {
+          this.interactionStore.clearClipboard();
+          return true;
+        }
+
+        // If no clipboard, then clear selection
         this.interactionStore.clearSelection();
         this.interactionStore.setFocusedCell(null);
         return true;

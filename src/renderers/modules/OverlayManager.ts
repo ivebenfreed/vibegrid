@@ -292,14 +292,25 @@ export class OverlayManager {
             // BATCHED: All DOM updates happen together in a single frame
             if (isColumnResizing && this.canvasOverlay) {
               if (!wasColumnResizing) {
-                fileLog.debug('[RESIZE] Selection overlay suspended for column resize');
-                this.canvasOverlay.suspendSelectionOverlay();
+                fileLog.debug('[RESIZE] Selection overlay hidden for column resize');
+                const selectionOverlay = this.canvasOverlay.getSelectionOverlayInstance();
+                if (selectionOverlay) {
+                  selectionOverlay.hide(); // Just hide, don't destroy
+                }
                 this.canvasOverlay.hideFillHandle();
               }
             } else if (wasColumnResizing && !isColumnResizing) {
-              fileLog.debug('[RESIZE] Column resize ended, selection overlay may be restored', {
+              fileLog.debug('[RESIZE] Column resize ended, restoring selection overlay', {
                 selectedCount: state.selectedCells.size
               });
+
+              // Show selection container again
+              if (this.canvasOverlay) {
+                const selectionOverlay = this.canvasOverlay.getSelectionOverlayInstance();
+                if (selectionOverlay) {
+                  selectionOverlay.show(); // Restore visibility
+                }
+              }
 
               if (state.selectedCells.size > 0) {
                 this.performCanvasSelectionUpdate(state.selectedCells);
@@ -698,6 +709,7 @@ export class OverlayManager {
       const columnIndex = columns.findIndex((c: any) => c.id === columnId);
 
       // Calculate expected column X position based on column widths
+      // NOTE: This is only used for debugging - actual position comes from getCellPosition()
       let expectedColumnX = 0;
       for (let i = 0; i < columnIndex; i++) {
         const prevColumn = columns[i];

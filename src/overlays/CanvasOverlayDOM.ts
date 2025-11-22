@@ -13,6 +13,7 @@ import { ClipboardOverlayDOM } from './ClipboardOverlayDOM';
 import { DragPreviewOverlayDOM } from './DragPreviewOverlayDOM';
 import { ColumnDragOverlayDOM } from './ColumnDragOverlayDOM';
 import { ColumnResizeOverlayDOM } from './ColumnResizeOverlayDOM';
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions';
 import { createLogger } from '@/shared/lib/logging';
 const fileLog = createLogger('components/custom/vibegrid/overlays/CanvasOverlayDOM.ts');
 // EditingOverlay is already DOM-based (React portal) - handled separately
@@ -108,23 +109,33 @@ export class CanvasOverlayDOM {
   }
   
   /**
-   * Pre-initialize all overlays to avoid lazy loading delays during interactions
+   * Pre-initialize overlays in z-index order (bottom to top)
+   * This ensures predictable DOM stacking
    */
   private preInitializeOverlays(): void {
     if (!this.overlayContainer) {
       return;
     }
 
-    fileLog.debug('CanvasOverlayDOM: Pre-initializing all overlays');
+    fileLog.debug('CanvasOverlayDOM: Pre-initializing overlays in z-index order');
 
-    // Pre-create all overlays to avoid delays on first interaction
+    // Create containers in ascending z-index order
+    // Each overlay creates its persistent container on instantiation
     try {
-      this.getSelectionOverlay();
-      this.getFillHandleLayer();
-      // Skip other overlays for now as they're less commonly used
-      // Can add more if needed: getClipboardOverlay(), getDragPreviewOverlay(), etc.
+      this.getClipboardOverlay();    // Z_INDEX.CLIPBOARD = 100
+      this.getSelectionOverlay();    // Z_INDEX.SELECTION = 101
+      this.getFillHandleLayer();     // Z_INDEX.FILL_PREVIEW = 102, FILL_HANDLE = 103
 
-      fileLog.debug('CanvasOverlayDOM: All critical overlays pre-initialized');
+      // Future overlays added here in z-index order
+
+      fileLog.debug('CanvasOverlayDOM: All critical overlays pre-initialized', {
+        order: ['clipboard', 'selection', 'fill'],
+        zIndexOrder: [
+          GRID_DIMENSIONS.Z_INDEX.CLIPBOARD,
+          GRID_DIMENSIONS.Z_INDEX.SELECTION,
+          GRID_DIMENSIONS.Z_INDEX.FILL_PREVIEW
+        ]
+      });
     } catch (error) {
       fileLog.error('CanvasOverlayDOM: Failed to pre-initialize overlays', error);
     }
@@ -153,10 +164,17 @@ export class CanvasOverlayDOM {
     if (!this.selectionOverlay) {
       throw new Error('CanvasOverlayDOM: Failed to create selection overlay');
     }
-    
+
     return this.selectionOverlay;
   }
-  
+
+  /**
+   * Public accessor for selection overlay (for hide/show during operations)
+   */
+  getSelectionOverlayInstance(): SelectionOverlayDOM | null {
+    return this.selectionOverlay;
+  }
+
   /**
    * Get or create the clipboard overlay
    */
