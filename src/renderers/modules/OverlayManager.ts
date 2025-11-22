@@ -931,36 +931,94 @@ export class OverlayManager {
     const rows = this.getProcessedRows();
     const columns = this.tableCoreStore.columns;
 
-    // Extract source values (with nested data handling like clipboard)
-    const sourceValues = new Map<string, any>(); // columnId -> value
-    selectedCells.forEach(cellId => {
+    // Build row and column indices for sorting
+    const rowIdToIndex = new Map<string, number>();
+    rows.forEach((row, index) => rowIdToIndex.set(row.id, index));
+    const columnIdToIndex = new Map<string, number>();
+    columns.forEach((col: any, index: number) => columnIdToIndex.set(col.id, index));
+
+    // Sort selected cells by row, then by column to establish pattern order
+    const sortedSelectedCells = Array.from(selectedCells).sort((a, b) => {
+      const [rowIdA, colIdA] = a.split(':');
+      const [rowIdB, colIdB] = b.split(':');
+      const rowIndexA = rowIdToIndex.get(rowIdA) ?? Infinity;
+      const rowIndexB = rowIdToIndex.get(rowIdB) ?? Infinity;
+      if (rowIndexA !== rowIndexB) {
+        return rowIndexA - rowIndexB;
+      }
+      const colIndexA = columnIdToIndex.get(colIdA) ?? Infinity;
+      const colIndexB = columnIdToIndex.get(colIdB) ?? Infinity;
+      return colIndexA - colIndexB;
+    });
+
+    // Extract ALL source values in pattern order (not just first per column)
+    // Group by column for pattern matching
+    const sourceValuesByColumn = new Map<string, any[]>(); // columnId -> array of values
+    sortedSelectedCells.forEach(cellId => {
       const [rowId, columnId] = cellId.split(':');
       const row = rows.find(r => r.id === rowId);
 
       if (row) {
         const value = (row as any).data ? (row as any).data[columnId] : row[columnId];
-        if (!sourceValues.has(columnId)) {
-          sourceValues.set(columnId, value);
+        if (!sourceValuesByColumn.has(columnId)) {
+          sourceValuesByColumn.set(columnId, []);
         }
+        sourceValuesByColumn.get(columnId)!.push(value);
       }
     });
 
-    fileLog.info('📋 Fill source values extracted', {
-      columnCount: sourceValues.size,
-      columns: Array.from(sourceValues.keys())
+    // Calculate the pattern length (number of unique rows in selection)
+    const selectedRowIds = new Set(sortedSelectedCells.map(cellId => cellId.split(':')[0]));
+    const patternLength = selectedRowIds.size;
+
+    fileLog.info('📋 Fill source pattern extracted', {
+      patternLength,
+      columnCount: sourceValuesByColumn.size,
+      columns: Array.from(sourceValuesByColumn.keys()),
+      totalSourceCells: sortedSelectedCells.length
     });
 
-    // Apply source values to fill target cells
+    // Sort fill cells by row, then by column to match pattern application order
+    const sortedFillCells = Array.from(fillCells).sort((a, b) => {
+      const [rowIdA, colIdA] = a.split(':');
+      const [rowIdB, colIdB] = b.split(':');
+      const rowIndexA = rowIdToIndex.get(rowIdA) ?? Infinity;
+      const rowIndexB = rowIdToIndex.get(rowIdB) ?? Infinity;
+      if (rowIndexA !== rowIndexB) {
+        return rowIndexA - rowIndexB;
+      }
+      const colIndexA = columnIdToIndex.get(colIdA) ?? Infinity;
+      const colIndexB = columnIdToIndex.get(colIdB) ?? Infinity;
+      return colIndexA - colIndexB;
+    });
+
+    // Apply source values to fill target cells with pattern repetition
     let successCount = 0;
     let errorCount = 0;
     let skippedCount = 0;
 
-    for (const fillCellId of fillCells) {
+    // Track which fill row we're on to calculate pattern index
+    let currentFillRow = '';
+    let fillRowIndex = 0;
+
+    for (const fillCellId of sortedFillCells) {
       const [rowId, columnId] = fillCellId.split(':');
 
-      // Only fill if we have a source value for this column (vertical fill, locked columns)
-      if (sourceValues.has(columnId)) {
-        const newValue = sourceValues.get(columnId);
+      // Track row changes to calculate pattern index
+      if (currentFillRow !== rowId) {
+        if (currentFillRow !== '') {
+          fillRowIndex++;
+        }
+        currentFillRow = rowId;
+      }
+
+      // Only fill if we have source values for this column
+      if (sourceValuesByColumn.has(columnId)) {
+        const columnValues = sourceValuesByColumn.get(columnId)!;
+
+        // Use modulo to repeat pattern cyclically
+        const patternIndex = fillRowIndex % patternLength;
+        const newValue = columnValues[Math.min(patternIndex, columnValues.length - 1)];
 
         // Get current value of target cell
         const targetRow = rows.find(r => r.id === rowId);
@@ -993,8 +1051,22 @@ export class OverlayManager {
       successCount,
       errorCount,
       skippedCount,
-      totalAttempted: fillCells.size
+      totalAttempted: fillCells.size,
+      patternLength
     });
+
+    // Expand selection to include all filled cells (original + filled)
+    if (successCount > 0) {
+      runInAction(() => {
+        const newSelection = new Set([...selectedCells, ...fillCells]);
+        this.interactionStore.selectedCells = newSelection;
+        fileLog.info('📋 Selection expanded to include filled cells', {
+          originalCount: selectedCells.size,
+          filledCount: fillCells.size,
+          newSelectionCount: newSelection.size
+        });
+      });
+    }
   }
 
   /**
