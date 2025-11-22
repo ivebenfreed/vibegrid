@@ -411,7 +411,7 @@ export class SimplePassiveRenderer {
     this.dataObserverDisposer = reaction(
       () => this.tableCoreStore.processedRows,
       (processedRows) => {
-        fileLog.debug('🔍 SORTED DATA CHANGE DETECTED - MobX computed reaction', {
+        fileLog.debug('🔍 DATA CHANGE DETECTED - MobX computed reaction', {
           observersEnabled: this.observersEnabled,
           rowCount: processedRows.length,
           sortBy: this.visualStateStore.sortBy,
@@ -420,23 +420,65 @@ export class SimplePassiveRenderer {
 
         // GUARD: Skip if observers are not enabled yet
         if (!this.observersEnabled) {
-          fileLog.debug('⏸️ SORTED DATA: Observers not enabled yet');
+          fileLog.debug('⏸️ DATA: Observers not enabled yet');
           return;
         }
 
         // GUARD: Only render if grid is fully initialized
         if (this.initStore && !this.initStore.isFullyHydrated) {
-          fileLog.debug('⏸️ SORTED DATA: Skipping render during initialization');
+          fileLog.debug('⏸️ DATA: Skipping render during initialization');
           return;
         }
 
-        // MobX automatically handles change detection - just re-render
-        this.renderBody();
+        // ✨ NEW: Check for granular cell changes
+        const changedCells = this.tableCoreStore.lastChangedCells;
 
-        fileLog.debug('🔄 MobX reactive render - sorted data applied', {
-          rowCount: processedRows.length,
-          firstRowTitle: processedRows[0]?.title
+        fileLog.debug('🔍 DATA OBSERVER: Checking for granular updates', {
+          hasChangedCells: !!changedCells,
+          changedCellsSize: changedCells?.size || 0,
+          hasBodyRenderer: !!this.bodyRenderer,
+          timestamp: Date.now()
         });
+
+        if (changedCells && changedCells.size > 0) {
+          // GRANULAR UPDATE PATH
+          const totalCells = Array.from(changedCells.values())
+            .reduce((sum, cols) => sum + cols.size, 0);
+
+          fileLog.info('🎯 Granular cell update detected', {
+            rowsAffected: changedCells.size,
+            cellsChanged: totalCells,
+            method: 'cell-level',
+            willSkipFullRender: true,
+            changedCellDetails: Array.from(changedCells.entries()).map(([rowId, cols]) => ({
+              rowId,
+              columns: Array.from(cols)
+            }))
+          });
+
+          // Apply cell-level updates
+          if (this.bodyRenderer) {
+            this.bodyRenderer.updateCells(changedCells);
+          } else {
+            fileLog.error('❌ BodyRenderer not available for granular update');
+          }
+
+          // Clear the changed cells map for next update
+          runInAction(() => {
+            this.tableCoreStore.lastChangedCells.clear();
+          });
+
+          return; // ✅ Exit early - no full re-render needed!
+        }
+
+        // FULL RE-RENDER PATH
+        // Triggered when structure changed (sort, filter, new/deleted rows)
+        fileLog.debug('🔄 Full table re-render (structural change)', {
+          rowCount: processedRows.length,
+          reason: 'no_granular_changes_detected'
+        });
+
+        this.renderBody();
       }
     );
 
@@ -506,41 +548,54 @@ export class SimplePassiveRenderer {
       });
     });
 
-    // COLUMN WIDTHS OBSERVER: Dedicated observer for column width changes
+    // COLUMN WIDTHS OBSERVER: Optimized for direct style updates (no re-render)
     this.columnWidthsObserverDisposer = reaction(
       () => this.visualStateStore.columnWidths,
-      () => {
-      fileLog.debug('[RESIZE] 🔄 COLUMN WIDTH CHANGE DETECTED via dedicated observer', {
-        observersEnabled: this.observersEnabled,
-        timestamp: Date.now()
-      });
+      (columnWidths, prevWidths) => {
+        fileLog.debug('[RESIZE] 🔄 COLUMN WIDTH CHANGE DETECTED via dedicated observer', {
+          observersEnabled: this.observersEnabled,
+          timestamp: Date.now()
+        });
 
-      // GUARD: Skip if observers are not enabled yet
-      if (!this.observersEnabled) {
-        fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Observers not enabled yet');
-        return;
+        // GUARD: Skip if observers are not enabled yet
+        if (!this.observersEnabled) {
+          fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Observers not enabled yet');
+          return;
+        }
+
+        // GUARD: Only render if grid is fully initialized
+        const isFullyInitialized = this.initStore.isFullyHydrated;
+        if (!isFullyInitialized) {
+          fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Skipping during initialization');
+          return;
+        }
+
+        // ✨ OPTIMIZED: Direct style updates instead of full re-render
+        const changedColumns = Object.keys(columnWidths).filter(
+          columnId => columnWidths[columnId] !== prevWidths?.[columnId]
+        );
+
+        if (changedColumns.length === 0) {
+          fileLog.debug('[RESIZE] ⏭️ No actual column width changes detected');
+          return;
+        }
+
+        fileLog.info('[RESIZE] 🎨 Applying direct column width updates (no re-render)', {
+          columnsChanged: changedColumns.length,
+          changedColumnIds: changedColumns
+        });
+
+        // Update each changed column's width directly
+        changedColumns.forEach(columnId => {
+          this.updateColumnWidth(columnId, columnWidths[columnId]);
+        });
+
+        fileLog.debug('[RESIZE] ✅ Column widths updated via direct style manipulation', {
+          columnsUpdated: changedColumns.length,
+          skippedFullRender: true
+        });
       }
-
-      // GUARD: Only render if grid is fully initialized
-      const isFullyInitialized = this.initStore.isFullyHydrated;
-      if (!isFullyInitialized) {
-        fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Skipping render during initialization');
-        return;
-      }
-
-      const columnWidths = this.visualStateStore.columnWidths;
-
-      fileLog.debug('[RESIZE] 🎨 Column widths changed - forcing layout re-render', {
-        columnWidths,
-        columnCount: Object.keys(columnWidths).length
-      });
-
-      // Force re-render when column widths change (same as column order)
-      runInAction(() => {
-        this.renderHeader();
-        this.renderBody();
-      });
-    });
+    );
 
     // VISUAL OBSERVER: Only watches layout changes (columns, viewport dimensions)
     // Track non-scroll visual changes to avoid duplicate renders with scroll observer
@@ -1070,7 +1125,8 @@ export class SimplePassiveRenderer {
         visualStateStore: this.visualStateStore,
         tableCoreStore: this.tableCoreStore,
         keyboardController: this.keyboardController, // Already initialized in Phase 2
-        coordinator: this.interactionCoordinator // ✅ Pass coordinator
+        coordinator: this.interactionCoordinator, // ✅ Pass coordinator
+        enableSelectionColumn: this.options.enableSelectionColumn
       });
 
       // Connect MouseController to KeyboardController for focus management
@@ -1956,6 +2012,64 @@ export class SimplePassiveRenderer {
     });
 
     return selectedCells;
+  }
+
+  /**
+   * Update column width via direct style manipulation (no re-render)
+   *
+   * This is highly efficient for column resize operations:
+   * - Updates header cell width
+   * - Updates all body cells in that column
+   * - Maintains header/body sync
+   * - No DOM destruction/recreation
+   */
+  private updateColumnWidth(columnId: string, newWidth: number): void {
+    const startTime = performance.now();
+    let cellsUpdated = 0;
+
+    // Update header cell
+    if (this.headerContainer) {
+      const headerCell = this.headerContainer.querySelector(
+        `[data-column-id="${columnId}"]`
+      ) as HTMLElement;
+
+      if (headerCell) {
+        headerCell.style.width = `${newWidth}px`;
+        headerCell.style.minWidth = `${newWidth}px`;
+        headerCell.style.maxWidth = `${newWidth}px`;
+        cellsUpdated++;
+
+        fileLog.debug('[RESIZE] 📏 Header cell width updated', {
+          columnId,
+          newWidth
+        });
+      }
+    }
+
+    // Update all body cells in this column
+    if (this.bodyContainer) {
+      const bodyCells = this.bodyContainer.querySelectorAll(
+        `[data-column-id="${columnId}"]`
+      );
+
+      bodyCells.forEach((cell) => {
+        const cellElement = cell as HTMLElement;
+        cellElement.style.width = `${newWidth}px`;
+        cellElement.style.minWidth = `${newWidth}px`;
+        cellElement.style.maxWidth = `${newWidth}px`;
+        cellsUpdated++;
+      });
+    }
+
+    const duration = performance.now() - startTime;
+
+    fileLog.debug('[RESIZE] ✅ Column width updated via direct style updates', {
+      columnId,
+      newWidth,
+      cellsUpdated,
+      duration: duration.toFixed(2) + 'ms',
+      avgPerCell: cellsUpdated > 0 ? (duration / cellsUpdated).toFixed(3) + 'ms' : 'N/A'
+    });
   }
 
   /**

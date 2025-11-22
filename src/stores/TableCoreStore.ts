@@ -218,6 +218,18 @@ export class TableCoreStore implements IStore {
   private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
   // ====================================
+  // CHANGE DETECTION (Cell-level updates)
+  // ====================================
+
+  // Previous snapshot of raw rows for change detection
+  // Maps rowId → row data snapshot
+  private previousRowsSnapshot: Map<string, any> = new Map()
+
+  // Track last changed cells for granular updates
+  // Maps rowId → Set of changed column IDs
+  @observable lastChangedCells: Map<string, Set<string>> = new Map()
+
+  // ====================================
   // DEPENDENCIES (injected)
   // ====================================
 
@@ -291,11 +303,24 @@ export class TableCoreStore implements IStore {
    */
   @action
   setRows(rows: any[]): void {
+    // Detect changes before updating (for granular cell updates)
+    const changedCells = this.detectChangedCells(rows)
+
+    // Store changed cells for renderer to consume
+    this.lastChangedCells = changedCells
+
+    // Update raw rows (triggers processedRows recomputation)
     this.rawRows = rows
     this.hasLoadedRows = true
-    log.debug('📊 Raw rows updated', {
+
+    const totalChangedCells = Array.from(changedCells.values())
+      .reduce((sum, cols) => sum + cols.size, 0)
+
+    log.debug('📊 Raw rows updated with change tracking', {
       entityType: this.entityType,
-      rowCount: rows.length
+      rowCount: rows.length,
+      rowsChanged: changedCells.size,
+      totalCellsChanged: totalChangedCells
     })
   }
 
@@ -314,6 +339,102 @@ export class TableCoreStore implements IStore {
     log.debug('👥 Members data updated', {
       memberCount: this.membersData.size
     })
+  }
+
+  // ====================================
+  // CHANGE DETECTION METHODS
+  // ====================================
+
+  /**
+   * Detect changed cells between current and previous data
+   * Returns: Map<rowId, Set<columnId>> of changed cells
+   *
+   * This enables granular cell-level updates for:
+   * - Local optimistic updates (instant user feedback)
+   * - Remote collaborative updates (other users' edits)
+   * - Background sync reconciliation
+   */
+  private detectChangedCells(newRows: any[]): Map<string, Set<string>> {
+    const changedCells = new Map<string, Set<string>>()
+
+    // Build new snapshot
+    const newSnapshot = new Map(newRows.map(row => [row.id, row]))
+
+    // Compare with previous snapshot
+    for (const [rowId, newRow] of newSnapshot.entries()) {
+      const oldRow = this.previousRowsSnapshot.get(rowId)
+
+      if (!oldRow) {
+        // New row - will be handled by full render, skip cell-level tracking
+        continue
+      }
+
+      // Compare cell by cell
+      const changedColumns = new Set<string>()
+
+      for (const column of this.columns) {
+        const columnId = column.id
+        const oldValue = oldRow[columnId]
+        const newValue = newRow[columnId]
+
+        // Handle reference fields specially
+        if (column.fieldType?.type === 'user_reference') {
+          // For user references, compare the user ID (not the resolved user object)
+          if (oldValue !== newValue) {
+            changedColumns.add(columnId)
+
+            log.debug('🔍 User reference change detected', {
+              rowId,
+              columnId,
+              oldUserId: oldValue,
+              newUserId: newValue
+            })
+          }
+        } else if (column.fieldType?.type === 'entity_reference') {
+          // For entity references, compare the entity ID
+          if (oldValue !== newValue) {
+            changedColumns.add(columnId)
+
+            log.debug('🔍 Entity reference change detected', {
+              rowId,
+              columnId,
+              oldRefId: oldValue,
+              newRefId: newValue,
+              targetEntity: column.fieldType.targetEntity
+            })
+          }
+        } else {
+          // Regular field - deep equality check for objects/arrays
+          if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+            changedColumns.add(columnId)
+
+            log.debug('🔍 Cell change detected', {
+              rowId,
+              columnId,
+              oldValue,
+              newValue,
+              timestamp: newRow.updatedAt
+            })
+          }
+        }
+      }
+
+      if (changedColumns.size > 0) {
+        changedCells.set(rowId, changedColumns)
+      }
+    }
+
+    // Update snapshot for next comparison
+    this.previousRowsSnapshot = newSnapshot
+
+    log.info('📊 Change detection complete', {
+      totalRows: newRows.length,
+      rowsChanged: changedCells.size,
+      totalCellsChanged: Array.from(changedCells.values())
+        .reduce((sum, cols) => sum + cols.size, 0)
+    })
+
+    return changedCells
   }
 
   getEntityReferenceRecord(targetEntity: string, entityId: string): any {
@@ -922,6 +1043,15 @@ export class TableCoreStore implements IStore {
 
       // Update the flat row order
       this.flatRowOrder = newRowIds
+
+      log.info('🔄 Flat row order updated', {
+        from: fromIndex,
+        to: toIndex,
+        movedRowId,
+        newOrderLength: newRowIds.length,
+        flatRowOrder: this.flatRowOrder
+      })
+
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -1051,6 +1181,11 @@ export class TableCoreStore implements IStore {
     this.membersData.clear()
     this.entityReferenceData.clear()
     this.pendingEntityReferenceLoads.clear()
+
+    // Clear change detection state
+    this.previousRowsSnapshot.clear()
+    this.lastChangedCells.clear()
+
     log.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }
 

@@ -10,7 +10,7 @@
  * - React components for controls and overlays
  */
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, memo } from 'react'
 import { observer } from 'mobx-react-lite'
 import { autorun } from 'mobx'
 import { useLiveQuery } from '@tanstack/react-db'
@@ -79,7 +79,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     className = '',
     height = 600,
     width = '100%',
-    enableSelectionColumn = false,
+    enableSelectionColumn = true,
     onCellClick,
     onCellDoubleClick,
     onSelectionChange,
@@ -142,12 +142,17 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       return
     }
 
-    // Always set rows (even if empty array) and mark as loaded
+    // Always set rows (even if empty array)
     tableCoreStore.setRows(rows || [])
 
-    // Mark entity data as loaded (even if empty - it means loading completed)
-    stores.initStore.markReady('entityDataLoaded')
-    log.info('[VGDEBUG] 📊 Entity data loaded', { rowCount: rows?.length || 0 })
+    // Only mark as ready on FIRST load (not on subsequent updates)
+    // This prevents unnecessary React re-renders on optimistic updates
+    if (!stores.initStore.hydrationState.entityDataLoaded) {
+      stores.initStore.markReady('entityDataLoaded')
+      log.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
+    } else {
+      log.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', { rowCount: rows?.length || 0 })
+    }
   }, [rows, tableCoreStore, stores])
 
   // Sync members data to store for UserReference fields
@@ -379,6 +384,9 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
 VibeGridInner.displayName = 'VibeGridInner'
 
+// Memoize to prevent unnecessary re-creations when parent re-renders
+const VibeGridInnerMemoized = memo(VibeGridInner)
+
 // ====================================
 // MAIN COMPONENT (Provides store context)
 // ====================================
@@ -388,7 +396,7 @@ export function VibeGrid<T extends Record<string, any> = any>(
 ): React.ReactElement {
   // Note: VibeGrid expects to be wrapped in VibeGridStoreProvider by the parent
   // This allows for better control over store lifecycle from the parent component
-  return <VibeGridInner {...props} />
+  return <VibeGridInnerMemoized {...props} />
 }
 
 export default VibeGrid

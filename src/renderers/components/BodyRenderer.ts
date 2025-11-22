@@ -697,6 +697,9 @@ export class BodyRenderer {
     cellElement.setAttribute('data-row-id', row.id);
     cellElement.setAttribute('data-column-id', column.id);
 
+    // Set test ID for automated testing
+    cellElement.setAttribute('data-testid', `cell-${row.id}-${column.id}`);
+
     // Set field type metadata for CellActionRouter
     if (column.fieldType) {
       cellElement.setAttribute('data-field-type', column.fieldType.type || column.cellType || 'text');
@@ -1030,6 +1033,175 @@ export class BodyRenderer {
 
     // NOTE: Mouse move and up handlers are now managed by MouseController
     // This avoids duplicate event listeners and conflicting drag detection logic
+  }
+
+  // ====================================
+  // GRANULAR UPDATE METHODS (Cell-level)
+  // ====================================
+
+  /**
+   * Update a single cell's value in the DOM
+   * Preserves cell structure, only updates content
+   */
+  updateCellValue(
+    rowId: string,
+    columnId: string,
+    newValue: any,
+    column: any
+  ): boolean {
+    const cellElement = this.container.querySelector(
+      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`
+    ) as HTMLElement
+
+    if (!cellElement) {
+      fileLog.warn('Cell element not found for update', { rowId, columnId })
+      return false
+    }
+
+    if (this.modularCellBridge) {
+      try {
+        const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
+        const rowData = row?.data || row
+
+        if (!rowData) {
+          fileLog.warn('Row data not found for cell update', { rowId, columnId })
+          return false
+        }
+
+        const effectiveWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
+        const columnForRender = {
+          ...column,
+          width: effectiveWidth,
+          tableCoreStore: this.tableCoreStore,
+          tableCore$: this.tableCoreStore
+        }
+
+        // Create new cell with updated value
+        const newCell = this.modularCellBridge.createCell(
+          newValue,
+          columnForRender,
+          rowData,
+          { rowIndex: 0, columnIndex: 0 }
+        )
+
+        // CRITICAL FIX: Replace entire cell innerHTML to handle all field types
+        // This works for: text, enum/badge, boolean, references, etc.
+        // Preserve the cell wrapper but replace all content
+        cellElement.innerHTML = newCell.innerHTML
+
+        // Reapply selection class if needed (it gets cleared by innerHTML replacement)
+        const cellId = `${rowId}:${columnId}`
+        const isSelected = this.interactionStore.selectedCells.has(cellId)
+        if (isSelected && !cellElement.classList.contains('vibegridx-selected')) {
+          cellElement.classList.add('vibegridx-selected')
+        }
+
+        fileLog.debug('✅ Cell value updated (granular)', {
+          rowId,
+          columnId,
+          newValue,
+          method: 'cell-level',
+          fieldType: column.fieldType?.type || column.type
+        })
+
+        return true
+      } catch (error) {
+        fileLog.error('Cell update failed', { rowId, columnId, error })
+        return false
+      }
+    }
+
+    // Fallback: simple text update
+    cellElement.textContent = CellFormatter.formatCellValue(newValue)
+    fileLog.warn('Cell updated with fallback formatter', {
+      rowId,
+      columnId
+    })
+    return true
+  }
+
+  /**
+   * Update multiple cells efficiently (batch update)
+   */
+  updateCells(changedCells: Map<string, Set<string>>): void {
+    const startTime = performance.now()
+    let updateCount = 0
+    let failCount = 0
+
+    changedCells.forEach((columnIds, rowId) => {
+      const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
+      if (!row) {
+        fileLog.warn('Row not found for batch update', { rowId })
+        failCount++
+        return
+      }
+
+      const rowData = row.data || row
+
+      columnIds.forEach(columnId => {
+        const column = this.tableCoreStore.columns.find((c: any) => c.id === columnId)
+        if (!column) {
+          fileLog.warn('Column not found for batch update', { rowId, columnId })
+          failCount++
+          return
+        }
+
+        const newValue = rowData[columnId]
+        const success = this.updateCellValue(rowId, columnId, newValue, column)
+
+        if (success) {
+          updateCount++
+        } else {
+          failCount++
+        }
+      })
+    })
+
+    const duration = performance.now() - startTime
+
+    fileLog.info('📊 Batch cell update complete', {
+      rowsAffected: changedCells.size,
+      cellsUpdated: updateCount,
+      cellsFailed: failCount,
+      duration: duration.toFixed(2) + 'ms',
+      avgPerCell: updateCount > 0 ? (duration / updateCount).toFixed(2) + 'ms' : 'N/A'
+    })
+  }
+
+  /**
+   * Update entire row element (fallback for multi-cell changes)
+   */
+  updateRowElement(rowId: string, rowIndex: number): boolean {
+    const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
+    const oldRowElement = this.activeRows.get(rowId)
+
+    if (!oldRowElement || !row) {
+      fileLog.warn('Row or element not found for update', { rowId, hasRow: !!row, hasElement: !!oldRowElement })
+      return false
+    }
+
+    const columns = this.tableCoreStore.columns
+    const columnVisibility = this.visualStateStore.columnVisibility
+    const baseOffset = 70
+
+    const newRowElement = this.createRowElement(
+      row,
+      rowIndex,
+      columns,
+      columnVisibility,
+      baseOffset
+    )
+
+    oldRowElement.replaceWith(newRowElement)
+    this.activeRows.set(rowId, newRowElement)
+
+    fileLog.debug('✅ Row element updated (row-level)', {
+      rowId,
+      rowIndex,
+      method: 'row-level'
+    })
+
+    return true
   }
 }
 
