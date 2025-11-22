@@ -79,10 +79,50 @@ export class ClipboardManager {
       const clipboardData = this.extractRichClipboardData(selectedCells);
       await this.copyToSystemClipboard(clipboardData);
 
+      // Organize cells into proper 2D array [rows][columns]
+      const rowMap = new Map<string, any[]>();
+      const uniqueRowIds: string[] = [];
+
+      // Group cells by row and maintain column order
+      clipboardData.cells.forEach(cell => {
+        if (!rowMap.has(cell.rowId)) {
+          rowMap.set(cell.rowId, []);
+          uniqueRowIds.push(cell.rowId);
+        }
+      });
+
+      // Sort cells by row and column indices to build proper 2D structure
+      const sortedCells = [...clipboardData.cells].sort((a, b) => {
+        if (a.rowIndex !== b.rowIndex) return a.rowIndex - b.rowIndex;
+        return a.columnIndex - b.columnIndex;
+      });
+
+      // Build 2D array organized by rows and columns
+      const data: any[][] = [];
+      let currentRow: any[] = [];
+      let lastRowId: string | null = null;
+
+      sortedCells.forEach(cell => {
+        if (lastRowId !== null && cell.rowId !== lastRowId) {
+          // New row - push the completed row and start a new one
+          data.push(currentRow);
+          currentRow = [];
+        }
+        currentRow.push(cell.value);
+        lastRowId = cell.rowId;
+      });
+
+      // Push the last row
+      if (currentRow.length > 0) {
+        data.push(currentRow);
+      }
+
+
       // Store in internal clipboard with metadata and type information
       this.tableInteraction$.setClipboard({
-        data: clipboardData.cells.map(cell => [cell.value]), // Convert for backward compatibility
-        operation: 'copy'
+        data,
+        operation: 'copy',
+        richData: clipboardData // Store full rich clipboard data for paste validation
       });
 
       toast.success('Copied to clipboard', {
@@ -156,8 +196,122 @@ export class ClipboardManager {
       firstFewTargetCells: Array.from(selectedCells).slice(0, 3)
     });
 
+    // Validate origin column matching for multi-cell paste
+    // Only validate if multiple cells are selected AND rich data exists
+    // If single cell selected, it will auto-expand from that cell
+    const richClipboard = clipboard.richData;
+
+    if (richClipboard && richClipboard.columnIds && richClipboard.columnIds.length > 1 && selectedCells.size > 1) {
+      const sourceOriginColumnId = richClipboard.columnIds[0];
+
+      // Find the leftmost column in target selection
+      const allColumns = this.tableCore$.columns;
+      const targetColumnIds = new Set<string>();
+      selectedCells.forEach(cellId => {
+        const [, columnId] = cellId.split(':');
+        targetColumnIds.add(columnId);
+      });
+
+      // Sort target columns by their position in the grid
+      const sortedTargetColumns = Array.from(targetColumnIds).sort((a, b) => {
+        const indexA = allColumns.findIndex((col: any) => col.id === a);
+        const indexB = allColumns.findIndex((col: any) => col.id === b);
+        return indexA - indexB;
+      });
+
+      const targetOriginColumnId = sortedTargetColumns[0];
+
+      fileLog.debug('📋 Validating origin columns', {
+        sourceOrigin: sourceOriginColumnId,
+        targetOrigin: targetOriginColumnId,
+        sourceColumns: richClipboard.columnIds,
+        targetColumns: sortedTargetColumns
+      });
+
+      if (sourceOriginColumnId !== targetOriginColumnId) {
+        const errorMessage = `Cannot paste: origin column mismatch. Copied from "${sourceOriginColumnId}" but trying to paste to "${targetOriginColumnId}". Please select cells starting from the same column.`;
+
+        fileLog.warn('📋 Paste blocked - origin column mismatch', {
+          sourceOrigin: sourceOriginColumnId,
+          targetOrigin: targetOriginColumnId
+        });
+
+        toast.error('Paste blocked - column mismatch', {
+          description: errorMessage,
+          duration: 5000
+        });
+
+        return {
+          success: false,
+          pastedCount: 0,
+          errorCount: 0,
+          skippedCount: 0,
+          blockedCount: selectedCells.size,
+          errorMessage,
+          details: []
+        };
+      }
+    } else if (selectedCells.size === 1 && richClipboard) {
+      // Single cell selected - validate the single cell's column matches the source origin
+      const singleCellId = Array.from(selectedCells)[0];
+      const [, singleColumnId] = singleCellId.split(':');
+      const sourceOriginColumnId = richClipboard.columnIds[0];
+
+      if (singleColumnId !== sourceOriginColumnId) {
+        const errorMessage = `Cannot paste: column mismatch. Copied from column "${sourceOriginColumnId}" but trying to paste starting at column "${singleColumnId}". Select a cell in column "${sourceOriginColumnId}" to paste.`;
+
+        fileLog.warn('📋 Paste blocked - single cell column mismatch', {
+          targetColumn: singleColumnId,
+          sourceOrigin: sourceOriginColumnId
+        });
+
+        toast.error('Paste blocked - column mismatch', {
+          description: errorMessage,
+          duration: 5000
+        });
+
+        return {
+          success: false,
+          pastedCount: 0,
+          errorCount: 0,
+          skippedCount: 0,
+          blockedCount: 1,
+          errorMessage,
+          details: []
+        };
+      }
+    }
+
+    // Auto-expand selection to match clipboard size when needed
+    let expandedCells = selectedCells;
+    if (richClipboard && selectedCells.size === 1) {
+      const [singleRowId, singleColumnId] = Array.from(selectedCells)[0].split(':');
+
+      // Get row index for starting point
+      const allRows = this.tableCore$.processedRows;
+      const startRowIdx = allRows.findIndex((r: any) => r.id === singleRowId);
+
+      if (startRowIdx !== -1) {
+        const rowCount = richClipboard.bounds.rowCount;
+        const columnIds = richClipboard.columnIds; // Use actual copied column IDs
+
+        // Create expanded cell set using the actual copied column IDs
+        const expanded = new Set<string>();
+        for (let r = 0; r < rowCount && startRowIdx + r < allRows.length; r++) {
+          const rowId = allRows[startRowIdx + r].id;
+          for (const columnId of columnIds) {
+            if (columnId !== 'selection') {
+              expanded.add(`${rowId}:${columnId}`);
+            }
+          }
+        }
+
+        expandedCells = expanded;
+      }
+    }
+
     try {
-      const result = await this.performColumnAwarePaste(clipboard.data, selectedCells);
+      const result = await this.performColumnAwarePaste(clipboard.data, expandedCells);
 
       // LOG FULL RESULT DETAILS
       fileLog.info('📋 Paste operation completed', {
@@ -441,6 +595,9 @@ export class ClipboardManager {
     const rowIndices = cells.map(c => c.rowIndex);
     const colIndices = cells.map(c => c.columnIndex);
 
+    // Get actual counts of unique rows and columns (not index range)
+    const uniqueRowIds = new Set(cells.map(c => c.rowId));
+
     return {
       cells,
       bounds: {
@@ -448,8 +605,8 @@ export class ClipboardManager {
         startCol: Math.min(...colIndices),
         endRow: Math.max(...rowIndices),
         endCol: Math.max(...colIndices),
-        rowCount: Math.max(...rowIndices) - Math.min(...rowIndices) + 1,
-        colCount: Math.max(...colIndices) - Math.min(...colIndices) + 1
+        rowCount: uniqueRowIds.size, // Use actual count, not index range
+        colCount: columnIds.length    // Use actual count, not index range
       },
       columnIds,
       columnTypes,
@@ -531,10 +688,20 @@ export class ClipboardManager {
 
     // Get source column metadata from clipboard for type checking
     const clipboard = this.tableInteraction$.clipboard;
+    const richClipboard = clipboard?.richData;
     const sourceColumns = new Map<number, any>(); // Map column index to source column info
 
-    // Extract source column type information if available
-    // Note: metadata was removed from ClipboardState - type checking simplified
+    // Populate source columns from rich clipboard data
+    if (richClipboard && richClipboard.columnIds) {
+      richClipboard.columnIds.forEach((columnId, index) => {
+        const columnType = richClipboard.columnTypes?.[columnId] || 'text';
+        sourceColumns.set(index, {
+          id: columnId,
+          type: columnType
+        });
+      });
+
+    }
 
     fileLog.debug('📋 Starting column-aware paste operation', {
       dataRows: data.length,

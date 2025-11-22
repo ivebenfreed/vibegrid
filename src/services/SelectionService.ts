@@ -173,7 +173,16 @@ export class SelectionService {
   private calculateRangeCells(from: string, to: string): string[] {
     // Get data context
     const rows = this.tableCoreStore.processedRows || []
-    const columns = this.visualStateStore.columns.filter(col => col.id !== 'selection')
+    const allColumns = this.visualStateStore.columns.filter(col => col.id !== 'selection')
+    const columnVisibility = this.visualStateStore.columnVisibility
+    // Only use visible columns for range calculation
+    const columns = allColumns.filter(col => columnVisibility[col.id] !== false)
+
+    fileLog.debug('Range calculation column context', {
+      totalColumns: allColumns.length,
+      visibleColumns: columns.length,
+      hiddenColumns: allColumns.length - columns.length
+    })
 
     // Parse cell IDs
     const [fromRowId, fromColId] = from.split(':')

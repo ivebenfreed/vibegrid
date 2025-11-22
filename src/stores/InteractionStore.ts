@@ -58,6 +58,7 @@ export interface ClipboardState {
   data: any[][] | null
   operation: 'copy' | 'cut' | null
   copiedCells: Set<string>
+  richData?: import('../types/clipboard-types').VibeGridClipboardData // Rich clipboard data for paste validation
 }
 
 export interface ColumnResizeState {
@@ -1239,16 +1240,18 @@ export class InteractionStore implements IStore {
   // ====================================
 
   @action
-  setClipboard(clipboardData: { data: any[][], operation: 'copy' | 'cut' }): void {
+  setClipboard(clipboardData: { data: any[][], operation: 'copy' | 'cut', richData?: import('../types/clipboard-types').VibeGridClipboardData }): void {
     this.clipboard = {
       data: clipboardData.data,
       operation: clipboardData.operation,
-      copiedCells: new Set(this.selectedCells)
+      copiedCells: new Set(this.selectedCells),
+      richData: clipboardData.richData
     }
 
     log.info('Clipboard set', {
       operation: clipboardData.operation,
-      cellCount: this.selectedCells.size
+      cellCount: this.selectedCells.size,
+      hasRichData: !!clipboardData.richData
     })
   }
 
