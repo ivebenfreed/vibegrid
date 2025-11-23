@@ -2076,12 +2076,49 @@ export class SimplePassiveRenderer {
       });
     }
 
+    // Update positions of columns to the right of the resized column
+    const resizedColumnIndex = this.visualStateStore.columnLayouts.findIndex(
+      col => col.id === columnId
+    );
+
+    if (resizedColumnIndex !== -1) {
+      const layouts = this.visualStateStore.columnLayouts;
+
+      // Update all columns after the resized one
+      for (let i = resizedColumnIndex + 1; i < layouts.length; i++) {
+        const layout = layouts[i];
+
+        // Update header cell position
+        if (this.headerContainer) {
+          const headerCell = this.headerContainer.querySelector(
+            `[data-column-id="${layout.id}"]`
+          ) as HTMLElement;
+          if (headerCell) {
+            headerCell.style.left = `${layout.xOffset}px`;
+            cellsUpdated++;
+          }
+        }
+
+        // Update all body cells position
+        if (this.bodyContainer) {
+          const bodyCells = this.bodyContainer.querySelectorAll(
+            `[data-column-id="${layout.id}"]`
+          );
+          bodyCells.forEach(cell => {
+            (cell as HTMLElement).style.left = `${layout.xOffset}px`;
+            cellsUpdated++;
+          });
+        }
+      }
+    }
+
     const duration = performance.now() - startTime;
 
-    fileLog.debug('[RESIZE] ✅ Column width updated via direct style updates', {
+    fileLog.debug('[RESIZE] ✅ Column width and positions updated via direct style updates', {
       columnId,
       newWidth,
       cellsUpdated,
+      columnsRepositioned: resizedColumnIndex !== -1 ? this.visualStateStore.columnLayouts.length - resizedColumnIndex - 1 : 0,
       duration: duration.toFixed(2) + 'ms',
       avgPerCell: cellsUpdated > 0 ? (duration / cellsUpdated).toFixed(3) + 'ms' : 'N/A'
     });
