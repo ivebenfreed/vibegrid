@@ -152,6 +152,7 @@ export class SimplePassiveRenderer {
   private cellActionRouter: CellActionRouter | null = null;
   
   // Focused observers - replacing mega-observer pattern
+  private granularUpdateObserverDisposer: (() => void) | null = null; // Granular cell updates (before processedRows)
   private dataObserverDisposer: (() => void) | null = null;
   private visualObserverDisposer: (() => void) | null = null;
   private columnVisibilityObserverDisposer: (() => void) | null = null;
@@ -405,6 +406,41 @@ export class SimplePassiveRenderer {
    */
   private initFocusedObservers(): void {
     fileLog.info('🎯 Initializing focused observers');
+
+    // GRANULAR UPDATE OBSERVER: Runs BEFORE processedRows observer
+    // Observes hasGranularUpdates which doesn't trigger processedRows recomputation
+    fileLog.info('🎯 Creating granular update observer - MobX reaction on tableCoreStore.hasGranularUpdates');
+
+    this.granularUpdateObserverDisposer = reaction(
+      () => this.tableCoreStore.hasGranularUpdates,
+      (granularUpdate) => {
+        if (!granularUpdate || !this.observersEnabled) return;
+        if (this.initStore && !this.initStore.isFullyHydrated) return;
+
+        const { changedCells } = granularUpdate;
+
+        const totalCells = Array.from(changedCells.values())
+          .reduce((sum, cols) => sum + cols.size, 0);
+
+        fileLog.info('🎯 Granular cell update detected (dedicated observer)', {
+          rowsAffected: changedCells.size,
+          cellsChanged: totalCells,
+          method: 'cell-level',
+          willSkipFullRender: true
+        });
+
+        // Apply cell-level updates
+        if (this.bodyRenderer) {
+          this.bodyRenderer.updateCells(changedCells);
+        }
+
+        // Clear the changed cells map
+        runInAction(() => {
+          this.tableCoreStore.lastChangedCells.clear();
+          this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
+        });
+      }
+    );
 
     // SORTED DATA OBSERVER: MobX reaction for processed rows changes
     // TableCoreStore.processedRows is a computed that applies filtering, sorting, and grouping
@@ -2166,6 +2202,10 @@ export class SimplePassiveRenderer {
     }
 
     // Clean up focused observers
+    if (this.granularUpdateObserverDisposer) {
+      this.granularUpdateObserverDisposer();
+      this.granularUpdateObserverDisposer = null;
+    }
     if (this.dataObserverDisposer) {
       this.dataObserverDisposer();
       this.dataObserverDisposer = null;

@@ -217,6 +217,14 @@ export class TableCoreStore implements IStore {
   // Track in-flight entity reference loads to avoid duplicate network calls
   private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
+  // Cache for processedRows to avoid unnecessary recomputation
+  private cachedProcessedRows: any[] | null = null
+  private lastConfigHash: string | null = null
+  private lastDataChangeCount: number = 0
+
+  // Granular update trigger (observed by renderer without triggering processedRows)
+  @observable private granularUpdateTrigger: number = 0
+
   // ====================================
   // CHANGE DETECTION (Cell-level updates)
   // ====================================
@@ -231,6 +239,21 @@ export class TableCoreStore implements IStore {
 
   // Track last change detection stats for optimization
   @observable lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 }
+
+  /**
+   * Computed getter for granular updates (observable without triggering processedRows)
+   * Renderer observes this to handle cell-level updates
+   */
+  @computed
+  get hasGranularUpdates(): { trigger: number; changedCells: Map<string, Set<string>> } | null {
+    if (this.lastChangedCells.size > 0 && this.granularUpdateTrigger > 0) {
+      return {
+        trigger: this.granularUpdateTrigger,
+        changedCells: this.lastChangedCells
+      };
+    }
+    return null;
+  }
 
   // ====================================
   // DEPENDENCIES (injected)
@@ -312,19 +335,57 @@ export class TableCoreStore implements IStore {
     // Store changed cells for renderer to consume
     this.lastChangedCells = changedCells
 
-    // Update raw rows (triggers processedRows recomputation)
-    this.rawRows = rows
-    this.hasLoadedRows = true
-
+    // Track change count for cache invalidation
     const totalChangedCells = Array.from(changedCells.values())
       .reduce((sum, cols) => sum + cols.size, 0)
+    this.lastDataChangeCount = totalChangedCells
 
-    log.debug('📊 Raw rows updated with change tracking', {
-      entityType: this.entityType,
-      rowCount: rows.length,
-      rowsChanged: changedCells.size,
-      totalCellsChanged: totalChangedCells
-    })
+    // Check if this is a granular update (cell values changed but structure intact)
+    // Structure = same rows in same order (no adds/deletes/reordering)
+    const isSameStructure = rows.length === this.rawRows.length &&
+                            rows.every((row, idx) => row.id === this.rawRows[idx]?.id);
+
+    const isGranularUpdate = totalChangedCells > 0 && isSameStructure;
+
+    if (isGranularUpdate && this.rawRows.length > 0) {
+      // GRANULAR UPDATE PATH: Update in-place without reassigning array
+      // This avoids triggering processedRows recomputation
+      changedCells.forEach((columnSet, rowId) => {
+        const existingRow = this.rawRows.find(r => r.id === rowId);
+        const newRow = rows.find(r => r.id === rowId);
+
+        if (existingRow && newRow) {
+          // Update only the changed columns in the existing row object
+          columnSet.forEach(columnId => {
+            existingRow[columnId] = newRow[columnId];
+          });
+        }
+      });
+
+      // Increment granular trigger to notify renderer
+      this.granularUpdateTrigger++;
+      this.hasLoadedRows = true;
+
+      log.info('🎯 Granular update applied (in-place)', {
+        entityType: this.entityType,
+        rowCount: rows.length,
+        rowsChanged: changedCells.size,
+        totalCellsChanged: totalChangedCells,
+        skippedProcessedRowsRecomputation: true
+      });
+    } else {
+      // FULL UPDATE PATH: Reassign array (triggers processedRows recomputation)
+      this.rawRows = rows;
+      this.hasLoadedRows = true;
+
+      log.debug('📊 Full update applied (array reassignment)', {
+        entityType: this.entityType,
+        rowCount: rows.length,
+        rowsChanged: changedCells.size,
+        totalCellsChanged: totalChangedCells,
+        isStructuralChange: rows.length !== this.rawRows.length || !isGranularUpdate
+      });
+    }
   }
 
   /**
@@ -614,6 +675,34 @@ export class TableCoreStore implements IStore {
       return []
     }
 
+    // Get visual state early for cache check
+    const sortBy = this.visualStateStore?.sortBy || []
+    const filters = this.visualStateStore?.filters || []
+    const groupConfig = this.visualStateStore?.groupConfig || null
+
+    // Create config hash for cache validation
+    // This ensures we recompute when sort/filter/group/ordering changes even if data doesn't
+    const configHash = JSON.stringify({
+      sortBy: sortBy.map(s => ({ field: s.field, direction: s.direction })),
+      filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
+      groupFields: groupConfig?.fields?.map(f => f.field) || [],
+      flatRowOrder: this.flatRowOrder // Include manual row ordering
+    })
+
+    // Check cache: return cached result if BOTH data and config are unchanged
+    if (this.lastDataChangeCount === 0 &&
+        this.lastConfigHash === configHash &&
+        this.cachedProcessedRows !== null) {
+      log.info('🎯 Cache hit: No data/config changes, returning cached processedRows', {
+        cacheSize: this.cachedProcessedRows.length,
+        lastDataChangeCount: this.lastDataChangeCount
+      })
+      return this.cachedProcessedRows
+    }
+
+    // Update config hash for next run
+    this.lastConfigHash = configHash
+
     // Use raw rows if available (simplified Day 7 approach)
     let rows: any[]
     if (this.rawRows.length > 0) {
@@ -648,12 +737,7 @@ export class TableCoreStore implements IStore {
       recordCount: rows.length
     })
 
-    // Get visual state (filters, sorting, grouping)
-    // CRITICAL: Use visualStateStore (not visualStateInputs) for reactive MobX properties
-    const sortBy = this.visualStateStore?.sortBy || []
-    const filters = this.visualStateStore?.filters || []
-    const groupConfig = this.visualStateStore?.groupConfig || null
-
+    // Visual state already retrieved above for cache check (sortBy, filters, groupConfig)
     log.info('🔍 [SORT-DEBUG] Reading sortBy from visualStateStore', {
       hasVisualStateStore: !!this.visualStateStore,
       sortByLength: sortBy.length,
@@ -707,6 +791,8 @@ export class TableCoreStore implements IStore {
         hasSorting: sortBy.length > 0
       })
 
+      // Cache the result before returning
+      this.cachedProcessedRows = groupResult.virtualRows
       return groupResult.virtualRows
     }
 
@@ -742,6 +828,8 @@ export class TableCoreStore implements IStore {
       virtualRows: virtualRows.length
     })
 
+    // Cache the result before returning
+    this.cachedProcessedRows = virtualRows
     return virtualRows
   }
 

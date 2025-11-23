@@ -201,7 +201,23 @@ export class ClipboardManager {
     // If single cell selected, it will auto-expand from that cell
     const richClipboard = clipboard.richData;
 
-    if (richClipboard && richClipboard.columnIds && richClipboard.columnIds.length > 1 && selectedCells.size > 1) {
+    // Check if this is a single-cell copy being pasted to multiple cells
+    const isSingleCellCopy = richClipboard && richClipboard.cells.length === 1;
+    const isMultiCellPaste = selectedCells.size > 1;
+
+    // For single-cell copy -> multi-cell paste, skip origin column validation
+    // and use type validation instead (handled in performColumnAwarePaste)
+    if (isSingleCellCopy && isMultiCellPaste) {
+      fileLog.info('📋 Single-cell broadcast paste detected', {
+        sourceCellCount: richClipboard.cells.length,
+        targetCellCount: selectedCells.size,
+        sourceColumn: richClipboard.columnIds[0],
+        sourceType: richClipboard.columnTypes[richClipboard.columnIds[0]]
+      });
+
+      // Skip origin column validation - type validation will be done per-cell
+      // Continue to paste operation
+    } else if (richClipboard && richClipboard.columnIds && richClipboard.columnIds.length > 1 && selectedCells.size > 1) {
       const sourceOriginColumnId = richClipboard.columnIds[0];
 
       // Find the leftmost column in target selection
@@ -251,8 +267,9 @@ export class ClipboardManager {
           details: []
         };
       }
-    } else if (selectedCells.size === 1 && richClipboard) {
+    } else if (selectedCells.size === 1 && richClipboard && !isSingleCellCopy) {
       // Single cell selected - validate the single cell's column matches the source origin
+      // (only for multi-cell source copy)
       const singleCellId = Array.from(selectedCells)[0];
       const [, singleColumnId] = singleCellId.split(':');
       const sourceOriginColumnId = richClipboard.columnIds[0];
@@ -282,9 +299,27 @@ export class ClipboardManager {
       }
     }
 
-    // Auto-expand selection to match clipboard size when needed
+    // Auto-expand selection to match clipboard size when needed OR
+    // handle single-cell broadcast paste to multiple cells
     let expandedCells = selectedCells;
-    if (richClipboard && selectedCells.size === 1) {
+    let pasteData = clipboard.data;
+
+    if (isSingleCellCopy && isMultiCellPaste) {
+      // Single-cell broadcast: paste same value to all selected cells
+      // Keep expandedCells as is (the user's selection)
+      // But modify pasteData to broadcast the single value
+      fileLog.info('📋 Preparing single-cell broadcast paste', {
+        singleValue: clipboard.data[0]?.[0],
+        targetCellCount: selectedCells.size
+      });
+
+      // Keep the original selection (don't auto-expand)
+      // The performColumnAwarePaste will handle type validation per cell
+      expandedCells = selectedCells;
+
+      // Data stays as-is (single cell value) - performColumnAwarePaste will broadcast it
+    } else if (richClipboard && selectedCells.size === 1 && !isSingleCellCopy) {
+      // Multi-cell copy to single cell: auto-expand
       const [singleRowId, singleColumnId] = Array.from(selectedCells)[0].split(':');
 
       // Get row index for starting point
@@ -311,7 +346,7 @@ export class ClipboardManager {
     }
 
     try {
-      const result = await this.performColumnAwarePaste(clipboard.data, expandedCells);
+      const result = await this.performColumnAwarePaste(pasteData, expandedCells, isSingleCellCopy);
 
       // LOG FULL RESULT DETAILS
       fileLog.info('📋 Paste operation completed', {
@@ -646,7 +681,11 @@ export class ClipboardManager {
   /**
    * Perform column-aware paste operation
    */
-  private async performColumnAwarePaste(data: any[][], targetCells: Set<string>): Promise<PasteResult> {
+  private async performColumnAwarePaste(
+    data: any[][],
+    targetCells: Set<string>,
+    isSingleCellBroadcast: boolean = false
+  ): Promise<PasteResult> {
     const processedRows = this.tableCore$.processedRows;
     const allColumns = this.tableCore$.columns;
 
@@ -662,6 +701,213 @@ export class ClipboardManager {
       };
     }
 
+    // Get source column metadata from clipboard for type checking
+    const clipboard = this.tableInteraction$.clipboard;
+    const richClipboard = clipboard?.richData;
+
+    // For single-cell broadcast, extract the source type
+    let singleCellSourceType: string | undefined;
+    let singleCellValue: any;
+
+    if (isSingleCellBroadcast && richClipboard && richClipboard.cells.length === 1) {
+      const sourceCell = richClipboard.cells[0];
+      singleCellSourceType = richClipboard.columnTypes[sourceCell.columnId] || 'text';
+      singleCellValue = data[0]?.[0];
+
+      fileLog.info('📋 Broadcasting single cell', {
+        sourceType: singleCellSourceType,
+        sourceColumnId: sourceCell.columnId,
+        value: singleCellValue,
+        targetCellCount: targetCells.size
+      });
+
+      // Broadcast: paste same value to all target cells with type validation
+      let pastedCount = 0;
+      let errorCount = 0;
+      let skippedCount = 0;
+      let blockedCount = 0;
+      const details: PasteResult['details'] = [];
+
+      // Group updates by row to minimize rerenders
+      const updatesByRow = new Map<string, Record<string, any>>();
+      const cellMetadata = new Map<string, { column: any; targetType: string; originalValue: any }>();
+
+      // First pass: validate and prepare all updates
+      for (const cellId of targetCells) {
+        const [rowId, columnId] = cellId.split(':');
+        const column = allColumns.find(c => c.id === columnId);
+
+        if (!column || columnId === 'selection') {
+          skippedCount++;
+          details.push({
+            rowId,
+            columnId,
+            status: 'skipped',
+            errorReason: 'Invalid column or selection column'
+          });
+          continue;
+        }
+
+        const targetType = column.type || 'text';
+
+        // Check type compatibility
+        const compatibility = this.checkTypeCompatibility(singleCellSourceType, targetType, singleCellValue);
+
+        if (!compatibility.compatible) {
+          blockedCount++;
+          details.push({
+            rowId,
+            columnId,
+            status: 'blocked',
+            errorReason: compatibility.reason,
+            sourceType: singleCellSourceType,
+            targetType
+          });
+
+          fileLog.warn('📋 Broadcast paste blocked - incompatible type', {
+            rowId,
+            columnId,
+            sourceType: singleCellSourceType,
+            targetType,
+            value: singleCellValue,
+            reason: compatibility.reason
+          });
+          continue;
+        }
+
+        try {
+          const processedValue = this.processValueForColumn(singleCellValue, column);
+          const originalValue = processedRows.find((r: any) => r.id === rowId)?.[columnId];
+
+          // Group by row
+          if (!updatesByRow.has(rowId)) {
+            updatesByRow.set(rowId, {});
+          }
+          updatesByRow.get(rowId)![columnId] = processedValue;
+
+          // Store metadata for later
+          cellMetadata.set(cellId, { column, targetType, originalValue });
+
+        } catch (error) {
+          errorCount++;
+          const errorReason = error instanceof Error ? error.message : 'Unknown error';
+
+          details.push({
+            rowId,
+            columnId,
+            status: 'error',
+            errorReason,
+            sourceType: singleCellSourceType,
+            targetType
+          });
+
+          fileLog.error('📋 Failed to process value for broadcast', {
+            rowId,
+            columnId,
+            sourceType: singleCellSourceType,
+            targetType,
+            value: singleCellValue,
+            error: errorReason
+          });
+        }
+      }
+
+      // Second pass: apply all updates (batched by row to minimize rerenders)
+      if (this.onEntityUpdate && updatesByRow.size > 0) {
+        for (const [rowId, updates] of updatesByRow) {
+          try {
+            await this.onEntityUpdate(rowId, updates);
+
+            // Record success for each cell in this row
+            for (const [columnId, processedValue] of Object.entries(updates)) {
+              const cellId = `${rowId}:${columnId}`;
+              const metadata = cellMetadata.get(cellId);
+
+              if (metadata) {
+                pastedCount++;
+                details.push({
+                  rowId,
+                  columnId,
+                  status: 'success',
+                  originalValue: metadata.originalValue,
+                  newValue: processedValue,
+                  sourceType: singleCellSourceType,
+                  targetType: metadata.targetType
+                });
+
+                fileLog.debug('📋 Successfully broadcast to cell', {
+                  rowId,
+                  columnId,
+                  sourceType: singleCellSourceType,
+                  targetType: metadata.targetType,
+                  processedValue
+                });
+              }
+            }
+          } catch (error) {
+            const errorReason = error instanceof Error ? error.message : 'Unknown error';
+
+            // Record error for each cell in this row
+            for (const columnId of Object.keys(updates)) {
+              errorCount++;
+              const metadata = cellMetadata.get(`${rowId}:${columnId}`);
+
+              details.push({
+                rowId,
+                columnId,
+                status: 'error',
+                errorReason,
+                sourceType: singleCellSourceType,
+                targetType: metadata?.targetType || 'text'
+              });
+
+              fileLog.error('📋 Failed to broadcast to cell', {
+                rowId,
+                columnId,
+                sourceType: singleCellSourceType,
+                targetType: metadata?.targetType,
+                value: singleCellValue,
+                error: errorReason
+              });
+            }
+          }
+        }
+      } else if (!this.onEntityUpdate) {
+        // No update callback - mark all as errors
+        for (const cellId of cellMetadata.keys()) {
+          const [rowId, columnId] = cellId.split(':');
+          errorCount++;
+          details.push({
+            rowId,
+            columnId,
+            status: 'error',
+            errorReason: 'No update callback available',
+            sourceType: singleCellSourceType,
+            targetType: cellMetadata.get(cellId)?.targetType || 'text'
+          });
+        }
+      }
+
+      fileLog.debug('📋 Broadcast paste operation completed', {
+        pastedCount,
+        errorCount,
+        skippedCount,
+        blockedCount,
+        totalAttempted: targetCells.size
+      });
+
+      return {
+        success: pastedCount > 0,
+        pastedCount,
+        errorCount,
+        skippedCount,
+        blockedCount,
+        errorMessage: errorCount > 0 ? `${errorCount} cells failed to paste` : undefined,
+        details
+      };
+    }
+
+    // Normal multi-cell paste (existing logic)
     // Group cells by row and sort for consistent pasting
     const targetCellArray = Array.from(targetCells);
     const cellsByRow = new Map<string, string[]>();
@@ -686,9 +932,6 @@ export class ClipboardManager {
     let blockedCount = 0;
     const details: PasteResult['details'] = [];
 
-    // Get source column metadata from clipboard for type checking
-    const clipboard = this.tableInteraction$.clipboard;
-    const richClipboard = clipboard?.richData;
     const sourceColumns = new Map<number, any>(); // Map column index to source column info
 
     // Populate source columns from rich clipboard data

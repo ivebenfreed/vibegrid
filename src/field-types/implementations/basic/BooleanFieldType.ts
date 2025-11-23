@@ -498,9 +498,9 @@ export const BooleanFieldType: VibeGridFieldType = {
 
   // 🚀 Interaction policy
   interactionPolicy: {
-    defaultAction: 'edit',    // Boolean fields toggle on click
-    editTrigger: 'click',     // Click anywhere to toggle
-    blurPolicy: 'commit'      // Save on blur
+    defaultAction: 'edit',         // Boolean fields are for editing
+    editTrigger: 'content-click',  // ✅ Click content to edit, click padding to select
+    blurPolicy: 'commit'           // Save on blur
   }
 };
 
