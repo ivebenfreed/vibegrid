@@ -62,6 +62,11 @@ export interface PersistedTableState {
   userId: string
 }
 
+export interface PendingReorderOperation {
+  fromIndex: number
+  toIndex: number
+}
+
 export interface TableCoreState {
   entityType: string
   columns: Column[] // Schema definition only
@@ -204,6 +209,9 @@ export class TableCoreStore implements IStore {
   @observable flatRowOrder: string[] = []
   @observable isSchemaLoaded: boolean = false
   @observable schemaError: string | null = null
+
+  // Pending reorder confirmation (when sorting is active)
+  @observable pendingReorder: PendingReorderOperation | null = null
 
   // Raw entity data (from TanStack DB)
   @observable private rawRows: any[] = []
@@ -1179,43 +1187,105 @@ export class TableCoreStore implements IStore {
   @action
   moveRowInFlat(fromIndex: number, toIndex: number): boolean {
     try {
-      const processedRows = this.processedRows
-      if (fromIndex < 0 || fromIndex >= processedRows.length || toIndex < 0 || toIndex >= processedRows.length) {
-        return false
+      // Check if sorting is active
+      const sortBy = this.visualStateStore?.sortBy || []
+      const hasSorting = sortBy.length > 0
+
+      if (hasSorting) {
+        // Store pending operation and show confirmation dialog
+        this.pendingReorder = { fromIndex, toIndex }
+        log.info('⏸️ Reorder pending confirmation (sorting active)', {
+          fromIndex,
+          toIndex,
+          activeSort: sortBy.map(s => `${s.field} ${s.direction}`)
+        })
+        return false // Operation pending user confirmation
       }
 
-      // Get the row IDs from processed rows
-      const rowIds = processedRows.map(row => row.id || row.data?.id).filter(Boolean)
-
-      if (fromIndex >= rowIds.length || toIndex >= rowIds.length) {
-        return false
-      }
-
-      // Create new order by moving the row
-      const newRowIds = [...rowIds]
-      const [movedRowId] = newRowIds.splice(fromIndex, 1)
-      newRowIds.splice(toIndex, 0, movedRowId)
-
-      // Update the flat row order
-      this.flatRowOrder = newRowIds
-
-      // Update coordinator with new row order
-      this.updateCoordinatorWithCurrentRows()
-
-      log.info('🔄 Flat row order updated', {
-        from: fromIndex,
-        to: toIndex,
-        movedRowId,
-        newOrderLength: newRowIds.length,
-        flatRowOrder: this.flatRowOrder
-      })
-
-      return true
+      // No sorting active, proceed with reorder
+      return this.executeReorder(fromIndex, toIndex)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       log.error('Error moving row in flat data:', errorMessage)
       return false
     }
+  }
+
+  /**
+   * Execute the reorder operation (called after confirmation or when no sorting is active)
+   */
+  @action
+  private executeReorder(fromIndex: number, toIndex: number): boolean {
+    const processedRows = this.processedRows
+    if (fromIndex < 0 || fromIndex >= processedRows.length || toIndex < 0 || toIndex >= processedRows.length) {
+      return false
+    }
+
+    // Get the row IDs from processed rows
+    const rowIds = processedRows.map(row => row.id || row.data?.id).filter(Boolean)
+
+    if (fromIndex >= rowIds.length || toIndex >= rowIds.length) {
+      return false
+    }
+
+    // Create new order by moving the row
+    const newRowIds = [...rowIds]
+    const [movedRowId] = newRowIds.splice(fromIndex, 1)
+    newRowIds.splice(toIndex, 0, movedRowId)
+
+    // Update the flat row order
+    this.flatRowOrder = newRowIds
+
+    // Update coordinator with new row order
+    this.updateCoordinatorWithCurrentRows()
+
+    log.info('🔄 Flat row order updated', {
+      from: fromIndex,
+      to: toIndex,
+      movedRowId,
+      newOrderLength: newRowIds.length,
+      flatRowOrder: this.flatRowOrder
+    })
+
+    return true
+  }
+
+  /**
+   * Confirm pending reorder operation (clear sort and execute reorder)
+   */
+  @action
+  confirmPendingReorder(): boolean {
+    if (!this.pendingReorder) {
+      return false
+    }
+
+    const { fromIndex, toIndex } = this.pendingReorder
+
+    // Clear sort first
+    const sortBy = this.visualStateStore?.sortBy || []
+    if (sortBy.length > 0 && this.visualStateStore) {
+      this.visualStateStore.setSortBy([])
+      log.info('✅ Sort cleared for manual reorder', {
+        previousSort: sortBy.map(s => `${s.field} ${s.direction}`)
+      })
+    }
+
+    // Execute the reorder
+    const success = this.executeReorder(fromIndex, toIndex)
+
+    // Clear pending state
+    this.pendingReorder = null
+
+    return success
+  }
+
+  /**
+   * Cancel pending reorder operation
+   */
+  @action
+  cancelPendingReorder(): void {
+    this.pendingReorder = null
+    log.info('❌ Reorder cancelled by user')
   }
 
   /**
