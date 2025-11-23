@@ -45,10 +45,11 @@ export class EntityNameRenderer implements CellRenderer {
     // Create text element (styled as a link)
     const textElement = document.createElement('span')
     textElement.className = 'vibegridx-entity-name-text'
-    textElement.style.flex = '1'
+    textElement.style.display = 'inline-block'
     textElement.style.overflow = 'hidden'
     textElement.style.textOverflow = 'ellipsis'
     textElement.style.whiteSpace = 'nowrap'
+    textElement.style.maxWidth = '100%'
     textElement.style.color = 'var(--primary)'
     textElement.style.textDecoration = 'none'
     textElement.style.transition = 'text-decoration 0.2s'

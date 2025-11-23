@@ -355,12 +355,26 @@ export class OverlayManager {
 
                     const positionWithKey = { ...position, cellKey: state.editingCell };
                     this.editingOverlay.showAt(positionWithKey, cell, column, actualValue);
+
+                    // Mark the cell as being edited to hide its content via CSS
+                    const cellElement = this.container.querySelector(
+                      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`
+                    ) as HTMLElement;
+                    if (cellElement) {
+                      cellElement.dataset.editing = 'true';
+                    }
                   }
                 }
               } else if (!state.isEditing && this.editingOverlay) {
                 // Hide editing overlay
                 fileLog.debug('🔍 REACTIVE: Hiding editing overlay (consolidated)');
                 this.editingOverlay.hide();
+
+                // Remove editing marker from all cells
+                const editingCells = this.container.querySelectorAll('[data-editing="true"]');
+                editingCells.forEach((cell) => {
+                  (cell as HTMLElement).removeAttribute('data-editing');
+                });
               }
             }
 

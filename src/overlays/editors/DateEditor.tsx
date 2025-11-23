@@ -137,7 +137,7 @@ export function DateEditor({
     // Enhanced datetime editor with calendar and time picker
     return (
       <div
-        className="p-3 bg-background border rounded-lg shadow-lg min-w-[320px]"
+        className="p-3 bg-background border rounded-lg shadow-lg"
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node)) {
             handleBlur();
@@ -171,29 +171,17 @@ export function DateEditor({
               </span>
             </div>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Hours</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={selectedTime.hours}
-                    onChange={(e) => handleTimeChange(parseInt(e.target.value) || 0, selectedTime.minutes)}
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground">Minutes</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={selectedTime.minutes}
-                    onChange={(e) => handleTimeChange(selectedTime.hours, parseInt(e.target.value) || 0)}
-                    className="mt-1"
-                  />
-                </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground block mb-2">Time</label>
+                <Input
+                  type="time"
+                  value={`${String(selectedTime.hours).padStart(2, '0')}:${String(selectedTime.minutes).padStart(2, '0')}`}
+                  onChange={(e) => {
+                    const [hours, minutes] = e.target.value.split(':').map(Number);
+                    handleTimeChange(hours || 0, minutes || 0);
+                  }}
+                  className="w-full text-lg"
+                />
               </div>
               <div className="text-center text-sm text-muted-foreground">
                 Preview: {currentDate ? format(currentDate, 'MMM dd, yyyy \'at\' HH:mm') : ''}

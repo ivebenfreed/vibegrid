@@ -16,7 +16,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e5e7eb;
+  border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -943,17 +943,17 @@ body.vibegridx-dragging-active * {
   display: block;
   width: 16px;
   height: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid hsl(var(--border));
   border-radius: 3px;
-  background: white;
+  background: hsl(var(--background));
   position: relative;
   transition: all 0.15s ease;
 }
 
 /* Dark mode checkbox */
 .dark .vibegridx-checkbox-custom {
-  border-color: #374151;
-  background: #1f2937;
+  border-color: hsl(var(--border));
+  background: hsl(var(--background));
 }
 
 .vibegridx-checkbox-wrapper:hover .vibegridx-checkbox-custom {

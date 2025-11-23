@@ -65,14 +65,10 @@ export class DateRenderer implements CellRenderer {
   }
 
   private createDateBadge(displayValue: string, type: 'date' | 'datetime' | 'time'): string {
-    // Icon varies by type
-    const icon = type === 'time' ? '🕐' : type === 'datetime' ? '📅🕐' : '📅';
-
     return `
       <div style="
         display: inline-flex;
         align-items: center;
-        gap: 6px;
         padding: 4px 8px;
         border-radius: 6px;
         font-size: 0.75rem;
@@ -84,14 +80,15 @@ export class DateRenderer implements CellRenderer {
         max-width: 100%;
         min-width: 0;
         font-variant-numeric: tabular-nums;
+        cursor: pointer;
+        user-select: none;
       ">
-        <span style="font-size: 12px; flex-shrink: 0;">${icon}</span>
         <span style="
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
           min-width: 0;
-          flex: 1;
+          width: 100%;
         ">${displayValue}</span>
       </div>
     `;

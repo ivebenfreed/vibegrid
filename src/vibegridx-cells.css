@@ -30,6 +30,15 @@
   font-style: italic;
 }
 
+/* Hide cell content when editing to prevent visual clash with editor overlay */
+.vibegridx-cell[data-editing="true"] .vibegridx-cell-content,
+.vibegridx-cell[data-editing="true"] .vibegridx-cell-number,
+.vibegridx-cell[data-editing="true"] .vibegridx-cell-text,
+.vibegridx-cell[data-editing="true"] .vibegridx-text-content {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Text Cell Styles */
 .vibegridx-text-content {
   display: inline-block;

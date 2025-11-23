@@ -199,11 +199,16 @@ export class EditingOverlay {
     } else if (isDropdownType) {
       // Dropdown editors: Use the position from visual state (single source of truth)
       const dropdownWidth = Math.max(position.width, 300);
-      const dropdownHeight = 300; // Max height
+
+      // For date pickers, use larger height to avoid scrolling
+      const isDateType = ['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(column.cellType || column.type || '');
+      const dropdownHeight = isDateType ? 450 : 300; // Larger for date pickers
 
       fileLog.debug('EditingOverlay: Using visual state coordinates', {
         position: { x: position.x, y: position.y, width: position.width, height: position.height },
-        cellId: `${cell.rowId}:${cell.columnId}`
+        cellId: `${cell.rowId}:${cell.columnId}`,
+        isDateType,
+        dropdownHeight
       });
 
       // Position dropdown directly below cell using visual state coordinates
@@ -214,37 +219,49 @@ export class EditingOverlay {
       this.portal.style.maxHeight = `${dropdownHeight}px`;
       this.portal.style.padding = '4px';
       this.portal.style.boxSizing = 'border-box';
-      this.portal.style.backgroundColor = 'white';
-      this.portal.style.border = '1px solid var(--border)';
+      this.portal.style.backgroundColor = 'hsl(var(--popover))';
+      this.portal.style.border = '1px solid hsl(var(--border))';
       this.portal.style.borderRadius = '4px';
       this.portal.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
       this.portal.style.zIndex = '1001'; // Above everything
       this.portal.style.overflow = 'auto';
 
       // Check if dropdown would be cut off and adjust viewport if needed
-      const containerRect = this.container.getBoundingClientRect();
-      const dropdownBottom = position.y + position.height + dropdownHeight;
-      const dropdownRight = position.x + dropdownWidth;
+      // Use requestAnimationFrame to ensure viewport adjustment happens after positioning
+      requestAnimationFrame(() => {
+        const viewport = this.container.querySelector('.vibegridx-viewport') as HTMLElement || this.container;
+        if (!viewport) return;
 
-      // Shift viewport to accommodate dropdown (unless at scroll edge)
-      const viewport = this.container.querySelector('.vibegridx-viewport') as HTMLElement;
-      if (viewport) {
-        if (dropdownBottom > containerRect.height) {
-          const scrollDown = Math.min(dropdownBottom - containerRect.height + 20,
-                                    viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight);
+        const viewportRect = viewport.getBoundingClientRect();
+        const dropdownBottom = position.y + position.height + dropdownHeight;
+        const dropdownRight = position.x + dropdownWidth;
+
+        // Calculate how much we need to scroll to fit the dropdown
+        const viewportVisibleBottom = viewport.scrollTop + viewportRect.height;
+        const viewportVisibleRight = viewport.scrollLeft + viewportRect.width;
+
+        // Scroll down if dropdown extends below visible area
+        if (dropdownBottom > viewportVisibleBottom) {
+          const scrollDown = Math.min(
+            dropdownBottom - viewportVisibleBottom + 40, // Extra 40px padding
+            viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
+          );
           if (scrollDown > 0) {
             viewport.scrollTop += scrollDown;
           }
         }
 
-        if (dropdownRight > containerRect.width) {
-          const scrollRight = Math.min(dropdownRight - containerRect.width + 20,
-                                     viewport.scrollWidth - viewport.scrollLeft - viewport.clientWidth);
+        // Scroll right if dropdown extends beyond visible area
+        if (dropdownRight > viewportVisibleRight) {
+          const scrollRight = Math.min(
+            dropdownRight - viewportVisibleRight + 40, // Extra 40px padding
+            viewport.scrollWidth - viewport.scrollLeft - viewport.clientWidth
+          );
           if (scrollRight > 0) {
             viewport.scrollLeft += scrollRight;
           }
         }
-      }
+      });
 
       // Add editing indicator to the original cell
       this.addEditingIndicatorToCell(cell, mode);
