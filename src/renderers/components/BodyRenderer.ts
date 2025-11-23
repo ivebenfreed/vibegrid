@@ -261,11 +261,14 @@ export class BodyRenderer {
     // CRITICAL FIX: Use actual column layouts from visual state for proper positioning
     const columnLayouts = this.visualStateStore.visibleColumns;
 
+    // Filter columns to only include those that have layouts (are visible)
+    const visibleColumnsOnly = columns.filter(col => columnLayouts.some(l => l.id === col.id));
+
     // PERFORMANCE: Progressive column rendering for faster initial load
     // Render essential columns first (first 6), then defer remaining columns
-    const essentialColumnCount = Math.min(6, columns.length);
-    const essentialColumns = columns.slice(0, essentialColumnCount);
-    const deferredColumns = columns.slice(essentialColumnCount);
+    const essentialColumnCount = Math.min(6, visibleColumnsOnly.length);
+    const essentialColumns = visibleColumnsOnly.slice(0, essentialColumnCount);
+    const deferredColumns = visibleColumnsOnly.slice(essentialColumnCount);
 
     // Render essential columns immediately
     essentialColumns.forEach((column, colIndex) => {
@@ -274,6 +277,7 @@ export class BodyRenderer {
       // Find the corresponding column layout with actual width and x-offset
       const layout = columnLayouts.find(l => l.id === column.id);
       if (!layout) {
+        // This shouldn't happen now since we filtered, but keep the check for safety
         fileLog.warn('🚨 [CELL-DEBUG] No layout found for column', {
           columnId: column.id,
           columnField: column.field,
