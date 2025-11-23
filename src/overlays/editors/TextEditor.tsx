@@ -51,6 +51,12 @@ function TextEditorComponent({
       case 'Enter':
         if (!multiline || !e.shiftKey) {
           e.preventDefault();
+          e.stopPropagation(); // Stop event from bubbling to KeyboardNavigationController
+          // Clear any pending blur commit
+          if (blurTimeoutRef.current) {
+            clearTimeout(blurTimeoutRef.current);
+            blurTimeoutRef.current = null;
+          }
           fileLog.debug('TextEditor: Commit via Enter key');
           onCommit(value);
         }
@@ -58,11 +64,22 @@ function TextEditorComponent({
       case 'Escape':
         e.preventDefault();
         e.stopPropagation(); // Stop the event from reaching KeyboardNavigationController
+        // Clear any pending blur commit
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
+          blurTimeoutRef.current = null;
+        }
         fileLog.debug('TextEditor: Cancel via Escape key');
         onCancel();
         break;
       case 'Tab':
         e.preventDefault();
+        e.stopPropagation(); // Stop event from bubbling to KeyboardNavigationController
+        // Clear any pending blur commit
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
+          blurTimeoutRef.current = null;
+        }
         fileLog.debug('TextEditor: Commit via Tab key');
         onCommit(value);
         break;

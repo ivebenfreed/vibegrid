@@ -1076,25 +1076,9 @@ export class BodyRenderer {
           tableCore$: this.tableCoreStore
         }
 
-        // Create new cell with updated value
-        const newCell = this.modularCellBridge.createCell(
-          newValue,
-          columnForRender,
-          rowData,
-          { rowIndex: 0, columnIndex: 0 }
-        )
-
-        // CRITICAL FIX: Replace entire cell innerHTML to handle all field types
-        // This works for: text, enum/badge, boolean, references, etc.
-        // Preserve the cell wrapper but replace all content
-        cellElement.innerHTML = newCell.innerHTML
-
-        // Reapply selection class if needed (it gets cleared by innerHTML replacement)
-        const cellId = `${rowId}:${columnId}`
-        const isSelected = this.interactionStore.selectedCells.has(cellId)
-        if (isSelected && !cellElement.classList.contains('vibegridx-selected')) {
-          cellElement.classList.add('vibegridx-selected')
-        }
+        // Use renderer's update method to preserve event listeners
+        // This prevents losing hover handlers and other attached events
+        this.modularCellBridge.updateCell(cellElement, newValue, columnForRender, rowData)
 
         fileLog.debug('✅ Cell value updated (granular)', {
           rowId,
