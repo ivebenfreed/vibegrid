@@ -17,6 +17,7 @@ import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
+import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 
 const fileLog = createLogger('components/vibegrid/services/SelectionService')
 
@@ -27,9 +28,10 @@ export class SelectionService {
   constructor(
     private interactionStore: InteractionStore,
     private tableCoreStore: TableCoreStore,
-    private visualStateStore: VisualStateStore
+    private visualStateStore: VisualStateStore,
+    private coordinateManager: VibeGridXCoordinateManager
   ) {
-    fileLog.info('SelectionService initialized')
+    fileLog.info('SelectionService initialized with coordinate manager')
   }
 
   /**
@@ -169,61 +171,30 @@ export class SelectionService {
    *
    * Returns array of cellIds in format "rowId:columnId".
    * Handles both forward and backward selections.
+   *
+   * 🔧 KEY FIX: Uses coordinateManager for range calculation
+   * This ensures selections use current column positions (after reorder/hide/resize)
    */
   private calculateRangeCells(from: string, to: string): string[] {
-    // Get data context
-    const rows = this.tableCoreStore.processedRows || []
-    const allColumns = this.visualStateStore.columns.filter(col => col.id !== 'selection')
-    const columnVisibility = this.visualStateStore.columnVisibility
-    // Only use visible columns for range calculation
-    const columns = allColumns.filter(col => columnVisibility[col.id] !== false)
-
-    fileLog.debug('Range calculation column context', {
-      totalColumns: allColumns.length,
-      visibleColumns: columns.length,
-      hiddenColumns: allColumns.length - columns.length
-    })
-
     // Parse cell IDs
     const [fromRowId, fromColId] = from.split(':')
     const [toRowId, toColId] = to.split(':')
 
-    // Find indices
-    const fromRowIdx = rows.findIndex((r: any) => r.id === fromRowId)
-    const toRowIdx = rows.findIndex((r: any) => r.id === toRowId)
-    const fromColIdx = columns.findIndex(c => c.id === fromColId)
-    const toColIdx = columns.findIndex(c => c.id === toColId)
+    // Use coordinate manager for range calculation
+    // This automatically uses the latest column order from VisualStateStore
+    const cellRange = this.coordinateManager.calculateCellRange(
+      { rowId: fromRowId, columnId: fromColId },
+      { rowId: toRowId, columnId: toColId }
+    )
 
-    // Validate indices
-    if (fromRowIdx === -1 || toRowIdx === -1 || fromColIdx === -1 || toColIdx === -1) {
-      fileLog.warn('Range calculation failed - invalid indices', {
-        fromRowIdx,
-        toRowIdx,
-        fromColIdx,
-        toColIdx
-      })
-      return [from, to] // Fallback to just from and to
-    }
+    const cells = Array.from(cellRange)
 
-    // Calculate rectangular range
-    const minRow = Math.min(fromRowIdx, toRowIdx)
-    const maxRow = Math.max(fromRowIdx, toRowIdx)
-    const minCol = Math.min(fromColIdx, toColIdx)
-    const maxCol = Math.max(fromColIdx, toColIdx)
-
-    fileLog.debug('Range bounds', {
-      rows: `${minRow} to ${maxRow}`,
-      cols: `${minCol} to ${maxCol}`,
-      totalCells: (maxRow - minRow + 1) * (maxCol - minCol + 1)
+    fileLog.debug('Range calculated via coordinator', {
+      from,
+      to,
+      cellCount: cells.length,
+      coordinatorVersion: this.coordinateManager.getVersion()
     })
-
-    // Generate all cell IDs in range
-    const cells: string[] = []
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
-        cells.push(`${rows[r].id}:${columns[c].id}`)
-      }
-    }
 
     return cells
   }

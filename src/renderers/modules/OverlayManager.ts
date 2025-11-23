@@ -15,6 +15,7 @@ import type { TableCoreStore } from '../../stores/TableCoreStore';
 import type { InteractionStore } from '../../stores/InteractionStore';
 import type { ViewportInfo } from '../../types';
 import type { VisualCellPosition } from '../../overlays/OverlayTypes';
+import type { VibeGridXCoordinateManager } from '../../coordinates/VibeGridXCoordinateManager';
 
 // New hybrid coordinate system imports
 import { PositionEvents, domPositions$, positionTracker } from '../../stores/dom-position-state';
@@ -25,7 +26,7 @@ import type { CoordinateMapping } from '../../coordinates/VibeGridXCoordinateMan
 // Re-export CoordinateMapping for consumers
 export type { CoordinateMapping };
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/OverlayManager.ts');
+const fileLog = createLogger('components/vibegrid/renderers/OverlayManager');
 
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT;
@@ -35,6 +36,7 @@ export interface OverlayManagerOptions {
   container: HTMLElement;
   tableCoreStore: TableCoreStore;
   interactionStore: InteractionStore;
+  coordinateManager: VibeGridXCoordinateManager;
   enableSelectionColumn?: boolean;
   headerContainer?: HTMLElement | null;
   bodyContainer?: HTMLElement | null;
@@ -47,6 +49,7 @@ export class OverlayManager {
   private container: HTMLElement;
   private tableCoreStore: TableCoreStore;
   private interactionStore: InteractionStore;
+  private coordinateManager: VibeGridXCoordinateManager;
   private enableSelectionColumn: boolean;
   private headerContainer: HTMLElement | null;
   private bodyContainer: HTMLElement | null;
@@ -78,6 +81,7 @@ export class OverlayManager {
     this.container = options.container;
     this.tableCoreStore = options.tableCoreStore;
     this.interactionStore = options.interactionStore;
+    this.coordinateManager = options.coordinateManager;
     this.enableSelectionColumn = options.enableSelectionColumn ?? false;
     this.headerContainer = options.headerContainer || null;
     this.bodyContainer = options.bodyContainer || null;
@@ -91,6 +95,34 @@ export class OverlayManager {
     );
 
     this.initOverlays();
+
+    // 🔧 KEY FIX: Subscribe to coordinate changes to redraw selections
+    // When columns are reordered/resized/hidden, we need to recalculate visual positions
+    this.setupCoordinateSubscription();
+  }
+
+  /**
+   * Subscribe to coordinate manager changes
+   * Redraws selections when layout changes (reorder, hide, resize)
+   */
+  private setupCoordinateSubscription(): void {
+    const unsubscribe = this.coordinateManager.subscribe((event) => {
+      fileLog.info('🔄 Coordinate change detected, redrawing selections', {
+        eventType: event.type,
+        version: event.newMapping.version,
+        selectedCells: this.interactionStore.selectedCells.size
+      })
+
+      // Re-fetch visual positions with updated coordinates
+      if (this.interactionStore.selectedCells.size > 0) {
+        this.performCanvasSelectionUpdate(this.interactionStore.selectedCells)
+      }
+    })
+
+    // Add to disposers for cleanup
+    this.disposers.push(unsubscribe)
+
+    fileLog.info('✅ Coordinate subscription established for selection overlay sync')
   }
 
   /**

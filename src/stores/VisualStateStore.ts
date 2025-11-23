@@ -19,6 +19,7 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import type { IStore } from '@/app/stores/types'
 import type { Column, GroupConfig, SortConfig, FilterConfig, VirtualRow } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
+import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 
 const log = createLogger('components/vibegrid/stores/VisualStateStore')
 
@@ -110,6 +111,12 @@ export class VisualStateStore implements IStore {
   @observable userId: string = ''
 
   // ====================================
+  // DEPENDENCIES
+  // ====================================
+
+  private coordinateManager?: VibeGridXCoordinateManager
+
+  // ====================================
   // LIFECYCLE
   // ====================================
 
@@ -117,6 +124,15 @@ export class VisualStateStore implements IStore {
 
   constructor() {
     makeObservable(this)
+  }
+
+  /**
+   * Set coordinate manager (dependency injection)
+   */
+  @action
+  setCoordinateManager(manager: VibeGridXCoordinateManager): void {
+    this.coordinateManager = manager
+    log.info('Coordinate manager set on VisualStateStore')
   }
 
   /**
@@ -374,6 +390,10 @@ export class VisualStateStore implements IStore {
     this.orgId = orgId
     this.userId = userId
 
+    // Initialize coordinate manager with columns
+    // This ensures coordinator has column positions from the start
+    this.coordinateManager?.updateColumns(this.orderedColumns)
+
     log.info('Columns initialized (preserving loaded preferences)', {
       entityType,
       orgId,
@@ -384,7 +404,8 @@ export class VisualStateStore implements IStore {
       hasColumnOrder: this.columnOrder.length > 0,
       hasGroupConfig: !!this.groupConfig,
       hasSortBy: this.sortBy.length > 0,
-      hasFilters: this.filters.length > 0
+      hasFilters: this.filters.length > 0,
+      coordinatorInitialized: !!this.coordinateManager
     })
   }
 
@@ -401,6 +422,9 @@ export class VisualStateStore implements IStore {
       ...this.columnWidths,
       [columnId]: width
     }
+
+    // Update coordinate manager with new column positions (xOffsets changed due to width)
+    this.coordinateManager?.updateColumns(this.orderedColumns)
 
     log.debug('Column width updated', { columnId, width })
   }
@@ -444,6 +468,9 @@ export class VisualStateStore implements IStore {
       [columnId]: newVisibility
     }
 
+    // Update coordinate manager with visible columns only
+    this.coordinateManager?.updateColumns(this.visibleOrderedColumns)
+
     log.info('Column visibility toggled', { columnId, visible: newVisibility })
   }
 
@@ -478,11 +505,22 @@ export class VisualStateStore implements IStore {
 
     this.columnOrder = currentOrder
 
-    log.info('Column reordered', {
+    // 🔧 KEY FIX: Update coordinate manager with new column order
+    // This ensures selections and overlays track the new positions
+    log.info('🔧 REORDER: About to notify coordinator', {
+      hasCoordinateManager: !!this.coordinateManager,
+      orderedColumnsCount: this.orderedColumns.length,
+      orderedColumnIds: this.orderedColumns.map(c => c.id)
+    })
+
+    this.coordinateManager?.updateColumns(this.orderedColumns)
+
+    log.info('Column reordered (coordinator notified)', {
       sourceColumnId,
       targetColumnId,
       insertBefore,
-      newOrder: currentOrder
+      newOrder: currentOrder,
+      coordinatorNotified: !!this.coordinateManager
     })
   }
 

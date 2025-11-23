@@ -383,11 +383,12 @@ export class SimplePassiveRenderer {
   private initOverlayManager(): void {
     fileLog.debug('🎨 Initializing overlay manager');
 
-    // Initialize OverlayManager (MobX version)
+    // Initialize OverlayManager (MobX version) with coordinator
     this.overlayManager = new OverlayManager({
       container: this.container,
       tableCoreStore: this.tableCoreStore,
       interactionStore: this.interactionStore,
+      coordinateManager: this.stores.coordinateManager,
       enableSelectionColumn: this.options.enableSelectionColumn,
       headerContainer: this.headerContainer,
       bodyContainer: this.bodyContainer,
@@ -1143,11 +1144,12 @@ export class SimplePassiveRenderer {
         throw error;
       }
 
-      // Create SelectionService
+      // Create SelectionService with coordinate manager
       this.selectionService = new SelectionService(
         this.interactionStore,
         this.tableCoreStore,
-        this.visualStateStore
+        this.visualStateStore,
+        this.stores.coordinateManager
       );
 
       // Create CellActionRouter
@@ -1823,7 +1825,11 @@ export class SimplePassiveRenderer {
       this.coordinateMapping.rows = newRows;
       this.coordinateMapping.version++;
 
-      fileLog.debug('🔄 Row coordinate mapping updated', {
+      // Also update the shared coordinator with row data
+      // The coordinator only uses row.id, so we can pass rows as-is
+      this.stores.coordinateManager.updateRows(rows as any, this.visualStateStore.sortBy)
+
+      fileLog.debug('🔄 Row coordinate mapping updated (local + shared coordinator)', {
         newRowCount: newRows.length,
         firstRowId: newRows[0]?.rowId,
         mappingVersion: this.coordinateMapping.version,

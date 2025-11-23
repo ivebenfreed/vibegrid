@@ -21,7 +21,7 @@
 import type { CellRef, TableRow, Column, ViewportInfo } from '../types';
 import { createLogger } from '@/shared/lib/logging';
 
-const fileLog = createLogger('components/custom/vibegrid/coordinates/VibeGridXCoordinateManager.ts');
+const fileLog = createLogger('components/vibegrid/coordinates/VibeGridXCoordinateManager');
 
 export interface CoordinatePosition {
   rowIndex: number;
@@ -130,8 +130,15 @@ export class VibeGridXCoordinateManager {
    * Update column mappings
    */
   updateColumns(columns: Column[]): void {
+    fileLog.info('🔧 COORDINATOR: updateColumns called', {
+      columnCount: columns.length,
+      columnIds: columns.map(c => c.id),
+      currentMappingCount: this.mapping.columns.length,
+      currentColumnIds: this.mapping.columns.map(c => c.columnId)
+    })
+
     const oldMapping = { ...this.mapping };
-    
+
     let currentOffset = 0;
     const newColumns: ColumnMapping[] = columns.map((column, index) => {
       const width = column.width || 120;
@@ -144,7 +151,7 @@ export class VibeGridXCoordinateManager {
       currentOffset += width;
       return mapping;
     });
-    
+
     fileLog.debug('VibeGridXCoordinateManager.updateColumns:', {
       columnCount: columns.length,
       columnIds: columns.map(c => c.id),
@@ -156,15 +163,48 @@ export class VibeGridXCoordinateManager {
       columns: newColumns,
       version: ++this.version
     };
-    
-    // Notify if columns changed
-    if (oldMapping.columns.length !== newColumns.length) {
+
+    // 🔧 CRITICAL FIX: Always notify when columns change (order, width, count)
+    // Previous bug: Only notified when COUNT changed, not when reordered!
+    const countChanged = oldMapping.columns.length !== newColumns.length
+    const orderChanged = oldMapping.columns.some((oldCol, idx) =>
+      oldCol.columnId !== newColumns[idx]?.columnId ||
+      oldCol.offset !== newColumns[idx]?.offset ||
+      oldCol.width !== newColumns[idx]?.width
+    )
+    const columnsChanged = countChanged || orderChanged
+
+    fileLog.info('🔧 COORDINATOR: Change detection result', {
+      countChanged,
+      orderChanged,
+      columnsChanged,
+      oldCount: oldMapping.columns.length,
+      newCount: newColumns.length,
+      oldOrder: oldMapping.columns.map(c => c.columnId).slice(0, 5),
+      newOrder: newColumns.map(c => c.columnId).slice(0, 5),
+      listenerCount: this.listeners.size
+    })
+
+    if (columnsChanged) {
+      fileLog.info('📍 Column positions changed, notifying subscribers', {
+        oldCount: oldMapping.columns.length,
+        newCount: newColumns.length,
+        oldOrder: oldMapping.columns.map(c => c.columnId),
+        newOrder: newColumns.map(c => c.columnId),
+        subscriberCount: this.listeners.size
+      })
+
       this.notifyListeners({
         type: 'columns-changed',
         oldMapping,
         newMapping: { ...this.mapping },
         timestamp: Date.now()
       });
+    } else {
+      fileLog.warn('🔧 COORDINATOR: No changes detected, NOT notifying', {
+        oldOrder: oldMapping.columns.map(c => c.columnId),
+        newOrder: newColumns.map(c => c.columnId)
+      })
     }
   }
   

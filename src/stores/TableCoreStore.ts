@@ -26,6 +26,7 @@ import type { Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import { generateColumnsFromEntitySchema } from './column-generation'
 import type { VisualStateStore } from './VisualStateStore'
+import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 
 const log = createLogger('components/vibegrid/stores/TableCoreStore')
 
@@ -264,6 +265,7 @@ export class TableCoreStore implements IStore {
   private entityDataProvider: EntityDataProvider | null = null
   private collection: any = null // TanStack DB collection for entity mutations
   private schemaRegistry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore | null = null
+  private coordinateManager: VibeGridXCoordinateManager | null = null
   private disposers = new DisposerManager()
 
   // ====================================
@@ -321,6 +323,16 @@ export class TableCoreStore implements IStore {
   @action
   setSchemaRegistry(registry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore): void {
     this.schemaRegistry = registry
+  }
+
+  /**
+   * Set coordinate manager (for row position tracking)
+   * Called by parent component after store creation
+   */
+  @action
+  setCoordinateManager(manager: VibeGridXCoordinateManager): void {
+    this.coordinateManager = manager
+    log.info('Coordinate manager set on TableCoreStore')
   }
 
   /**

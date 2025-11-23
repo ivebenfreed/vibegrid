@@ -13,6 +13,7 @@ import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { InitStore } from './InitStore'
 import { useSchemaRegistry } from '@/app/stores'
+import { createVibeGridXCoordinateManager, type VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 
 const log = createLogger('components/vibegrid/stores/context')
 
@@ -26,6 +27,7 @@ export interface VibeGridStores {
   interactionStore: InteractionStore
   persistenceStore: PersistenceStore
   initStore: InitStore
+  coordinateManager: VibeGridXCoordinateManager
 }
 
 export interface VibeGridStoreProviderProps {
@@ -69,6 +71,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
         tableId
       })
 
+      // Create coordinate manager (shared single source of truth)
+      const coordinateManager = createVibeGridXCoordinateManager()
+
       // Create all stores
       const tableCoreStore = new TableCoreStore(entityType)
       const visualStateStore = new VisualStateStore()
@@ -77,11 +82,17 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
       const initStore = new InitStore(tableId, entityType)
 
       // Set up dependency injection between stores
+      // VisualStateStore needs CoordinateManager for layout tracking
+      visualStateStore.setCoordinateManager(coordinateManager)
+
       // TableCoreStore needs VisualStateStore for filters, sorting, grouping
       tableCoreStore.setVisualStateInputs(visualStateStore)
 
       // TableCoreStore needs SchemaRegistry for column generation
       tableCoreStore.setSchemaRegistry(schemaRegistry)
+
+      // TableCoreStore needs CoordinateManager for row position tracking
+      tableCoreStore.setCoordinateManager(coordinateManager)
 
       // InteractionStore needs TableCoreStore and VisualStateStore for data context
       interactionStore.setTableCoreStore(tableCoreStore)
@@ -119,7 +130,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
         visualStateStore,
         interactionStore,
         persistenceStore,
-        initStore
+        initStore,
+        coordinateManager
       }
     }, [entityType, orgId, tableId])
 
@@ -199,4 +211,8 @@ export function usePersistenceStore(): PersistenceStore {
 
 export function useInitStore(): InitStore {
   return useVibeGridStores().initStore
+}
+
+export function useCoordinateManager(): VibeGridXCoordinateManager {
+  return useVibeGridStores().coordinateManager
 }
