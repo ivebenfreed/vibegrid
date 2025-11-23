@@ -128,18 +128,21 @@ export class VibeGridXCoordinateManager {
   
   /**
    * Update column mappings
+   * @param columns - Column definitions with widths
+   * @param baseOffset - Starting offset for first column (default 0, set to 70 for system columns)
    */
-  updateColumns(columns: Column[]): void {
+  updateColumns(columns: Column[], baseOffset: number = 0): void {
     fileLog.info('🔧 COORDINATOR: updateColumns called', {
       columnCount: columns.length,
       columnIds: columns.map(c => c.id),
+      baseOffset,
       currentMappingCount: this.mapping.columns.length,
       currentColumnIds: this.mapping.columns.map(c => c.columnId)
     })
 
     const oldMapping = { ...this.mapping };
 
-    let currentOffset = 0;
+    let currentOffset = baseOffset; // Start from base offset (70px for system columns)
     const newColumns: ColumnMapping[] = columns.map((column, index) => {
       const width = column.width || 120;
       const mapping: ColumnMapping = {

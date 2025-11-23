@@ -124,20 +124,18 @@ export class SelectionService {
   /**
    * Toggle entire row selection
    *
-   * If all cells in row are selected, deselect them.
-   * Otherwise, select all cells in row.
-   * 🔧 FIX: Only select visible columns (matches coordinator)
+   * Selects ALL columns (including hidden) for proper copy/paste behavior.
+   * Coordinator now tracks hidden columns with width:0.
    */
   toggleRow(rowId: string): void {
-    // Use visible columns only - matches what coordinator knows about
-    const columns = this.visualStateStore.visibleOrderedColumns.filter(col => col.id !== 'selection')
+    // Select ALL columns (including hidden) for full row semantics
+    const columns = this.visualStateStore.orderedColumns.filter(col => col.id !== 'selection')
     const cells = columns.map(col => `${rowId}:${col.id}`)
 
-    fileLog.debug('toggleRow (visible columns only)', {
+    fileLog.debug('toggleRow (all columns including hidden)', {
       rowId,
       cellCount: cells.length,
-      totalColumns: this.visualStateStore.columns.length,
-      visibleColumns: columns.length
+      totalColumns: columns.length
     })
 
     runInAction(() => {

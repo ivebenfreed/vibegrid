@@ -517,43 +517,36 @@ export class VisualStateStore implements IStore {
   }
 
   /**
-   * Update coordinator with current column layout (visible columns with actual widths)
-   * 🔧 KEY FIX: Feeds coordinator the SAME data the DOM uses
+   * Update coordinator with current column layout
+   * 🔧 KEY FIX: Send ALL columns with actual widths (0 for hidden)
    */
   private updateCoordinatorWithCurrentLayout(): void {
     if (!this.coordinateManager) return
 
-    // Include system columns (drag handle + checkbox) so offsets match DOM
-    const DRAG_COLUMN_WIDTH = 30
-    const CHECKBOX_COLUMN_WIDTH = 40
-    const BASE_OFFSET = DRAG_COLUMN_WIDTH + CHECKBOX_COLUMN_WIDTH // 70px
+    const BASE_OFFSET = 70 // 30px drag + 40px checkbox
 
-    const systemColumns = [
-      { id: '__drag', width: DRAG_COLUMN_WIDTH } as any,
-      { id: '__checkbox', width: CHECKBOX_COLUMN_WIDTH } as any
-    ]
+    // Send ALL columns in order with actual widths
+    // Hidden columns get width:0 (exist in coordinator but take no space)
+    const layoutColumns = this.orderedColumns.map(col => {
+      const isVisible = this.columnVisibility[col.id] !== false
+      const actualWidth = isVisible ? this.getColumnWidth(col.id) : 0
 
-    // Use visibleColumns which has actual widths and only visible columns
-    const dataColumns = this.visibleColumns.map(layout => {
-      const schemaColumn = this.columns.find(c => c.id === layout.id)
       return {
-        ...schemaColumn!,
-        width: layout.width // Use actual width from columnWidths
+        ...col,
+        width: actualWidth
       }
     })
 
-    // Coordinator gets system columns + visible data columns
-    const allColumns = [...systemColumns, ...dataColumns]
-
     log.info('🔧 Updating coordinator with current layout', {
-      systemColumnsWidth: BASE_OFFSET,
-      visibleDataColumns: dataColumns.length,
-      totalColumns: allColumns.length,
-      columnIds: dataColumns.map(c => c.id),
-      widths: dataColumns.map(c => c.width)
+      baseOffset: BASE_OFFSET,
+      totalColumns: layoutColumns.length,
+      visibleColumns: layoutColumns.filter(c => c.width > 0).length,
+      hiddenColumns: layoutColumns.filter(c => c.width === 0).length,
+      columnIds: layoutColumns.map(c => c.id),
+      widths: layoutColumns.map(c => c.width)
     })
 
-    this.coordinateManager.updateColumns(allColumns)
+    this.coordinateManager.updateColumns(layoutColumns, BASE_OFFSET)
   }
 
   /**
