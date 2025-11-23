@@ -71,6 +71,7 @@ export class DOMElementFactory {
       border-bottom: 1px solid #e9ecef;
       font-weight: 600;
       padding-left: ${level * 20 + 12}px;
+      cursor: pointer;
     `;
 
     // Create expand/collapse button
@@ -105,10 +106,8 @@ export class DOMElementFactory {
     groupLabel.textContent = `${groupData.field}: ${groupData.displayValue} (${groupData.rowCount} items)`;
     groupLabel.style.cssText = 'flex: 1; font-size: 14px;';
 
-    // Click handler for expand/collapse
-    expandButton.addEventListener('click', () => {
-      this.visualOperations?.toggleGroupExpansion(groupRow.id);
-    });
+    // Note: Click handling delegated to MouseController
+    // No direct event handlers in factory - keeps concerns separated
 
     rowElement.appendChild(expandButton);
     rowElement.appendChild(groupLabel);

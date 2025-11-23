@@ -825,15 +825,14 @@ export class MouseController {
           }
         }
       } else {
-        // Check for group expansion clicks (triangle-icon)
-        const triangleElement = target.closest('.triangle-icon');
-        const groupRowElement = triangleElement?.closest('[data-group-id]');
+        // Check for group header row clicks (entire row is clickable)
+        const groupRowElement = target.closest('.vibegridx-group-header');
 
-        if (triangleElement && groupRowElement) {
+        if (groupRowElement) {
           const groupId = groupRowElement.getAttribute('data-group-id');
 
           if (groupId) {
-            fileLog.debug('🎯 Group expansion triangle clicked', {
+            fileLog.debug('🎯 Group header row clicked', {
               groupId,
               targetTag: target.tagName,
               targetClass: target.className
