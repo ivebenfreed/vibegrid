@@ -1043,6 +1043,9 @@ export class TableCoreStore implements IStore {
         lastModified: new Date().toISOString()
       }
 
+      // Update coordinator with new row order
+      this.updateCoordinatorWithCurrentRows()
+
       log.info('🔄 Row moved within group by ID', {
         sourceGroupId,
         draggedRowId,
@@ -1151,6 +1154,10 @@ export class TableCoreStore implements IStore {
   @action
   setFlatRowOrder(rowIds: string[]): void {
     this.flatRowOrder = [...rowIds]
+
+    // Update coordinator with new row order
+    this.updateCoordinatorWithCurrentRows()
+
     log.info('🔄 Flat row order set', {
       rowCount: rowIds.length
     })
@@ -1181,6 +1188,9 @@ export class TableCoreStore implements IStore {
 
       // Update the flat row order
       this.flatRowOrder = newRowIds
+
+      // Update coordinator with new row order
+      this.updateCoordinatorWithCurrentRows()
 
       log.info('🔄 Flat row order updated', {
         from: fromIndex,
@@ -1357,6 +1367,29 @@ export class TableCoreStore implements IStore {
    */
   redo(): void {
     log.warn('redo() not implemented - legacy method stub')
+  }
+
+  /**
+   * Update coordinator with current row order and clear selections
+   */
+  private updateCoordinatorWithCurrentRows(): void {
+    if (!this.coordinateManager) return
+
+    // Clear selections on row reorder (simpler UX, consistent with column ops)
+    if (this.visualStateStore?.interactionStore) {
+      this.visualStateStore.interactionStore.clearSelection()
+    }
+
+    const rows = this.processedRows.map((row: any) => ({
+      id: row.id || row.data?.id,
+      data: row.data || row
+    }))
+
+    this.coordinateManager.updateRows(rows as any, this.visualStateStore?.sortBy || [])
+
+    log.info('🔄 Coordinator updated with row order (selection cleared)', {
+      rowCount: rows.length
+    })
   }
 
   /**
