@@ -97,6 +97,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
       // TableCoreStore needs CoordinateManager for row position tracking
       tableCoreStore.setCoordinateManager(coordinateManager)
 
+      // TableCoreStore needs InteractionStore for clearing selections
+      tableCoreStore.setInteractionStore(interactionStore)
+
       // InteractionStore needs TableCoreStore and VisualStateStore for data context
       interactionStore.setTableCoreStore(tableCoreStore)
       interactionStore.setVisualStateStore(visualStateStore)

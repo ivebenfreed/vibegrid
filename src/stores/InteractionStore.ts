@@ -509,14 +509,18 @@ export class InteractionStore implements IStore {
   }
 
   /**
-   * Clear all selection
+   * Clear all selection and focus state
+   * 🔧 Also clear focus/hover to avoid stale cell references after layout changes
    */
   @action
   clearSelection(): void {
     this.selectedCells = new Set()
     this.selectedRows = new Set()
     this.anchorCell = null
-    log.info('Selection cleared')
+    this.focusedCell = null
+    this.hoveredCell = null
+    this.hoveredRow = null
+    log.info('Selection and focus cleared')
   }
 
   /**

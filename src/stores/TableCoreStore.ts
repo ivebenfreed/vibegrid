@@ -266,6 +266,7 @@ export class TableCoreStore implements IStore {
   private collection: any = null // TanStack DB collection for entity mutations
   private schemaRegistry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore | null = null
   private coordinateManager: VibeGridXCoordinateManager | null = null
+  private interactionStore: import('./InteractionStore').InteractionStore | null = null
   private disposers = new DisposerManager()
 
   // ====================================
@@ -333,6 +334,15 @@ export class TableCoreStore implements IStore {
   setCoordinateManager(manager: VibeGridXCoordinateManager): void {
     this.coordinateManager = manager
     log.info('Coordinate manager set on TableCoreStore')
+  }
+
+  /**
+   * Set interaction store (for clearing selections on row operations)
+   */
+  @action
+  setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
+    this.interactionStore = store
+    log.info('Interaction store set on TableCoreStore')
   }
 
   /**
@@ -1376,8 +1386,8 @@ export class TableCoreStore implements IStore {
     if (!this.coordinateManager) return
 
     // Clear selections on row reorder (simpler UX, consistent with column ops)
-    if (this.visualStateStore?.interactionStore) {
-      this.visualStateStore.interactionStore.clearSelection()
+    if (this.interactionStore) {
+      this.interactionStore.clearSelection()
     }
 
     const rows = this.processedRows.map((row: any) => ({
