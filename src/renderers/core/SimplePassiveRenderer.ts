@@ -1714,9 +1714,10 @@ export class SimplePassiveRenderer {
     }
     
     // Update content dimensions in visual state
-    const totalHeight = rows.length * ROW_HEIGHT;
+    // Calculate total height by summing individual row heights (groups/data may differ)
+    const totalHeight = rows.reduce((sum: number, row: any) => sum + (row.height || ROW_HEIGHT), 0);
     runInAction(() => {
-      this.visualStateStore.rowCount = rows.length;
+      this.visualStateStore.rowCount = rows.length; // Use processedRows length (includes groups)
     });
 
     // Update row coordinate mapping
