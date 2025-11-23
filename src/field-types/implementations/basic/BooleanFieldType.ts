@@ -24,12 +24,15 @@ export class BooleanRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div');
 
-    // Handle null/undefined values
-    if (value == null) {
-      container.className = 'vibegridx-cell-empty';
-      container.textContent = column.editable === false ? '' : 'Click to edit';
-      container.style.opacity = '0.6';
-      container.style.fontSize = '12px';
+    // Handle null/undefined values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -102,12 +105,15 @@ export class BooleanRenderer implements CellRenderer {
       ? 'vibegridx-cell-boolean'
       : 'vibegridx-cell-boolean-editable';
 
-    // Handle empty values
-    if (value == null) {
-      element.className += ' vibegridx-cell-empty';
-      element.textContent = column.editable === false ? '' : 'Click to edit';
-      element.style.opacity = '0.6';
-      element.style.color = '';
+    // Handle empty values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       element.textContent = this.formatValue(value, column);
       element.style.opacity = '1';

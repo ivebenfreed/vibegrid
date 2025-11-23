@@ -22,10 +22,15 @@ export class TextAreaRenderer implements CellRenderer {
       display: block;
     `;
 
-    if (!value) {
-      container.style.opacity = '0.6';
-      container.style.fontSize = '12px';
-      container.textContent = column.editable === false ? '' : 'Click to edit...';
+    // Handle null/undefined values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -39,11 +44,16 @@ export class TextAreaRenderer implements CellRenderer {
     return container;
   }
 
-  update(element: HTMLElement, value: any): void {
-    if (!value) {
-      element.style.opacity = '0.6';
-      element.style.fontSize = '12px';
-      element.textContent = 'Click to edit...';
+  update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+    // Handle empty values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       element.style.opacity = '1';
       element.style.fontSize = '13px';

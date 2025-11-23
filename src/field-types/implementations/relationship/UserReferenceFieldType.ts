@@ -152,10 +152,13 @@ export class UserReferenceRenderer implements CellRenderer {
     container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden; cursor: pointer;';
 
     if (!value) {
-      container.className += ' vibegridx-user-reference-empty';
-      container.textContent = column.editable ? 'Select user...' : 'No user';
-      container.style.opacity = '0.6';
-      container.style.fontStyle = 'italic';
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -236,10 +239,13 @@ export class UserReferenceRenderer implements CellRenderer {
     element.className = 'vibegridx-user-reference';
 
     if (!value) {
-      element.className += ' vibegridx-user-reference-empty';
-      element.textContent = column.editable ? 'Select user...' : 'No user';
-      element.style.opacity = '0.6';
-      element.style.fontStyle = 'italic';
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       element.textContent = 'Loading...';
       element.style.opacity = '0.7';

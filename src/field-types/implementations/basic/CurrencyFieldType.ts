@@ -32,11 +32,15 @@ export class CurrencyRenderer implements CellRenderer {
       ? 'vibegridx-cell-currency'
       : 'vibegridx-cell-currency-editable';
 
+    // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      container.className += ' vibegridx-cell-empty';
-      container.textContent = column.editable === false ? '' : 'Click to edit';
-      container.style.opacity = '0.6';
-      container.style.fontSize = '12px';
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -53,10 +57,15 @@ export class CurrencyRenderer implements CellRenderer {
       ? 'vibegridx-cell-currency'
       : 'vibegridx-cell-currency-editable';
 
+    // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      element.className += ' vibegridx-cell-empty';
-      element.textContent = column.editable === false ? '' : 'Click to edit';
-      element.style.opacity = '0.6';
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       element.textContent = this.formatValue(value, column);
       element.style.opacity = '1';

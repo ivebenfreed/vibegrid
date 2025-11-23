@@ -44,12 +44,15 @@ export class SelectRenderer implements CellRenderer {
     // Don't set classes here - let BodyRenderer handle the base classes
     // Only add styling that's specific to the badge display
 
-    // Handle null/undefined values
+    // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      container.className = 'vibegridx-cell-empty';
-      container.textContent = column.editable === false ? '' : 'Select option';
-      container.style.opacity = '0.6';
-      container.style.fontSize = '12px';
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -68,11 +71,15 @@ export class SelectRenderer implements CellRenderer {
     element.innerHTML = '';
     // Don't override classes - preserve what BodyRenderer set
 
-    // Handle empty values
+    // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      element.classList.add('vibegridx-cell-empty');
-      element.textContent = column.editable === false ? '' : 'Select option';
-      element.style.opacity = '0.6';
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return;
     }
 

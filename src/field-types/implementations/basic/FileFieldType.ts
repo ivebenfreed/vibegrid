@@ -27,10 +27,15 @@ export class FileRenderer implements CellRenderer {
     const container = document.createElement('div');
     container.className = 'vibegridx-cell-file';
 
-    if (!value) {
-      container.className += ' vibegridx-cell-empty';
-      container.textContent = column.editable ? 'Upload file...' : 'No file';
-      container.style.opacity = '0.6';
+    // Handle null/undefined values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -44,10 +49,15 @@ export class FileRenderer implements CellRenderer {
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     element.className = 'vibegridx-cell-file';
 
-    if (!value) {
-      element.className += ' vibegridx-cell-empty';
-      element.textContent = column.editable ? 'Upload file...' : 'No file';
-      element.style.opacity = '0.6';
+    // Handle empty values with consistent empty state
+    if (value == null || value === '') {
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       const fileData = this.parseFileValue(value);
       element.innerHTML = this.createFileDisplay(fileData);

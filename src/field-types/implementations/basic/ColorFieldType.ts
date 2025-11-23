@@ -34,14 +34,15 @@ export class ColorRenderer implements CellRenderer {
       height: 100%;
     `;
 
-    // Handle null/undefined values
+    // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      container.className += ' vibegridx-cell-empty';
-      const textSpan = document.createElement('span');
-      textSpan.textContent = column.editable === false ? '' : 'Click to edit';
-      textSpan.style.opacity = '0.6';
-      textSpan.style.fontSize = '12px';
-      container.appendChild(textSpan);
+      if (column.editable === false) {
+        container.className = 'vibegridx-cell-empty';
+        container.textContent = '';
+      } else {
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
       return container;
     }
 
@@ -89,13 +90,15 @@ export class ColorRenderer implements CellRenderer {
 
     element.innerHTML = '';
 
+    // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      element.className += ' vibegridx-cell-empty';
-      const textSpan = document.createElement('span');
-      textSpan.textContent = column.editable === false ? '' : 'Click to edit';
-      textSpan.style.opacity = '0.6';
-      textSpan.style.fontSize = '12px';
-      element.appendChild(textSpan);
+      if (column.editable === false) {
+        element.className = 'vibegridx-cell-empty';
+        element.textContent = '';
+      } else {
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+      }
     } else {
       // Re-create swatch and text
       const swatch = document.createElement('div');
