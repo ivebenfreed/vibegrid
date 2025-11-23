@@ -85,6 +85,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
       // VisualStateStore needs CoordinateManager for layout tracking
       visualStateStore.setCoordinateManager(coordinateManager)
 
+      // VisualStateStore needs InteractionStore for clearing selections
+      visualStateStore.setInteractionStore(interactionStore)
+
       // TableCoreStore needs VisualStateStore for filters, sorting, grouping
       tableCoreStore.setVisualStateInputs(visualStateStore)
 

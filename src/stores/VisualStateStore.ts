@@ -115,6 +115,7 @@ export class VisualStateStore implements IStore {
   // ====================================
 
   private coordinateManager?: VibeGridXCoordinateManager
+  private interactionStore?: import('./InteractionStore').InteractionStore
 
   // ====================================
   // LIFECYCLE
@@ -133,6 +134,15 @@ export class VisualStateStore implements IStore {
   setCoordinateManager(manager: VibeGridXCoordinateManager): void {
     this.coordinateManager = manager
     log.info('Coordinate manager set on VisualStateStore')
+  }
+
+  /**
+   * Set interaction store (for clearing selections)
+   */
+  @action
+  setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
+    this.interactionStore = store
+    log.info('Interaction store set on VisualStateStore')
   }
 
   /**
@@ -467,10 +477,13 @@ export class VisualStateStore implements IStore {
       [columnId]: newVisibility
     }
 
-    // 🔧 FIX: Use visible columns with actual widths
+    // Clear selections on column operations (simpler UX)
+    this.clearSelections()
+
+    // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    log.info('Column visibility toggled', { columnId, visible: newVisibility })
+    log.info('Column visibility toggled (selection cleared)', { columnId, visible: newVisibility })
   }
 
   /**
@@ -504,15 +517,17 @@ export class VisualStateStore implements IStore {
 
     this.columnOrder = currentOrder
 
-    // 🔧 FIX: Use visible columns with actual widths
+    // Clear selections on column operations (simpler UX)
+    this.clearSelections()
+
+    // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    log.info('Column reordered (coordinator notified)', {
+    log.info('Column reordered (selection cleared)', {
       sourceColumnId,
       targetColumnId,
       insertBefore,
-      newOrder: currentOrder,
-      coordinatorNotified: !!this.coordinateManager
+      newOrder: currentOrder
     })
   }
 
@@ -733,8 +748,21 @@ export class VisualStateStore implements IStore {
       fields: config?.fields
     })
 
+    // Clear selections on grouping changes (layout changes significantly)
+    this.clearSelections()
+
     this.groupConfig = config
-    log.info('Group config updated', { config })
+    log.info('Group config updated (selection cleared)', { config })
+  }
+
+  /**
+   * Clear all selections (helper for column operations)
+   */
+  private clearSelections(): void {
+    if (this.interactionStore) {
+      this.interactionStore.clearSelection()
+      log.info('🔄 Selections cleared due to column operation')
+    }
   }
 
   /**
@@ -886,7 +914,10 @@ export class VisualStateStore implements IStore {
       }
     }
 
-    log.info('Sort toggled', {
+    // Clear selections when row order changes
+    this.clearSelections()
+
+    log.info('Sort toggled (selection cleared)', {
       field,
       isMultiSort,
       sortBy: this.sortBy
