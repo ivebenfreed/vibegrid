@@ -390,9 +390,8 @@ export class VisualStateStore implements IStore {
     this.orgId = orgId
     this.userId = userId
 
-    // Initialize coordinate manager with columns
-    // This ensures coordinator has column positions from the start
-    this.coordinateManager?.updateColumns(this.orderedColumns)
+    // 🔧 FIX: Initialize coordinator with visible columns and actual widths
+    this.updateCoordinatorWithCurrentLayout()
 
     log.info('Columns initialized (preserving loaded preferences)', {
       entityType,
@@ -423,8 +422,8 @@ export class VisualStateStore implements IStore {
       [columnId]: width
     }
 
-    // Update coordinate manager with new column positions (xOffsets changed due to width)
-    this.coordinateManager?.updateColumns(this.orderedColumns)
+    // 🔧 FIX: Use visibleOrderedColumns with actual widths, not schema defaults
+    this.updateCoordinatorWithCurrentLayout()
 
     log.debug('Column width updated', { columnId, width })
   }
@@ -468,8 +467,8 @@ export class VisualStateStore implements IStore {
       [columnId]: newVisibility
     }
 
-    // Update coordinate manager with visible columns only
-    this.coordinateManager?.updateColumns(this.visibleOrderedColumns)
+    // 🔧 FIX: Use visible columns with actual widths
+    this.updateCoordinatorWithCurrentLayout()
 
     log.info('Column visibility toggled', { columnId, visible: newVisibility })
   }
@@ -505,15 +504,8 @@ export class VisualStateStore implements IStore {
 
     this.columnOrder = currentOrder
 
-    // 🔧 KEY FIX: Update coordinate manager with new column order
-    // This ensures selections and overlays track the new positions
-    log.info('🔧 REORDER: About to notify coordinator', {
-      hasCoordinateManager: !!this.coordinateManager,
-      orderedColumnsCount: this.orderedColumns.length,
-      orderedColumnIds: this.orderedColumns.map(c => c.id)
-    })
-
-    this.coordinateManager?.updateColumns(this.orderedColumns)
+    // 🔧 FIX: Use visible columns with actual widths
+    this.updateCoordinatorWithCurrentLayout()
 
     log.info('Column reordered (coordinator notified)', {
       sourceColumnId,
@@ -522,6 +514,35 @@ export class VisualStateStore implements IStore {
       newOrder: currentOrder,
       coordinatorNotified: !!this.coordinateManager
     })
+  }
+
+  /**
+   * Update coordinator with current column layout (visible columns with actual widths)
+   * 🔧 KEY FIX: Feeds coordinator the SAME data the DOM uses
+   */
+  private updateCoordinatorWithCurrentLayout(): void {
+    if (!this.coordinateManager) return
+
+    // Use columnLayouts which has:
+    // - Actual runtime widths from columnWidths
+    // - Only visible columns
+    // - Correct xOffsets
+    const layoutColumns = this.visibleColumns.map(layout => {
+      const schemaColumn = this.columns.find(c => c.id === layout.id)
+      return {
+        ...schemaColumn!,
+        width: layout.width // Use actual width, not schema default
+      }
+    })
+
+    log.info('🔧 Updating coordinator with current layout', {
+      visibleCount: layoutColumns.length,
+      totalCount: this.columns.length,
+      columnIds: layoutColumns.map(c => c.id),
+      widths: layoutColumns.map(c => c.width)
+    })
+
+    this.coordinateManager.updateColumns(layoutColumns)
   }
 
   /**

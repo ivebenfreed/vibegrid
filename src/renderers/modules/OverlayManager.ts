@@ -104,19 +104,26 @@ export class OverlayManager {
   /**
    * Subscribe to coordinate manager changes
    * Redraws selections when layout changes (reorder, hide, resize)
+   * 🔧 FIX: Defer redraw until next frame so DOM updates first
    */
   private setupCoordinateSubscription(): void {
     const unsubscribe = this.coordinateManager.subscribe((event) => {
-      fileLog.info('🔄 Coordinate change detected, redrawing selections', {
+      fileLog.info('🔄 Coordinate change detected, scheduling selection redraw', {
         eventType: event.type,
         version: event.newMapping.version,
         selectedCells: this.interactionStore.selectedCells.size
       })
 
-      // Re-fetch visual positions with updated coordinates
-      if (this.interactionStore.selectedCells.size > 0) {
-        this.performCanvasSelectionUpdate(this.interactionStore.selectedCells)
-      }
+      // 🔧 FIX: Defer until next frame so DOM updates with new layout first
+      requestAnimationFrame(() => {
+        if (this.interactionStore.selectedCells.size > 0) {
+          fileLog.info('🎨 Redrawing selections with updated DOM layout', {
+            selectedCells: this.interactionStore.selectedCells.size,
+            coordinatorVersion: this.coordinateManager.getVersion()
+          })
+          this.performCanvasSelectionUpdate(this.interactionStore.selectedCells)
+        }
+      })
     })
 
     // Add to disposers for cleanup
