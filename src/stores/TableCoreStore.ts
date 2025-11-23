@@ -879,6 +879,46 @@ export class TableCoreStore implements IStore {
     return this.processedRows
   }
 
+  /**
+   * Row offset map for variable-height virtual scrolling
+   * Returns array where index i = cumulative Y offset of row i
+   */
+  @computed
+  get rowOffsets(): number[] {
+    const rows = this.processedRows
+    const offsets: number[] = [0]
+
+    for (let i = 0; i < rows.length; i++) {
+      const prevOffset = offsets[i]
+      const rowHeight = rows[i]?.height || 40
+      offsets.push(prevOffset + rowHeight)
+    }
+
+    return offsets
+  }
+
+  /**
+   * Find row index at given scroll position using binary search
+   */
+  findRowAtScrollPosition(scrollTop: number): number {
+    const offsets = this.rowOffsets
+    if (offsets.length === 0) return 0
+
+    let left = 0
+    let right = offsets.length - 1
+
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2)
+      if (offsets[mid] < scrollTop) {
+        left = mid + 1
+      } else {
+        right = mid
+      }
+    }
+
+    return Math.max(0, left - 1)
+  }
+
   // ====================================
   // GROUP ROW ORDERING ACTIONS
   // ====================================

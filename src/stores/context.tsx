@@ -88,6 +88,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
       // VisualStateStore needs InteractionStore for clearing selections
       visualStateStore.setInteractionStore(interactionStore)
 
+      // VisualStateStore needs TableCoreStore for variable-height virtual scrolling
+      visualStateStore.setTableCoreStore(tableCoreStore)
+
       // TableCoreStore needs VisualStateStore for filters, sorting, grouping
       tableCoreStore.setVisualStateInputs(visualStateStore)
 

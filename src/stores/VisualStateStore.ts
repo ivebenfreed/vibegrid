@@ -122,9 +122,19 @@ export class VisualStateStore implements IStore {
   // ====================================
 
   private disposers = new DisposerManager()
+  private tableCoreStore: any = null // TableCoreStore reference for offset calculations
 
   constructor() {
     makeObservable(this)
+  }
+
+  /**
+   * Set table core store (dependency injection for variable-height virtual scrolling)
+   */
+  @action
+  setTableCoreStore(store: any): void {
+    this.tableCoreStore = store
+    log.info('TableCoreStore set on VisualStateStore')
   }
 
   /**
@@ -265,13 +275,30 @@ export class VisualStateStore implements IStore {
   }
 
   /**
-   * Visible row range based on scroll position
+   * Visible row range based on scroll position (variable-height aware)
    */
   @computed get visibleRowRange(): { start: number; end: number } {
+    // Use offset-based calculation for variable-height rows if available
+    if (this.tableCoreStore?.findRowAtScrollPosition) {
+      const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
+      const endRowIndex = Math.min(
+        this.rowCount - 1,
+        this.tableCoreStore.findRowAtScrollPosition(
+          this.scrollTop + Math.max(this.viewportHeight, 400)
+        ) + 1
+      )
+
+      return {
+        start: startRowIndex,
+        end: endRowIndex
+      }
+    }
+
+    // Fallback to constant-height calculation if TableCoreStore not set
     const startRowIndex = Math.floor(this.scrollTop / this.rowHeight)
     const endRowIndex = Math.min(
       this.rowCount,
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1 // +1 because slice() is exclusive of end
+      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
     )
 
     return {

@@ -939,39 +939,43 @@ export class SimplePassiveRenderer {
 //       }
 //     });
 
-    // VIRTUAL SCROLL OBSERVER: Watch ONLY scroll inputs to avoid layout observer cascade
+    // VIRTUAL SCROLL OBSERVER: Incremental updates with variable-height support
     this.virtualScrollObserverDisposer = reaction(
       () => this.visualStateStore.scrollTop,
       () => {
-      if (!this.observersEnabled) return;
+        if (!this.observersEnabled) return;
 
-      // Get current scroll position directly from MobX store
-      const newScrollTop = this.visualStateStore.scrollTop;
-      const rowHeight = this.visualStateStore.rowHeight;
-      const viewportHeight = this.visualStateStore.viewportHeight;
-      const rowCount = this.visualStateStore.rowCount;
+        const scrollTop = this.visualStateStore.scrollTop;
+        const viewportHeight = this.visualStateStore.viewportHeight;
+        const rowCount = this.visualStateStore.rowCount;
 
-      const startRowIndex = Math.floor(newScrollTop / rowHeight);
-      const endRowIndex = Math.min(rowCount, Math.ceil((newScrollTop + Math.max(viewportHeight, 400)) / rowHeight));
+        // Use offset-based row finding for variable-height rows
+        const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(scrollTop);
+        const endRowIndex = Math.min(
+          rowCount - 1,
+          this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) + 1
+        );
 
-      const currentRowRange = { start: startRowIndex, end: endRowIndex };
-      const previousRowRange = this.lastVisibleRows || { start: -1, end: -1 };
+        const currentRowRange = { start: startRowIndex, end: endRowIndex };
+        const previousRowRange = this.lastVisibleRows || { start: -1, end: -1 };
 
-      // Only proceed if row range actually changed
-      const rowRangeChanged = currentRowRange.start !== previousRowRange.start || currentRowRange.end !== previousRowRange.end;
+        // Only proceed if row range actually changed
+        const rowRangeChanged =
+          currentRowRange.start !== previousRowRange.start ||
+          currentRowRange.end !== previousRowRange.end;
 
-      if (rowRangeChanged) {
-        fileLog.debug('🚀 VIRTUAL SCROLL: Direct scroll-based update', {
-          newScrollTop,
-          currentRange: `${currentRowRange.start}-${currentRowRange.end}`,
-          previousRange: `${previousRowRange.start}-${previousRowRange.end}`,
-          timestamp: Date.now()
-        });
+        if (rowRangeChanged) {
+          fileLog.debug('🚀 VIRTUAL SCROLL: Variable-height incremental update', {
+            scrollTop,
+            currentRange: `${currentRowRange.start}-${currentRowRange.end}`,
+            previousRange: `${previousRowRange.start}-${previousRowRange.end}`
+          });
 
-        this.updateVirtualRows(previousRowRange, currentRowRange);
-        this.lastVisibleRows = currentRowRange;
+          this.updateVirtualRows(previousRowRange, currentRowRange);
+          this.lastVisibleRows = currentRowRange;
+        }
       }
-    });
+    );
 
     // HYDRATION OBSERVER: Re-render when grid becomes fully hydrated (for late-arriving data)
     reaction(
@@ -1406,6 +1410,22 @@ export class SimplePassiveRenderer {
   /**
    * Incremental virtual scrolling - only add/remove rows that changed
    */
+  /**
+   * Create appropriate row element based on row type (group vs data)
+   */
+  private createRowElementByType(
+    row: any,
+    rowIndex: number,
+    columns: any[],
+    columnVisibility: Record<string, boolean>,
+    baseOffset: number
+  ): HTMLElement {
+    if (row.type === 'group' && this.domFactory) {
+      return this.domFactory.createGroupHeaderElement(row, rowIndex);
+    }
+    return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset);
+  }
+
   private updateVirtualRows(
     previousRange: { start: number; end: number },
     currentRange: { start: number; end: number }
@@ -1434,7 +1454,7 @@ export class SimplePassiveRenderer {
       });
 
       for (let i = currentRange.start; i <= currentRange.end && i < rows.length; i++) {
-        const rowElement = this.bodyRenderer.createRowElement(rows[i], i, columns, columnVisibility, baseOffset);
+        const rowElement = this.createRowElementByType(rows[i], i, columns, columnVisibility, baseOffset);
         this.bodyContainer.appendChild(rowElement);
       }
       return;
@@ -1466,9 +1486,9 @@ export class SimplePassiveRenderer {
       // Insert new rows at the top in correct order
       const fragment = document.createDocumentFragment();
       for (let i = currentRange.start; i < previousRange.start && i < rows.length; i++) {
-        const rowElement = this.bodyRenderer.createRowElement(rows[i], i, columns, columnVisibility, baseOffset);
+        const rowElement = this.createRowElementByType(rows[i], i, columns, columnVisibility, baseOffset);
         fragment.appendChild(rowElement);
-        fileLog.debug('➕ ADDED row (top)', { rowIndex: i, rowId: rows[i]?.id });
+        fileLog.debug('➕ ADDED row (top)', { rowIndex: i, rowId: rows[i]?.id, rowType: rows[i]?.type });
       }
       // Insert at the beginning of the container
       this.bodyContainer.insertBefore(fragment, this.bodyContainer.firstChild);
@@ -1477,9 +1497,9 @@ export class SimplePassiveRenderer {
     if (currentRange.end > previousRange.end) {
       const fragment = document.createDocumentFragment();
       for (let i = previousRange.end + 1; i <= currentRange.end && i < rows.length; i++) {
-        const rowElement = this.bodyRenderer.createRowElement(rows[i], i, columns, columnVisibility, baseOffset);
+        const rowElement = this.createRowElementByType(rows[i], i, columns, columnVisibility, baseOffset);
         fragment.appendChild(rowElement);
-        fileLog.debug('➕ ADDED row (bottom)', { rowIndex: i, rowId: rows[i]?.id });
+        fileLog.debug('➕ ADDED row (bottom)', { rowIndex: i, rowId: rows[i]?.id, rowType: rows[i]?.type });
       }
       // Append to the end of the container
       this.bodyContainer.appendChild(fragment);
