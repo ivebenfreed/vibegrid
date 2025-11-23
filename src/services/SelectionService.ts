@@ -126,14 +126,18 @@ export class SelectionService {
    *
    * If all cells in row are selected, deselect them.
    * Otherwise, select all cells in row.
+   * 🔧 FIX: Only select visible columns (matches coordinator)
    */
   toggleRow(rowId: string): void {
-    const columns = this.visualStateStore.columns.filter(col => col.id !== 'selection')
+    // Use visible columns only - matches what coordinator knows about
+    const columns = this.visualStateStore.visibleOrderedColumns.filter(col => col.id !== 'selection')
     const cells = columns.map(col => `${rowId}:${col.id}`)
 
-    fileLog.debug('toggleRow', {
+    fileLog.debug('toggleRow (visible columns only)', {
       rowId,
-      cellCount: cells.length
+      cellCount: cells.length,
+      totalColumns: this.visualStateStore.columns.length,
+      visibleColumns: columns.length
     })
 
     runInAction(() => {
