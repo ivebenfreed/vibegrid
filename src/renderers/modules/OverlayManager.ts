@@ -725,64 +725,50 @@ export class OverlayManager {
   }
   
   /**
-   * Get visual cell positions from selected cells using hybrid coordinate system
+   * Get visual cell positions from selected cells using coordinate manager
+   * 🔧 KEY FIX: Use coordinator for positions, not DOM queries
    */
   private getVisualCellPositions(selectedCells: Set<string>): VisualCellPosition[] {
     const visualPositions: VisualCellPosition[] = [];
 
-    // PERFORMANCE FIX: Use cached viewport measurements instead of DOM reads
-    const cachedViewport = PositionEvents.getViewportCache();
-    const currentScrollLeft = cachedViewport.scrollLeft || 0;
-    const currentScrollTop = cachedViewport.scrollTop || 0;
-    const viewportWidth = cachedViewport.clientWidth || 0;
-    const columns = this.tableCoreStore.columns;
-
-    // Keep scrollContainer reference for diagnostic logging only
-    const scrollContainer = this.bodyContainer || this.container.querySelector('.vibegridx-body-container') as HTMLElement || this.container;
-
-    fileLog.debug('🎨 Getting visual cell positions', {
+    fileLog.info('🎨 Getting visual cell positions from coordinator', {
       selectedCount: selectedCells.size,
-      scrollLeft: currentScrollLeft,
-      scrollTop: currentScrollTop
+      coordinatorVersion: this.coordinateManager.getVersion()
     });
 
     selectedCells.forEach(cellId => {
-
       const [rowId, columnId] = cellId.split(':');
 
-      // GET COLUMN INFORMATION
-      const column = columns.find((c: any) => c.id === columnId);
-      const columnIndex = columns.findIndex((c: any) => c.id === columnId);
+      // 🔧 Use coordinator for cell position (single source of truth)
+      const coordPosition = this.coordinateManager.getCellPosition(rowId, columnId);
 
-      // Calculate expected column X position based on column widths
-      // NOTE: This is only used for debugging - actual position comes from getCellPosition()
-      let expectedColumnX = 0;
-      for (let i = 0; i < columnIndex; i++) {
-        const prevColumn = columns[i];
-        expectedColumnX += (prevColumn.width || 150); // Use column width or default
-      }
+      if (coordPosition) {
+        // Get column width from coordinator
+        const columnWidth = this.coordinateManager.getColumnWidth(columnId);
 
-      // CRITICAL FIX: Account for scroll position in expected calculation
-      const expectedColumnXScrollAdjusted = expectedColumnX - currentScrollLeft;
-
-      // Use the hybrid getCellPosition method
-      const position = this.getCellPosition(rowId, columnId);
-
-      if (position) {
         const visualPos: VisualCellPosition = {
           cellKey: cellId,
-          x: position.x,
-          y: position.y,
-          width: position.width,
-          height: position.height
+          x: coordPosition.x,
+          y: coordPosition.y,
+          width: columnWidth,
+          height: ROW_HEIGHT
         };
+
+        fileLog.debug('📍 Cell position from coordinator', {
+          cellId,
+          x: coordPosition.x,
+          y: coordPosition.y,
+          width: columnWidth,
+          coordinatorVersion: this.coordinateManager.getVersion()
+        });
+
         visualPositions.push(visualPos);
       } else {
-        fileLog.debug('Cell position not found', { cellId, rowId, columnId });
+        fileLog.warn('❌ Cell position not found in coordinator', { cellId, rowId, columnId });
       }
     });
 
-    fileLog.debug('Visual positions calculated', {
+    fileLog.info('✅ Visual positions from coordinator', {
       cellCount: selectedCells.size,
       positionsFound: visualPositions.length
     });
