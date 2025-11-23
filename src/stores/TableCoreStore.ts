@@ -649,9 +649,36 @@ export class TableCoreStore implements IStore {
     })
 
     // Get visual state (filters, sorting, grouping)
-    const sortBy = this.visualStateInputs?.sortBy || []
-    const filters = this.visualStateInputs?.filters || []
-    const groupConfig = this.visualStateInputs?.groupConfig || null
+    // CRITICAL: Use visualStateStore (not visualStateInputs) for reactive MobX properties
+    const sortBy = this.visualStateStore?.sortBy || []
+    const filters = this.visualStateStore?.filters || []
+    const groupConfig = this.visualStateStore?.groupConfig || null
+
+    log.info('🔍 [SORT-DEBUG] Reading sortBy from visualStateStore', {
+      hasVisualStateStore: !!this.visualStateStore,
+      sortByLength: sortBy.length,
+      sortByValue: JSON.stringify(sortBy),
+      visualStateStoreSortBy: this.visualStateStore?.sortBy,
+      visualStateStoreSortByLength: this.visualStateStore?.sortBy?.length
+    })
+
+    // DEBUG: Log first row's actual field values for sorting
+    if (rows.length > 0 && sortBy.length > 0) {
+      const firstRow = rows[0]
+      const sortField = sortBy[0].field
+      log.info('🔍 [SORT-DEBUG] First row field access', {
+        sortField,
+        hasDataProperty: !!firstRow.data,
+        directFieldValue: firstRow[sortField],
+        dataFieldValue: firstRow.data?.[sortField],
+        sampleKeys: Object.keys(firstRow).slice(0, 10),
+        rowStructure: {
+          id: firstRow.id,
+          title: firstRow.title,
+          name: firstRow.name
+        }
+      })
+    }
 
     // Apply filters and sorting first
     rows = applyFilters(rows, filters)

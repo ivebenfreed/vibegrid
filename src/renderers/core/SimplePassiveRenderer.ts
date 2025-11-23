@@ -478,19 +478,20 @@ export class SimplePassiveRenderer {
         // FULL RE-RENDER PATH
         // Triggered when structure changed (sort, filter, new/deleted rows)
 
-        // OPTIMIZATION: Check if there were ANY changes at all
-        // If change detection found 0 rows changed, skip re-render entirely
-        const changeStats = this.tableCoreStore.lastChangeStats;
+        // CRITICAL FIX: The processedRows computed already changed (that's why this reaction fired)
+        // This happens when:
+        // 1. Sort/filter/grouping changes (row ORDER changes but values don't)
+        // 2. Rows added/deleted (structure changes)
+        // 3. Cell values changed (already handled by granular path above)
+        //
+        // Don't skip render based on change stats alone - if MobX triggered this reaction,
+        // something in processedRows changed and we need to re-render!
 
-        if (changeStats.rowsChanged === 0 && changeStats.totalCellsChanged === 0) {
-          fileLog.debug('⏭️ SKIPPING: No changes detected', changeStats);
-          return; // Exit early - nothing changed!
-        }
-
-        fileLog.debug('🔄 Full table re-render (structural change)', {
+        fileLog.info('🔄 Full table re-render (processedRows changed)', {
           rowCount: processedRows.length,
-          reason: 'no_granular_changes_detected',
-          changeStats
+          sortBy: JSON.stringify(this.visualStateStore.sortBy),
+          filters: JSON.stringify(this.visualStateStore.filters),
+          reason: 'mobx_detected_processedRows_change'
         });
 
         this.renderBody();
