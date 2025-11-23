@@ -716,6 +716,7 @@ export class TableCoreStore implements IStore {
       sortBy: sortBy.map(s => ({ field: s.field, direction: s.direction })),
       filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
       groupFields: groupConfig?.fields?.map(f => f.field) || [],
+      expandedGroups: Array.from(groupConfig?.expandedGroups || []).sort(), // Include group expansion state
       flatRowOrder: this.flatRowOrder // Include manual row ordering
     })
 
