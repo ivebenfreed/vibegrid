@@ -523,26 +523,37 @@ export class VisualStateStore implements IStore {
   private updateCoordinatorWithCurrentLayout(): void {
     if (!this.coordinateManager) return
 
-    // Use columnLayouts which has:
-    // - Actual runtime widths from columnWidths
-    // - Only visible columns
-    // - Correct xOffsets
-    const layoutColumns = this.visibleColumns.map(layout => {
+    // Include system columns (drag handle + checkbox) so offsets match DOM
+    const DRAG_COLUMN_WIDTH = 30
+    const CHECKBOX_COLUMN_WIDTH = 40
+    const BASE_OFFSET = DRAG_COLUMN_WIDTH + CHECKBOX_COLUMN_WIDTH // 70px
+
+    const systemColumns = [
+      { id: '__drag', width: DRAG_COLUMN_WIDTH } as any,
+      { id: '__checkbox', width: CHECKBOX_COLUMN_WIDTH } as any
+    ]
+
+    // Use visibleColumns which has actual widths and only visible columns
+    const dataColumns = this.visibleColumns.map(layout => {
       const schemaColumn = this.columns.find(c => c.id === layout.id)
       return {
         ...schemaColumn!,
-        width: layout.width // Use actual width, not schema default
+        width: layout.width // Use actual width from columnWidths
       }
     })
 
+    // Coordinator gets system columns + visible data columns
+    const allColumns = [...systemColumns, ...dataColumns]
+
     log.info('🔧 Updating coordinator with current layout', {
-      visibleCount: layoutColumns.length,
-      totalCount: this.columns.length,
-      columnIds: layoutColumns.map(c => c.id),
-      widths: layoutColumns.map(c => c.width)
+      systemColumnsWidth: BASE_OFFSET,
+      visibleDataColumns: dataColumns.length,
+      totalColumns: allColumns.length,
+      columnIds: dataColumns.map(c => c.id),
+      widths: dataColumns.map(c => c.width)
     })
 
-    this.coordinateManager.updateColumns(layoutColumns)
+    this.coordinateManager.updateColumns(allColumns)
   }
 
   /**
