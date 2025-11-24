@@ -44,6 +44,8 @@ import type { VisualCellPosition } from '../../overlays/OverlayTypes';
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters';
 import { modularCellBridge } from '../../field-types';
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler';
+import { determineUpdateStrategy } from '../../utils/update-router';
+import { ChangeType } from '../../utils/change-classification';
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/core/SimplePassiveRenderer.ts');
 
@@ -152,7 +154,6 @@ export class SimplePassiveRenderer {
   private cellActionRouter: CellActionRouter | null = null;
   
   // Focused observers - replacing mega-observer pattern
-  private granularUpdateObserverDisposer: (() => void) | null = null; // Granular cell updates (before processedRows)
   private dataObserverDisposer: (() => void) | null = null;
   private visualObserverDisposer: (() => void) | null = null;
   private columnVisibilityObserverDisposer: (() => void) | null = null;
@@ -165,10 +166,18 @@ export class SimplePassiveRenderer {
   private pendingRAF: number | null = null; // Track pending RAF to prevent cascades
   private observersEnabled: boolean = false; // Prevent observers from running during initialization
 
+  // ✅ VERSION TRACKING: For granular update routing (Week 3)
+  private lastDataVersion: number = 0;
+  private lastConfigVersion: number = 0;
+  private lastStructureVersion: number = 0;
+
   // ✅ PERFORMANCE: Track last values to prevent unnecessary DOM updates
   private lastSelectedCount: number = 0;
   private lastSelectAllChecked: boolean | undefined = undefined;
   private lastSelectAllIndeterminate: boolean | undefined = undefined;
+
+  // GUARD 2: Track previous row structure to prevent spurious full rerenders
+  private previousRowStructure: { count: number; ids: string[] } | null = null;
   private domFactory: DOMElementFactory | null = null;
   private headerRenderer: HeaderRenderer | null = null;
   
@@ -408,130 +417,145 @@ export class SimplePassiveRenderer {
   private initFocusedObservers(): void {
     fileLog.info('🎯 Initializing focused observers');
 
-    // GRANULAR UPDATE OBSERVER: Runs BEFORE processedRows observer
-    // Observes hasGranularUpdates which doesn't trigger processedRows recomputation
-    fileLog.info('🎯 Creating granular update observer - MobX reaction on tableCoreStore.hasGranularUpdates');
-
-    this.granularUpdateObserverDisposer = reaction(
-      () => this.tableCoreStore.hasGranularUpdates,
-      (granularUpdate) => {
-        if (!granularUpdate || !this.observersEnabled) return;
-        if (this.initStore && !this.initStore.isFullyHydrated) return;
-
-        const { changedCells } = granularUpdate;
-
-        const totalCells = Array.from(changedCells.values())
-          .reduce((sum, cols) => sum + cols.size, 0);
-
-        fileLog.info('🎯 Granular cell update detected (dedicated observer)', {
-          rowsAffected: changedCells.size,
-          cellsChanged: totalCells,
-          method: 'cell-level',
-          willSkipFullRender: true
-        });
-
-        // Apply cell-level updates
-        if (this.bodyRenderer) {
-          this.bodyRenderer.updateCells(changedCells);
-        }
-
-        // Clear the changed cells map
-        runInAction(() => {
-          this.tableCoreStore.lastChangedCells.clear();
-          this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
-        });
-      }
-    );
-
-    // SORTED DATA OBSERVER: MobX reaction for processed rows changes
-    // TableCoreStore.processedRows is a computed that applies filtering, sorting, and grouping
-    // This will trigger whenever the computed sorted data changes (due to sorting, filtering, or raw data changes)
-    fileLog.info('🎯 Creating sorted data observer - MobX reaction on tableCoreStore.processedRows');
+    // ✅ WEEK 3: VERSION-BASED DATA OBSERVER
+    // React to version changes instead of processedRows to avoid unnecessary recomputation
+    // Versions increment in TableCoreStore.setRows() based on change classification
+    fileLog.info('🎯 Creating version-based data observer - tracking dataVersion/configVersion/structureVersion');
 
     this.dataObserverDisposer = reaction(
-      () => this.tableCoreStore.processedRows,
-      (processedRows) => {
-        fileLog.debug('🔍 DATA CHANGE DETECTED - MobX computed reaction', {
+      () => {
+        return {
+          dataVersion: this.tableCoreStore.dataVersion,
+          configVersion: this.tableCoreStore.configVersion,
+          structureVersion: this.tableCoreStore.structureVersion,
+          lastChangeMetadata: this.tableCoreStore.lastChangeMetadata
+        };
+      },
+      ({ dataVersion, configVersion, structureVersion, lastChangeMetadata }) => {
+        fileLog.debug('🔍 VERSION CHANGE DETECTED', {
           observersEnabled: this.observersEnabled,
-          rowCount: processedRows.length,
-          sortBy: this.visualStateStore.sortBy,
+          dataVersion,
+          configVersion,
+          structureVersion,
+          changeType: lastChangeMetadata?.type,
+          estimatedCells: lastChangeMetadata?.estimatedCellCount,
           timestamp: Date.now()
         });
 
         // GUARD: Skip if observers are not enabled yet
         if (!this.observersEnabled) {
-          fileLog.debug('⏸️ DATA: Observers not enabled yet');
+          fileLog.debug('⏸️ VERSION: Observers not enabled yet');
           return;
         }
 
         // GUARD: Only render if grid is fully initialized
         if (this.initStore && !this.initStore.isFullyHydrated) {
-          fileLog.debug('⏸️ DATA: Skipping render during initialization');
+          fileLog.debug('⏸️ VERSION: Skipping render during initialization');
           return;
         }
 
-        // ✨ NEW: Check for granular cell changes
-        const changedCells = this.tableCoreStore.lastChangedCells;
+        // GUARD: Skip if no version change (initial reaction)
+        if (
+          dataVersion === this.lastDataVersion &&
+          configVersion === this.lastConfigVersion &&
+          structureVersion === this.lastStructureVersion
+        ) {
+          fileLog.debug('⏭️ No version change detected, skipping');
+          return;
+        }
 
-        fileLog.debug('🔍 DATA OBSERVER: Checking for granular updates', {
-          hasChangedCells: !!changedCells,
-          changedCellsSize: changedCells?.size || 0,
-          hasBodyRenderer: !!this.bodyRenderer,
-          timestamp: Date.now()
+        // Update tracked versions
+        this.lastDataVersion = dataVersion;
+        this.lastConfigVersion = configVersion;
+        this.lastStructureVersion = structureVersion;
+
+        // Determine update strategy using the update router
+        const strategy = determineUpdateStrategy(lastChangeMetadata);
+
+        fileLog.info('🎯 Routing update based on strategy', {
+          strategy,
+          changeType: lastChangeMetadata?.type,
+          estimatedCells: lastChangeMetadata?.estimatedCellCount
         });
 
-        if (changedCells && changedCells.size > 0) {
-          // GRANULAR UPDATE PATH
+        // Route based on strategy
+        if (strategy === 'full-render') {
+          // FULL RE-RENDER PATH (structural/config changes or large updates)
+          // This will trigger processedRows recomputation via MobX
+
+          fileLog.info('🔄 Full render triggered', {
+            reason: lastChangeMetadata?.type || 'structural/config change',
+            dataVersion,
+            configVersion,
+            structureVersion
+          });
+
+          this.renderBody();
+          return;
+        }
+
+        // GRANULAR UPDATE PATHS (cell-level or row-level)
+        // These skip processedRows recomputation for performance
+
+        const changedCells = this.tableCoreStore.lastChangedCells;
+
+        if (!changedCells || changedCells.size === 0) {
+          fileLog.warn('⚠️ Granular update strategy but no changed cells found, falling back to full render');
+          this.renderBody();
+          return;
+        }
+
+        if (strategy === 'cell-level') {
+          // CELL-LEVEL UPDATE PATH (≤10 cells)
+          // Update individual cell innerHTML - fastest path
+
           const totalCells = Array.from(changedCells.values())
             .reduce((sum, cols) => sum + cols.size, 0);
 
-          fileLog.info('🎯 Granular cell update detected', {
+          fileLog.info('🎯 Cell-level update (fast path)', {
             rowsAffected: changedCells.size,
             cellsChanged: totalCells,
-            method: 'cell-level',
-            willSkipFullRender: true,
-            changedCellDetails: Array.from(changedCells.entries()).map(([rowId, cols]) => ({
-              rowId,
-              columns: Array.from(cols)
-            }))
+            skipProcessedRowsRecompute: true
           });
 
-          // Apply cell-level updates
           if (this.bodyRenderer) {
             this.bodyRenderer.updateCells(changedCells);
+
+            // Clear the changed cells map AND stats for next update
+            runInAction(() => {
+              this.tableCoreStore.lastChangedCells.clear();
+              this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
+            });
           } else {
-            fileLog.error('❌ BodyRenderer not available for granular update');
+            fileLog.error('❌ BodyRenderer not available for cell-level update');
           }
 
-          // Clear the changed cells map AND stats for next update
-          runInAction(() => {
-            this.tableCoreStore.lastChangedCells.clear();
-            this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
-          });
-
-          return; // ✅ Exit early - no full re-render needed!
+          return; // ✅ Exit early - no processedRows recomputation!
         }
 
-        // FULL RE-RENDER PATH
-        // Triggered when structure changed (sort, filter, new/deleted rows)
+        if (strategy === 'row-level') {
+          // ROW-LEVEL UPDATE PATH (≤50 cells)
+          // For MVP, treat same as cell-level (can optimize later to re-render rows)
 
-        // CRITICAL FIX: The processedRows computed already changed (that's why this reaction fired)
-        // This happens when:
-        // 1. Sort/filter/grouping changes (row ORDER changes but values don't)
-        // 2. Rows added/deleted (structure changes)
-        // 3. Cell values changed (already handled by granular path above)
-        //
-        // Don't skip render based on change stats alone - if MobX triggered this reaction,
-        // something in processedRows changed and we need to re-render!
+          fileLog.info('🎯 Row-level update (treating as cell-level for MVP)', {
+            rowsAffected: changedCells.size,
+            skipProcessedRowsRecompute: true
+          });
 
-        fileLog.info('🔄 Full table re-render (processedRows changed)', {
-          rowCount: processedRows.length,
-          sortBy: JSON.stringify(this.visualStateStore.sortBy),
-          filters: JSON.stringify(this.visualStateStore.filters),
-          reason: 'mobx_detected_processedRows_change'
-        });
+          if (this.bodyRenderer) {
+            this.bodyRenderer.updateCells(changedCells);
 
-        this.renderBody();
+            // Clear the changed cells map AND stats for next update
+            runInAction(() => {
+              this.tableCoreStore.lastChangedCells.clear();
+              this.tableCoreStore.lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 };
+            });
+          } else {
+            fileLog.error('❌ BodyRenderer not available for row-level update');
+          }
+
+          return; // ✅ Exit early - no processedRows recomputation!
+        }
       }
     );
 
@@ -1316,9 +1340,11 @@ export class SimplePassiveRenderer {
             });
 
             // NOW attach reactive observers AFTER initialization is complete
-            fileLog.info('🎯 Attaching focused observers after initialization complete');
-            this.initFocusedObservers();
-            fileLog.info('✅ Focused observers initialized successfully');
+            // REMOVED: Observers are now initialized in constructor (line 239)
+            // fileLog.info('🎯 Attaching focused observers after initialization complete');
+            // this.initFocusedObservers();
+            // fileLog.info('✅ Focused observers initialized successfully');
+            fileLog.info('✅ Observers already initialized in constructor');
 
             fileLog.debug('✅ Post-initialization complete');
           });
@@ -1412,7 +1438,6 @@ export class SimplePassiveRenderer {
    */
   /**
    * Create appropriate row element based on row type (group vs data)
-   * Matches renderBody() logic exactly for consistency
    */
   private createRowElementByType(
     row: any,
@@ -1421,8 +1446,8 @@ export class SimplePassiveRenderer {
     columnVisibility: Record<string, boolean>,
     baseOffset: number
   ): HTMLElement {
-    if (row.type === 'group') {
-      return this.bodyRenderer!.createGroupHeaderElement(row, rowIndex);
+    if (row.type === 'group' && this.domFactory) {
+      return this.domFactory.createGroupHeaderElement(row, rowIndex);
     }
     return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset);
   }
@@ -2230,10 +2255,6 @@ export class SimplePassiveRenderer {
     }
 
     // Clean up focused observers
-    if (this.granularUpdateObserverDisposer) {
-      this.granularUpdateObserverDisposer();
-      this.granularUpdateObserverDisposer = null;
-    }
     if (this.dataObserverDisposer) {
       this.dataObserverDisposer();
       this.dataObserverDisposer = null;

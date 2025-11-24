@@ -100,9 +100,6 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
       // TableCoreStore needs CoordinateManager for row position tracking
       tableCoreStore.setCoordinateManager(coordinateManager)
 
-      // CoordinateManager needs TableCoreStore's rowOffsets for variable-height positioning
-      coordinateManager.setRowOffsetsGetter(() => tableCoreStore.rowOffsets)
-
       // TableCoreStore needs InteractionStore for clearing selections
       tableCoreStore.setInteractionStore(interactionStore)
 
@@ -162,7 +159,6 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = (
         stores.persistenceStore.dispose()
         stores.initStore.dispose()
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []) // Run cleanup only on unmount
 
     // Show error state if initialization failed

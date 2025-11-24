@@ -68,12 +68,13 @@ export class EntityNameRenderer implements CellRenderer {
     }
 
     // Add underline only when hovering over the text element itself
-    textElement.addEventListener('mouseenter', () => {
-      textElement.style.textDecoration = 'underline'
-    })
-    textElement.addEventListener('mouseleave', () => {
-      textElement.style.textDecoration = 'none'
-    })
+    // NOTE: Replaced with CSS :hover for performance (allows innerHTML cell updates)
+    // textElement.addEventListener('mouseenter', () => {
+    //   textElement.style.textDecoration = 'underline'
+    // })
+    // textElement.addEventListener('mouseleave', () => {
+    //   textElement.style.textDecoration = 'none'
+    // })
 
     // Create pencil icon (hidden by default, shown on hover)
     const pencilIcon = document.createElement('span')
@@ -90,12 +91,13 @@ export class EntityNameRenderer implements CellRenderer {
     pencilIcon.dataset.editTrigger = 'true'
 
     // Show pencil icon on hover
-    container.addEventListener('mouseenter', () => {
-      pencilIcon.style.opacity = '0.6'
-    })
-    container.addEventListener('mouseleave', () => {
-      pencilIcon.style.opacity = '0'
-    })
+    // NOTE: Replaced with CSS :hover for performance (allows innerHTML cell updates)
+    // container.addEventListener('mouseenter', () => {
+    //   pencilIcon.style.opacity = '0.6'
+    // })
+    // container.addEventListener('mouseleave', () => {
+    //   pencilIcon.style.opacity = '0'
+    // })
 
     // ✅ NO stopPropagation - let event bubble up to MouseController
     // CellActionRouter will detect data-edit-trigger="true" and route to edit
@@ -110,15 +112,15 @@ export class EntityNameRenderer implements CellRenderer {
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     const textElement = element.querySelector('.vibegridx-entity-name-text') as HTMLSpanElement
     if (textElement) {
-      if (value == null || value === '') {
-        textElement.textContent = 'Untitled'
-        textElement.style.opacity = '0.5'
-        textElement.style.fontStyle = 'italic'
-      } else {
-        textElement.textContent = String(value)
-        textElement.style.opacity = '1'
-        textElement.style.fontStyle = 'normal'
-      }
+      // Force update by always setting textContent (no caching/diffing)
+      const newText = (value == null || value === '') ? 'Untitled' : String(value)
+      const newOpacity = (value == null || value === '') ? '0.5' : '1'
+      const newFontStyle = (value == null || value === '') ? 'italic' : 'normal'
+
+      // Always update, even if values appear the same
+      textElement.textContent = newText
+      textElement.style.opacity = newOpacity
+      textElement.style.fontStyle = newFontStyle
     }
   }
 

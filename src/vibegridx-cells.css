@@ -704,3 +704,34 @@ html.dark span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
 .dark .vibegridx-cell {
   border-right: 1px solid hsl(var(--border));
 }
+
+/* ====================================
+   ENTITY NAME FIELD HOVER EFFECTS (CSS)
+   ==================================== */
+
+/* Disable generic text editable hover for EntityName (uses custom hover effects) */
+.vibegridx-entity-name-text.vibegridx-text-editable:hover,
+html:not(.dark) .vibegridx-entity-name-text.vibegridx-text-editable:hover,
+html.dark .vibegridx-entity-name-text.vibegridx-text-editable:hover {
+  background-color: transparent !important;
+  padding: 2px 4px !important; /* Keep original padding */
+}
+
+/* Text underline on hover - replaces JavaScript addEventListener */
+.vibegridx-entity-name-text:hover {
+  text-decoration: underline !important;
+}
+
+/* Pencil icon visibility on container hover - replaces JavaScript addEventListener */
+.vibegridx-cell-entity-name:hover .vibegridx-entity-name-edit-icon {
+  opacity: 0.6 !important;
+}
+
+/* Subtle background on entire container hover for better feedback */
+.vibegridx-cell-entity-name:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.dark .vibegridx-cell-entity-name:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}

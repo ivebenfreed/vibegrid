@@ -309,7 +309,7 @@ export interface VirtualRow {
   data: TableRow | GroupNode; // The actual data
   level?: number; // Nesting level for groups
   isExpandable?: boolean; // Can be expanded/collapsed
-  isExpanded?: boolean; // Current expansion state for expandable rows
+  isExpanded?: boolean; // Current expansion state for groups
   parentGroupId?: string; // Parent group for data rows
   groupId?: string; // Group ID for drag-drop operations (same as parentGroupId for data rows)
 }

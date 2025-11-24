@@ -27,6 +27,8 @@ import { GroupProcessor } from '../processors/GroupProcessor'
 import { generateColumnsFromEntitySchema } from './column-generation'
 import type { VisualStateStore } from './VisualStateStore'
 import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/hashing'
+import { classifyChanges, ChangeType, type ChangeMetadata } from '../utils/change-classification'
 
 const log = createLogger('components/vibegrid/stores/TableCoreStore')
 
@@ -226,21 +228,13 @@ export class TableCoreStore implements IStore {
   // Track in-flight entity reference loads to avoid duplicate network calls
   private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
-  // Cache for processedRows to avoid unnecessary recomputation
-  private cachedProcessedRows: any[] | null = null
-  private lastConfigHash: string | null = null
-  private lastDataChangeCount: number = 0
-
-  // Granular update trigger (observed by renderer without triggering processedRows)
-  @observable private granularUpdateTrigger: number = 0
-
   // ====================================
   // CHANGE DETECTION (Cell-level updates)
   // ====================================
 
   // Previous snapshot of raw rows for change detection
-  // Maps rowId → row data snapshot
-  private previousRowsSnapshot: Map<string, any> = new Map()
+  // Maps rowId → row snapshot with per-column hashes
+  private previousRowsSnapshot: Map<string, RowSnapshot> = new Map()
 
   // Track last changed cells for granular updates
   // Maps rowId → Set of changed column IDs
@@ -249,20 +243,13 @@ export class TableCoreStore implements IStore {
   // Track last change detection stats for optimization
   @observable lastChangeStats = { rowsChanged: 0, totalCellsChanged: 0 }
 
-  /**
-   * Computed getter for granular updates (observable without triggering processedRows)
-   * Renderer observes this to handle cell-level updates
-   */
-  @computed
-  get hasGranularUpdates(): { trigger: number; changedCells: Map<string, Set<string>> } | null {
-    if (this.lastChangedCells.size > 0 && this.granularUpdateTrigger > 0) {
-      return {
-        trigger: this.granularUpdateTrigger,
-        changedCells: this.lastChangedCells
-      };
-    }
-    return null;
-  }
+  // Version tracking for change classification
+  @observable dataVersion: number = 0        // Increments on cell value changes
+  @observable configVersion: number = 0      // Increments on sort/filter/group changes
+  @observable structureVersion: number = 0   // Increments on add/remove/reorder rows
+
+  // Change metadata for renderer routing
+  @observable lastChangeMetadata: ChangeMetadata | null = null
 
   // ====================================
   // DEPENDENCIES (injected)
@@ -359,64 +346,67 @@ export class TableCoreStore implements IStore {
    */
   @action
   setRows(rows: any[]): void {
-    // Detect changes before updating (for granular cell updates)
+    // Step 1: Detect changes with loop-back protection
     const changedCells = this.detectChangedCells(rows)
 
-    // Store changed cells for renderer to consume
-    this.lastChangedCells = changedCells
+    // Step 2: Check structural changes
+    const newRowCount = rows.length
+    const prevRowCount = this.rawRows.length
+    const structuralChange = newRowCount !== prevRowCount ||
+      !rows.every((r, i) => r.id === this.rawRows[i]?.id)
 
-    // Track change count for cache invalidation
-    const totalChangedCells = Array.from(changedCells.values())
-      .reduce((sum, cols) => sum + cols.size, 0)
-    this.lastDataChangeCount = totalChangedCells
+    // Step 3: Check sorting sensitivity
+    const sortingSensitive = this.checkSortingFields(changedCells)
 
-    // Check if this is a granular update (cell values changed but structure intact)
-    // Structure = same rows in same order (no adds/deletes/reordering)
-    const isSameStructure = rows.length === this.rawRows.length &&
-                            rows.every((row, idx) => row.id === this.rawRows[idx]?.id);
+    // Step 4: Classify changes
+    const metadata = classifyChanges(changedCells, sortingSensitive, structuralChange)
 
-    const isGranularUpdate = totalChangedCells > 0 && isSameStructure;
-
-    if (isGranularUpdate && this.rawRows.length > 0) {
-      // GRANULAR UPDATE PATH: Update in-place without reassigning array
-      // This avoids triggering processedRows recomputation
-      changedCells.forEach((columnSet, rowId) => {
-        const existingRow = this.rawRows.find(r => r.id === rowId);
-        const newRow = rows.find(r => r.id === rowId);
-
-        if (existingRow && newRow) {
-          // Update only the changed columns in the existing row object
-          columnSet.forEach(columnId => {
-            existingRow[columnId] = newRow[columnId];
-          });
-        }
-      });
-
-      // Increment granular trigger to notify renderer
-      this.granularUpdateTrigger++;
-      this.hasLoadedRows = true;
-
-      log.info('🎯 Granular update applied (in-place)', {
-        entityType: this.entityType,
-        rowCount: rows.length,
-        rowsChanged: changedCells.size,
-        totalCellsChanged: totalChangedCells,
-        skippedProcessedRowsRecomputation: true
-      });
-    } else {
-      // FULL UPDATE PATH: Reassign array (triggers processedRows recomputation)
-      this.rawRows = rows;
-      this.hasLoadedRows = true;
-
-      log.debug('📊 Full update applied (array reassignment)', {
-        entityType: this.entityType,
-        rowCount: rows.length,
-        rowsChanged: changedCells.size,
-        totalCellsChanged: totalChangedCells,
-        isStructuralChange: rows.length !== this.rawRows.length || !isGranularUpdate
-      });
+    // Step 5: Route based on classification
+    if (metadata.type === ChangeType.NONE) {
+      log.debug('⏭️ Guard 1: No-op detected', {
+        reason: 'no_data_changes',
+        loopBackProtected: true
+      })
+      // Clear stale metadata
+      this.lastChangedCells.clear()
+      this.lastChangeMetadata = null
+      return  // EXIT - No version bumps, no rawRows assignment
     }
+
+    if (metadata.structuralChange) {
+      this.structureVersion++
+      this.rawRows = rows
+      this.hasLoadedRows = true
+      // Clear metadata (not applicable)
+      this.lastChangedCells.clear()
+      this.lastChangeMetadata = null
+      log.info('📊 Structural change', { structureVersion: this.structureVersion })
+      return
+    }
+
+    if (metadata.sortingSensitive) {
+      this.configVersion++
+      this.rawRows = rows
+      this.hasLoadedRows = true
+      // Clear metadata (will trigger full render)
+      this.lastChangedCells.clear()
+      this.lastChangeMetadata = null
+      log.info('🔄 Sorting-sensitive change', { configVersion: this.configVersion })
+      return
+    }
+
+    // Cell-only change
+    this.dataVersion++
+    this.rawRows = rows
+    this.hasLoadedRows = true
+    this.lastChangedCells = changedCells
+    this.lastChangeMetadata = metadata  // Keep for renderer
+    log.info('📝 Cell-only change', {
+      dataVersion: this.dataVersion,
+      cellsChanged: metadata.estimatedCellCount
+    })
   }
+
 
   /**
    * Increment config version to trigger renderer re-render
@@ -447,6 +437,40 @@ export class TableCoreStore implements IStore {
     })
   }
 
+  /**
+   * Initialize baseline snapshot when both schema and data are ready
+   * Called by VibeGrid after InitStore marks both dependencies as loaded
+   *
+   * CRITICAL: This must be called AFTER both columns and rows are loaded
+   * to ensure the baseline snapshot is created at the right time. Without
+   * this, the first edit will create the baseline (too late), causing
+   * detectChangedCells() to return empty and versions to not increment.
+   */
+  @action
+  initializeBaselineSnapshot(): void {
+    log.debug('🎯 [BASELINE] Initializing baseline snapshot', {
+      hasColumns: this.columns.length > 0,
+      hasRows: this.rawRows.length > 0,
+      previousSnapshotSize: this.previousRowsSnapshot.size
+    })
+
+    if (this.columns.length > 0 && this.rawRows.length > 0 && this.previousRowsSnapshot.size === 0) {
+      // Force baseline creation by calling setRows with current data
+      // This will trigger detectChangedCells which will create the baseline
+      const currentRows = this.rawRows.slice()
+      this.setRows(currentRows)
+      log.info('✅ [BASELINE] Baseline snapshot created', {
+        snapshotSize: this.previousRowsSnapshot.size
+      })
+    } else {
+      log.debug('⏭️ [BASELINE] Skipping - preconditions not met or baseline already exists', {
+        hasColumns: this.columns.length > 0,
+        hasRows: this.rawRows.length > 0,
+        hasSnapshot: this.previousRowsSnapshot.size > 0
+      })
+    }
+  }
+
   // ====================================
   // CHANGE DETECTION METHODS
   // ====================================
@@ -455,71 +479,84 @@ export class TableCoreStore implements IStore {
    * Detect changed cells between current and previous data
    * Returns: Map<rowId, Set<columnId>> of changed cells
    *
-   * This enables granular cell-level updates for:
+   * ENHANCED with per-column hashing and loop-back protection:
    * - Local optimistic updates (instant user feedback)
    * - Remote collaborative updates (other users' edits)
    * - Background sync reconciliation
+   * - Loop-back protection: Metadata-only changes treated as no-op
    */
   private detectChangedCells(newRows: any[]): Map<string, Set<string>> {
     const changedCells = new Map<string, Set<string>>()
 
-    // Build new snapshot
-    const newSnapshot = new Map(newRows.map(row => [row.id, row]))
+    log.debug('🔍 DEBUG: detectChangedCells START', {
+      newRowsCount: newRows.length,
+      prevSnapshotSize: this.previousRowsSnapshot.size,
+      columnsCount: this.columns.length
+    })
 
-    // Compare with previous snapshot
-    for (const [rowId, newRow] of newSnapshot.entries()) {
-      const oldRow = this.previousRowsSnapshot.get(rowId)
+    // Skip change detection if columns not loaded yet
+    // This prevents creating invalid snapshots with empty columnHashes
+    if (this.columns.length === 0) {
+      log.debug('⏭️ Skipping change detection - columns not loaded yet')
+      return changedCells
+    }
 
-      if (!oldRow) {
-        // New row - will be handled by full render, skip cell-level tracking
+    // Build new snapshot with per-column hashing
+    const newSnapshot = new Map(
+      newRows.map(row => [row.id, createRowSnapshot(row, this.columns)])
+    )
+
+    // Initialize baseline snapshot if empty (columns loaded but no previous snapshot)
+    if (this.previousRowsSnapshot.size === 0 && newSnapshot.size > 0) {
+      log.info('🔄 Creating initial baseline snapshot', {
+        rowCount: newSnapshot.size,
+        columnCount: this.columns.length
+      })
+      this.previousRowsSnapshot = newSnapshot
+      // Return empty changedCells - this is the baseline, nothing to compare yet
+      return changedCells
+    }
+
+    for (const [rowId, newSnap] of newSnapshot.entries()) {
+      const oldSnap = this.previousRowsSnapshot.get(rowId)
+
+      if (!oldSnap) {
+        // New row - handled by structural change detection
         continue
       }
 
-      // Compare cell by cell
+      // LOOP-BACK PROTECTION: Check data-only hash first
+      if (newSnap.dataHash === oldSnap.dataHash) {
+        // Only metadata changed (e.g., updatedAt from backend)
+        log.debug('🔄 Loop-back protection activated', {
+          rowId,
+          note: 'Only metadata changed - treating as no-op'
+        })
+        continue
+      }
+
+      // Data changed - find which columns
       const changedColumns = new Set<string>()
 
-      for (const column of this.columns) {
-        const columnId = column.id
-        const oldValue = oldRow[columnId]
-        const newValue = newRow[columnId]
+      for (const [columnId, newHash] of newSnap.columnHashes.entries()) {
+        // Skip metadata columns in change reporting
+        if (METADATA_COLUMNS.has(columnId)) {
+          continue
+        }
 
-        // Handle reference fields specially
-        if (column.fieldType?.type === 'user_reference') {
-          // For user references, compare the user ID (not the resolved user object)
-          if (oldValue !== newValue) {
-            changedColumns.add(columnId)
+        const oldHash = oldSnap.columnHashes.get(columnId)
+        if (newHash !== oldHash) {
+          changedColumns.add(columnId)
 
-            log.debug('🔍 User reference change detected', {
-              rowId,
+          // DEBUG: Log first 3 changes with actual values
+          if (changedColumns.size <= 3) {
+            const column = this.columns.find(c => c.id === columnId)
+            log.debug('🔍 DEBUG: Cell change detected', {
+              rowId: rowId.substring(0, 8),
               columnId,
-              oldUserId: oldValue,
-              newUserId: newValue
-            })
-          }
-        } else if (column.fieldType?.type === 'entity_reference') {
-          // For entity references, compare the entity ID
-          if (oldValue !== newValue) {
-            changedColumns.add(columnId)
-
-            log.debug('🔍 Entity reference change detected', {
-              rowId,
-              columnId,
-              oldRefId: oldValue,
-              newRefId: newValue,
-              targetEntity: column.fieldType.targetEntity
-            })
-          }
-        } else {
-          // Regular field - deep equality check for objects/arrays
-          if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
-            changedColumns.add(columnId)
-
-            log.debug('🔍 Cell change detected', {
-              rowId,
-              columnId,
-              oldValue,
-              newValue,
-              timestamp: newRow.updatedAt
+              fieldType: column?.fieldType?.type,
+              oldHash,
+              newHash
             })
           }
         }
@@ -532,6 +569,11 @@ export class TableCoreStore implements IStore {
 
     // Update snapshot for next comparison
     this.previousRowsSnapshot = newSnapshot
+
+    log.debug('🔍 DEBUG: Updated previousRowsSnapshot', {
+      snapshotSize: this.previousRowsSnapshot.size,
+      firstRowId: Array.from(this.previousRowsSnapshot.keys())[0]?.substring(0, 8)
+    })
 
     // Store stats for optimization checks
     const totalCellsChanged = Array.from(changedCells.values())
@@ -589,6 +631,7 @@ export class TableCoreStore implements IStore {
     return result
   }
 
+  @action
   private getOrCreateEntityReferenceMap(targetEntity: string): ObservableMap<string, any> {
     const key = (targetEntity || '').toLowerCase()
     let map = this.entityReferenceData.get(key)
@@ -717,35 +760,6 @@ export class TableCoreStore implements IStore {
       return []
     }
 
-    // Get visual state early for cache check
-    const sortBy = this.visualStateStore?.sortBy || []
-    const filters = this.visualStateStore?.filters || []
-    const groupConfig = this.visualStateStore?.groupConfig || null
-
-    // Create config hash for cache validation
-    // This ensures we recompute when sort/filter/group/ordering changes even if data doesn't
-    const configHash = JSON.stringify({
-      sortBy: sortBy.map(s => ({ field: s.field, direction: s.direction })),
-      filters: filters.map(f => ({ field: f.field, operator: f.operator, value: f.value })),
-      groupFields: groupConfig?.fields?.map(f => f.field) || [],
-      expandedGroups: Array.from(groupConfig?.expandedGroups || []).sort(), // Include group expansion state
-      flatRowOrder: this.flatRowOrder // Include manual row ordering
-    })
-
-    // Check cache: return cached result if BOTH data and config are unchanged
-    if (this.lastDataChangeCount === 0 &&
-        this.lastConfigHash === configHash &&
-        this.cachedProcessedRows !== null) {
-      log.info('🎯 Cache hit: No data/config changes, returning cached processedRows', {
-        cacheSize: this.cachedProcessedRows.length,
-        lastDataChangeCount: this.lastDataChangeCount
-      })
-      return this.cachedProcessedRows
-    }
-
-    // Update config hash for next run
-    this.lastConfigHash = configHash
-
     // Use raw rows if available (simplified Day 7 approach)
     let rows: any[]
     if (this.rawRows.length > 0) {
@@ -780,7 +794,12 @@ export class TableCoreStore implements IStore {
       recordCount: rows.length
     })
 
-    // Visual state already retrieved above for cache check (sortBy, filters, groupConfig)
+    // Get visual state (filters, sorting, grouping)
+    // CRITICAL: Use visualStateStore (not visualStateInputs) for reactive MobX properties
+    const sortBy = this.visualStateStore?.sortBy || []
+    const filters = this.visualStateStore?.filters || []
+    const groupConfig = this.visualStateStore?.groupConfig || null
+
     log.info('🔍 [SORT-DEBUG] Reading sortBy from visualStateStore', {
       hasVisualStateStore: !!this.visualStateStore,
       sortByLength: sortBy.length,
@@ -834,8 +853,6 @@ export class TableCoreStore implements IStore {
         hasSorting: sortBy.length > 0
       })
 
-      // Cache the result before returning
-      this.cachedProcessedRows = groupResult.virtualRows
       return groupResult.virtualRows
     }
 
@@ -871,8 +888,6 @@ export class TableCoreStore implements IStore {
       virtualRows: virtualRows.length
     })
 
-    // Cache the result before returning
-    this.cachedProcessedRows = virtualRows
     return virtualRows
   }
 
@@ -889,6 +904,56 @@ export class TableCoreStore implements IStore {
   @computed
   get sortedRows(): any[] {
     return this.processedRows
+  }
+
+  /**
+   * Get fields used in sorting
+   */
+  @computed
+  get sortFields(): Set<string> {
+    return new Set(this.visualStateStore?.sortBy?.map(s => s.field) || [])
+  }
+
+  /**
+   * Get fields used in filtering
+   */
+  @computed
+  get filterFields(): Set<string> {
+    return new Set(this.visualStateStore?.filters?.map(f => f.field) || [])
+  }
+
+  /**
+   * Get fields used in grouping
+   */
+  @computed
+  get groupFields(): Set<string> {
+    const config = this.visualStateStore?.groupConfig
+    return new Set(config?.fields?.map(f => f.field) || [])
+  }
+
+  /**
+   * Check if any changed column affects sorting/filtering/grouping
+   */
+  checkSortingFields(changedCells: Map<string, Set<string>>): boolean {
+    const sensitiveFields = new Set([
+      ...this.sortFields,
+      ...this.filterFields,
+      ...this.groupFields
+    ])
+
+    for (const columnIds of changedCells.values()) {
+      for (const columnId of columnIds) {
+        if (sensitiveFields.has(columnId)) {
+          log.info('🔄 Sorting-sensitive field changed', {
+            columnId,
+            requiresFullRecompute: true
+          })
+          return true
+        }
+      }
+    }
+
+    return false
   }
 
   /**
@@ -1466,6 +1531,12 @@ export class TableCoreStore implements IStore {
     // Clear change detection state
     this.previousRowsSnapshot.clear()
     this.lastChangedCells.clear()
+
+    // Reset version tracking
+    this.dataVersion = 0
+    this.configVersion = 0
+    this.structureVersion = 0
+    this.lastChangeMetadata = null
 
     log.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }

@@ -155,6 +155,24 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     }
   }, [rows, tableCoreStore, stores])
 
+  // Initialize baseline snapshot when both schema AND data are ready
+  // CRITICAL: This ensures baseline is created on initial load, not on first edit
+  // Without this, detectChangedCells() returns empty on first edit → versions don't increment → observer doesn't fire
+  useEffect(() => {
+    if (!stores || !stores.initStore || !tableCoreStore) return
+
+    const { schemaLoaded, entityDataLoaded } = stores.initStore.hydrationState
+
+    if (schemaLoaded && entityDataLoaded) {
+      log.info('[VGDEBUG] 🎯 Both schema and data loaded - initializing baseline snapshot', {
+        schemaLoaded,
+        entityDataLoaded,
+        columnCount: tableCoreStore.columns.length
+      })
+      tableCoreStore.initializeBaselineSnapshot()
+    }
+  }, [stores?.initStore.hydrationState.schemaLoaded, stores?.initStore.hydrationState.entityDataLoaded, tableCoreStore, stores])
+
   // Sync members data to store for UserReference fields
   useEffect(() => {
     if (!tableCoreStore) return

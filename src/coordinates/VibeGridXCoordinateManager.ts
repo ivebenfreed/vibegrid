@@ -80,8 +80,7 @@ export class VibeGridXCoordinateManager {
   private mapping: CoordinateMapping;
   private listeners = new Set<CoordinateChangeListener>();
   private version = 0;
-  private rowOffsetsGetter?: () => number[];
-
+  
   constructor() {
     this.mapping = {
       rows: [],
@@ -89,14 +88,6 @@ export class VibeGridXCoordinateManager {
       version: 0,
       sortBy: []
     };
-  }
-
-  /**
-   * Set row offsets getter for variable-height row positioning
-   * Required for accurate Y coordinate calculations with groups
-   */
-  setRowOffsetsGetter(getter: () => number[]): void {
-    this.rowOffsetsGetter = getter;
   }
   
   // ====================================
@@ -263,37 +254,29 @@ export class VibeGridXCoordinateManager {
   getCellPosition(rowId: string, columnId: string): { x: number; y: number; row: number; column: number } | null {
     const cellRef = { rowId, columnId };
     const position = this.cellRefToPosition(cellRef);
-
+    
     if (!position) {
       return null;
     }
-
+    
     // Get column offset
     const columnMapping = this.mapping.columns[position.columnIndex];
     if (!columnMapping) {
       return null;
     }
-
-    // Calculate y position using row offsets for variable-height rows
-    let y: number;
-    if (this.rowOffsetsGetter) {
-      const rowOffsets = this.rowOffsetsGetter();
-      y = rowOffsets[position.rowIndex] || 0;
-    } else {
-      // Fallback to fixed row height if offsets not available
-      const rowHeight = 40;
-      y = position.rowIndex * rowHeight;
-    }
-
+    
+    // Calculate y position (assuming fixed row height of 40px)
+    const rowHeight = 40;
+    const y = position.rowIndex * rowHeight;
+    
     fileLog.debug('getCellPosition: Row mapping check', {
       rowId,
       sortedIndex: position.rowIndex,
       calculatedY: y,
-      hasOffsets: !!this.rowOffsetsGetter,
       totalRows: this.mapping.rows.length,
       firstFewRows: this.mapping.rows.slice(0, 5).map(r => ({ id: r.rowId, index: r.sortedIndex }))
     });
-
+    
     return {
       x: columnMapping.offset,
       y: y,
@@ -312,6 +295,7 @@ export class VibeGridXCoordinateManager {
       return null;
     }
 
+    const rowHeight = 40; // TODO: Get from config
     const absoluteRowIndex = absolutePos.row;
     
     // Check if row is in visible range (with buffer)

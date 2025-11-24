@@ -235,12 +235,9 @@ export class BodyRenderer {
       rowElement.classList.add('vibegridx-row-alt');
     }
 
-    // Calculate correct Y position using accumulated offsets for variable-height rows
-    const yPosition = this.tableCoreStore.rowOffsets[rowIndex] ?? (rowIndex * ROW_HEIGHT);
-
     rowElement.style.cssText = `
       position: absolute;
-      top: ${yPosition}px;
+      top: ${rowIndex * ROW_HEIGHT}px;
       left: 0;
       right: 0;
       height: ${ROW_HEIGHT}px;
