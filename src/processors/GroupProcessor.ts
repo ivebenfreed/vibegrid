@@ -492,7 +492,8 @@ export class GroupProcessor {
         height: GROUP_ROW_HEIGHT,
         data: group,
         level: level,
-        isExpandable: true
+        isExpandable: true,
+        isExpanded: expandedGroups.has(group.id)
       });
       
       fileLog.debug('GroupProcessor: Processing group', {

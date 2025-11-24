@@ -55,7 +55,17 @@ export class DOMElementFactory {
     const groupData = groupRow.data;
     const level = groupRow.level || 0;
     const isExpanded = groupRow.isExpanded;
-    
+
+    // Debug logging for missing group data
+    if (!groupData) {
+      console.error('❌ Group row missing data!', {
+        rowIndex,
+        groupRowId: groupRow.id,
+        groupRowKeys: Object.keys(groupRow),
+        fullGroupRow: groupRow
+      });
+    }
+
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header');
     rowElement.dataset.rowId = groupRow.id;
     rowElement.dataset.groupId = groupRow.id;
