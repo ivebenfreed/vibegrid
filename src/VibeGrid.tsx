@@ -408,7 +408,6 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           className="vibegrid-pure-renderer h-full w-full"
           data-testid={`vibegrid-pure-renderer-${tableId}`}
           data-vibegrid-container="true"
-          tabIndex={0}
           style={{
             width: '100%',
             height: '100%',

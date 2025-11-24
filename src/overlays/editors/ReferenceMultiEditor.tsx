@@ -73,7 +73,6 @@ export function ReferenceMultiEditor({
   return (
     <div
       ref={containerRef}
-      tabIndex={0}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
       className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white max-h-32 overflow-y-auto"

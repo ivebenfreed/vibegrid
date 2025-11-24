@@ -270,7 +270,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {formatButtons.map((button) => (
               <button
-            type="button"
+                type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
@@ -297,7 +297,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {listButtons.map((button) => (
               <button
-            type="button"
+                type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="px-2 py-1.5 border border-border rounded bg-background text-foreground cursor-pointer text-xs hover:bg-accent"
@@ -314,7 +314,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {alignButtons.map((button) => (
               <button
-            type="button"
+                type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
