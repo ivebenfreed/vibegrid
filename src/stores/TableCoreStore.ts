@@ -419,6 +419,18 @@ export class TableCoreStore implements IStore {
   }
 
   /**
+   * Increment config version to trigger renderer re-render
+   * Called when visual configuration changes (grouping, sorting, filtering)
+   */
+  @action
+  incrementConfigVersion(): void {
+    this.configVersion++
+    log.info('📋 Config version incremented (external trigger)', {
+      configVersion: this.configVersion
+    })
+  }
+
+  /**
    * Set members data for UserReference fields
    * Called from React hook with useLiveQuery results
    */

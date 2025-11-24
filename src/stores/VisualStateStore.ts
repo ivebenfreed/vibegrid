@@ -560,30 +560,29 @@ export class VisualStateStore implements IStore {
 
   /**
    * Update coordinator with current column layout
-   * 🔧 KEY FIX: Send ALL columns with actual widths (0 for hidden)
+   * 🔧 KEY FIX: Send ONLY VISIBLE columns to coordinator
+   * Hidden columns should not exist in the coordinate system at all
    */
   private updateCoordinatorWithCurrentLayout(): void {
     if (!this.coordinateManager) return
 
     const BASE_OFFSET = 70 // 30px drag + 40px checkbox
 
-    // Send ALL columns in order with actual widths
-    // Hidden columns get width:0 (exist in coordinator but take no space)
-    const layoutColumns = this.orderedColumns.map(col => {
-      const isVisible = this.columnVisibility[col.id] !== false
-      const actualWidth = isVisible ? this.getColumnWidth(col.id) : 0
-
-      return {
+    // 🔧 CRITICAL: Only send VISIBLE columns to coordinator
+    // Hidden columns should not exist in coordinate mapping
+    // This ensures column indices match what's rendered in the DOM
+    const layoutColumns = this.orderedColumns
+      .filter(col => this.columnVisibility[col.id] !== false)
+      .map(col => ({
         ...col,
-        width: actualWidth
-      }
-    })
+        width: this.getColumnWidth(col.id)
+      }))
 
-    log.info('🔧 Updating coordinator with current layout', {
+    log.info('🔧 Updating coordinator with VISIBLE columns only', {
       baseOffset: BASE_OFFSET,
-      totalColumns: layoutColumns.length,
-      visibleColumns: layoutColumns.filter(c => c.width > 0).length,
-      hiddenColumns: layoutColumns.filter(c => c.width === 0).length,
+      totalColumns: this.orderedColumns.length,
+      visibleColumns: layoutColumns.length,
+      hiddenColumns: this.orderedColumns.length - layoutColumns.length,
       columnIds: layoutColumns.map(c => c.id),
       widths: layoutColumns.map(c => c.width)
     })
@@ -779,6 +778,14 @@ export class VisualStateStore implements IStore {
     this.clearSelections()
 
     this.groupConfig = config
+
+    // 🔧 FIX: Notify TableCoreStore that config changed so it can increment configVersion
+    // This triggers the renderer to re-render with grouped data
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      log.info('✅ Notified TableCoreStore of grouping change')
+    }
+
     log.info('Group config updated (selection cleared)', { config })
   }
 
@@ -824,6 +831,13 @@ export class VisualStateStore implements IStore {
       ...this.groupConfig,
       expandedGroups
     }
+
+    // 🔧 FIX: Notify TableCoreStore that config changed so it can increment configVersion
+    // This triggers the renderer to re-render with updated group expansion state
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      log.info('✅ Notified TableCoreStore of group expansion change')
+    }
   }
 
   /**
@@ -836,6 +850,12 @@ export class VisualStateStore implements IStore {
     this.groupConfig = {
       ...this.groupConfig,
       expandedGroups: allGroupIds
+    }
+
+    // 🔧 FIX: Notify TableCoreStore to trigger re-render
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      log.info('✅ Notified TableCoreStore of expand all')
     }
 
     log.info('All groups expanded', { count: allGroupIds.size })
@@ -851,6 +871,12 @@ export class VisualStateStore implements IStore {
     this.groupConfig = {
       ...this.groupConfig,
       expandedGroups: new Set()
+    }
+
+    // 🔧 FIX: Notify TableCoreStore to trigger re-render
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      log.info('✅ Notified TableCoreStore of collapse all')
     }
 
     log.info('All groups collapsed')
