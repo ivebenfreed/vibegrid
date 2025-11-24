@@ -282,7 +282,7 @@ export class VisualStateStore implements IStore {
     if (this.tableCoreStore?.findRowAtScrollPosition) {
       const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
       const endRowIndex = Math.min(
-        this.rowCount - 1,
+        this.rowCount, // slice() is exclusive, so end should be rowCount not rowCount-1
         this.tableCoreStore.findRowAtScrollPosition(
           this.scrollTop + Math.max(this.viewportHeight, 400)
         ) + 1
