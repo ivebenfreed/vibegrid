@@ -1454,7 +1454,7 @@ export class SimplePassiveRenderer {
         count: currentRange.end - currentRange.start + 1
       });
 
-      for (let i = currentRange.start; i <= currentRange.end && i < rows.length; i++) {
+      for (let i = currentRange.start; i < currentRange.end && i < rows.length; i++) {
         const rowElement = this.createRowElementByType(rows[i], i, columns, columnVisibility, baseOffset);
         this.bodyContainer.appendChild(rowElement);
       }
@@ -1473,7 +1473,7 @@ export class SimplePassiveRenderer {
     }
 
     if (currentRange.end < previousRange.end) {
-      for (let i = currentRange.end + 1; i <= previousRange.end && i < rows.length; i++) {
+      for (let i = currentRange.end; i < previousRange.end && i < rows.length; i++) {
         const rowElement = this.bodyContainer.querySelector(`[data-row-id="${rows[i]?.id}"]`);
         if (rowElement) {
           this.bodyContainer.removeChild(rowElement);
@@ -1497,7 +1497,7 @@ export class SimplePassiveRenderer {
 
     if (currentRange.end > previousRange.end) {
       const fragment = document.createDocumentFragment();
-      for (let i = previousRange.end + 1; i <= currentRange.end && i < rows.length; i++) {
+      for (let i = previousRange.end; i < currentRange.end && i < rows.length; i++) {
         const rowElement = this.createRowElementByType(rows[i], i, columns, columnVisibility, baseOffset);
         fragment.appendChild(rowElement);
         fileLog.debug('➕ ADDED row (bottom)', { rowIndex: i, rowId: rows[i]?.id, rowType: rows[i]?.type });
