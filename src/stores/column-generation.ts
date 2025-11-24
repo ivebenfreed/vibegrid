@@ -228,9 +228,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       const options = safeFieldDef.editor?.options || []
 
       // 🚀 PERFORMANCE: Pre-compute field type and formatter ONCE during column generation
-      let fieldTypeInstance
-      let formatter
-      let editor
+      let fieldTypeInstance: any
+      let formatter: any
+      let editor: any
 
       try {
         // Create mock enhanced column for field type resolution

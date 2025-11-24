@@ -8,13 +8,12 @@
  */
 
 import { createLogger } from '@/shared/lib/logging'
-import { GRID_DIMENSIONS, GridCalculations } from '../constants/grid-dimensions'
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type {
   CellCoordinates,
   ColumnLayout,
   RowLayout,
   VirtualBounds,
-  VirtualRange,
   VirtualViewport,
 } from '../types/coordinate-types'
 import { CoordinateUtils } from '../types/coordinate-types'
