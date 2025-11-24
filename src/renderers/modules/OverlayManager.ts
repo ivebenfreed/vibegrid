@@ -168,6 +168,9 @@ export class OverlayManager {
         }
       }
     );
+
+    // Pass getProcessedRows to canvas overlay for group boundary constraints
+    this.canvasOverlay.setProcessedRowsGetter(this.getProcessedRows);
     
     // Canvas overlay will be initialized in initializeOverlay() method
     // after DOM is ready

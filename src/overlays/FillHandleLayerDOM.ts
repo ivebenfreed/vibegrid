@@ -18,6 +18,7 @@ export interface FillHandleCallbacks {
   onFillComplete: (fillCells: Set<string>) => void;
   onFillCancel: () => void;
   getSelectedCells: () => Set<string>;
+  getProcessedRows?: () => any[]; // Get rows with group information
 }
 
 export class FillHandleLayerDOM {
@@ -407,7 +408,30 @@ export class FillHandleLayerDOM {
 
     // Fill from selection boundary to target row (inclusive)
     const startRow = fillDown ? bounds.maxRowIndex + 1 : targetRowIndex;
-    const endRow = fillDown ? targetRowIndex : bounds.minRowIndex - 1;
+    let endRow = fillDown ? targetRowIndex : bounds.minRowIndex - 1;
+
+    // Constrain fill to group boundaries if group data is available
+    if (this.callbacks.getProcessedRows) {
+      const processedRows = this.callbacks.getProcessedRows();
+      const boundaryRow = fillDown ? bounds.maxRowIndex : bounds.minRowIndex;
+      const boundaryRowData = processedRows[boundaryRow];
+
+      // Check if the boundary row is a data row with group information
+      if (boundaryRowData && 'parentGroupId' in boundaryRowData && boundaryRowData.type === 'data') {
+        const startGroupId = boundaryRowData.parentGroupId;
+
+        // Find the last row in the same group when filling down/up
+        for (let rowIdx = startRow; fillDown ? rowIdx <= endRow : rowIdx >= endRow; fillDown ? rowIdx++ : rowIdx--) {
+          const currentRow = processedRows[rowIdx];
+
+          // Stop if we hit a different group or a non-data row
+          if (currentRow && (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId)) {
+            endRow = fillDown ? rowIdx - 1 : rowIdx + 1;
+            break;
+          }
+        }
+      }
+    }
 
     for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
       if (rowIdx >= 0 && rowIdx < this.coordinateMapping!.rows.length) {

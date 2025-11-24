@@ -616,9 +616,32 @@ export class InteractionStore implements IStore {
 
     // Ensure proper ordering
     const minRowIndex = Math.min(startRowIndex, endRowIndex)
-    const maxRowIndex = Math.max(startRowIndex, endRowIndex)
+    let maxRowIndex = Math.max(startRowIndex, endRowIndex)
     const minColIndex = Math.min(startColIndex, endColIndex)
     const maxColIndex = Math.max(startColIndex, endColIndex)
+
+    // Constrain selection to group boundaries
+    // Check if rows have group information (VirtualRow with parentGroupId)
+    const startRow = rows[minRowIndex]
+    if (startRow && 'parentGroupId' in startRow && startRow.type === 'data') {
+      const startGroupId = startRow.parentGroupId
+
+      // Find the last row in the same group
+      for (let rowIndex = minRowIndex + 1; rowIndex <= maxRowIndex; rowIndex++) {
+        const currentRow = rows[rowIndex]
+
+        // Stop if we hit a different group or a group header
+        if (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId) {
+          maxRowIndex = rowIndex - 1
+          log.info('Selection constrained to group boundary', {
+            originalMaxRow: Math.max(startRowIndex, endRowIndex),
+            constrainedMaxRow: maxRowIndex,
+            groupId: startGroupId
+          })
+          break
+        }
+      }
+    }
 
     // Select all cells in the range
     const newSelection = new Set<string>()

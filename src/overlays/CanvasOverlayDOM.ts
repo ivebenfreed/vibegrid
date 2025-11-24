@@ -36,7 +36,8 @@ export class CanvasOverlayDOM {
   private overlayContainer: HTMLDivElement | null = null;
   private config: OverlayConfig;
   private eventCallback: CanvasEventCallback | null = null;
-  
+  private getProcessedRows: (() => any[]) | null = null;
+
   // DOM Overlay instances (lazily created)
   private selectionOverlay: SelectionOverlayDOM | null = null;
   private fillHandleLayer: FillHandleLayerDOM | null = null;
@@ -46,7 +47,7 @@ export class CanvasOverlayDOM {
   private columnResizeOverlay: ColumnResizeOverlayDOM | null = null;
   // EditingOverlay handled separately as React portal
   // SelectionColumn handled by DOM checkboxes in renderer
-  
+
   // State tracking
   private currentViewport: ViewportInfo | null = null;
   private coordinateMapping: CoordinateMapping | null = null;
@@ -59,7 +60,14 @@ export class CanvasOverlayDOM {
     this.eventCallback = eventCallback || null;
     fileLog.debug('CanvasOverlayDOM: Created with config', config);
   }
-  
+
+  /**
+   * Set the function to get processed rows (needed for group boundary constraints)
+   */
+  setProcessedRowsGetter(getter: () => any[]): void {
+    this.getProcessedRows = getter;
+  }
+
   /**
    * Check if overlay has been initialized
    */
@@ -312,7 +320,8 @@ export class CanvasOverlayDOM {
           },
           getSelectedCells: () => {
             return this.currentSelectedCells;
-          }
+          },
+          getProcessedRows: this.getProcessedRows ? () => this.getProcessedRows!() : undefined
         }
       );
       
