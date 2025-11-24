@@ -1412,6 +1412,7 @@ export class SimplePassiveRenderer {
    */
   /**
    * Create appropriate row element based on row type (group vs data)
+   * Matches renderBody() logic exactly for consistency
    */
   private createRowElementByType(
     row: any,
@@ -1420,8 +1421,8 @@ export class SimplePassiveRenderer {
     columnVisibility: Record<string, boolean>,
     baseOffset: number
   ): HTMLElement {
-    if (row.type === 'group' && this.domFactory) {
-      return this.domFactory.createGroupHeaderElement(row, rowIndex);
+    if (row.type === 'group') {
+      return this.bodyRenderer!.createGroupHeaderElement(row, rowIndex);
     }
     return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset);
   }
