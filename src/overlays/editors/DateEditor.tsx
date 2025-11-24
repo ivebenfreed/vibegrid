@@ -172,7 +172,12 @@ export function DateEditor({
             </div>
             <div className="space-y-4">
               <div>
-                <label htmlFor="time-input" className="text-xs font-medium text-muted-foreground block mb-2">Time</label>
+                <label
+                  htmlFor="time-input"
+                  className="text-xs font-medium text-muted-foreground block mb-2"
+                >
+                  Time
+                </label>
                 <Input
                   id="time-input"
                   type="time"
