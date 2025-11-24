@@ -113,8 +113,8 @@ export class BodyRenderer {
 
     // Check if modular cell system is already available globally (from init manager)
     // This allows synchronous access if it's already initialized
-    if (typeof window !== 'undefined' && window.vibegridCellBridge) {
-      this.modularCellBridge = window.vibegridCellBridge;
+    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
+      this.modularCellBridge = (window as any).vibegridCellBridge;
       fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already available from init manager');
     } else {
       // Initialize modular cell system asynchronously as fallback
@@ -144,8 +144,8 @@ export class BodyRenderer {
    */
   private async initializeModularCellSystem(): Promise<void> {
     // First check if it's already available globally (from init manager)
-    if (typeof window !== 'undefined' && window.vibegridCellBridge) {
-      this.modularCellBridge = window.vibegridCellBridge;
+    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
+      this.modularCellBridge = (window as any).vibegridCellBridge;
       fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already initialized (from init manager)', {
         supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
         basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
