@@ -323,7 +323,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                 // Render grouped options
                 return sortedGroups.map((groupName) => (
                   <CommandGroup key={groupName} heading={groupName}>
-                    {grouped[groupName].map((option, groupIndex) => {
+                    {grouped[groupName].map((option: any, groupIndex: any) => {
                       const globalIndex = filteredOptions.findIndex((o) => o.value === option.value)
                       return (
                         <CommandItem
