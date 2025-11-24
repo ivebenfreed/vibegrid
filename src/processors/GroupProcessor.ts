@@ -171,7 +171,7 @@ export class GroupProcessor {
       }
 
       // Handle different data structures - try both row.data and direct row access
-      let value
+      let value: any
       if (row && (row as any).data) {
         // Structured format: row.data.fieldName
         value = (row as any).data[fieldName]
@@ -200,7 +200,7 @@ export class GroupProcessor {
 
       // For empty groups, derive the value from the groupKey
       // For non-empty groups, get value from the first row
-      let value
+      let value: any
       if (groupRows.length === 0) {
         // Empty group - derive value from groupKey
         // The groupKey is created by getGroupKey() which normalizes the value
@@ -285,7 +285,7 @@ export class GroupProcessor {
 
       remainingRows.forEach((row) => {
         // Handle different data structures - try both row.data and direct row access
-        let value
+        let value: any
         if (row && row.data) {
           // Structured format: row.data.fieldName
           value = row.data[fieldName]
@@ -316,7 +316,7 @@ export class GroupProcessor {
         const firstRow = groupRows[0]
 
         // Handle different data structures - try both row.data and direct row access
-        let value
+        let value: any
         if (firstRow && firstRow.data) {
           // Structured format: row.data.fieldName
           value = firstRow.data[fieldName]

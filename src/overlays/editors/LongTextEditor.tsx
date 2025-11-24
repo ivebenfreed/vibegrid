@@ -168,6 +168,7 @@ export function LongTextEditor({
             </p>
           </div>
           <button
+            type="button"
             onClick={handleCancel}
             className="bg-transparent border-none text-lg cursor-pointer p-1 text-muted-foreground hover:text-foreground"
             title="Close (Esc)"
@@ -209,12 +210,14 @@ export function LongTextEditor({
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border flex justify-end gap-3 bg-muted">
           <button
+            type="button"
             onClick={handleCancel}
             className="px-4 py-2 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={isOverLimit}
             className={cn(

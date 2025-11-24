@@ -95,7 +95,7 @@ export function MultiSelectEditor({
     <div className="w-full p-4 border rounded bg-yellow-50">
       <p className="text-sm text-yellow-800">Multi-select editor not yet implemented</p>
       <p className="text-xs text-yellow-600 mt-2">Current value: {initialValues.join(', ')}</p>
-      <button className="mt-2 px-2 py-1 text-xs bg-gray-200 rounded" onClick={() => onCancel()}>
+      <button type="button" className="mt-2 px-2 py-1 text-xs bg-gray-200 rounded" onClick={() => onCancel()}>
         Close
       </button>
     </div>

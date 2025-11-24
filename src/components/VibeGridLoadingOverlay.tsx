@@ -56,6 +56,7 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
           <AlertTriangle className="w-4 h-4 text-red-500" />
           <span className="text-sm text-red-600">Loading failed</span>
           <button
+            type="button"
             onClick={() => initStore.reset()}
             className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
           >

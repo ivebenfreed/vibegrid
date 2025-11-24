@@ -132,7 +132,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
 
     // Convert to standard format and apply hardcoded styling
     const standardOptions = rawOptions.map((option) => {
-      let optionData
+      let optionData: any
       if (typeof option === 'string') {
         optionData = { value: option, label: option }
       } else {
@@ -398,6 +398,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
             <span>{selectedValues.length} selected</span>
             <div className="flex gap-2">
               <button
+              type="button"
                 className="px-2 py-1 text-xs rounded hover:bg-accent"
                 onClick={(e) => {
                   e.preventDefault()
@@ -408,6 +409,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                 Cancel (Esc)
               </button>
               <button
+              type="button"
                 className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={(e) => {
                   e.preventDefault()

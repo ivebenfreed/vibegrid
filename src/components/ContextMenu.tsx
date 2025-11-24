@@ -191,6 +191,7 @@ function ContextMenuContent({
   // Copy/Paste actions (always available)
   menuItems.push(
     <button
+      type="button"
       key="copy"
       className="context-menu-item"
       onClick={() => {
@@ -206,6 +207,7 @@ function ContextMenuContent({
 
   menuItems.push(
     <button
+      type="button"
       key="paste"
       className="context-menu-item"
       onClick={() => {
@@ -223,6 +225,7 @@ function ContextMenuContent({
   if (context.type === 'cell' && onCut) {
     menuItems.push(
       <button
+      type="button"
         key="cut"
         className="context-menu-item"
         onClick={() => {
@@ -247,6 +250,7 @@ function ContextMenuContent({
     if (onInsertRow) {
       menuItems.push(
         <button
+      type="button"
           key="insert-row"
           className="context-menu-item"
           onClick={() => {
@@ -263,6 +267,7 @@ function ContextMenuContent({
     if (onDeleteRow) {
       menuItems.push(
         <button
+      type="button"
           key="delete-row"
           className="context-menu-item context-menu-item-danger"
           onClick={() => {
@@ -279,6 +284,7 @@ function ContextMenuContent({
     if (onInsertColumn) {
       menuItems.push(
         <button
+      type="button"
           key="insert-column"
           className="context-menu-item"
           onClick={() => {
@@ -295,6 +301,7 @@ function ContextMenuContent({
     if (onDeleteColumn) {
       menuItems.push(
         <button
+      type="button"
           key="delete-column"
           className="context-menu-item context-menu-item-danger"
           onClick={() => {

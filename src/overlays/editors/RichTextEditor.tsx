@@ -255,6 +255,7 @@ export function RichTextEditor({
             </p>
           </div>
           <button
+            type="button"
             onClick={handleCancel}
             className="bg-transparent border-none text-lg cursor-pointer p-1 text-muted-foreground hover:text-foreground"
             title="Close (Esc)"
@@ -269,6 +270,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {formatButtons.map((button) => (
               <button
+            type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
@@ -295,6 +297,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {listButtons.map((button) => (
               <button
+            type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="px-2 py-1.5 border border-border rounded bg-background text-foreground cursor-pointer text-xs hover:bg-accent"
@@ -311,6 +314,7 @@ export function RichTextEditor({
           <div className="flex gap-1">
             {alignButtons.map((button) => (
               <button
+            type="button"
                 key={button.command}
                 onClick={() => executeCommand(button.command)}
                 className="w-8 h-8 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
@@ -325,6 +329,7 @@ export function RichTextEditor({
 
           {/* Clear formatting */}
           <button
+            type="button"
             onClick={() => executeCommand('removeFormat')}
             className="px-3 py-1.5 border border-border rounded bg-background text-foreground cursor-pointer text-xs hover:bg-accent"
             title="Clear formatting"
@@ -368,12 +373,14 @@ export function RichTextEditor({
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border flex justify-end gap-3 bg-muted">
           <button
+            type="button"
             onClick={handleCancel}
             className="px-4 py-2 border border-border rounded bg-background text-foreground cursor-pointer text-sm hover:bg-accent"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={isOverLimit}
             className={cn(
