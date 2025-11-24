@@ -1,16 +1,20 @@
-import type { Column } from '../../types';
-import { 
-  text, 
-  number, 
-  date, 
-  boolean, 
+import { log } from '@/logger'
+import type { Column } from '../../types'
+import {
+  boolean,
+  date,
   enumValue,
-  relationshipSingle,
+  number,
   relationshipMulti,
-} from '../cell-renderers';
-import { relationshipMultiBadge, relationshipMultiBadgeString } from '../cell-renderers/relationship/multi-badge';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/renderers/engines/CellPipeline.ts');
+  relationshipSingle,
+  text,
+} from '../cell-renderers'
+import {
+  relationshipMultiBadge,
+  relationshipMultiBadgeString,
+} from '../cell-renderers/relationship/multi-badge'
+
+const fileLog = log('components/custom/vibegrid/renderers/engines/CellPipeline.ts')
 
 // ====================================
 // CELL RENDERING PIPELINE
@@ -22,7 +26,10 @@ const fileLog = log('components/custom/vibegrid/renderers/engines/CellPipeline.t
  */
 export class CellPipeline {
   // Map of renderers for quick lookup
-  private static readonly renderers: Record<string, (value: any, column: Column, relationshipData?: any) => string> = {
+  private static readonly renderers: Record<
+    string,
+    (value: any, column: Column, relationshipData?: any) => string
+  > = {
     text: text,
     number: number,
     date: date,
@@ -35,7 +42,7 @@ export class CellPipeline {
     'relationship-single': relationshipSingle,
     'relationship-multi': relationshipMultiBadgeString, // Fallback for string rendering
     'relationship-collection': relationshipMultiBadgeString, // Fallback for string rendering
-  };
+  }
 
   /**
    * Fast cell value rendering with type-based formatting
@@ -46,23 +53,23 @@ export class CellPipeline {
    */
   static renderValue(value: any, column: Column, rowData?: any): string {
     // Check column cellType first, then fall back to type
-    const cellType = column.cellType || column.type;
-    const renderer = CellPipeline.renderers[cellType] || text;
-    
+    const cellType = column.cellType || column.type
+    const renderer = CellPipeline.renderers[cellType] || text
+
     // Debug relationship rendering disabled for performance
     // if (cellType?.startsWith('relationship') && column.id === 'assignee') {
     //   fileLog.info('🔍 CellPipeline: Rendering relationship', { columnId: column.id, cellType });
     // }
-    
+
     // For relationship types, pass row data for pre-resolved values
     if (cellType?.startsWith('relationship')) {
-      return (renderer as any)(value, column, rowData);
+      return (renderer as any)(value, column, rowData)
     }
-    
-    return renderer(value, column);
+
+    return renderer(value, column)
   }
-  
-  private static _debugged = false;
+
+  private static _debugged = false
 
   /**
    * Creates a cell content element with proper formatting
@@ -72,29 +79,29 @@ export class CellPipeline {
    * @returns DOM element with rendered content
    */
   static createCellContent(value: any, column: Column, rowData: any): HTMLElement {
-    const content = document.createElement('div');
-    const cellType = column.cellType || column.type;
-    
+    const content = document.createElement('div')
+    const cellType = column.cellType || column.type
+
     // Special handling for multi-relationship badges
     if (cellType === 'relationship-multi' || cellType === 'relationship-collection') {
       // Use the badge renderer that returns HTMLElement
-      const badgeContent = relationshipMultiBadge(value, column, rowData);
-      
+      const badgeContent = relationshipMultiBadge(value, column, rowData)
+
       // Clear default styles for badge container
       Object.assign(content.style, {
         width: '100%',
         padding: '4px 12px',
         boxSizing: 'border-box',
-        overflow: 'hidden'
-      });
-      
-      content.appendChild(badgeContent);
-      return content;
+        overflow: 'hidden',
+      })
+
+      content.appendChild(badgeContent)
+      return content
     }
-    
+
     // Check if column is editable
-    const isEditable = column.editable !== false; // Default to true unless explicitly false
-    
+    const isEditable = column.editable !== false // Default to true unless explicitly false
+
     // Default styles for other cell types
     Object.assign(content.style, {
       width: '100%',
@@ -102,63 +109,64 @@ export class CellPipeline {
       textOverflow: 'ellipsis',
       whiteSpace: 'nowrap',
       padding: '8px 12px',
-      boxSizing: 'border-box'
-    });
-    
+      boxSizing: 'border-box',
+    })
+
     // Set content efficiently - pass row data for relationship resolution
-    const cellContent = this.renderValue(value, column, rowData);
-    
+    const cellContent = this.renderValue(value, column, rowData)
+
     if (isEditable) {
       // Create wrapper element for editable content
-      const wrapper = document.createElement('div');
-      
+      const wrapper = document.createElement('div')
+
       // Add appropriate CSS class based on content type
-      const isEmpty = !cellContent || cellContent === '' || cellContent === 'null' || cellContent === 'undefined';
-      
+      const isEmpty =
+        !cellContent || cellContent === '' || cellContent === 'null' || cellContent === 'undefined'
+
       if (isEmpty) {
-        wrapper.className = 'vibegridx-cell-empty-editable';
-        wrapper.textContent = 'Click to edit';
+        wrapper.className = 'vibegridx-cell-empty-editable'
+        wrapper.textContent = 'Click to edit'
       } else {
         // Add type-specific editable class
         switch (cellType) {
           case 'text':
           case 'string':
-            wrapper.className = 'vibegridx-cell-text-editable';
-            break;
+            wrapper.className = 'vibegridx-cell-text-editable'
+            break
           case 'number':
           case 'integer':
           case 'float':
-            wrapper.className = 'vibegridx-cell-number-editable';
-            break;
+            wrapper.className = 'vibegridx-cell-number-editable'
+            break
           case 'boolean':
-            wrapper.className = 'vibegridx-cell-boolean-editable';
-            break;
+            wrapper.className = 'vibegridx-cell-boolean-editable'
+            break
           case 'enum':
-            wrapper.className = 'vibegridx-cell-badge-editable';
-            break;
+            wrapper.className = 'vibegridx-cell-badge-editable'
+            break
           default:
-            wrapper.className = 'vibegridx-cell-content-editable';
+            wrapper.className = 'vibegridx-cell-content-editable'
         }
-        
+
         // Set content based on type
         if (cellType === 'enum' || cellType?.startsWith('relationship')) {
-          wrapper.innerHTML = cellContent;
+          wrapper.innerHTML = cellContent
         } else {
-          wrapper.textContent = cellContent;
+          wrapper.textContent = cellContent
         }
       }
-      
-      content.appendChild(wrapper);
+
+      content.appendChild(wrapper)
     } else {
       // Non-editable content - render normally
       if (cellType === 'enum' || cellType?.startsWith('relationship')) {
-        content.innerHTML = cellContent;
+        content.innerHTML = cellContent
       } else {
-        content.textContent = cellContent;
+        content.textContent = cellContent
       }
     }
-    
-    return content;
+
+    return content
   }
 
   /**
@@ -166,8 +174,10 @@ export class CellPipeline {
    * @param columnType - The column type
    * @returns The renderer function or default text renderer
    */
-  static getRenderer(columnType: string): (value: any, column: Column, relationshipData?: any) => string {
-    return CellPipeline.renderers[columnType] || text;
+  static getRenderer(
+    columnType: string,
+  ): (value: any, column: Column, relationshipData?: any) => string {
+    return CellPipeline.renderers[columnType] || text
   }
 
   /**
@@ -176,9 +186,9 @@ export class CellPipeline {
    * @param renderer - The renderer function
    */
   static registerRenderer(
-    columnType: string, 
-    renderer: (value: any, column: Column, relationshipData?: any) => string
+    columnType: string,
+    renderer: (value: any, column: Column, relationshipData?: any) => string,
   ): void {
-    CellPipeline.renderers[columnType] = renderer;
+    CellPipeline.renderers[columnType] = renderer
   }
 }

@@ -5,7 +5,7 @@
  * Use these in browser console to control log verbosity.
  */
 
-import { setLogLevel, getLogConfig } from '@/shared/lib/logging';
+import { getLogConfig, setLogLevel } from '@/shared/lib/logging'
 
 /**
  * Vibegrid logging presets for quick debugging
@@ -16,8 +16,8 @@ export const VIBEGRID_LOG_PRESETS = {
    * Quietest mode for production-like experience
    */
   warn: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    console.log('📵 Vibegrid logs: WARN level (warnings and errors only)');
+    setLogLevel('warn', 'components/vibegrid/*')
+    console.log('📵 Vibegrid logs: WARN level (warnings and errors only)')
   },
 
   /**
@@ -25,12 +25,12 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows lifecycle events but hides diagnostic spam
    */
   info: () => {
-    setLogLevel('info', 'components/vibegrid/*');
+    setLogLevel('info', 'components/vibegrid/*')
     // Hide noisy subsystems
-    setLogLevel('warn', 'components/vibegrid/renderers/modules/OverlayManager');
-    setLogLevel('warn', 'components/vibegrid/coordinates/*');
-    setLogLevel('warn', 'components/vibegrid/performance/*');
-    console.log('ℹ️ Vibegrid logs: INFO level (lifecycle + warnings + errors)');
+    setLogLevel('warn', 'components/vibegrid/renderers/modules/OverlayManager')
+    setLogLevel('warn', 'components/vibegrid/coordinates/*')
+    setLogLevel('warn', 'components/vibegrid/performance/*')
+    console.log('ℹ️ Vibegrid logs: INFO level (lifecycle + warnings + errors)')
   },
 
   /**
@@ -38,23 +38,27 @@ export const VIBEGRID_LOG_PRESETS = {
    * Use when you need to see everything happening in Vibegrid
    */
   debug: () => {
-    setLogLevel('debug', 'components/vibegrid/*');
-    console.log('🔍 Vibegrid logs: DEBUG level (all logs visible)');
+    setLogLevel('debug', 'components/vibegrid/*')
+    console.log('🔍 Vibegrid logs: DEBUG level (all logs visible)')
   },
 
   // Aliases for clarity
-  quiet: function() { return this.warn(); },
-  normal: function() { return this.info(); },
+  quiet: function () {
+    return this.warn()
+  },
+  normal: function () {
+    return this.info()
+  },
 
   /**
    * Debug overlays - Focus on overlay system
    * Shows detailed overlay positioning and state management
    */
   debugOverlays: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('debug', 'components/vibegrid/renderers/modules/OverlayManager');
-    setLogLevel('debug', 'components/vibegrid/overlays/*');
-    console.log('🎯 Vibegrid logs: OVERLAY DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('debug', 'components/vibegrid/renderers/modules/OverlayManager')
+    setLogLevel('debug', 'components/vibegrid/overlays/*')
+    console.log('🎯 Vibegrid logs: OVERLAY DEBUG mode')
   },
 
   /**
@@ -62,10 +66,10 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows cell position calculations and coordinate mapping
    */
   debugCoordinates: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('debug', 'components/vibegrid/coordinates/*');
-    setLogLevel('debug', 'components/vibegrid/renderers/core/SimplePassiveRenderer');
-    console.log('📐 Vibegrid logs: COORDINATE DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('debug', 'components/vibegrid/coordinates/*')
+    setLogLevel('debug', 'components/vibegrid/renderers/core/SimplePassiveRenderer')
+    console.log('📐 Vibegrid logs: COORDINATE DEBUG mode')
   },
 
   /**
@@ -73,9 +77,9 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows performance profiling and bottlenecks
    */
   debugPerformance: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('info', 'components/vibegrid/performance/*');
-    console.log('⚡ Vibegrid logs: PERFORMANCE DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('info', 'components/vibegrid/performance/*')
+    console.log('⚡ Vibegrid logs: PERFORMANCE DEBUG mode')
   },
 
   /**
@@ -83,10 +87,10 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows mouse events, drag/drop, and selection changes
    */
   debugMouse: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('debug', 'components/vibegrid/renderers/modules/MouseController');
-    setLogLevel('debug', 'components/vibegrid/renderers/utils/interaction-handlers');
-    console.log('🖱️  Vibegrid logs: MOUSE DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('debug', 'components/vibegrid/renderers/modules/MouseController')
+    setLogLevel('debug', 'components/vibegrid/renderers/utils/interaction-handlers')
+    console.log('🖱️  Vibegrid logs: MOUSE DEBUG mode')
   },
 
   /**
@@ -94,10 +98,10 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows editor creation, value changes, and commits
    */
   debugEditors: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('debug', 'components/vibegrid/overlays/editors/*');
-    setLogLevel('debug', 'components/vibegrid/overlays/EditingOverlay');
-    console.log('✏️  Vibegrid logs: EDITOR DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('debug', 'components/vibegrid/overlays/editors/*')
+    setLogLevel('debug', 'components/vibegrid/overlays/EditingOverlay')
+    console.log('✏️  Vibegrid logs: EDITOR DEBUG mode')
   },
 
   /**
@@ -105,20 +109,20 @@ export const VIBEGRID_LOG_PRESETS = {
    * Shows field rendering, value formatting, and cell creation
    */
   debugFields: () => {
-    setLogLevel('warn', 'components/vibegrid/*');
-    setLogLevel('debug', 'components/vibegrid/field-types/*');
-    console.log('🔤 Vibegrid logs: FIELD DEBUG mode');
+    setLogLevel('warn', 'components/vibegrid/*')
+    setLogLevel('debug', 'components/vibegrid/field-types/*')
+    console.log('🔤 Vibegrid logs: FIELD DEBUG mode')
   },
 
   /**
    * Get current log configuration
    */
   status: () => {
-    const config = getLogConfig();
-    console.log('📋 Current Vibegrid log configuration:', config);
-    return config;
+    const config = getLogConfig()
+    console.log('📋 Current Vibegrid log configuration:', config)
+    return config
   },
-};
+}
 
 /**
  * Set default Vibegrid log levels for optimal development experience
@@ -126,28 +130,28 @@ export const VIBEGRID_LOG_PRESETS = {
  */
 function initializeDefaultLevels() {
   // Use the info preset as default
-  VIBEGRID_LOG_PRESETS.info();
+  VIBEGRID_LOG_PRESETS.info()
 }
 
 /**
  * Expose presets on window for easy console access
  */
 if (typeof window !== 'undefined') {
-  (window as any).__VIBEGRID_LOGS__ = VIBEGRID_LOG_PRESETS;
+  ;(window as any).__VIBEGRID_LOGS__ = VIBEGRID_LOG_PRESETS
 
   // Initialize default log levels
-  initializeDefaultLevels();
+  initializeDefaultLevels()
 
   // Log availability on module load
-  console.log('✅ Vibegrid logging presets available: __VIBEGRID_LOGS__');
-  console.log('   Log Levels:');
-  console.log('   - __VIBEGRID_LOGS__.warn()        // Warn+ only');
-  console.log('   - __VIBEGRID_LOGS__.info()        // Info+ (default)');
-  console.log('   - __VIBEGRID_LOGS__.debug()       // All logs');
-  console.log('   Focus Modes:');
-  console.log('   - __VIBEGRID_LOGS__.debugOverlays() // Overlay debugging');
-  console.log('   - __VIBEGRID_LOGS__.debugMouse()  // Mouse events');
-  console.log('   - __VIBEGRID_LOGS__.debugEditors() // Cell editors');
-  console.log('   Other:');
-  console.log('   - __VIBEGRID_LOGS__.status()      // Show config');
+  console.log('✅ Vibegrid logging presets available: __VIBEGRID_LOGS__')
+  console.log('   Log Levels:')
+  console.log('   - __VIBEGRID_LOGS__.warn()        // Warn+ only')
+  console.log('   - __VIBEGRID_LOGS__.info()        // Info+ (default)')
+  console.log('   - __VIBEGRID_LOGS__.debug()       // All logs')
+  console.log('   Focus Modes:')
+  console.log('   - __VIBEGRID_LOGS__.debugOverlays() // Overlay debugging')
+  console.log('   - __VIBEGRID_LOGS__.debugMouse()  // Mouse events')
+  console.log('   - __VIBEGRID_LOGS__.debugEditors() // Cell editors')
+  console.log('   Other:')
+  console.log('   - __VIBEGRID_LOGS__.status()      // Show config')
 }

@@ -1,7 +1,7 @@
 /* VibeGridX Styles */
 
 /* Import additional styles */
-@import './vibegridx-cells.css';
+@import "./vibegridx-cells.css";
 
 /* CSS Variables for dynamic configuration */
 :root {
@@ -9,7 +9,6 @@
   --vibegridx-cell-height: 40px;
   --vibegridx-cell-width: 120px;
 }
-
 
 /* Container */
 .vibegridx-container {
@@ -115,7 +114,6 @@
   border-left: 1px solid var(--border);
 }
 
-
 .vibegridx-header-cell:hover {
   background-color: hsl(var(--accent));
   z-index: 1; /* Ensure hover state shows above adjacent cells */
@@ -215,7 +213,9 @@ body.vibegridx-dragging-active * {
   background: hsl(var(--background));
   border: 1px solid hsl(var(--primary));
   border-radius: 4px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.15);
   font-weight: 600;
   font-size: 12px;
   color: hsl(var(--foreground));
@@ -263,7 +263,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-column-drop-indicator::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -5px;
   left: -4px;
@@ -275,7 +275,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-column-drop-indicator::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -5px;
   left: -4px;
@@ -294,14 +294,16 @@ body.vibegridx-dragging-active * {
   background-color: hsl(var(--primary));
   pointer-events: none;
   z-index: 10;
-  transition: opacity 0.2s ease-out, top 0.2s ease-out;
+  transition:
+    opacity 0.2s ease-out,
+    top 0.2s ease-out;
   opacity: 0;
   box-shadow: 0 0 8px hsl(var(--primary) / 0.5);
 }
 
 .vibegridx-row-drop-indicator::before,
 .vibegridx-row-drop-indicator::after {
-  content: '';
+  content: "";
   position: absolute;
   top: -4px;
   width: 11px;
@@ -319,7 +321,6 @@ body.vibegridx-dragging-active * {
   right: -5px;
 }
 
-
 /* Column resize handle */
 .vibegridx-resize-handle {
   position: absolute;
@@ -333,7 +334,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-resize-handle::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 2px;
   top: 50%;
@@ -591,7 +592,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-cell-dropdown-editing::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -717,11 +718,11 @@ body.vibegridx-dragging-active * {
 }
 
 @keyframes vibegridx-pulse {
-  0% { 
-    background-color: hsl(var(--chart-1) / 0.2); 
+  0% {
+    background-color: hsl(var(--chart-1) / 0.2);
   }
-  100% { 
-    background-color: transparent; 
+  100% {
+    background-color: transparent;
   }
 }
 
@@ -804,7 +805,7 @@ body.vibegridx-dragging-active * {
     max-width: calc(100vw - 16px); /* 16px for margins */
     min-width: 320px; /* Minimum usable width */
   }
-  
+
   .vibegridx-header-cell,
   .vibegridx-cell {
     /* Slightly reduce padding to fit more content */
@@ -821,7 +822,7 @@ body.vibegridx-dragging-active * {
     padding: 6px 8px;
     font-size: 12px;
   }
-  
+
   .vibegridx-header {
     font-size: 11px;
   }
@@ -888,7 +889,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-checkbox-wrapper input[type="checkbox"]:checked ~ .vibegridx-checkbox-custom::after {
-  content: '';
+  content: "";
   position: absolute;
   display: block;
   left: 5px;
@@ -905,8 +906,10 @@ body.vibegridx-dragging-active * {
   border-color: hsl(var(--primary));
 }
 
-.vibegridx-checkbox-wrapper input[type="checkbox"]:indeterminate ~ .vibegridx-checkbox-custom::after {
-  content: '';
+.vibegridx-checkbox-wrapper
+  input[type="checkbox"]:indeterminate
+  ~ .vibegridx-checkbox-custom::after {
+  content: "";
   position: absolute;
   display: block;
   left: 3px;

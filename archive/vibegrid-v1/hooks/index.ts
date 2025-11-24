@@ -5,62 +5,58 @@
  * Import from this file to access the hybrid positioning system.
  */
 
+// Re-export types for convenience
+export type {
+  Bounds,
+  CellCoordinates,
+  CellPositionMap,
+  CellRef,
+  ColumnLayout,
+  Position,
+  PositionChangeEvent,
+  PositionUpdateHandler,
+  RowLayout,
+  VirtualBounds,
+  VirtualRange,
+  VirtualViewport,
+} from '../types/coordinate-types'
+// Re-export utility functions
+export { CoordinateTypeGuards, CoordinateUtils } from '../types/coordinate-types'
 // Core position hooks
 export {
+  useCellBounds$,
+  useCellInVirtualRange$,
   useCellPosition$,
   useCellPositionByIds$,
   useCellPositionByIndices$,
-  useMultipleCellPositions$,
-  useCellVisibility$,
-  useVisibleCellKeys$,
-  useCellInVirtualRange$,
-  useCellPositionWithFallback$,
-  useOverlayCellPosition$,
-  useCellBounds$,
   useCellPositionThrottled$,
-  usePositionComparison$
-} from './use-cell-position';
-
-// Position utility hooks
-export {
-  useSelectionBounds$,
-  usePositionInCell$,
-  useClosestCell$,
-  useOverlappingCells$,
-  useRelativePosition$,
-  useCellCenter$,
-  useCellPositionStyle$,
-  useCellPositionHistory$,
-  useCellPositionSmooth$,
-  useAreAdjacent$,
-  useCellPositionInViewport$
-} from './use-position-utils';
-
+  useCellPositionWithFallback$,
+  useCellVisibility$,
+  useMultipleCellPositions$,
+  useOverlayCellPosition$,
+  usePositionComparison$,
+  useVisibleCellKeys$,
+} from './use-cell-position'
 // Position tracking and lifecycle hooks
 export {
-  usePositionTracking,
-  usePositionChangeHandler,
-  useScrollTracking,
-  useResizeTracking,
   useManualPositionUpdate,
-  usePositionDebug
-} from './use-position-tracking';
-
-// Re-export types for convenience
-export type {
-  CellCoordinates,
-  CellRef,
-  Position,
-  Bounds,
-  ColumnLayout,
-  RowLayout,
-  VirtualBounds,
-  VirtualViewport,
-  VirtualRange,
-  PositionChangeEvent,
-  PositionUpdateHandler,
-  CellPositionMap
-} from '../types/coordinate-types';
-
-// Re-export utility functions
-export { CoordinateUtils, CoordinateTypeGuards } from '../types/coordinate-types';
+  usePositionChangeHandler,
+  usePositionDebug,
+  usePositionTracking,
+  useResizeTracking,
+  useScrollTracking,
+} from './use-position-tracking'
+// Position utility hooks
+export {
+  useAreAdjacent$,
+  useCellCenter$,
+  useCellPositionHistory$,
+  useCellPositionInViewport$,
+  useCellPositionSmooth$,
+  useCellPositionStyle$,
+  useClosestCell$,
+  useOverlappingCells$,
+  usePositionInCell$,
+  useRelativePosition$,
+  useSelectionBounds$,
+} from './use-position-utils'

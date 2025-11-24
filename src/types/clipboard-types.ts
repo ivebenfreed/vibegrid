@@ -11,27 +11,27 @@ export interface VibeGridClipboardData {
    * Array of copied cells with full metadata
    */
   cells: ClipboardCell[]
-  
+
   /**
    * Bounds of the copied selection
    */
   bounds: ClipboardBounds
-  
+
   /**
    * Column IDs in order - used for paste validation
    */
   columnIds: string[]
-  
+
   /**
    * Column types for compatibility checking
    */
   columnTypes: Record<string, string>
-  
+
   /**
    * Timestamp of copy operation
    */
   timestamp: number
-  
+
   /**
    * Whether this is a cut operation (vs copy)
    */
@@ -86,21 +86,21 @@ export type FillPatternType = 'sequence' | 'date' | 'text-pattern' | 'copy'
  */
 export interface FillPattern {
   type: FillPatternType
-  
+
   // For numeric sequences
   increment?: number
   startValue?: number
-  
+
   // For date sequences
   dateInterval?: 'day' | 'week' | 'month' | 'year'
   dateStartValue?: Date
-  
+
   // For text patterns
   textPattern?: RegExp
   textPrefix?: string
   textSuffix?: string
   textNumberStart?: number
-  
+
   // Confidence score (0-1)
   confidence: number
 }
@@ -113,12 +113,12 @@ export interface PasteOptions {
    * How to handle dimension mismatch
    */
   expandMode?: 'none' | 'fill' | 'tile'
-  
+
   /**
    * Whether to skip non-editable cells
    */
   skipReadOnly?: boolean
-  
+
   /**
    * Whether to validate column types
    */

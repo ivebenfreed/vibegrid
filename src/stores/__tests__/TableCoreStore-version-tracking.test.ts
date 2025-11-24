@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { TableCoreStore } from '../TableCoreStore'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { Column } from '../../types'
+import { TableCoreStore } from '../TableCoreStore'
 
 describe('Version Tracking', () => {
   let store: TableCoreStore
@@ -12,7 +12,7 @@ describe('Version Tracking', () => {
     const columns: Column[] = [
       { id: 'id', label: 'ID', type: 'text', fieldType: { type: 'text' } } as any,
       { id: 'name', label: 'Name', type: 'text', fieldType: { type: 'text' } } as any,
-      { id: 'status', label: 'Status', type: 'text', fieldType: { type: 'text' } } as any
+      { id: 'status', label: 'Status', type: 'text', fieldType: { type: 'text' } } as any,
     ]
 
     // Set columns directly

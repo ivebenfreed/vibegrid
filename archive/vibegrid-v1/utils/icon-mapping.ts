@@ -13,54 +13,54 @@ export const ICON_MAP: Record<string, string> = {
   'arrow-right': '→',
 
   // Chevrons (UI navigation)
-  'chevron': '⌄',
+  chevron: '⌄',
   'chevron-down': '⌄',
   'chevron-up': '⌃',
   'chevron-left': '‹',
   'chevron-right': '›',
 
   // Mathematical operators
-  'minus': '−',
-  'plus': '+',
-  'equals': '=',
+  minus: '−',
+  plus: '+',
+  equals: '=',
 
   // Status indicators
-  'circle': '●',
-  'check': '✓',
+  circle: '●',
+  check: '✓',
   'check-circle': '✓',
-  'x': '✕',
+  x: '✕',
   'x-circle': '✕',
 
   // Alert/warning
   'alert-triangle': '⚠',
-  'warning': '⚠',
-  'exclamation': '!',
+  warning: '⚠',
+  exclamation: '!',
 
   // Media controls
-  'play': '▶',
-  'pause': '⏸',
-  'stop': '⏹',
-  'record': '●',
+  play: '▶',
+  pause: '⏸',
+  stop: '⏹',
+  record: '●',
 
   // Common UI elements
-  'star': '★',
-  'heart': '♥',
-  'bookmark': '🔖',
-  'flag': '🚩',
+  star: '★',
+  heart: '♥',
+  bookmark: '🔖',
+  flag: '🚩',
 
   // Priority indicators
-  'low': '↓',
-  'medium': '−',
-  'high': '↑',
-  'critical': '⚠',
+  low: '↓',
+  medium: '−',
+  high: '↑',
+  critical: '⚠',
 
   // Status workflows
-  'todo': '○',
+  todo: '○',
   'in-progress': '◐',
-  'done': '●',
-  'blocked': '⚠',
-  'cancelled': '✕'
-};
+  done: '●',
+  blocked: '⚠',
+  cancelled: '✕',
+}
 
 /**
  * Get Unicode symbol for an icon name
@@ -68,7 +68,7 @@ export const ICON_MAP: Record<string, string> = {
  * @returns Unicode symbol or empty string if not found
  */
 export function getIconSymbol(iconName: string): string {
-  return ICON_MAP[iconName] || '';
+  return ICON_MAP[iconName] || ''
 }
 
 /**
@@ -78,8 +78,8 @@ export function getIconSymbol(iconName: string): string {
  */
 export function shouldDisplayIcon(iconName: string): boolean {
   // Filter out pure UI elements that shouldn't be shown as content
-  const uiOnlyIcons = ['chevron', 'chevron-down', 'chevron-up'];
-  return !uiOnlyIcons.includes(iconName);
+  const uiOnlyIcons = ['chevron', 'chevron-down', 'chevron-up']
+  return !uiOnlyIcons.includes(iconName)
 }
 
 /**
@@ -88,8 +88,8 @@ export function shouldDisplayIcon(iconName: string): boolean {
  * @returns Unicode symbol or empty string
  */
 export function getOptionIconDisplay(iconName: string | undefined): string {
-  if (!iconName) return '';
+  if (!iconName) return ''
 
-  const symbol = getIconSymbol(iconName);
-  return shouldDisplayIcon(iconName) ? symbol : '';
+  const symbol = getIconSymbol(iconName)
+  return shouldDisplayIcon(iconName) ? symbol : ''
 }

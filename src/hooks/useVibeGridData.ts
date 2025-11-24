@@ -17,14 +17,14 @@
  * ```
  */
 
-import { useMemo } from 'react'
-import { useLiveQuery } from '@tanstack/react-db'
 import { eq } from '@tanstack/db'
+import { useLiveQuery } from '@tanstack/react-db'
+import { useMemo } from 'react'
 import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
-import { useMobxSnapshot } from './useMobxSnapshot'
-import type { FilterConfig, SortConfig } from '../types'
-import type { VisualStateStore } from '../stores/VisualStateStore'
 import { createLogger } from '@/shared/lib/logging'
+import type { VisualStateStore } from '../stores/VisualStateStore'
+import type { FilterConfig, SortConfig } from '../types'
+import { useMobxSnapshot } from './useMobxSnapshot'
 
 const log = createLogger('components/vibegrid/hooks/useVibeGridData')
 
@@ -54,7 +54,11 @@ export interface VibeGridDataResult {
 /**
  * Apply a single filter to a TanStack DB query
  */
-function applyFilterToQuery(query: any, filter: FilterConfig, collectionAlias: string = 'entity'): any {
+function applyFilterToQuery(
+  query: any,
+  filter: FilterConfig,
+  collectionAlias: string = 'entity',
+): any {
   const { field, operator, value } = filter
 
   switch (operator) {
@@ -74,13 +78,17 @@ function applyFilterToQuery(query: any, filter: FilterConfig, collectionAlias: s
     case 'not_contains':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return !fieldValue || !String(fieldValue).toLowerCase().includes(String(value).toLowerCase())
+        return (
+          !fieldValue || !String(fieldValue).toLowerCase().includes(String(value).toLowerCase())
+        )
       })
 
     case 'starts_with':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return fieldValue && String(fieldValue).toLowerCase().startsWith(String(value).toLowerCase())
+        return (
+          fieldValue && String(fieldValue).toLowerCase().startsWith(String(value).toLowerCase())
+        )
       })
 
     case 'ends_with':
@@ -139,10 +147,14 @@ function applyFilterToQuery(query: any, filter: FilterConfig, collectionAlias: s
 /**
  * Apply all filters to a TanStack DB query
  */
-function applyAllFilters(query: any, filters: FilterConfig[], collectionAlias: string = 'entity'): any {
+function applyAllFilters(
+  query: any,
+  filters: FilterConfig[],
+  collectionAlias: string = 'entity',
+): any {
   let filteredQuery = query
 
-  filters.forEach(filter => {
+  filters.forEach((filter) => {
     filteredQuery = applyFilterToQuery(filteredQuery, filter, collectionAlias)
   })
 
@@ -189,7 +201,7 @@ function applySortingToRows(rows: any[], sortBy: SortConfig[]): any[] {
  */
 export function useVibeGridData(
   entityType: string,
-  visualStateStore: VisualStateStore
+  visualStateStore: VisualStateStore,
 ): VibeGridDataResult {
   // Get TanStack DB collection (shared singleton)
   const collection = useEntityCollection(entityType)
@@ -199,27 +211,30 @@ export function useVibeGridData(
   const sortSnapshot = useMobxSnapshot(() => visualStateStore.sortBy)
 
   // Reactive query with filters applied
-  const { data: rawRows } = useLiveQuery((q: any) => {
-    if (!collection) return undefined
+  const { data: rawRows } = useLiveQuery(
+    (q: any) => {
+      if (!collection) return undefined
 
-    log.debug('Running live query', {
-      entityType,
-      filterCount: filterSnapshot.length,
-      sortCount: sortSnapshot.length
-    })
+      log.debug('Running live query', {
+        entityType,
+        filterCount: filterSnapshot.length,
+        sortCount: sortSnapshot.length,
+      })
 
-    // Start with base query
-    let query = q.from({ entity: collection })
+      // Start with base query
+      let query = q.from({ entity: collection })
 
-    // Apply filters
-    if (filterSnapshot.length > 0) {
-      query = applyAllFilters(query, filterSnapshot, 'entity')
-    }
+      // Apply filters
+      if (filterSnapshot.length > 0) {
+        query = applyAllFilters(query, filterSnapshot, 'entity')
+      }
 
-    // CRITICAL FIX: Select with spread to dereference the entity data
-    // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
-    return query.select(({ entity }: any) => ({ ...entity }))
-  }, [collection, filterSnapshot, sortSnapshot])
+      // CRITICAL FIX: Select with spread to dereference the entity data
+      // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
+      return query.select(({ entity }: any) => ({ ...entity }))
+    },
+    [collection, filterSnapshot, sortSnapshot],
+  )
 
   // Apply client-side sorting to results
   const sortedRows = useMemo(() => {

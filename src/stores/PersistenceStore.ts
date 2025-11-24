@@ -16,13 +16,13 @@
  */
 
 import { makeObservable, reaction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
-import { DisposerManager } from '@/app/stores/utils/disposer'
 import type { IStore } from '@/app/stores/types'
-import type { SortConfig, FilterConfig, GroupConfig } from '../types'
-import type { TableCoreStore, GroupRowOrderConfig } from './TableCoreStore'
-import type { VisualStateStore } from './VisualStateStore'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import { createLogger } from '@/shared/lib/logging'
+import type { FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { InteractionStore } from './InteractionStore'
+import type { GroupRowOrderConfig, TableCoreStore } from './TableCoreStore'
+import type { VisualStateStore } from './VisualStateStore'
 
 const log = createLogger('components/vibegrid/stores/PersistenceStore')
 
@@ -114,7 +114,7 @@ export class PersistenceStore implements IStore {
       entityType,
       normalizedEntityType,
       orgId,
-      storageKey: this.storageKey
+      storageKey: this.storageKey,
     })
   }
 
@@ -145,7 +145,7 @@ export class PersistenceStore implements IStore {
   async init(): Promise<void> {
     log.info('🔄 Initializing PersistenceStore...', {
       entityType: this.entityType,
-      storageKey: this.storageKey
+      storageKey: this.storageKey,
     })
 
     // Load preferences from localStorage
@@ -161,7 +161,7 @@ export class PersistenceStore implements IStore {
         hasFilters: (saved.filters || []).length > 0,
         hasGroupConfig: !!saved.groupConfig,
         hasGroupRowOrders: Object.keys(saved.groupRowOrders || {}).length > 0,
-        hasFlatRowOrder: (saved.flatRowOrder || []).length > 0
+        hasFlatRowOrder: (saved.flatRowOrder || []).length > 0,
       })
 
       // Apply loaded preferences to stores
@@ -169,7 +169,7 @@ export class PersistenceStore implements IStore {
     } else {
       log.info('ℹ️ No saved preferences found', {
         entityType: this.entityType,
-        storageKey: this.storageKey
+        storageKey: this.storageKey,
       })
     }
 
@@ -177,7 +177,7 @@ export class PersistenceStore implements IStore {
     this.setupAutoSave()
 
     log.info('✅ PersistenceStore initialized', {
-      entityType: this.entityType
+      entityType: this.entityType,
     })
   }
 
@@ -195,7 +195,7 @@ export class PersistenceStore implements IStore {
     this.disposers.dispose()
 
     log.info('🧹 PersistenceStore disposed', {
-      entityType: this.entityType
+      entityType: this.entityType,
     })
   }
 
@@ -207,13 +207,13 @@ export class PersistenceStore implements IStore {
       localStorage.removeItem(this.storageKey)
       log.info('🔄 Persistence reset', {
         entityType: this.entityType,
-        storageKey: this.storageKey
+        storageKey: this.storageKey,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       log.error('❌ Failed to reset persistence', {
         entityType: this.entityType,
-        error: errorMessage
+        error: errorMessage,
       })
     }
   }
@@ -239,7 +239,7 @@ export class PersistenceStore implements IStore {
       log.error('❌ Failed to load preferences from localStorage', {
         entityType: this.entityType,
         storageKey: this.storageKey,
-        error: errorMessage
+        error: errorMessage,
       })
       return null
     }
@@ -263,7 +263,7 @@ export class PersistenceStore implements IStore {
       groupRowOrders: this.validateRecord(prefs.groupRowOrders, 'object'),
       flatRowOrder: this.validateArray(prefs.flatRowOrder, 'string'),
       entityType: this.entityType,
-      lastUpdated: prefs.lastUpdated || new Date().toISOString()
+      lastUpdated: prefs.lastUpdated || new Date().toISOString(),
     }
   }
 
@@ -302,14 +302,14 @@ export class PersistenceStore implements IStore {
         // Convert serializable config back to runtime GroupConfig (with Set)
         const runtimeGroupConfig: GroupConfig = {
           ...prefs.groupConfig,
-          expandedGroups: new Set(prefs.groupConfig.expandedGroups || [])
+          expandedGroups: new Set(prefs.groupConfig.expandedGroups || []),
         }
         this.visualStateStore.groupConfig = runtimeGroupConfig
       }
     }
 
     log.info('✅ Applied loaded preferences to stores', {
-      entityType: this.entityType
+      entityType: this.entityType,
     })
   }
 
@@ -324,7 +324,7 @@ export class PersistenceStore implements IStore {
     if (!this.tableCoreStore || !this.visualStateStore) {
       log.warn('⚠️ Cannot setup auto-save - stores not injected', {
         hasTableCore: !!this.tableCoreStore,
-        hasVisualState: !!this.visualStateStore
+        hasVisualState: !!this.visualStateStore,
       })
       return
     }
@@ -334,16 +334,16 @@ export class PersistenceStore implements IStore {
       reaction(
         () => ({
           groupRowOrders: this.tableCoreStore!.groupRowOrders,
-          flatRowOrder: this.tableCoreStore!.flatRowOrder
+          flatRowOrder: this.tableCoreStore!.flatRowOrder,
         }),
         () => {
           this.debouncedSave()
         },
         {
           name: 'PersistenceStore.watchTableCore',
-          delay: 100 // Small delay to batch rapid changes
-        }
-      )
+          delay: 100, // Small delay to batch rapid changes
+        },
+      ),
     )
 
     // Watch VisualStateStore changes
@@ -355,7 +355,7 @@ export class PersistenceStore implements IStore {
           columnVisibility: this.visualStateStore!.columnVisibility,
           sortBy: this.visualStateStore!.sortBy,
           filters: this.visualStateStore!.filters,
-          groupConfig: this.visualStateStore!.groupConfig
+          groupConfig: this.visualStateStore!.groupConfig,
         }),
         (data) => {
           log.debug('[PERSIST] 🔥 Reaction fired - changes detected', {
@@ -365,19 +365,19 @@ export class PersistenceStore implements IStore {
             hasSortBy: (data.sortBy || []).length > 0,
             hasFilters: (data.filters || []).length > 0,
             hasGroupConfig: !!data.groupConfig,
-            groupConfigFields: data.groupConfig?.fields?.length || 0
+            groupConfigFields: data.groupConfig?.fields?.length || 0,
           })
           this.debouncedSave()
         },
         {
           name: 'PersistenceStore.watchVisualState',
-          delay: 100 // Small delay to batch rapid changes
-        }
-      )
+          delay: 100, // Small delay to batch rapid changes
+        },
+      ),
     )
 
     log.info('✅ Auto-save reactions set up', {
-      entityType: this.entityType
+      entityType: this.entityType,
     })
   }
 
@@ -392,7 +392,7 @@ export class PersistenceStore implements IStore {
 
     log.debug('[PERSIST] ⏱️ Debounce timer started', {
       delayMs: this.SAVE_DEBOUNCE_MS,
-      willSaveIn: `${this.SAVE_DEBOUNCE_MS}ms`
+      willSaveIn: `${this.SAVE_DEBOUNCE_MS}ms`,
     })
 
     this.saveTimer = setTimeout(() => {
@@ -429,7 +429,7 @@ export class PersistenceStore implements IStore {
 
         // Metadata
         entityType: this.entityType,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       }
 
       const serialized = JSON.stringify(prefs)
@@ -439,7 +439,7 @@ export class PersistenceStore implements IStore {
         // 100KB warning
         log.warn('🚨 Preferences unusually large', {
           entityType: this.entityType,
-          size: serialized.length
+          size: serialized.length,
         })
         // Could implement fallback to IndexedDB here if needed
       }
@@ -454,20 +454,20 @@ export class PersistenceStore implements IStore {
         hasColumnVisibility: Object.keys(prefs.columnVisibility || {}).length > 0,
         hasGroupConfig: !!prefs.groupConfig,
         groupConfigFields: prefs.groupConfig?.fields?.length || 0,
-        timestamp: prefs.lastUpdated
+        timestamp: prefs.lastUpdated,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       log.error('❌ Failed to save preferences', {
         entityType: this.entityType,
-        error: errorMessage
+        error: errorMessage,
       })
 
       // Handle quota exceeded errors
       if (error instanceof Error && error.name === 'QuotaExceededError') {
         log.error('🚨 QuotaExceededError - localStorage quota exceeded', {
           entityType: this.entityType,
-          storageKey: this.storageKey
+          storageKey: this.storageKey,
         })
         // Could implement emergency cleanup or IndexedDB fallback here
       }
@@ -519,7 +519,7 @@ export class PersistenceStore implements IStore {
       sortDirection: groupConfig.sortDirection,
       aggregations: groupConfig.aggregations,
       expandedGroups: Array.from(groupConfig.expandedGroups || new Set()),
-      colorScheme: groupConfig.colorScheme
+      colorScheme: groupConfig.colorScheme,
     }
   }
 
@@ -528,7 +528,7 @@ export class PersistenceStore implements IStore {
    */
   private validateRecord<T extends string | number | boolean | object>(
     value: any,
-    valueType: 'string' | 'number' | 'boolean' | 'object'
+    valueType: 'string' | 'number' | 'boolean' | 'object',
   ): Record<string, T> {
     if (!value || typeof value !== 'object') {
       return {}
@@ -551,7 +551,7 @@ export class PersistenceStore implements IStore {
       return []
     }
 
-    return value.filter(item => typeof item === itemType) as T[]
+    return value.filter((item) => typeof item === itemType) as T[]
   }
 
   /**
@@ -572,7 +572,7 @@ export class PersistenceStore implements IStore {
       filters: this.visualStateStore.filters,
       groupConfig: this.serializeGroupConfig(this.visualStateStore.groupConfig),
       entityType: this.entityType,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     }
   }
 }

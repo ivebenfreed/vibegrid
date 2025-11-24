@@ -1,12 +1,12 @@
 /**
  * ⚠️ NOT MIGRATED TO MOBX - FILE DISABLED ⚠️
- * 
+ *
  * This file has not been migrated from Legend State to MobX.
  * It is currently NOT USED anywhere in the codebase.
- * 
+ *
  * Status: DISABLED - Do not import or use
  * Original: Available in archive/vibegrid/
- * 
+ *
  * To re-enable:
  * 1. Migrate Legend State observables to MobX
  * 2. Update imports and reactive patterns
@@ -15,7 +15,7 @@
  */
 
 // This file is disabled and will throw errors if used
-throw new Error('This file has not been migrated to MobX - see file header for details');
+throw new Error('This file has not been migrated to MobX - see file header for details')
 
 /**
  * Hybrid Cell Position Hooks
@@ -26,11 +26,11 @@ throw new Error('This file has not been migrated to MobX - see file header for d
  */
 
 // TODO: Remove Legend State - migrating to MobX
-import { computed } from 'mobx';
-import { domPositions$ } from '../stores/dom-position-state';
-import { virtualCellPosition$ } from '../virtualization/VirtualScrollManager';
-import type { CellCoordinates, CellRef } from '../types/coordinate-types';
-import { CoordinateUtils } from '../types/coordinate-types';
+import { computed } from 'mobx'
+import { domPositions$ } from '../stores/dom-position-state'
+import type { CellCoordinates, CellRef } from '../types/coordinate-types'
+import { CoordinateUtils } from '../types/coordinate-types'
+import { virtualCellPosition$ } from '../virtualization/VirtualScrollManager'
 
 /**
  * Get position for a cell using hybrid approach
@@ -43,50 +43,50 @@ import { CoordinateUtils } from '../types/coordinate-types';
 export function useCellPosition$(cellKey: string) {
   return computed(() => {
     // Try DOM position first (for rendered cells)
-    const domPositions = domPositions$.cellPositions.get();
-    const domPosition = domPositions.get(cellKey);
+    const domPositions = domPositions$.cellPositions.get()
+    const domPosition = domPositions.get(cellKey)
 
     if (domPosition) {
       return {
         ...domPosition,
         source: 'dom' as const,
-        priority: 'high' as const
-      };
+        priority: 'high' as const,
+      }
     }
 
     // Fall back to virtual calculation (for non-rendered cells)
-    const virtualCalc = virtualCellPosition$.get();
-    const cellRef = CoordinateUtils.parseCellKey(cellKey);
+    const virtualCalc = virtualCellPosition$.get()
+    const cellRef = CoordinateUtils.parseCellKey(cellKey)
 
     if (cellRef) {
-      const virtualPosition = virtualCalc.getCellPositionByIds(cellRef.rowId, cellRef.columnId);
+      const virtualPosition = virtualCalc.getCellPositionByIds(cellRef.rowId, cellRef.columnId)
       if (virtualPosition) {
         return {
           ...virtualPosition,
           source: 'virtual' as const,
-          priority: 'low' as const
-        };
+          priority: 'low' as const,
+        }
       }
     }
 
-    return null;
-  });
+    return null
+  })
 }
 
 /**
  * Get position for a cell by row and column IDs
  */
 export function useCellPositionByIds$(rowId: string, columnId: string) {
-  const cellKey = CoordinateUtils.createCellKey(rowId, columnId);
-  return useCellPosition$(cellKey);
+  const cellKey = CoordinateUtils.createCellKey(rowId, columnId)
+  return useCellPosition$(cellKey)
 }
 
 /**
  * Get position for a cell by row and column indices
  */
 export function useCellPositionByIndices$(rowIndex: number, columnIndex: number) {
-  const cellKey = CoordinateUtils.createCellKey(rowIndex.toString(), columnIndex.toString());
-  return useCellPosition$(cellKey);
+  const cellKey = CoordinateUtils.createCellKey(rowIndex.toString(), columnIndex.toString())
+  return useCellPosition$(cellKey)
 }
 
 /**
@@ -94,34 +94,34 @@ export function useCellPositionByIndices$(rowIndex: number, columnIndex: number)
  */
 export function useMultipleCellPositions$(cellKeys: string[]) {
   return computed(() => {
-    const domPositions = domPositions$.cellPositions.get();
-    const virtualCalc = virtualCellPosition$.get();
+    const domPositions = domPositions$.cellPositions.get()
+    const virtualCalc = virtualCellPosition$.get()
 
-    return cellKeys.map(cellKey => {
+    return cellKeys.map((cellKey) => {
       // Try DOM first
-      const domPosition = domPositions.get(cellKey);
+      const domPosition = domPositions.get(cellKey)
       if (domPosition) {
         return {
           cellKey,
-          position: { ...domPosition, source: 'dom' as const, priority: 'high' as const }
-        };
-      }
-
-      // Fall back to virtual
-      const cellRef = CoordinateUtils.parseCellKey(cellKey);
-      if (cellRef) {
-        const virtualPosition = virtualCalc.getCellPositionByIds(cellRef.rowId, cellRef.columnId);
-        if (virtualPosition) {
-          return {
-            cellKey,
-            position: { ...virtualPosition, source: 'virtual' as const, priority: 'low' as const }
-          };
+          position: { ...domPosition, source: 'dom' as const, priority: 'high' as const },
         }
       }
 
-      return { cellKey, position: null };
-    });
-  });
+      // Fall back to virtual
+      const cellRef = CoordinateUtils.parseCellKey(cellKey)
+      if (cellRef) {
+        const virtualPosition = virtualCalc.getCellPositionByIds(cellRef.rowId, cellRef.columnId)
+        if (virtualPosition) {
+          return {
+            cellKey,
+            position: { ...virtualPosition, source: 'virtual' as const, priority: 'low' as const },
+          }
+        }
+      }
+
+      return { cellKey, position: null }
+    })
+  })
 }
 
 /**
@@ -129,10 +129,10 @@ export function useMultipleCellPositions$(cellKeys: string[]) {
  */
 export function useCellVisibility$(cellKey: string) {
   return computed(() => {
-    const domPositions = domPositions$.cellPositions.get();
-    const position = domPositions.get(cellKey);
-    return position?.isVisible || false;
-  });
+    const domPositions = domPositions$.cellPositions.get()
+    const position = domPositions.get(cellKey)
+    return position?.isVisible || false
+  })
 }
 
 /**
@@ -140,11 +140,11 @@ export function useCellVisibility$(cellKey: string) {
  */
 export function useVisibleCellKeys$() {
   return computed(() => {
-    const domPositions = domPositions$.cellPositions.get();
+    const domPositions = domPositions$.cellPositions.get()
     return Array.from(domPositions.entries())
       .filter(([_, position]) => position.isVisible)
-      .map(([cellKey, _]) => cellKey);
-  });
+      .map(([cellKey, _]) => cellKey)
+  })
 }
 
 /**
@@ -152,27 +152,24 @@ export function useVisibleCellKeys$() {
  */
 export function useCellInVirtualRange$(cellKey: string) {
   return computed(() => {
-    const cellRef = CoordinateUtils.parseCellKey(cellKey);
-    if (!cellRef) return false;
+    const cellRef = CoordinateUtils.parseCellKey(cellKey)
+    if (!cellRef) return false
 
-    const virtualCalc = virtualCellPosition$.get();
+    const virtualCalc = virtualCellPosition$.get()
     // Legacy code - these methods don't exist on current interface
     // Return true as fallback for now
-    return true;
-  });
+    return true
+  })
 }
 
 /**
  * Get position with fallback to specific default
  */
-export function useCellPositionWithFallback$(
-  cellKey: string,
-  fallback: CellCoordinates
-) {
+export function useCellPositionWithFallback$(cellKey: string, fallback: CellCoordinates) {
   return computed(() => {
-    const position = useCellPosition$(cellKey).get();
-    return position || fallback;
-  });
+    const position = useCellPosition$(cellKey).get()
+    return position || fallback
+  })
 }
 
 /**
@@ -180,9 +177,9 @@ export function useCellPositionWithFallback$(
  */
 export function useOverlayCellPosition$(cellKey: string) {
   return computed(() => {
-    const position = useCellPosition$(cellKey).get();
+    const position = useCellPosition$(cellKey).get()
 
-    if (!position) return null;
+    if (!position) return null
 
     return {
       ...position,
@@ -190,8 +187,8 @@ export function useOverlayCellPosition$(cellKey: string) {
       isStable: position.source === 'dom', // DOM positions are more stable
       shouldUpdate: position.timestamp > Date.now() - 100, // Recent update
       zIndex: position.source === 'dom' ? 10 : 5, // DOM positions higher priority
-    };
-  });
+    }
+  })
 }
 
 /**
@@ -199,9 +196,9 @@ export function useOverlayCellPosition$(cellKey: string) {
  */
 export function useCellBounds$(cellKey: string) {
   return computed(() => {
-    const position = useCellPosition$(cellKey).get();
+    const position = useCellPosition$(cellKey).get()
 
-    if (!position) return null;
+    if (!position) return null
 
     return {
       left: position.x,
@@ -210,8 +207,8 @@ export function useCellBounds$(cellKey: string) {
       bottom: position.y + position.height,
       centerX: position.x + position.width / 2,
       centerY: position.y + position.height / 2,
-    };
-  });
+    }
+  })
 }
 
 /**
@@ -219,18 +216,18 @@ export function useCellBounds$(cellKey: string) {
  */
 export function useCellPositionThrottled$(cellKey: string, throttleMs: number = 16) {
   return computed(() => {
-    const position = useCellPosition$(cellKey).get();
+    const position = useCellPosition$(cellKey).get()
 
-    if (!position) return null;
+    if (!position) return null
 
     // Throttle position updates to specified interval
-    const throttledTimestamp = Math.floor(position.timestamp / throttleMs) * throttleMs;
+    const throttledTimestamp = Math.floor(position.timestamp / throttleMs) * throttleMs
 
     return {
       ...position,
-      timestamp: throttledTimestamp
-    };
-  });
+      timestamp: throttledTimestamp,
+    }
+  })
 }
 
 /**
@@ -238,26 +235,29 @@ export function useCellPositionThrottled$(cellKey: string, throttleMs: number = 
  */
 export function usePositionComparison$(cellKey: string) {
   return computed(() => {
-    const domPositions = domPositions$.cellPositions.get();
-    const domPosition = domPositions.get(cellKey);
+    const domPositions = domPositions$.cellPositions.get()
+    const domPosition = domPositions.get(cellKey)
 
-    const virtualCalc = virtualCellPosition$.get();
-    const cellRef = CoordinateUtils.parseCellKey(cellKey);
+    const virtualCalc = virtualCellPosition$.get()
+    const cellRef = CoordinateUtils.parseCellKey(cellKey)
     const virtualPosition = cellRef
       ? virtualCalc.getCellPositionByIds(cellRef.rowId, cellRef.columnId)
-      : null;
+      : null
 
     return {
       cellKey,
       dom: domPosition || null,
       virtual: virtualPosition || null,
       hasBoth: !!(domPosition && virtualPosition),
-      difference: domPosition && virtualPosition ? {
-        x: Math.abs(domPosition.x - virtualPosition.x),
-        y: Math.abs(domPosition.y - virtualPosition.y),
-        width: Math.abs(domPosition.width - virtualPosition.width),
-        height: Math.abs(domPosition.height - virtualPosition.height),
-      } : null
-    };
-  });
+      difference:
+        domPosition && virtualPosition
+          ? {
+              x: Math.abs(domPosition.x - virtualPosition.x),
+              y: Math.abs(domPosition.y - virtualPosition.y),
+              width: Math.abs(domPosition.width - virtualPosition.width),
+              height: Math.abs(domPosition.height - virtualPosition.height),
+            }
+          : null,
+    }
+  })
 }

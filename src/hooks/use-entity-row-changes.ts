@@ -1,12 +1,12 @@
 /**
  * ⚠️ NOT MIGRATED TO MOBX - FILE DISABLED ⚠️
- * 
+ *
  * This file has not been migrated from Legend State to MobX.
  * It is currently NOT USED anywhere in the codebase.
- * 
+ *
  * Status: DISABLED - Do not import or use
  * Original: Available in archive/vibegrid/
- * 
+ *
  * To re-enable:
  * 1. Migrate Legend State observables to MobX
  * 2. Update imports and reactive patterns
@@ -15,36 +15,37 @@
  */
 
 // This file is disabled and will throw errors if used
-throw new Error('This file has not been migrated to MobX - see file header for details');
+throw new Error('This file has not been migrated to MobX - see file header for details')
 
 // TODO: This hook needs to be migrated to MobX + TanStack DB when it's needed
 // Currently not used anywhere in the codebase
 // import { use$, useObserve } from '@legendapp/state/react';
 // import { observe } from '@legendapp/state';
 // import { entities$, universeSchema$, universeLoading$, getEntity$ } from '@/legend-state/observables';
-import React, { useCallback, useRef } from 'react';
-import { createLogger } from '@/shared/lib/logging';
-const fileLog = createLogger('components/custom/vibegrid/hooks/use-entity-row-changes.ts');
+import React, { useCallback, useRef } from 'react'
+import { createLogger } from '@/shared/lib/logging'
+
+const fileLog = createLogger('components/custom/vibegrid/hooks/use-entity-row-changes.ts')
 
 interface RowChange {
-  rowId: string;
-  changeType: 'added' | 'updated' | 'deleted';
-  data: any;
-  timestamp: number;
+  rowId: string
+  changeType: 'added' | 'updated' | 'deleted'
+  data: any
+  timestamp: number
 }
 
 interface UseEntityRowChangesOptions {
-  entityTableName: string;
-  onRowChange?: (change: RowChange) => void;
-  trackDeletes?: boolean;
-  tableSend?: (event: any) => void; // Add table machine sender
+  entityTableName: string
+  onRowChange?: (change: RowChange) => void
+  trackDeletes?: boolean
+  tableSend?: (event: any) => void // Add table machine sender
 }
 
 export function useEntityRowChanges({
   entityTableName,
   onRowChange,
   trackDeletes = false,
-  tableSend
+  tableSend,
 }: UseEntityRowChangesOptions) {
   // TODO: This hook needs complete migration to MobX + TanStack DB
   // Migration pattern:
@@ -52,12 +53,12 @@ export function useEntityRowChanges({
   // 2. Use MobX reaction() to observe changes
   // 3. Replace Legend State observe() with MobX autorun() or reaction()
 
-  fileLog.warn('useEntityRowChanges is not yet migrated to MobX. Returning empty data.');
+  fileLog.warn('useEntityRowChanges is not yet migrated to MobX. Returning empty data.')
 
   return {
     rows: [] as any[],
-    hasChanges: false
-  };
+    hasChanges: false,
+  }
 
   /* ORIGINAL LEGEND STATE IMPLEMENTATION - TO BE MIGRATED
   const previousRowsRef = useRef<Map<string, any>>(new Map());

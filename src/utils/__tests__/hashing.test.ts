@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { hashValue, createRowSnapshot, METADATA_COLUMNS } from '../hashing'
+import { describe, expect, it } from 'vitest'
+import { createRowSnapshot, hashValue, METADATA_COLUMNS } from '../hashing'
 
 describe('hashValue', () => {
   it('uses inline hash for primitives', () => {
@@ -12,7 +12,7 @@ describe('hashValue', () => {
   it('uses ohash for objects', () => {
     const hash1 = hashValue({ a: 1, b: 2 })
     const hash2 = hashValue({ a: 1, b: 2 })
-    expect(hash1).toBe(hash2)  // Consistent
+    expect(hash1).toBe(hash2) // Consistent
     expect(typeof hash1).toBe('string')
   })
 
@@ -28,11 +28,11 @@ describe('createRowSnapshot', () => {
     const row = {
       id: '1',
       name: 'Alice',
-      updatedAt: '2025-01-01'
+      updatedAt: '2025-01-01',
     }
     const columns = [
       { id: 'name', type: 'text' },
-      { id: 'updatedAt', type: 'text' }
+      { id: 'updatedAt', type: 'text' },
     ] as any[]
 
     const snapshot = createRowSnapshot(row, columns)
@@ -46,18 +46,12 @@ describe('createRowSnapshot', () => {
   it('loop-back protection: updatedAt-only change same dataHash', () => {
     const columns = [
       { id: 'name', type: 'text' },
-      { id: 'updatedAt', type: 'text' }
+      { id: 'updatedAt', type: 'text' },
     ] as any[]
 
-    const snap1 = createRowSnapshot(
-      { id: '1', name: 'Alice', updatedAt: '2025-01-01' },
-      columns
-    )
+    const snap1 = createRowSnapshot({ id: '1', name: 'Alice', updatedAt: '2025-01-01' }, columns)
 
-    const snap2 = createRowSnapshot(
-      { id: '1', name: 'Alice', updatedAt: '2025-01-02' },
-      columns
-    )
+    const snap2 = createRowSnapshot({ id: '1', name: 'Alice', updatedAt: '2025-01-02' }, columns)
 
     // dataHash unchanged (only metadata changed)
     expect(snap1.dataHash).toBe(snap2.dataHash)
@@ -68,18 +62,12 @@ describe('createRowSnapshot', () => {
   it('detects data changes', () => {
     const columns = [
       { id: 'name', type: 'text' },
-      { id: 'updatedAt', type: 'text' }
+      { id: 'updatedAt', type: 'text' },
     ] as any[]
 
-    const snap1 = createRowSnapshot(
-      { id: '1', name: 'Alice', updatedAt: '2025-01-01' },
-      columns
-    )
+    const snap1 = createRowSnapshot({ id: '1', name: 'Alice', updatedAt: '2025-01-01' }, columns)
 
-    const snap2 = createRowSnapshot(
-      { id: '1', name: 'Bob', updatedAt: '2025-01-01' },
-      columns
-    )
+    const snap2 = createRowSnapshot({ id: '1', name: 'Bob', updatedAt: '2025-01-01' }, columns)
 
     // dataHash changed (name changed)
     expect(snap1.dataHash).not.toBe(snap2.dataHash)

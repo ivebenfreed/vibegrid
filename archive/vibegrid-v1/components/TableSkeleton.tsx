@@ -1,29 +1,25 @@
-import React from 'react';
-import { log } from '@/logger';
+import React from 'react'
+import { log } from '@/logger'
 
-const fileLog = log('TableSkeleton');
+const fileLog = log('TableSkeleton')
 
 // ====================================
 // TABLE SKELETON COMPONENT
 // ====================================
 
 interface TableSkeletonProps {
-  columns?: number;
-  rows?: number;
+  columns?: number
+  rows?: number
 }
 
 /**
  * Loading skeleton that matches VibeGrid table structure
  * Shows animated placeholders while data is loading
  */
-export function TableSkeleton({ 
-  columns = 5, 
-  rows = 10 
-}: TableSkeletonProps) {
+export function TableSkeleton({ columns = 5, rows = 10 }: TableSkeletonProps) {
   return (
     <div className="w-full h-full bg-background rounded-lg overflow-hidden">
       <div className="relative w-full h-full border border-border">
-        
         {/* Header */}
         <div className="sticky top-0 z-20 bg-background border-b border-border">
           <div className="flex h-10">
@@ -31,7 +27,7 @@ export function TableSkeleton({
             <div className="w-12 px-3 py-2 border-r border-border">
               <div className="h-4 w-4 bg-muted rounded animate-pulse"></div>
             </div>
-            
+
             {/* Column headers */}
             {Array.from({ length: columns }).map((_, i) => (
               <div key={i} className="flex-1 px-3 py-2 border-r border-border min-w-[120px]">
@@ -40,7 +36,7 @@ export function TableSkeleton({
             ))}
           </div>
         </div>
-        
+
         {/* Body */}
         <div className="relative">
           {Array.from({ length: rows }).map((_, rowIndex) => (
@@ -49,11 +45,14 @@ export function TableSkeleton({
               <div className="w-12 px-3 py-2 border-r border-border">
                 <div className="h-4 w-4 bg-muted/50 rounded animate-pulse"></div>
               </div>
-              
+
               {/* Data cells */}
               {Array.from({ length: columns }).map((_, colIndex) => (
-                <div key={colIndex} className="flex-1 px-3 py-2 border-r border-border min-w-[120px]">
-                  <div 
+                <div
+                  key={colIndex}
+                  className="flex-1 px-3 py-2 border-r border-border min-w-[120px]"
+                >
+                  <div
                     className="h-4 bg-muted/50 rounded animate-pulse"
                     style={{ width: `${Math.floor(Math.random() * 30 + 50)}%` }}
                   ></div>
@@ -64,7 +63,7 @@ export function TableSkeleton({
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 /**
@@ -77,7 +76,7 @@ export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
       <div className="vibegrid-cell w-12 px-3 py-2">
         <div className="animate-pulse h-4 w-4 bg-gray-100 dark:bg-gray-800 rounded"></div>
       </div>
-      
+
       {/* Data columns */}
       {Array.from({ length: columns }).map((_, i) => (
         <div key={i} className="vibegrid-cell flex-1 px-3 py-2">
@@ -85,5 +84,5 @@ export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
         </div>
       ))}
     </div>
-  );
+  )
 }

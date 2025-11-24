@@ -2,10 +2,11 @@
  * Reference Multi Editor for multi-select reference fields
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
 // TODO: Replace with TanStack DB query for reference options
 // import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
-import type { EditorProps } from './index';
+import type { EditorProps } from './index'
 
 export function ReferenceMultiEditor({
   cell,
@@ -14,12 +15,12 @@ export function ReferenceMultiEditor({
   onCommit,
   onCancel,
   onUpdate,
-  onBlur
+  onBlur,
 }: EditorProps) {
   const [selectedValues, setSelectedValues] = useState<string[]>(
-    Array.isArray(initialValue) ? initialValue : initialValue ? [initialValue] : []
-  );
-  const containerRef = useRef<HTMLDivElement>(null);
+    Array.isArray(initialValue) ? initialValue : initialValue ? [initialValue] : [],
+  )
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // TODO: Load reference options from TanStack DB
   // For now, use stub data
@@ -39,33 +40,33 @@ export function ReferenceMultiEditor({
   useEffect(() => {
     // Focus the container when mounted
     if (containerRef.current) {
-      containerRef.current.focus();
+      containerRef.current.focus()
     }
-  }, []);
+  }, [])
 
   const handleToggleOption = (optionValue: string) => {
     const newValues = selectedValues.includes(optionValue)
-      ? selectedValues.filter(v => v !== optionValue)
-      : [...selectedValues, optionValue];
-    
-    setSelectedValues(newValues);
-    onUpdate?.(newValues);
-  };
+      ? selectedValues.filter((v) => v !== optionValue)
+      : [...selectedValues, optionValue]
+
+    setSelectedValues(newValues)
+    onUpdate?.(newValues)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      onCommit(selectedValues);
+      event.preventDefault()
+      onCommit(selectedValues)
     } else if (event.key === 'Escape') {
-      event.preventDefault();
-      onCancel();
+      event.preventDefault()
+      onCancel()
     }
-  };
+  }
 
   const handleBlur = () => {
-    onCommit(selectedValues);
-    onBlur?.();
-  };
+    onCommit(selectedValues)
+    onBlur?.()
+  }
 
   // Options are now provided directly by the hook
 
@@ -106,5 +107,5 @@ export function ReferenceMultiEditor({
         </div>
       )}
     </div>
-  );
+  )
 }

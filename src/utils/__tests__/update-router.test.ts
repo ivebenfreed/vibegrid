@@ -2,9 +2,9 @@
  * Update Router Tests
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { type ChangeMetadata, ChangeType } from '../change-classification'
 import { determineUpdateStrategy, requiresFullRender, UPDATE_THRESHOLDS } from '../update-router'
-import { ChangeType, type ChangeMetadata } from '../change-classification'
 
 describe('determineUpdateStrategy', () => {
   it('returns full-render for null metadata', () => {
@@ -18,7 +18,7 @@ describe('determineUpdateStrategy', () => {
       affectedCells: new Map(),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 0
+      estimatedCellCount: 0,
     }
     expect(determineUpdateStrategy(metadata)).toBe('full-render')
   })
@@ -30,7 +30,7 @@ describe('determineUpdateStrategy', () => {
       affectedCells: new Map([['row1', new Set(['col1'])]]),
       sortingSensitive: false,
       structuralChange: true,
-      estimatedCellCount: 1
+      estimatedCellCount: 1,
     }
     expect(determineUpdateStrategy(metadata)).toBe('full-render')
   })
@@ -41,11 +41,11 @@ describe('determineUpdateStrategy', () => {
       affectedRows: new Set(['row1', 'row2']),
       affectedCells: new Map([
         ['row1', new Set(['col1', 'col2'])],
-        ['row2', new Set(['col1'])]
+        ['row2', new Set(['col1'])],
       ]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 3
+      estimatedCellCount: 3,
     }
     expect(determineUpdateStrategy(metadata)).toBe('cell-level')
   })
@@ -57,7 +57,7 @@ describe('determineUpdateStrategy', () => {
       affectedCells: new Map([['row1', new Set(Array.from({ length: 10 }, (_, i) => `col${i}`))]]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: UPDATE_THRESHOLDS.CELL_LEVEL_MAX
+      estimatedCellCount: UPDATE_THRESHOLDS.CELL_LEVEL_MAX,
     }
     expect(determineUpdateStrategy(metadata)).toBe('cell-level')
   })
@@ -68,11 +68,11 @@ describe('determineUpdateStrategy', () => {
       affectedRows: new Set(['row1', 'row2']),
       affectedCells: new Map([
         ['row1', new Set(Array.from({ length: 10 }, (_, i) => `col${i}`))],
-        ['row2', new Set(Array.from({ length: 5 }, (_, i) => `col${i}`))]
+        ['row2', new Set(Array.from({ length: 5 }, (_, i) => `col${i}`))],
       ]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 15
+      estimatedCellCount: 15,
     }
     expect(determineUpdateStrategy(metadata)).toBe('row-level')
   })
@@ -84,7 +84,7 @@ describe('determineUpdateStrategy', () => {
       affectedCells: new Map([['row1', new Set(Array.from({ length: 50 }, (_, i) => `col${i}`))]]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: UPDATE_THRESHOLDS.ROW_LEVEL_MAX
+      estimatedCellCount: UPDATE_THRESHOLDS.ROW_LEVEL_MAX,
     }
     expect(determineUpdateStrategy(metadata)).toBe('row-level')
   })
@@ -93,12 +93,10 @@ describe('determineUpdateStrategy', () => {
     const metadata: ChangeMetadata = {
       type: ChangeType.STRUCTURAL,
       affectedRows: new Set(Array.from({ length: 100 }, (_, i) => `row${i}`)),
-      affectedCells: new Map(
-        Array.from({ length: 100 }, (_, i) => [`row${i}`, new Set(['col1'])])
-      ),
+      affectedCells: new Map(Array.from({ length: 100 }, (_, i) => [`row${i}`, new Set(['col1'])])),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 100
+      estimatedCellCount: 100,
     }
     expect(determineUpdateStrategy(metadata)).toBe('full-render')
   })
@@ -110,7 +108,7 @@ describe('determineUpdateStrategy', () => {
       affectedCells: new Map([['row1', new Set(['name'])]]),
       sortingSensitive: true,
       structuralChange: false,
-      estimatedCellCount: 1
+      estimatedCellCount: 1,
     }
     expect(determineUpdateStrategy(metadata)).toBe('full-render')
   })
@@ -128,7 +126,7 @@ describe('requiresFullRender', () => {
       affectedCells: new Map(),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 0
+      estimatedCellCount: 0,
     }
     expect(requiresFullRender(metadata)).toBe(true)
   })
@@ -140,7 +138,7 @@ describe('requiresFullRender', () => {
       affectedCells: new Map([['row1', new Set(['col1'])]]),
       sortingSensitive: false,
       structuralChange: true,
-      estimatedCellCount: 1
+      estimatedCellCount: 1,
     }
     expect(requiresFullRender(metadata)).toBe(true)
   })
@@ -152,7 +150,7 @@ describe('requiresFullRender', () => {
       affectedCells: new Map([['row1', new Set(['col1'])]]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 1
+      estimatedCellCount: 1,
     }
     expect(requiresFullRender(metadata)).toBe(false)
   })
@@ -164,7 +162,7 @@ describe('requiresFullRender', () => {
       affectedCells: new Map([['row1', new Set(['col1', 'col2', 'col3', 'col4'])]]),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 4
+      estimatedCellCount: 4,
     }
     expect(requiresFullRender(metadata)).toBe(false)
   })

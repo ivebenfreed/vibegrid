@@ -2,9 +2,12 @@
  * Default column configurations by cell type
  */
 
-import type { CellType, Column } from './types';
+import type { CellType, Column } from './types'
 
-export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number; maxWidth: number }> = {
+export const COLUMN_DEFAULTS: Record<
+  CellType,
+  { width: number; minWidth: number; maxWidth: number }
+> = {
   // Basic text types
   text: { width: 200, minWidth: 120, maxWidth: 400 },
   longtext: { width: 300, minWidth: 200, maxWidth: 600 },
@@ -68,29 +71,31 @@ export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number
   rollup_average: { width: 120, minWidth: 90, maxWidth: 180 },
   rollup_concat: { width: 200, minWidth: 150, maxWidth: 400 },
   computed_expression: { width: 150, minWidth: 120, maxWidth: 300 },
-  computed_formula: { width: 150, minWidth: 120, maxWidth: 300 }
-} as const;
+  computed_formula: { width: 150, minWidth: 120, maxWidth: 300 },
+} as const
 
 /**
  * Apply default values to columns based on their cell type
  */
 export function applyColumnDefaults<T>(columns: Column<T>[]): Column<T>[] {
-  return columns.map(col => {
-    const defaults = COLUMN_DEFAULTS[col.cellType as CellType];
-    
+  return columns.map((col) => {
+    const defaults = COLUMN_DEFAULTS[col.cellType as CellType]
+
     // No fallback - cellType must be valid
     if (!defaults) {
-      throw new Error(`Unknown cellType '${col.cellType}' for column '${col.id}'. Available types: ${Object.keys(COLUMN_DEFAULTS).join(', ')}`);
+      throw new Error(
+        `Unknown cellType '${col.cellType}' for column '${col.id}'. Available types: ${Object.keys(COLUMN_DEFAULTS).join(', ')}`,
+      )
     }
-    
+
     return {
       ...col,
       width: col.width ?? defaults.width,
       minWidth: col.minWidth ?? defaults.minWidth,
       maxWidth: col.maxWidth ?? defaults.maxWidth,
-      editable: col.editable ?? true
-    };
-  });
+      editable: col.editable ?? true,
+    }
+  })
 }
 
 /**
@@ -100,8 +105,8 @@ export function applyColumnDefaults<T>(columns: Column<T>[]): Column<T>[] {
 export function formatFieldName(field: string): string {
   return field
     .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-    .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+    .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
     .replace(/Id$/, '') // Remove "Id" suffix
     .replace(/_/g, ' ') // Replace underscores with spaces
-    .trim();
+    .trim()
 }

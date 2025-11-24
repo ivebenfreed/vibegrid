@@ -1,15 +1,15 @@
-import type { CellRef, ViewportInfo } from '../types';
+import type { CellRef, ViewportInfo } from '../types'
 
 // ====================================
 // VISUAL POSITION TYPES
 // ====================================
 
 export interface VisualCellPosition {
-  cellKey: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  cellKey: string
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 // ====================================
@@ -19,61 +19,61 @@ export interface VisualCellPosition {
 export interface OverlayConfig {
   // Dimension manager removed - use coordinateMapping instead
   // Row dimension manager removed - use coordinateMapping instead
-  coordinateManager?: any; // Will be typed as VibeGridXCoordinateManager
-  columns?: any[]; // Column array for coordinate calculations
-  overlayActor?: any; // Legacy: Overlay machine actor  
-  tableMachine?: any; // PREFERRED: Table machine for direct context subscription
-  enableSelectionColumn?: boolean; // Enable selection column with checkboxes
-  cellWidth: number;
-  cellHeight: number;
-  borderWidth: number;
-  
+  coordinateManager?: any // Will be typed as VibeGridXCoordinateManager
+  columns?: any[] // Column array for coordinate calculations
+  overlayActor?: any // Legacy: Overlay machine actor
+  tableMachine?: any // PREFERRED: Table machine for direct context subscription
+  enableSelectionColumn?: boolean // Enable selection column with checkboxes
+  cellWidth: number
+  cellHeight: number
+  borderWidth: number
+
   // Colors
-  selectionColor: string;
-  selectionBorderColor: string;
-  dragIndicatorColor: string;
-  
+  selectionColor: string
+  selectionBorderColor: string
+  dragIndicatorColor: string
+
   // Animation
-  enableAnimations: boolean;
-  animationDuration: number;
-  
+  enableAnimations: boolean
+  animationDuration: number
+
   // Performance
-  enableLayerCaching: boolean;
-  maxSelectableCells: number;
-  
+  enableLayerCaching: boolean
+  maxSelectableCells: number
+
   // Portal positioning
-  useFixedPositioning?: boolean; // Use fixed positioning for portal-based overlays
-  documentViewportOffset?: { top: number; left: number }; // Offset from document viewport
+  useFixedPositioning?: boolean // Use fixed positioning for portal-based overlays
+  documentViewportOffset?: { top: number; left: number } // Offset from document viewport
 }
 
 export interface OverlayState {
-  selectedCells: Set<string>;
-  selectionRanges: SelectionRange[];
-  draggedItem: any | null;
-  dropTarget: any | null;
-  viewport: ViewportInfo;
+  selectedCells: Set<string>
+  selectionRanges: SelectionRange[]
+  draggedItem: any | null
+  dropTarget: any | null
+  viewport: ViewportInfo
 }
 
 export interface SelectionRange {
-  startRow: number;
-  startColumn: number;
-  endRow: number;
-  endColumn: number;
+  startRow: number
+  startColumn: number
+  endRow: number
+  endColumn: number
 }
 
 export interface CellPosition {
-  x: number;
-  y: number;
-  row: number;
-  column: number;
+  x: number
+  y: number
+  row: number
+  column: number
 }
 
 export interface DragState {
-  isDragging: boolean;
-  startPos: { x: number; y: number } | null;
-  startCell: { x: number; y: number } | null;
-  currentPos: { x: number; y: number } | null;
-  currentCell: { x: number; y: number } | null;
+  isDragging: boolean
+  startPos: { x: number; y: number } | null
+  startCell: { x: number; y: number } | null
+  currentPos: { x: number; y: number } | null
+  currentCell: { x: number; y: number } | null
 }
 
 // Default configuration
@@ -87,5 +87,5 @@ export const DEFAULT_CONFIG: OverlayConfig = {
   enableAnimations: false,
   animationDuration: 200,
   enableLayerCaching: true,
-  maxSelectableCells: 1000
-};
+  maxSelectableCells: 1000,
+}

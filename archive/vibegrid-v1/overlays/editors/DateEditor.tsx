@@ -1,19 +1,19 @@
-import React from 'react';
-import { Input } from '@/components/ui/input';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
-import { CalendarIcon, ClockIcon, XIcon } from 'lucide-react';
-import { format, parseISO, set, getHours, getMinutes } from 'date-fns';
-import type { CellRef, Column } from '../../types';
+import { format, getHours, getMinutes, parseISO, set } from 'date-fns'
+import { CalendarIcon, ClockIcon, XIcon } from 'lucide-react'
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import type { CellRef, Column } from '../../types'
 
 interface DateEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: string | null;
-  onCommit: (value: string | null) => void;
-  onCancel: () => void;
-  includeTime?: boolean;
+  cell: CellRef
+  column: Column
+  initialValue: string | null
+  onCommit: (value: string | null) => void
+  onCancel: () => void
+  includeTime?: boolean
 }
 
 export function DateEditor({
@@ -22,116 +22,116 @@ export function DateEditor({
   initialValue,
   onCommit,
   onCancel,
-  includeTime = false
+  includeTime = false,
 }: DateEditorProps) {
-  const [value, setValue] = React.useState(initialValue || '');
-  const [isCalendarOpen, setIsCalendarOpen] = React.useState(true); // Open by default
-  const [selectedTime, setSelectedTime] = React.useState({ hours: 12, minutes: 0 });
-  const [showTimePicker, setShowTimePicker] = React.useState(false);
-  
+  const [value, setValue] = React.useState(initialValue || '')
+  const [isCalendarOpen, setIsCalendarOpen] = React.useState(true) // Open by default
+  const [selectedTime, setSelectedTime] = React.useState({ hours: 12, minutes: 0 })
+  const [showTimePicker, setShowTimePicker] = React.useState(false)
+
   // Initialize time from existing value
   React.useEffect(() => {
     if (initialValue && includeTime) {
-      const parsedDate = parseDate(initialValue);
+      const parsedDate = parseDate(initialValue)
       if (parsedDate) {
         setSelectedTime({
           hours: getHours(parsedDate),
-          minutes: getMinutes(parsedDate)
-        });
+          minutes: getMinutes(parsedDate),
+        })
       }
     }
-  }, [initialValue, includeTime]);
+  }, [initialValue, includeTime])
 
   const parseDate = (dateString: string): Date | null => {
-    if (!dateString) return null;
+    if (!dateString) return null
     try {
       // For date-only strings (YYYY-MM-DD), parse as local date
       if (dateString.length === 10 && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = dateString.split('-').map(Number);
-        return new Date(year, month - 1, day, 12, 0, 0);
+        const [year, month, day] = dateString.split('-').map(Number)
+        return new Date(year, month - 1, day, 12, 0, 0)
       }
       // For datetime strings, use parseISO
-      return parseISO(dateString);
+      return parseISO(dateString)
     } catch {
-      return null;
+      return null
     }
-  };
+  }
 
   const formatDate = (date: Date | null): string => {
-    if (!date) return '';
+    if (!date) return ''
     if (includeTime) {
-      return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+      return format(date, "yyyy-MM-dd'T'HH:mm:ss")
     }
-    return format(date, 'yyyy-MM-dd');
-  };
+    return format(date, 'yyyy-MM-dd')
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter':
-        e.preventDefault();
-        onCommit(value || null);
-        break;
+        e.preventDefault()
+        onCommit(value || null)
+        break
       case 'Escape':
-        e.preventDefault();
-        e.stopPropagation(); // Stop the event from reaching KeyboardNavigationController
-        onCancel();
-        break;
+        e.preventDefault()
+        e.stopPropagation() // Stop the event from reaching KeyboardNavigationController
+        onCancel()
+        break
       case 'Tab':
-        e.preventDefault();
-        onCommit(value || null);
-        break;
+        e.preventDefault()
+        onCommit(value || null)
+        break
     }
-  };
+  }
 
   const handleBlur = () => {
-    onCommit(value || null);
-  };
+    onCommit(value || null)
+  }
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      let finalDate: Date;
+      let finalDate: Date
 
       if (includeTime) {
         // Apply selected time to the date
         finalDate = set(date, {
           hours: selectedTime.hours,
           minutes: selectedTime.minutes,
-          seconds: 0
-        });
-        setShowTimePicker(true); // Show time picker after date selection
+          seconds: 0,
+        })
+        setShowTimePicker(true) // Show time picker after date selection
       } else {
         // For date-only, set time to noon to avoid timezone issues
-        finalDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0);
-        setIsCalendarOpen(false);
+        finalDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0)
+        setIsCalendarOpen(false)
       }
 
-      const formattedDate = formatDate(finalDate);
-      setValue(formattedDate);
+      const formattedDate = formatDate(finalDate)
+      setValue(formattedDate)
 
       // Only commit immediately for date-only fields
       if (!includeTime) {
-        onCommit(formattedDate);
+        onCommit(formattedDate)
       }
     }
-  };
+  }
 
   const handleTimeChange = (hours: number, minutes: number) => {
-    setSelectedTime({ hours, minutes });
+    setSelectedTime({ hours, minutes })
 
     // Update the current date with new time
-    const currentDate = parseDate(value);
+    const currentDate = parseDate(value)
     if (currentDate) {
-      const updatedDate = set(currentDate, { hours, minutes, seconds: 0 });
-      const formattedDate = formatDate(updatedDate);
-      setValue(formattedDate);
+      const updatedDate = set(currentDate, { hours, minutes, seconds: 0 })
+      const formattedDate = formatDate(updatedDate)
+      setValue(formattedDate)
     }
-  };
+  }
 
   const commitDateTime = () => {
-    onCommit(value || null);
-  };
+    onCommit(value || null)
+  }
 
-  const currentDate = parseDate(value);
+  const currentDate = parseDate(value)
 
   if (includeTime) {
     // Enhanced datetime editor with calendar and time picker
@@ -140,7 +140,7 @@ export function DateEditor({
         className="p-3 bg-background border rounded-lg shadow-lg min-w-[320px]"
         onBlur={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-            handleBlur();
+            handleBlur()
           }
         }}
         tabIndex={-1}
@@ -179,7 +179,9 @@ export function DateEditor({
                     min="0"
                     max="23"
                     value={selectedTime.hours}
-                    onChange={(e) => handleTimeChange(parseInt(e.target.value) || 0, selectedTime.minutes)}
+                    onChange={(e) =>
+                      handleTimeChange(parseInt(e.target.value) || 0, selectedTime.minutes)
+                    }
                     className="mt-1"
                   />
                 </div>
@@ -190,13 +192,15 @@ export function DateEditor({
                     min="0"
                     max="59"
                     value={selectedTime.minutes}
-                    onChange={(e) => handleTimeChange(selectedTime.hours, parseInt(e.target.value) || 0)}
+                    onChange={(e) =>
+                      handleTimeChange(selectedTime.hours, parseInt(e.target.value) || 0)
+                    }
                     className="mt-1"
                   />
                 </div>
               </div>
               <div className="text-center text-sm text-muted-foreground">
-                Preview: {currentDate ? format(currentDate, 'MMM dd, yyyy \'at\' HH:mm') : ''}
+                Preview: {currentDate ? format(currentDate, "MMM dd, yyyy 'at' HH:mm") : ''}
               </div>
             </div>
           </>
@@ -217,34 +221,25 @@ export function DateEditor({
             size="sm"
             variant="outline"
             onClick={() => {
-              setValue('');
-              onCommit(null);
+              setValue('')
+              onCommit(null)
             }}
             className="flex-1"
           >
             Clear
           </Button>
           {showTimePicker ? (
-            <Button
-              size="sm"
-              onClick={commitDateTime}
-              className="flex-1"
-            >
+            <Button size="sm" onClick={commitDateTime} className="flex-1">
               Done
             </Button>
           ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onCancel}
-              className="flex-1"
-            >
+            <Button size="sm" variant="outline" onClick={onCancel} className="flex-1">
               Cancel
             </Button>
           )}
         </div>
       </div>
-    );
+    )
   }
 
   // For date only, show calendar directly
@@ -254,7 +249,7 @@ export function DateEditor({
       onBlur={(e) => {
         // Only commit if the blur event is not going to another element within this container
         if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-          handleBlur();
+          handleBlur()
         }
       }}
       tabIndex={-1}
@@ -271,22 +266,17 @@ export function DateEditor({
           size="sm"
           variant="outline"
           onClick={() => {
-            setValue('');
-            onCommit(null);
+            setValue('')
+            onCommit(null)
           }}
           className="flex-1"
         >
           Clear
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onCancel}
-          className="flex-1"
-        >
+        <Button size="sm" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
       </div>
     </div>
-  );
+  )
 }

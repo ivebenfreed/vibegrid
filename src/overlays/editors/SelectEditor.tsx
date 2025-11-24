@@ -1,20 +1,20 @@
-import React from 'react';
-import { createLogger } from '@/shared/lib/logging';
-import { ComboboxEditor } from './ComboboxEditor';
-import type { CellRef, Column, RelationshipContext } from '../../types';
+import React from 'react'
+import { createLogger } from '@/shared/lib/logging'
+import type { CellRef, Column, RelationshipContext } from '../../types'
+import { ComboboxEditor } from './ComboboxEditor'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/SelectEditor');
+const fileLog = createLogger('components/vibegrid/overlays/editors/SelectEditor')
 
 interface SelectEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: string | null;
-  onCommit: (value: string | null) => void;
-  onCancel: () => void;
+  cell: CellRef
+  column: Column
+  initialValue: string | null
+  onCommit: (value: string | null) => void
+  onCancel: () => void
   // Additional context for relationship editors
   relationshipContext?: {
-    relationshipResolvers?: Record<string, (id: string | string[]) => string>;
-  };
+    relationshipResolvers?: Record<string, (id: string | string[]) => string>
+  }
 }
 
 export function SelectEditor({
@@ -23,7 +23,7 @@ export function SelectEditor({
   initialValue,
   onCommit,
   onCancel,
-  relationshipContext
+  relationshipContext,
 }: SelectEditorProps) {
   fileLog.debug('Rendering SelectEditor', {
     columnId: column.id,
@@ -31,15 +31,17 @@ export function SelectEditor({
     hasOptions: !!(column.options || column.enumOptions),
     optionCount: (column.options || column.enumOptions || []).length,
     hasRelationshipContext: !!relationshipContext,
-    initialValue
-  });
+    initialValue,
+  })
 
   // Convert the old relationshipContext format to the new RelationshipContext
-  const newRelationshipContext: RelationshipContext | undefined = relationshipContext ? {
-    currentEntity: null, // Will be set by the actual editor call
-    column,
-    fieldName: column.field || column.id
-  } : undefined;
+  const newRelationshipContext: RelationshipContext | undefined = relationshipContext
+    ? {
+        currentEntity: null, // Will be set by the actual editor call
+        column,
+        fieldName: column.field || column.id,
+      }
+    : undefined
 
   return (
     <ComboboxEditor
@@ -48,9 +50,9 @@ export function SelectEditor({
       initialValue={initialValue}
       onCommit={onCommit}
       onCancel={onCancel}
-      placeholder={(column as any).placeholder || "Select..."}
+      placeholder={(column as any).placeholder || 'Select...'}
       searchPlaceholder="Search options..."
       relationshipContext={newRelationshipContext}
     />
-  );
+  )
 }

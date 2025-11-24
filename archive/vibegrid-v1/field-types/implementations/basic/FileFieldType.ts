@@ -5,57 +5,57 @@
  */
 
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   CellValidator,
   EnhancedColumn,
-  ValidationResult
-} from '../../FieldTypeRegistry';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
 interface FileValue {
-  url: string;
-  name: string;
-  size?: number;
-  type?: string;
-  metadata?: Record<string, any>;
+  url: string
+  name: string
+  size?: number
+  type?: string
+  metadata?: Record<string, any>
 }
 
 export class FileRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'vibegridx-cell-file';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-cell-file'
 
     if (!value) {
-      container.className += ' vibegridx-cell-empty';
-      container.textContent = column.editable ? 'Upload file...' : 'No file';
-      container.style.opacity = '0.6';
-      return container;
+      container.className += ' vibegridx-cell-empty'
+      container.textContent = column.editable ? 'Upload file...' : 'No file'
+      container.style.opacity = '0.6'
+      return container
     }
 
-    const fileData = this.parseFileValue(value);
-    container.innerHTML = this.createFileDisplay(fileData);
-    container.style.cssText = 'display: flex; align-items: center; gap: 6px;';
+    const fileData = this.parseFileValue(value)
+    container.innerHTML = this.createFileDisplay(fileData)
+    container.style.cssText = 'display: flex; align-items: center; gap: 6px;'
 
-    return container;
+    return container
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    element.className = 'vibegridx-cell-file';
+    element.className = 'vibegridx-cell-file'
 
     if (!value) {
-      element.className += ' vibegridx-cell-empty';
-      element.textContent = column.editable ? 'Upload file...' : 'No file';
-      element.style.opacity = '0.6';
+      element.className += ' vibegridx-cell-empty'
+      element.textContent = column.editable ? 'Upload file...' : 'No file'
+      element.style.opacity = '0.6'
     } else {
-      const fileData = this.parseFileValue(value);
-      element.innerHTML = this.createFileDisplay(fileData);
+      const fileData = this.parseFileValue(value)
+      element.innerHTML = this.createFileDisplay(fileData)
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'file';
+    return (column.cellType || column.type) === 'file'
   }
 
   private parseFileValue(value: any): FileValue {
@@ -65,26 +65,26 @@ export class FileRenderer implements CellRenderer {
         name: value.name || 'Unknown file',
         size: value.size,
         type: value.type,
-        metadata: value.metadata
-      };
+        metadata: value.metadata,
+      }
     }
 
     if (typeof value === 'string') {
-      const fileName = value.split('/').pop() || 'file';
+      const fileName = value.split('/').pop() || 'file'
       return {
         url: value,
         name: fileName,
         size: undefined,
-        type: this.getFileTypeFromName(fileName)
-      };
+        type: this.getFileTypeFromName(fileName),
+      }
     }
 
-    return { url: '', name: 'Invalid file' };
+    return { url: '', name: 'Invalid file' }
   }
 
   private createFileDisplay(fileData: FileValue): string {
-    const icon = this.getFileIcon(fileData.type);
-    const sizeText = fileData.size ? this.formatFileSize(fileData.size) : '';
+    const icon = this.getFileIcon(fileData.type)
+    const sizeText = fileData.size ? this.formatFileSize(fileData.size) : ''
 
     return `
       <span style="font-size: 14px;">${icon}</span>
@@ -94,96 +94,103 @@ export class FileRenderer implements CellRenderer {
         </div>
         ${sizeText ? `<div style="font-size: 10px; color: #6b7280;">${sizeText}</div>` : ''}
       </div>
-    `;
+    `
   }
 
   private getFileIcon(type?: string): string {
-    if (!type) return '📄';
+    if (!type) return '📄'
 
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('video/')) return '🎥';
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.includes('pdf')) return '📕';
-    if (type.includes('word')) return '📘';
-    if (type.includes('excel') || type.includes('spreadsheet')) return '📊';
-    if (type.includes('powerpoint') || type.includes('presentation')) return '📋';
-    if (type.includes('zip') || type.includes('archive')) return '📦';
+    if (type.startsWith('image/')) return '🖼️'
+    if (type.startsWith('video/')) return '🎥'
+    if (type.startsWith('audio/')) return '🎵'
+    if (type.includes('pdf')) return '📕'
+    if (type.includes('word')) return '📘'
+    if (type.includes('excel') || type.includes('spreadsheet')) return '📊'
+    if (type.includes('powerpoint') || type.includes('presentation')) return '📋'
+    if (type.includes('zip') || type.includes('archive')) return '📦'
 
-    return '📄';
+    return '📄'
   }
 
   private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return '0 B'
 
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
   }
 
   private getFileTypeFromName(fileName: string): string {
-    const ext = fileName.split('.').pop()?.toLowerCase();
+    const ext = fileName.split('.').pop()?.toLowerCase()
 
     const typeMap: Record<string, string> = {
-      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif',
-      'pdf': 'application/pdf', 'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'zip': 'application/zip', 'txt': 'text/plain'
-    };
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      gif: 'image/gif',
+      pdf: 'application/pdf',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      zip: 'application/zip',
+      txt: 'text/plain',
+    }
 
-    return typeMap[ext || ''] || 'application/octet-stream';
+    return typeMap[ext || ''] || 'application/octet-stream'
   }
 }
 
 export class FileEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null;
-  private onSaveCallback: ((value: any) => void) | null = null;
+  private currentElement: HTMLElement | null = null
+  private onSaveCallback: ((value: any) => void) | null = null
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    this.onSaveCallback = onSave;
+    this.onSaveCallback = onSave
 
-    const container = document.createElement('div');
-    container.className = 'vibegridx-file-editor';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-file-editor'
     container.style.cssText = `
       width: 100%; height: 100%; display: flex; align-items: center; gap: 8px;
       background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 4px; padding: 4px 8px;
-    `;
+    `
 
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.style.cssText = 'flex: 1; font-size: 12px;';
+    const fileInput = document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.style.cssText = 'flex: 1; font-size: 12px;'
 
-    const uploadButton = document.createElement('button');
-    uploadButton.textContent = 'Upload';
+    const uploadButton = document.createElement('button')
+    uploadButton.textContent = 'Upload'
     uploadButton.style.cssText = `
       padding: 2px 8px; font-size: 12px; background: #3b82f6; color: white;
       border: none; border-radius: 3px; cursor: pointer;
-    `;
+    `
 
-    fileInput.addEventListener('change', () => this.handleFileSelect(fileInput));
-    uploadButton.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => this.handleFileSelect(fileInput))
+    uploadButton.addEventListener('click', () => fileInput.click())
 
-    this.currentElement = container;
-    container.appendChild(fileInput);
-    container.appendChild(uploadButton);
+    this.currentElement = container
+    container.appendChild(fileInput)
+    container.appendChild(uploadButton)
 
-    return container;
+    return container
   }
 
   getValue(element: HTMLElement): any {
-    const fileInput = element.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = fileInput?.files?.[0];
+    const fileInput = element.querySelector('input[type="file"]') as HTMLInputElement
+    const file = fileInput?.files?.[0]
 
-    if (!file) return null;
+    if (!file) return null
 
     // In a real implementation, this would upload the file and return the URL
     return {
       url: `mock://uploads/${file.name}`,
       name: file.name,
       size: file.size,
-      type: file.type
-    };
+      type: file.type,
+    }
   }
 
   setValue(element: HTMLElement, value: any): void {
@@ -191,51 +198,55 @@ export class FileEditor implements CellEditor {
   }
 
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const errors: string[] = [];
+    const errors: string[] = []
 
     if (value == null) {
       if (column.validation?.required) {
-        errors.push(`${column.name} is required`);
+        errors.push(`${column.name} is required`)
       }
-      return { valid: errors.length === 0, errors, transformedValue: null };
+      return { valid: errors.length === 0, errors, transformedValue: null }
     }
 
-    const fileData = typeof value === 'object' ? value : { size: 0, type: '' };
+    const fileData = typeof value === 'object' ? value : { size: 0, type: '' }
 
     // Size validation
     if (column.validation?.fileMaxSize && fileData.size > column.validation.fileMaxSize) {
-      errors.push(`${column.name} file size exceeds ${column.validation.fileMaxSize} bytes`);
+      errors.push(`${column.name} file size exceeds ${column.validation.fileMaxSize} bytes`)
     }
 
     // Type validation
     if (column.validation?.fileAllowedTypes && fileData.type) {
-      const allowed = column.validation.fileAllowedTypes;
+      const allowed = column.validation.fileAllowedTypes
       if (!allowed.some((type: string) => fileData.type.includes(type))) {
-        errors.push(`${column.name} file type not allowed. Allowed: ${allowed.join(', ')}`);
+        errors.push(`${column.name} file type not allowed. Allowed: ${allowed.join(', ')}`)
       }
     }
 
-    return { valid: errors.length === 0, errors, transformedValue: value };
+    return { valid: errors.length === 0, errors, transformedValue: value }
   }
 
   destroy(element: HTMLElement): void {
-    this.currentElement = null;
-    this.onSaveCallback = null;
+    this.currentElement = null
+    this.onSaveCallback = null
   }
 
-  supportsInlineEditing(): boolean { return true; }
-  supportsModalEditing(): boolean { return true; }
+  supportsInlineEditing(): boolean {
+    return true
+  }
+  supportsModalEditing(): boolean {
+    return true
+  }
 
   private handleFileSelect(fileInput: HTMLInputElement): void {
     if (this.onSaveCallback && fileInput.files?.[0]) {
-      const file = fileInput.files[0];
+      const file = fileInput.files[0]
       const fileData = {
         url: `mock://uploads/${file.name}`,
         name: file.name,
         size: file.size,
-        type: file.type
-      };
-      this.onSaveCallback(fileData);
+        type: file.type,
+      }
+      this.onSaveCallback(fileData)
     }
   }
 }
@@ -247,19 +258,21 @@ export const FileFieldType: VibeGridFieldType = {
   editor: new FileEditor(),
   formatter: new (class implements CellFormatter {
     format(value: any): string {
-      if (!value) return '';
-      const fileData = typeof value === 'object' ? value : { name: String(value) };
-      return fileData.name || 'Unknown file';
+      if (!value) return ''
+      const fileData = typeof value === 'object' ? value : { name: String(value) }
+      return fileData.name || 'Unknown file'
     }
-    parse(text: string): any { return text.trim() || null; }
+    parse(text: string): any {
+      return text.trim() || null
+    }
   })(),
   validator: new (class implements CellValidator {
     validate(value: any, column: EnhancedColumn): ValidationResult {
-      const editor = new FileEditor();
-      return editor.validate(value, column);
+      const editor = new FileEditor()
+      return editor.validate(value, column)
     }
     getConstraints(): Record<string, any> {
-      return { format: 'file', supportsUpload: true };
+      return { format: 'file', supportsUpload: true }
     }
   })(),
   metadata: {
@@ -268,9 +281,10 @@ export const FileFieldType: VibeGridFieldType = {
     supportsGrouping: true,
     requiresSpecialEditor: true,
     hasRichDisplay: true,
-    supportsValidation: true
-  }
-};
+    supportsValidation: true,
+  },
+}
 
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('file', FileFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('file', FileFieldType)

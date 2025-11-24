@@ -10,17 +10,18 @@
  * - React components for controls and overlays
  */
 
-import React, { useEffect, useRef, memo } from 'react'
-import { observer } from 'mobx-react-lite'
-import { autorun } from 'mobx'
 import { useLiveQuery } from '@tanstack/react-db'
-import { createLogger } from '@/shared/lib/logging'
-import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
-import { VibeGridStoreProvider, useVibeGridStores } from './stores/context'
-import { useVibeGridData } from './hooks/useVibeGridData'
-import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
+import { autorun } from 'mobx'
+import { observer } from 'mobx-react-lite'
+import type React from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
+import { createLogger } from '@/shared/lib/logging'
+import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
+import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
+import { useVibeGridData } from './hooks/useVibeGridData'
+import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
+import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -52,7 +53,7 @@ interface VibeGridProps<T = any> {
   onPerformanceUpdate?: (metrics: any) => void
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
   onBatchEntityUpdate?: (
-    updates: Array<{ id: string; updates: Record<string, any> }>
+    updates: Array<{ id: string; updates: Record<string, any> }>,
   ) => Promise<void> | void
 
   // Performance options
@@ -92,7 +93,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     enableGrouping = true,
     enableFiltering = true,
     enableSorting = true,
-    enableDragAndDrop = true
+    enableDragAndDrop = true,
   } = props
 
   // ====================================
@@ -106,13 +107,21 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // TANSTACK DB INTEGRATION
   // ====================================
 
-  const { rows, isLoading: isDataLoading, collection, createEntity, updateEntity, deleteEntity } =
-    useVibeGridData(entityType, visualStateStore)
+  const {
+    rows,
+    isLoading: isDataLoading,
+    collection,
+    createEntity,
+    updateEntity,
+    deleteEntity,
+  } = useVibeGridData(entityType, visualStateStore)
 
   // Fetch organization members for UserReference fields (automatic org context)
-  const { data: members = [], isLoading: membersLoading, status: membersStatus } = useLiveQuery((q) =>
-    q.from({ members: membersCollection })
-  )
+  const {
+    data: members = [],
+    isLoading: membersLoading,
+    status: membersStatus,
+  } = useLiveQuery((q) => q.from({ members: membersCollection }))
 
   // Log members query status
   useEffect(() => {
@@ -121,7 +130,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       isLoading: membersLoading,
       memberCount: members?.length || 0,
       hasMembersData: members && members.length > 0,
-      firstMember: members?.[0]
+      firstMember: members?.[0],
     })
   }, [members, membersLoading, membersStatus])
 
@@ -151,7 +160,9 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       stores.initStore.markReady('entityDataLoaded')
       log.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
     } else {
-      log.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', { rowCount: rows?.length || 0 })
+      log.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', {
+        rowCount: rows?.length || 0,
+      })
     }
   }, [rows, tableCoreStore, stores])
 
@@ -167,11 +178,16 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       log.info('[VGDEBUG] 🎯 Both schema and data loaded - initializing baseline snapshot', {
         schemaLoaded,
         entityDataLoaded,
-        columnCount: tableCoreStore.columns.length
+        columnCount: tableCoreStore.columns.length,
       })
       tableCoreStore.initializeBaselineSnapshot()
     }
-  }, [stores?.initStore.hydrationState.schemaLoaded, stores?.initStore.hydrationState.entityDataLoaded, tableCoreStore, stores])
+  }, [
+    stores?.initStore.hydrationState.schemaLoaded,
+    stores?.initStore.hydrationState.entityDataLoaded,
+    tableCoreStore,
+    stores,
+  ])
 
   // Sync members data to store for UserReference fields
   useEffect(() => {
@@ -185,7 +201,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     if (!interactionStore || !collection) return
     log.info('Setting TanStack DB collection on InteractionStore', {
       hasCollection: !!collection,
-      entityType
+      entityType,
     })
     interactionStore.setCollection(collection)
   }, [collection, interactionStore, entityType])
@@ -195,7 +211,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     if (!tableCoreStore || !collection) return
     log.info('Setting TanStack DB collection on TableCoreStore', {
       hasCollection: !!collection,
-      entityType
+      entityType,
     })
     tableCoreStore.setCollection(collection)
   }, [collection, tableCoreStore, entityType])
@@ -211,7 +227,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           tableId,
           entityType,
           storesReady: !!stores,
-          rowCount: rows?.length || 0
+          rowCount: rows?.length || 0,
         })
 
         // Check if stores are available
@@ -233,13 +249,13 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         // Wait for stores to be initialized
         if (!visualStateStore.columns.length) {
           log.info('[VGDEBUG] ⏳ Waiting for columns to load...', {
-            columnCount: visualStateStore.columns.length
+            columnCount: visualStateStore.columns.length,
           })
           return
         }
 
         log.info('[VGDEBUG] ✅ About to create SimplePassiveRenderer', {
-          columnCount: visualStateStore.columns.length
+          columnCount: visualStateStore.columns.length,
         })
 
         // Create the SimplePassiveRenderer with MobX stores
@@ -252,7 +268,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           // Use updateEntity from hook as fallback if onEntityUpdate prop not provided
           onEntityUpdate: onEntityUpdate || updateEntity,
           onBatchEntityUpdate,
-          onCellClick // ✅ Thread onCellClick to InteractionCoordinator
+          onCellClick, // ✅ Thread onCellClick to InteractionCoordinator
         })
 
         rendererRef.current = renderer
@@ -277,7 +293,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         log.info('🎯 VibeGrid fully initialized', {
           entityType,
           tableId,
-          rowCount: rows?.length || 0
+          rowCount: rows?.length || 0,
         })
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -293,7 +309,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
       if (stores && hasColumns && !rendererRef.current) {
         log.info('🎯 MobX autorun: Columns ready, initializing renderer', {
-          columnCount: visualStateStore.columns.length
+          columnCount: visualStateStore.columns.length,
         })
         initializeRenderer()
       }
@@ -335,12 +351,19 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       shouldShowHeader,
       isReady,
       isRendered,
-      showLoadingOverlay: (!isReady || !isRendered),
+      showLoadingOverlay: !isReady || !isRendered,
       columnCount: visualStateStore.columns.length,
       isDataLoading,
-      hasStores: !!stores
+      hasStores: !!stores,
     })
-  }, [shouldShowHeader, isReady, isRendered, visualStateStore.columns.length, isDataLoading, stores])
+  }, [
+    shouldShowHeader,
+    isReady,
+    isRendered,
+    visualStateStore.columns.length,
+    isDataLoading,
+    stores,
+  ])
 
   // ====================================
   // RENDER
@@ -357,7 +380,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         position: 'relative',
         outline: 'none',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
       }}
     >
       {/* Loading overlay */}
@@ -390,7 +413,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
             width: '100%',
             height: '100%',
             position: 'relative',
-            outline: 'none'
+            outline: 'none',
           }}
         />
       </div>
@@ -410,7 +433,7 @@ const VibeGridInnerMemoized = memo(VibeGridInner)
 // ====================================
 
 export function VibeGrid<T extends Record<string, any> = any>(
-  props: VibeGridProps<T>
+  props: VibeGridProps<T>,
 ): React.ReactElement {
   // Note: VibeGrid expects to be wrapped in VibeGridStoreProvider by the parent
   // This allows for better control over store lifecycle from the parent component

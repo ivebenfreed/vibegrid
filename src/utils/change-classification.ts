@@ -4,7 +4,7 @@ export enum ChangeType {
   NONE = 'none',
   CELLS = 'cells',
   ROWS = 'rows',
-  STRUCTURAL = 'structural'
+  STRUCTURAL = 'structural',
 }
 
 export interface ChangeMetadata {
@@ -18,16 +18,15 @@ export interface ChangeMetadata {
 
 export const CHANGE_THRESHOLDS = {
   MAX_CELL_GRANULAR: 20,
-  MAX_CELLS_PER_ROW: 3
+  MAX_CELLS_PER_ROW: 3,
 }
 
 export function classifyChanges(
   changedCells: Map<string, Set<string>>,
   sortingSensitive: boolean,
-  structuralChange: boolean
+  structuralChange: boolean,
 ): ChangeMetadata {
-  const totalCells = Array.from(changedCells.values())
-    .reduce((sum, cols) => sum + cols.size, 0)
+  const totalCells = Array.from(changedCells.values()).reduce((sum, cols) => sum + cols.size, 0)
 
   const affectedRows = new Set(changedCells.keys())
 
@@ -40,7 +39,7 @@ export function classifyChanges(
       affectedCells: changedCells,
       sortingSensitive,
       structuralChange,
-      estimatedCellCount: totalCells
+      estimatedCellCount: totalCells,
     }
   }
 
@@ -52,15 +51,13 @@ export function classifyChanges(
       affectedCells: new Map(),
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: 0
+      estimatedCellCount: 0,
     }
   }
 
   // Priority 3: Check thresholds for granular vs batch
   if (totalCells <= CHANGE_THRESHOLDS.MAX_CELL_GRANULAR) {
-    const maxCellsPerRow = Math.max(
-      ...Array.from(changedCells.values()).map(cols => cols.size)
-    )
+    const maxCellsPerRow = Math.max(...Array.from(changedCells.values()).map((cols) => cols.size))
 
     if (maxCellsPerRow <= CHANGE_THRESHOLDS.MAX_CELLS_PER_ROW) {
       return {
@@ -69,7 +66,7 @@ export function classifyChanges(
         affectedCells: changedCells,
         sortingSensitive: false,
         structuralChange: false,
-        estimatedCellCount: totalCells
+        estimatedCellCount: totalCells,
       }
     }
 
@@ -79,7 +76,7 @@ export function classifyChanges(
       affectedCells: changedCells,
       sortingSensitive: false,
       structuralChange: false,
-      estimatedCellCount: totalCells
+      estimatedCellCount: totalCells,
     }
   }
 
@@ -90,6 +87,6 @@ export function classifyChanges(
     affectedCells: changedCells,
     sortingSensitive: false,
     structuralChange: false,
-    estimatedCellCount: totalCells
+    estimatedCellCount: totalCells,
   }
 }

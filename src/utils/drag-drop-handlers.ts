@@ -4,21 +4,21 @@
  * Simplified implementation following VibeGrid patterns for row drag and drop.
  */
 
-import { createLogger } from '@/shared/lib/logging';
-import type { GroupRowOrderConfig } from '../stores/TableCoreStore';
+import { createLogger } from '@/shared/lib/logging'
+import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 
-const fileLog = createLogger('components/custom/vibegrid/utils/drag-drop-handlers.ts');
+const fileLog = createLogger('components/custom/vibegrid/utils/drag-drop-handlers.ts')
 
 // ====================================
 // TYPES
 // ====================================
 
 export interface DragDropCallbacks {
-  onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => boolean;
-  onFlatRowMove?: (fromIndex: number, toIndex: number) => boolean;
-  onDragStart?: (rowId: string, groupId?: string) => void;
-  onDragEnd?: (success: boolean) => void;
-  isGroupMode?: () => boolean;
+  onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => boolean
+  onFlatRowMove?: (fromIndex: number, toIndex: number) => boolean
+  onDragStart?: (rowId: string, groupId?: string) => void
+  onDragEnd?: (success: boolean) => void
+  isGroupMode?: () => boolean
 }
 
 // ====================================
@@ -26,11 +26,11 @@ export interface DragDropCallbacks {
 // ====================================
 
 export class DragDropManager {
-  private callbacks: DragDropCallbacks;
+  private callbacks: DragDropCallbacks
 
   constructor(callbacks: DragDropCallbacks) {
-    this.callbacks = callbacks;
-    fileLog.debug('🎯 DragDropManager initialized');
+    this.callbacks = callbacks
+    fileLog.debug('🎯 DragDropManager initialized')
   }
 
   /**
@@ -38,25 +38,25 @@ export class DragDropManager {
    */
   setContainer(container: HTMLElement): void {
     // Store container reference if needed for future drag operations
-    fileLog.debug('🏗️ Container set for drag operations', { containerClass: container.className });
+    fileLog.debug('🏗️ Container set for drag operations', { containerClass: container.className })
   }
 
   /**
    * Setup row for drag and drop (alias for setupRowDragHandlers)
    */
   setupRowForDragDrop(rowElement: HTMLElement, row: any): void {
-    const rowType = row.type || 'data';
-    const groupId = row.groupId;
-    
-    this.setupRowDragHandlers(rowElement, row.id, rowType, groupId);
+    const rowType = row.type || 'data'
+    const groupId = row.groupId
+
+    this.setupRowDragHandlers(rowElement, row.id, rowType, groupId)
   }
 
   /**
    * Create drag handle element
    */
   createDragHandle(): HTMLElement {
-    const handle = document.createElement('div');
-    handle.className = 'vibegrid-drag-handle';
+    const handle = document.createElement('div')
+    handle.className = 'vibegrid-drag-handle'
 
     // Handle styling
     Object.assign(handle.style, {
@@ -68,8 +68,8 @@ export class DragDropManager {
       cursor: 'grab',
       borderRadius: '4px',
       opacity: '0.6',
-      transition: 'opacity 0.2s ease'
-    });
+      transition: 'opacity 0.2s ease',
+    })
 
     // Drag icon (two rows of three dots)
     handle.innerHTML = `
@@ -81,9 +81,9 @@ export class DragDropManager {
         <circle cx="3" cy="12" r="1.5"/>
         <circle cx="9" cy="12" r="1.5"/>
       </svg>
-    `;
+    `
 
-    return handle;
+    return handle
   }
 
   /**
@@ -93,24 +93,24 @@ export class DragDropManager {
     rowElement: HTMLElement,
     rowId: string,
     rowType: 'data' | 'group' | 'summary',
-    groupId?: string
+    groupId?: string,
   ): void {
     fileLog.debug('🎯 setupRowDragHandlers called', {
       rowId,
       rowType,
       groupId,
       hasRowElement: !!rowElement,
-      dataGroupId: rowElement?.dataset?.groupId
-    });
+      dataGroupId: rowElement?.dataset?.groupId,
+    })
 
     // Only data rows are draggable
     if (rowType !== 'data') {
-      fileLog.debug('⏭️ Skipping non-data row', { rowId, rowType });
-      return;
+      fileLog.debug('⏭️ Skipping non-data row', { rowId, rowType })
+      return
     }
 
-    const isGroupMode = this.callbacks.isGroupMode?.() ?? true;
-    fileLog.debug('🔍 Group mode check', { isGroupMode, groupId, hasGroupId: !!groupId });
+    const isGroupMode = this.callbacks.isGroupMode?.() ?? true
+    fileLog.debug('🔍 Group mode check', { isGroupMode, groupId, hasGroupId: !!groupId })
 
     if (isGroupMode && !groupId) {
       fileLog.error('❌ Cannot setup drag handlers: no group ID provided for grouped mode', {
@@ -118,71 +118,78 @@ export class DragDropManager {
         isGroupMode,
         groupId,
         dataGroupId: rowElement?.dataset?.groupId,
-        allDataAttributes: Object.assign({}, rowElement?.dataset)
-      });
-      return;
+        allDataAttributes: Object.assign({}, rowElement?.dataset),
+      })
+      return
     }
 
     // Note: HTML5 drag events are no longer used - MouseController handles row dragging
     // This is kept for compatibility but no longer sets up event listeners
-    fileLog.debug('🎯 Row drag handlers setup (MouseController mode)', { rowId, groupId, isGroupMode });
+    fileLog.debug('🎯 Row drag handlers setup (MouseController mode)', {
+      rowId,
+      groupId,
+      isGroupMode,
+    })
   }
-
 
   /**
    * Get the index of a row within its group
    */
   private getRowIndexInGroup(rowElement: HTMLElement, groupId: string): number {
-    const container = document.querySelector(`[data-group-id="${groupId}"]`)?.parentElement;
-    if (!container) return -1;
+    const container = document.querySelector(`[data-group-id="${groupId}"]`)?.parentElement
+    if (!container) return -1
 
-    const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'));
-    return dataRows.indexOf(rowElement);
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
+    return dataRows.indexOf(rowElement)
   }
 
   /**
    * Get the index of a row in flat mode
    */
   private getRowIndexFlat(rowElement: HTMLElement): number {
-    const container = rowElement.closest('.vibegridx-container');
-    if (!container) return -1;
+    const container = rowElement.closest('.vibegridx-container')
+    if (!container) return -1
 
-    const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'));
-    return dataRows.indexOf(rowElement);
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
+    return dataRows.indexOf(rowElement)
   }
-
 
   /**
    * Create a clean drag preview showing all visible row content
    */
   private createDragPreview(rowElement: HTMLElement): HTMLElement {
-    const preview = document.createElement('div');
-    preview.className = 'vibegrid-drag-preview';
+    const preview = document.createElement('div')
+    preview.className = 'vibegrid-drag-preview'
 
     // Clone the row content but only visible parts
-    const viewportWidth = window.innerWidth;
-    const cells = rowElement.querySelectorAll('.vibegridx-cell');
+    const viewportWidth = window.innerWidth
+    const cells = rowElement.querySelectorAll('.vibegridx-cell')
 
     // Collect all visible cells
-    const visibleCells = Array.from(cells).filter(cell => {
-      const cellRect = cell.getBoundingClientRect();
-      return cellRect.right > 0 && cellRect.left < viewportWidth;
-    });
+    const visibleCells = Array.from(cells).filter((cell) => {
+      const cellRect = cell.getBoundingClientRect()
+      return cellRect.right > 0 && cellRect.left < viewportWidth
+    })
 
     if (visibleCells.length > 0) {
       // Create a mini table-like structure for the preview
-      preview.style.display = 'flex';
-      preview.style.alignItems = 'center';
-      preview.style.gap = '12px';
+      preview.style.display = 'flex'
+      preview.style.alignItems = 'center'
+      preview.style.gap = '12px'
 
       visibleCells.forEach((cell, index) => {
-        if (index >= 4) return; // Limit to first 4 visible cells to avoid too wide preview
+        if (index >= 4) return // Limit to first 4 visible cells to avoid too wide preview
 
-        const cellPreview = document.createElement('div');
-        const cellText = cell.textContent?.trim() || '';
+        const cellPreview = document.createElement('div')
+        const cellText = cell.textContent?.trim() || ''
 
         if (cellText) {
-          cellPreview.textContent = cellText.length > 20 ? cellText.substring(0, 20) + '...' : cellText;
+          cellPreview.textContent =
+            cellText.length > 20 ? cellText.substring(0, 20) + '...' : cellText
           cellPreview.style.cssText = `
             flex: 0 0 auto;
             max-width: 120px;
@@ -191,31 +198,31 @@ export class DragDropManager {
             white-space: nowrap;
             font-size: 13px;
             color: #374151;
-          `;
+          `
 
           // Add separator between cells (except last)
           if (index > 0) {
-            const separator = document.createElement('div');
-            separator.textContent = '•';
+            const separator = document.createElement('div')
+            separator.textContent = '•'
             separator.style.cssText = `
               color: #9ca3af;
               font-size: 12px;
               flex: 0 0 auto;
-            `;
-            preview.appendChild(separator);
+            `
+            preview.appendChild(separator)
           }
 
-          preview.appendChild(cellPreview);
+          preview.appendChild(cellPreview)
         }
-      });
+      })
 
       // If no visible content found, show fallback
       if (preview.children.length === 0) {
-        preview.textContent = 'Moving row...';
-        preview.style.display = 'block';
+        preview.textContent = 'Moving row...'
+        preview.style.display = 'block'
       }
     } else {
-      preview.textContent = 'Moving row...';
+      preview.textContent = 'Moving row...'
     }
 
     // Style the preview container
@@ -235,24 +242,24 @@ export class DragDropManager {
       maxWidth: '500px',
       minWidth: '150px',
       whiteSpace: 'nowrap',
-      overflow: 'hidden'
-    });
+      overflow: 'hidden',
+    })
 
-    document.body.appendChild(preview);
-    return preview;
+    document.body.appendChild(preview)
+    return preview
   }
 
   /**
    * Show drop indicator at target position
    */
   private showDropIndicator(targetElement: HTMLElement, e: DragEvent): void {
-    this.removeDropIndicators();
+    this.removeDropIndicators()
 
-    const rect = targetElement.getBoundingClientRect();
-    const insertBefore = e.clientY < rect.top + rect.height / 2;
+    const rect = targetElement.getBoundingClientRect()
+    const insertBefore = e.clientY < rect.top + rect.height / 2
 
-    const indicator = document.createElement('div');
-    indicator.className = 'vibegrid-drop-indicator';
+    const indicator = document.createElement('div')
+    indicator.className = 'vibegrid-drop-indicator'
 
     Object.assign(indicator.style, {
       position: 'absolute',
@@ -263,22 +270,22 @@ export class DragDropManager {
       borderRadius: '1.5px',
       zIndex: '1000',
       boxShadow: '0 0 6px rgba(59, 130, 246, 0.4)',
-      pointerEvents: 'none'
-    });
+      pointerEvents: 'none',
+    })
 
     // Position the indicator
-    const container = targetElement.closest('.vibegridx-container');
+    const container = targetElement.closest('.vibegridx-container')
     if (container) {
-      const containerRect = container.getBoundingClientRect();
-      const targetRect = targetElement.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect()
+      const targetRect = targetElement.getBoundingClientRect()
 
       if (insertBefore) {
-        indicator.style.top = `${targetRect.top - containerRect.top - 1.5}px`;
+        indicator.style.top = `${targetRect.top - containerRect.top - 1.5}px`
       } else {
-        indicator.style.top = `${targetRect.bottom - containerRect.top - 1.5}px`;
+        indicator.style.top = `${targetRect.bottom - containerRect.top - 1.5}px`
       }
 
-      container.appendChild(indicator);
+      container.appendChild(indicator)
     }
   }
 
@@ -286,16 +293,16 @@ export class DragDropManager {
    * Remove all drop indicators
    */
   private removeDropIndicators(): void {
-    const indicators = document.querySelectorAll('.vibegrid-drop-indicator');
-    indicators.forEach(indicator => indicator.remove());
+    const indicators = document.querySelectorAll('.vibegrid-drop-indicator')
+    indicators.forEach((indicator) => indicator.remove())
   }
 
   /**
    * Destroy the drag drop manager
    */
   destroy(): void {
-    this.removeDropIndicators();
-    fileLog.debug('🧹 DragDropManager destroyed');
+    this.removeDropIndicators()
+    fileLog.debug('🧹 DragDropManager destroyed')
   }
 }
 
@@ -309,38 +316,38 @@ export class DragDropManager {
 export function applyGroupRowOrdering(
   dataRows: any[],
   groupId: string,
-  groupRowOrders: Record<string, GroupRowOrderConfig>
+  groupRowOrders: Record<string, GroupRowOrderConfig>,
 ): any[] {
-  const orderConfig = groupRowOrders[groupId];
+  const orderConfig = groupRowOrders[groupId]
 
   if (!orderConfig || !orderConfig.rowIds.length) {
     // No custom ordering, return as-is
-    return dataRows;
+    return dataRows
   }
 
-  const orderedRows: any[] = [];
-  const rowsById = new Map(dataRows.map(row => [row.id, row]));
+  const orderedRows: any[] = []
+  const rowsById = new Map(dataRows.map((row) => [row.id, row]))
 
   // Add rows in specified order
-  orderConfig.rowIds.forEach(rowId => {
-    const row = rowsById.get(rowId);
+  orderConfig.rowIds.forEach((rowId) => {
+    const row = rowsById.get(rowId)
     if (row) {
-      orderedRows.push(row);
-      rowsById.delete(rowId);
+      orderedRows.push(row)
+      rowsById.delete(rowId)
     }
-  });
+  })
 
   // Add any remaining rows that weren't in the order config
-  rowsById.forEach(row => orderedRows.push(row));
+  rowsById.forEach((row) => orderedRows.push(row))
 
   fileLog.debug('✅ Applied group row ordering', {
     groupId,
     originalCount: dataRows.length,
     orderedCount: orderedRows.length,
-    customOrder: orderConfig.rowIds.length
-  });
+    customOrder: orderConfig.rowIds.length,
+  })
 
-  return orderedRows;
+  return orderedRows
 }
 
 /**
@@ -349,13 +356,13 @@ export function applyGroupRowOrdering(
 export function initializeGroupRowOrder(
   groupId: string,
   dataRows: any[],
-  setGroupRowOrder: (groupId: string, rowIds: string[]) => void
+  setGroupRowOrder: (groupId: string, rowIds: string[]) => void,
 ): void {
-  const rowIds = dataRows.map(row => row.id);
-  setGroupRowOrder(groupId, rowIds);
+  const rowIds = dataRows.map((row) => row.id)
+  setGroupRowOrder(groupId, rowIds)
 
   fileLog.debug('🔧 Initialized group row order', {
     groupId,
-    rowCount: rowIds.length
-  });
+    rowCount: rowIds.length,
+  })
 }

@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { TableCoreStore } from '../TableCoreStore'
+import { beforeEach, describe, expect, it } from 'vitest'
 import type { Column } from '../../types'
+import { TableCoreStore } from '../TableCoreStore'
 
 describe('Enhanced detectChangedCells', () => {
   let store: TableCoreStore
@@ -13,7 +13,7 @@ describe('Enhanced detectChangedCells', () => {
       { id: 'id', label: 'ID', type: 'text', fieldType: { type: 'text' } } as any,
       { id: 'name', label: 'Name', type: 'text', fieldType: { type: 'text' } } as any,
       { id: 'status', label: 'Status', type: 'text', fieldType: { type: 'text' } } as any,
-      { id: 'updatedAt', label: 'Updated At', type: 'text', fieldType: { type: 'text' } } as any
+      { id: 'updatedAt', label: 'Updated At', type: 'text', fieldType: { type: 'text' } } as any,
     ]
 
     // Set columns directly
@@ -78,13 +78,13 @@ describe('Enhanced detectChangedCells', () => {
   it('detects changes across multiple rows', () => {
     store.setRows([
       { id: '1', name: 'Alice', status: 'active', updatedAt: '2025-01-01' },
-      { id: '2', name: 'Bob', status: 'active', updatedAt: '2025-01-01' }
+      { id: '2', name: 'Bob', status: 'active', updatedAt: '2025-01-01' },
     ])
 
     // Change different columns in different rows
     store.setRows([
       { id: '1', name: 'Alice Updated', status: 'active', updatedAt: '2025-01-01' },
-      { id: '2', name: 'Bob', status: 'inactive', updatedAt: '2025-01-01' }
+      { id: '2', name: 'Bob', status: 'inactive', updatedAt: '2025-01-01' },
     ])
 
     expect(store.lastChangedCells.size).toBe(2)
@@ -106,14 +106,12 @@ describe('Enhanced detectChangedCells', () => {
 
   it('handles new rows (no previous snapshot)', () => {
     // Set initial data
-    store.setRows([
-      { id: '1', name: 'Alice', status: 'active', updatedAt: '2025-01-01' }
-    ])
+    store.setRows([{ id: '1', name: 'Alice', status: 'active', updatedAt: '2025-01-01' }])
 
     // Add new row
     store.setRows([
       { id: '1', name: 'Alice', status: 'active', updatedAt: '2025-01-01' },
-      { id: '2', name: 'Bob', status: 'active', updatedAt: '2025-01-01' }
+      { id: '2', name: 'Bob', status: 'active', updatedAt: '2025-01-01' },
     ])
 
     // New row should not be in lastChangedCells (handled by structural change)

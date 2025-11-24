@@ -5,66 +5,68 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { createLogger } from '@/shared/lib/logging';
+import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
+import { createLogger } from '@/shared/lib/logging'
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   CellValidator,
   EnhancedColumn,
-  ValidationResult,
+  FieldMetadata,
   FormattingContext,
-  FieldMetadata
-} from '../../FieldTypeRegistry';
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
-const fileLog = createLogger('components/vibegrid/field-types/implementations/basic/DateFieldType');
+const fileLog = createLogger('components/vibegrid/field-types/implementations/basic/DateFieldType')
 
 /**
  * Date Cell Renderer
  */
 export class DateRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
+    const container = document.createElement('div')
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
       if (column.editable === false) {
-        container.className = 'vibegridx-cell-empty';
-        container.textContent = '';
+        container.className = 'vibegridx-cell-empty'
+        container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
-        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
-      return container;
+      return container
     }
 
     // Determine hover class based on editability
-    const hoverClass = column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable';
-    container.className = `vibegridx-date-badge ${hoverClass}`;
+    const hoverClass =
+      column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable'
+    container.className = `vibegridx-date-badge ${hoverClass}`
 
     // Use the exact same formatting as original BodyRenderer
-    const cellType = column.cellType || column.type || 'date';
-    const displayValue = this.formatCellValue(value, cellType, column);
+    const cellType = column.cellType || column.type || 'date'
+    const displayValue = this.formatCellValue(value, cellType, column)
 
     // Create badge with calendar icon
-    const dateType = this.getDateType(cellType);
-    container.innerHTML = this.createDateBadge(displayValue, dateType);
+    const dateType = this.getDateType(cellType)
+    container.innerHTML = this.createDateBadge(displayValue, dateType)
 
     // Apply backend display metadata if available
     if (column.display) {
-      this.applyDisplayMetadata(container, column.display);
+      this.applyDisplayMetadata(container, column.display)
     }
 
-    return container;
+    return container
   }
 
   private getDateType(cellType: string): 'date' | 'datetime' | 'time' {
-    if (['time'].includes(cellType)) return 'time';
-    if (['datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(cellType)) return 'datetime';
-    return 'date';
+    if (['time'].includes(cellType)) return 'time'
+    if (['datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(cellType))
+      return 'datetime'
+    return 'date'
   }
 
   private createDateBadge(displayValue: string, type: 'date' | 'datetime' | 'time'): string {
@@ -94,98 +96,97 @@ export class DateRenderer implements CellRenderer {
           width: 100%;
         ">${displayValue}</span>
       </div>
-    `;
+    `
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     // Clear existing content
-    element.className = column.editable === false
-      ? 'vibegridx-cell-date'
-      : 'vibegridx-cell-date-editable';
+    element.className =
+      column.editable === false ? 'vibegridx-cell-date' : 'vibegridx-cell-date-editable'
 
     // Handle empty values
     if (value == null || value === '') {
       if (column.editable === false) {
-        element.className += ' vibegridx-cell-empty';
-        element.textContent = '';
+        element.className += ' vibegridx-cell-empty'
+        element.textContent = ''
       } else {
-        element.className += ' vibegridx-cell-empty vibegridx-text-editable';
-        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+        element.className += ' vibegridx-cell-empty vibegridx-text-editable'
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
-      element.textContent = this.formatValue(value, column);
-      element.style.opacity = '1';
+      element.textContent = this.formatValue(value, column)
+      element.style.opacity = '1'
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    const type = column.cellType || column.type || '';
-    return ['date', 'datetime', 'datetime-local', 'time', 'timestamp', 'timestamptz'].includes(type);
+    const type = column.cellType || column.type || ''
+    return ['date', 'datetime', 'datetime-local', 'time', 'timestamp', 'timestamptz'].includes(type)
   }
 
   private formatCellValue(value: any, type?: string, column?: any): string {
-    if (value === null || value === undefined) return '';
+    if (value === null || value === undefined) return ''
     // Use the DataForge formatter if type is provided
     if (type) {
       try {
-        const formatted = formatFieldForDisplay(value, type, column);
+        const formatted = formatFieldForDisplay(value, type, column)
         if (formatted !== null && formatted !== undefined) {
-          return String(formatted);
+          return String(formatted)
         }
       } catch (error) {
         // Fall back to simple formatting if DataForge formatter fails
-        fileLog.warn('DataForge formatter failed, using fallback', { error, type, value });
+        fileLog.warn('DataForge formatter failed, using fallback', { error, type, value })
       }
     }
     // Fallback to basic date formatting
-    return this.formatValue(value, column);
+    return this.formatValue(value, column)
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {
-    if (value == null) return '';
+    if (value == null) return ''
 
-    const type = column.cellType || column.type || 'date';
-    let dateObj: Date;
+    const type = column.cellType || column.type || 'date'
+    let dateObj: Date
 
     // Parse the value into a Date object
     if (value instanceof Date) {
-      dateObj = value;
+      dateObj = value
     } else {
-      dateObj = new Date(value);
+      dateObj = new Date(value)
       if (isNaN(dateObj.getTime())) {
-        return String(value); // Return original if can't parse
+        return String(value) // Return original if can't parse
       }
     }
 
     // Format based on type
     switch (type as string) {
       case 'date':
-        return dateObj.toLocaleDateString();
+        return dateObj.toLocaleDateString()
 
       case 'datetime':
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
-        return dateObj.toLocaleString();
+        return dateObj.toLocaleString()
 
       case 'time':
         return dateObj.toLocaleTimeString(undefined, {
           hour: '2-digit',
-          minute: '2-digit'
-        });
+          minute: '2-digit',
+        })
 
       default:
-        return dateObj.toLocaleDateString();
+        return dateObj.toLocaleDateString()
     }
   }
 
   private applyDisplayMetadata(element: HTMLElement, displayMetadata: any): void {
     if (displayMetadata.textAlign) {
-      element.style.textAlign = displayMetadata.textAlign;
+      element.style.textAlign = displayMetadata.textAlign
     }
 
     if (displayMetadata.fontWeight) {
-      element.style.fontWeight = displayMetadata.fontWeight;
+      element.style.fontWeight = displayMetadata.fontWeight
     }
 
     if (displayMetadata.dateFormat) {
@@ -198,27 +199,27 @@ export class DateRenderer implements CellRenderer {
  * Date Cell Editor
  */
 export class DateEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null;
-  private onSaveCallback: ((value: any) => void) | null = null;
+  private currentElement: HTMLElement | null = null
+  private onSaveCallback: ((value: any) => void) | null = null
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    this.onSaveCallback = onSave;
+    this.onSaveCallback = onSave
 
-    const input = document.createElement('input');
-    this.currentElement = input;
+    const input = document.createElement('input')
+    this.currentElement = input
 
     // Determine input type based on field type
-    const fieldType = column.cellType || column.type || 'date';
-    input.type = this.getInputType(fieldType);
+    const fieldType = column.cellType || column.type || 'date'
+    input.type = this.getInputType(fieldType)
 
     // Set initial value
-    const formattedValue = this.formatValueForInput(value, fieldType);
+    const formattedValue = this.formatValueForInput(value, fieldType)
     if (formattedValue) {
-      input.value = formattedValue;
+      input.value = formattedValue
     }
 
     // Apply styling
-    input.className = 'vibegridx-date-editor';
+    input.className = 'vibegridx-date-editor'
     input.style.cssText = `
       width: 100%;
       height: 100%;
@@ -229,111 +230,111 @@ export class DateEditor implements CellEditor {
       font-size: inherit;
       padding: 0;
       margin: 0;
-    `;
+    `
 
     // Apply backend editor metadata if available
     if (column.editor) {
-      this.applyEditorMetadata(input, column.editor);
+      this.applyEditorMetadata(input, column.editor)
     }
 
     // Apply validation metadata if available
     if (column.validation) {
-      this.applyValidationMetadata(input, column.validation);
+      this.applyValidationMetadata(input, column.validation)
     }
 
     // Event handlers
-    input.addEventListener('blur', () => this.handleSave());
-    input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    input.addEventListener('blur', () => this.handleSave())
+    input.addEventListener('keydown', (e) => this.handleKeyDown(e))
 
     // Auto-focus
-    setTimeout(() => input.focus(), 0);
+    setTimeout(() => input.focus(), 0)
 
-    return input;
+    return input
   }
 
   getValue(element: HTMLElement): any {
     if (element instanceof HTMLInputElement) {
-      const value = element.value.trim();
-      if (value === '') return null;
+      const value = element.value.trim()
+      if (value === '') return null
 
-      const fieldType = this.getFieldTypeFromInput(element);
-      return this.parseValueFromInput(value, fieldType);
+      const fieldType = this.getFieldTypeFromInput(element)
+      return this.parseValueFromInput(value, fieldType)
     }
-    return null;
+    return null
   }
 
   setValue(element: HTMLElement, value: any): void {
     if (element instanceof HTMLInputElement) {
-      const fieldType = this.getFieldTypeFromInput(element);
-      const formattedValue = this.formatValueForInput(value, fieldType);
-      element.value = formattedValue || '';
+      const fieldType = this.getFieldTypeFromInput(element)
+      const formattedValue = this.formatValueForInput(value, fieldType)
+      element.value = formattedValue || ''
     }
   }
 
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const errors: string[] = [];
+    const errors: string[] = []
 
     // Handle null/empty values
     if (value == null || value === '') {
       if (column.validation?.required) {
-        errors.push(column.validation.messages?.required || `${column.name} is required`);
+        errors.push(column.validation.messages?.required || `${column.name} is required`)
       }
-      return { valid: errors.length === 0, errors, transformedValue: null };
+      return { valid: errors.length === 0, errors, transformedValue: null }
     }
 
     // Parse into Date object
-    let dateObj: Date;
+    let dateObj: Date
     if (value instanceof Date) {
-      dateObj = value;
+      dateObj = value
     } else {
-      dateObj = new Date(value);
+      dateObj = new Date(value)
     }
 
     // Check if it's a valid date
     if (isNaN(dateObj.getTime())) {
-      errors.push(`${column.name} must be a valid date`);
-      return { valid: false, errors, transformedValue: value };
+      errors.push(`${column.name} must be a valid date`)
+      return { valid: false, errors, transformedValue: value }
     }
 
     // Date range validation
     if (column.validation?.minDate) {
-      const minDate = new Date(column.validation.minDate);
+      const minDate = new Date(column.validation.minDate)
       if (dateObj < minDate) {
-        errors.push(`${column.name} must be after ${minDate.toLocaleDateString()}`);
+        errors.push(`${column.name} must be after ${minDate.toLocaleDateString()}`)
       }
     }
 
     if (column.validation?.maxDate) {
-      const maxDate = new Date(column.validation.maxDate);
+      const maxDate = new Date(column.validation.maxDate)
       if (dateObj > maxDate) {
-        errors.push(`${column.name} must be before ${maxDate.toLocaleDateString()}`);
+        errors.push(`${column.name} must be before ${maxDate.toLocaleDateString()}`)
       }
     }
 
     // Business rule validation (if available from backend)
     if (column.validation?.businessRules) {
-      const businessErrors = this.validateBusinessRules(dateObj, column);
-      errors.push(...businessErrors);
+      const businessErrors = this.validateBusinessRules(dateObj, column)
+      errors.push(...businessErrors)
     }
 
     return {
       valid: errors.length === 0,
       errors,
-      transformedValue: dateObj
-    };
+      transformedValue: dateObj,
+    }
   }
 
   destroy(element: HTMLElement): void {
-    this.currentElement = null;
-    this.onSaveCallback = null;
+    this.currentElement = null
+    this.onSaveCallback = null
   }
 
   supportsInlineEditing(): boolean {
-    return true;
+    return true
   }
 
   supportsModalEditing(): boolean {
-    return false;
+    return false
   }
 
   private getInputType(fieldType: string): string {
@@ -342,66 +343,68 @@ export class DateEditor implements CellEditor {
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
-        return 'datetime-local';
+        return 'datetime-local'
       case 'time':
-        return 'time';
+        return 'time'
       case 'date':
       default:
-        return 'date';
+        return 'date'
     }
   }
 
   private formatValueForInput(value: any, fieldType: string): string | null {
-    if (value == null) return null;
+    if (value == null) return null
 
-    let dateObj: Date;
+    let dateObj: Date
     if (value instanceof Date) {
-      dateObj = value;
+      dateObj = value
     } else {
-      dateObj = new Date(value);
-      if (isNaN(dateObj.getTime())) return null;
+      dateObj = new Date(value)
+      if (isNaN(dateObj.getTime())) return null
     }
 
     switch (fieldType) {
       case 'date':
-        return dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+        return dateObj.toISOString().split('T')[0] // YYYY-MM-DD
 
       case 'datetime':
       case 'datetime-local':
       case 'timestamp':
-      case 'timestamptz':
-        const isoString = dateObj.toISOString();
-        return isoString.slice(0, 16); // YYYY-MM-DDTHH:MM
+      case 'timestamptz': {
+        const isoString = dateObj.toISOString()
+        return isoString.slice(0, 16) // YYYY-MM-DDTHH:MM
+      }
 
       case 'time':
-        return dateObj.toTimeString().slice(0, 5); // HH:MM
+        return dateObj.toTimeString().slice(0, 5) // HH:MM
 
       default:
-        return dateObj.toISOString().split('T')[0];
+        return dateObj.toISOString().split('T')[0]
     }
   }
 
   private parseValueFromInput(value: string, fieldType: string): Date | null {
-    if (!value) return null;
+    if (!value) return null
 
     switch (fieldType) {
       case 'date':
-        return new Date(value + 'T00:00:00.000Z');
+        return new Date(value + 'T00:00:00.000Z')
 
       case 'datetime':
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
-        return new Date(value);
+        return new Date(value)
 
-      case 'time':
-        const today = new Date();
-        const [hours, minutes] = value.split(':');
-        today.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-        return today;
+      case 'time': {
+        const today = new Date()
+        const [hours, minutes] = value.split(':')
+        today.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0)
+        return today
+      }
 
       default:
-        return new Date(value);
+        return new Date(value)
     }
   }
 
@@ -410,12 +413,12 @@ export class DateEditor implements CellEditor {
     // For now, infer from input type
     switch (element.type) {
       case 'datetime-local':
-        return 'datetime-local';
+        return 'datetime-local'
       case 'time':
-        return 'time';
+        return 'time'
       case 'date':
       default:
-        return 'date';
+        return 'date'
     }
   }
 
@@ -426,35 +429,47 @@ export class DateEditor implements CellEditor {
     }
 
     if (editorMetadata.minDate) {
-      const minDate = this.formatValueForInput(editorMetadata.minDate, this.getFieldTypeFromInput(input));
-      if (minDate) input.min = minDate;
+      const minDate = this.formatValueForInput(
+        editorMetadata.minDate,
+        this.getFieldTypeFromInput(input),
+      )
+      if (minDate) input.min = minDate
     }
 
     if (editorMetadata.maxDate) {
-      const maxDate = this.formatValueForInput(editorMetadata.maxDate, this.getFieldTypeFromInput(input));
-      if (maxDate) input.max = maxDate;
+      const maxDate = this.formatValueForInput(
+        editorMetadata.maxDate,
+        this.getFieldTypeFromInput(input),
+      )
+      if (maxDate) input.max = maxDate
     }
   }
 
   private applyValidationMetadata(input: HTMLInputElement, validationMetadata: any): void {
     if (validationMetadata.minDate) {
-      const minDate = this.formatValueForInput(validationMetadata.minDate, this.getFieldTypeFromInput(input));
-      if (minDate) input.min = minDate;
+      const minDate = this.formatValueForInput(
+        validationMetadata.minDate,
+        this.getFieldTypeFromInput(input),
+      )
+      if (minDate) input.min = minDate
     }
 
     if (validationMetadata.maxDate) {
-      const maxDate = this.formatValueForInput(validationMetadata.maxDate, this.getFieldTypeFromInput(input));
-      if (maxDate) input.max = maxDate;
+      const maxDate = this.formatValueForInput(
+        validationMetadata.maxDate,
+        this.getFieldTypeFromInput(input),
+      )
+      if (maxDate) input.max = maxDate
     }
 
     if (validationMetadata.required) {
-      input.required = true;
+      input.required = true
     }
   }
 
   private validateBusinessRules(dateObj: Date, column: EnhancedColumn): string[] {
-    const errors: string[] = [];
-    const businessRules = column.validation?.businessRules;
+    const errors: string[] = []
+    const businessRules = column.validation?.businessRules
 
     if (businessRules?.mustBeBefore) {
       // This would check against another date field in the same row
@@ -465,24 +480,24 @@ export class DateEditor implements CellEditor {
       // Similar to mustBeBefore
     }
 
-    return errors;
+    return errors
   }
 
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
-      const value = this.getValue(this.currentElement);
-      this.onSaveCallback(value);
+      const value = this.getValue(this.currentElement)
+      this.onSaveCallback(value)
     }
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      this.handleSave();
+      event.preventDefault()
+      this.handleSave()
     } else if (event.key === 'Escape') {
-      event.preventDefault();
+      event.preventDefault()
       if (this.currentElement) {
-        this.currentElement.blur();
+        this.currentElement.blur()
       }
     }
   }
@@ -493,78 +508,78 @@ export class DateEditor implements CellEditor {
  */
 export class DateFormatter implements CellFormatter {
   format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
-    if (value == null) return '';
+    if (value == null) return ''
 
-    let dateObj: Date;
+    let dateObj: Date
     if (value instanceof Date) {
-      dateObj = value;
+      dateObj = value
     } else {
-      dateObj = new Date(value);
-      if (isNaN(dateObj.getTime())) return String(value);
+      dateObj = new Date(value)
+      if (isNaN(dateObj.getTime())) return String(value)
     }
 
-    const type = column.cellType || column.type || 'date';
-    const locale = context?.locale || 'en-US';
-    const timezone = context?.timezone;
+    const type = column.cellType || column.type || 'date'
+    const locale = context?.locale || 'en-US'
+    const timezone = context?.timezone
 
-    const options: Intl.DateTimeFormatOptions = {};
+    const options: Intl.DateTimeFormatOptions = {}
     if (timezone) {
-      options.timeZone = timezone;
+      options.timeZone = timezone
     }
 
     switch (type as string) {
       case 'date':
-        return dateObj.toLocaleDateString(locale, options);
+        return dateObj.toLocaleDateString(locale, options)
 
       case 'datetime':
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
-        return dateObj.toLocaleString(locale, options);
+        return dateObj.toLocaleString(locale, options)
 
       case 'time':
         return dateObj.toLocaleTimeString(locale, {
           ...options,
           hour: '2-digit',
-          minute: '2-digit'
-        });
+          minute: '2-digit',
+        })
 
       default:
-        return dateObj.toLocaleDateString(locale, options);
+        return dateObj.toLocaleDateString(locale, options)
     }
   }
 
   parse(text: string, column: EnhancedColumn): any {
-    if (text.trim() === '') return null;
+    if (text.trim() === '') return null
 
-    const dateObj = new Date(text);
-    return isNaN(dateObj.getTime()) ? null : dateObj;
+    const dateObj = new Date(text)
+    return isNaN(dateObj.getTime()) ? null : dateObj
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
-    return this.format(value, column);
+    return this.format(value, column)
   }
 
   formatForExport(value: any, column: EnhancedColumn): string {
-    if (value == null) return '';
+    if (value == null) return ''
 
-    let dateObj: Date;
+    let dateObj: Date
     if (value instanceof Date) {
-      dateObj = value;
+      dateObj = value
     } else {
-      dateObj = new Date(value);
-      if (isNaN(dateObj.getTime())) return String(value);
+      dateObj = new Date(value)
+      if (isNaN(dateObj.getTime())) return String(value)
     }
 
-    const type = column.cellType || column.type || 'date';
+    const type = column.cellType || column.type || 'date'
 
     switch (type as string) {
       case 'date':
-        return dateObj.toISOString().split('T')[0];
+        return dateObj.toISOString().split('T')[0]
       case 'time':
-        return dateObj.toTimeString().slice(0, 8);
+        return dateObj.toTimeString().slice(0, 8)
       default:
-        return dateObj.toISOString();
+        return dateObj.toISOString()
     }
   }
 }
@@ -574,26 +589,26 @@ export class DateFormatter implements CellFormatter {
  */
 export class DateValidator implements CellValidator {
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const editor = new DateEditor();
-    return editor.validate(value, column);
+    const editor = new DateEditor()
+    return editor.validate(value, column)
   }
 
   getConstraints(column: EnhancedColumn): Record<string, any> {
-    const constraints: Record<string, any> = {};
+    const constraints: Record<string, any> = {}
 
     if (column.validation?.required) {
-      constraints.required = true;
+      constraints.required = true
     }
 
     if (column.validation?.minDate) {
-      constraints.minDate = column.validation.minDate;
+      constraints.minDate = column.validation.minDate
     }
 
     if (column.validation?.maxDate) {
-      constraints.maxDate = column.validation.maxDate;
+      constraints.maxDate = column.validation.maxDate
     }
 
-    return constraints;
+    return constraints
   }
 }
 
@@ -615,25 +630,25 @@ export const DateFieldType: VibeGridFieldType = {
     requiresSpecialEditor: false,
     hasRichDisplay: false,
     supportsValidation: true,
-    supportsFormatting: true
+    supportsFormatting: true,
   },
   getFormatter() {
-    const fmt = this.formatter;
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+    const fmt = this.formatter
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy
   interactionPolicy: {
-    defaultAction: 'edit',         // Date fields are for editing
-    editTrigger: 'content-click',  // Click content to edit
-    blurPolicy: 'commit'           // Save on blur
-  }
-};
+    defaultAction: 'edit', // Date fields are for editing
+    editTrigger: 'content-click', // Click content to edit
+    blurPolicy: 'commit', // Save on blur
+  },
+}
 
 // Register immediately
-fieldTypeRegistry.register('date', DateFieldType);
-fieldTypeRegistry.register('datetime', DateFieldType);
-fieldTypeRegistry.register('datetime-local', DateFieldType);
-fieldTypeRegistry.register('time', DateFieldType);
-fieldTypeRegistry.register('timestamp', DateFieldType);
-fieldTypeRegistry.register('timestamptz', DateFieldType);
+fieldTypeRegistry.register('date', DateFieldType)
+fieldTypeRegistry.register('datetime', DateFieldType)
+fieldTypeRegistry.register('datetime-local', DateFieldType)
+fieldTypeRegistry.register('time', DateFieldType)
+fieldTypeRegistry.register('timestamp', DateFieldType)
+fieldTypeRegistry.register('timestamptz', DateFieldType)

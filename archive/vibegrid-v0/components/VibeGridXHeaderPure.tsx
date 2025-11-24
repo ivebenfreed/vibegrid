@@ -1,29 +1,31 @@
-import React from 'react';
-import { observer } from '@legendapp/state/react';
-import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure';
-import { GroupConfigDropdownPure } from './GroupConfigDropdownPure';
-import type { TableCore$, TableInteraction$ } from '../stores/pure-observables';
+import { observer } from '@legendapp/state/react'
+import React from 'react'
+import type { TableCore$, TableInteraction$ } from '../stores/pure-observables'
+import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
+import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
 
 interface VibeGridXHeaderPureProps {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
+  tableCore$: TableCore$
+  tableInteraction$: TableInteraction$
   // Group by functionality (optional)
-  enableGrouping?: boolean;
-  className?: string;
+  enableGrouping?: boolean
+  className?: string
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   tableCore$,
   tableInteraction$,
   enableGrouping = false,
-  className = ''
+  className = '',
 }: VibeGridXHeaderPureProps) {
   // Get reactive data from observables
-  const columns = tableCore$.columns.get();
-  const hiddenColumnCount = tableCore$.hiddenColumnCount.get();
+  const columns = tableCore$.columns.get()
+  const hiddenColumnCount = tableCore$.hiddenColumnCount.get()
 
   return (
-    <div className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}>
+    <div
+      className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}
+    >
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Table View</span>
         {hiddenColumnCount > 0 && (
@@ -32,13 +34,10 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
           </span>
         )}
       </div>
-      
+
       <div className="flex items-center gap-2">
         {enableGrouping && (
-          <GroupConfigDropdownPure
-            tableCore$={tableCore$}
-            tableInteraction$={tableInteraction$}
-          />
+          <GroupConfigDropdownPure tableCore$={tableCore$} tableInteraction$={tableInteraction$} />
         )}
         <VibeGridXColumnVisibilityPure
           tableCore$={tableCore$}
@@ -46,5 +45,5 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         />
       </div>
     </div>
-  );
-});
+  )
+})

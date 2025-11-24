@@ -1,34 +1,54 @@
-import React, { useState, useMemo } from 'react';
-import { observer } from 'mobx-react-lite';
-import { createLogger } from '@/shared/lib/logging';
-import { Button } from '@/shared/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/shared/components/ui/dialog';
-import { Input } from '@/shared/components/ui/input';
-import { Textarea } from '@/shared/components/ui/textarea';
-import { Label } from '@/shared/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/shared/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
-import { Calendar } from '@/shared/components/ui/calendar';
-import { Plus, CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
-import { format } from 'date-fns';
-import { EntityNameUtils } from '@/shared/lib/entity-name-utils';
-import type { VibeGridStores } from '../stores/context';
+import { format } from 'date-fns'
+import { CalendarIcon, Check, ChevronsUpDown, Plus } from 'lucide-react'
+import { observer } from 'mobx-react-lite'
+import React, { useMemo, useState } from 'react'
+import { Button } from '@/shared/components/ui/button'
+import { Calendar } from '@/shared/components/ui/calendar'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/shared/components/ui/dialog'
+import { Input } from '@/shared/components/ui/input'
+import { Label } from '@/shared/components/ui/label'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
+import { Textarea } from '@/shared/components/ui/textarea'
+import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
+import { createLogger } from '@/shared/lib/logging'
+import type { VibeGridStores } from '../stores/context'
 
-const fileLog = createLogger('components/vibegrid/components/VibeGridEntityAdd');
+const fileLog = createLogger('components/vibegrid/components/VibeGridEntityAdd')
 
 interface VibeGridEntityAddProps {
-  stores: VibeGridStores;
-  entityName: string;
-  orgId?: string;
-  createEntity: (data: Record<string, any>) => void;
-  className?: string;
+  stores: VibeGridStores
+  entityName: string
+  orgId?: string
+  createEntity: (data: Record<string, any>) => void
+  className?: string
 }
 
 interface FieldValue {
-  value: any;
-  isValid: boolean;
-  error?: string;
+  value: any
+  isValid: boolean
+  error?: string
 }
 
 /**
@@ -45,299 +65,331 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   entityName,
   orgId,
   createEntity,
-  className = ''
+  className = '',
 }: VibeGridEntityAddProps) {
-  const { tableCoreStore } = stores;
+  const { tableCoreStore } = stores
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<Record<string, FieldValue>>({});
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [formData, setFormData] = useState<Record<string, FieldValue>>({})
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
 
   // Get reactive data from MobX stores
-  const columns = tableCoreStore.columns;
-
+  const columns = tableCoreStore.columns
 
   // Extract display name for UI
-  const displayName = entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity';
+  const displayName = entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity'
 
   // Get form fields from columns (excluding system columns)
   const formFields = useMemo(() => {
-    if (!columns || !Array.isArray(columns)) return [];
+    if (!columns || !Array.isArray(columns)) return []
 
-    return columns.filter(column => {
-      const isValidColumn = column && column.id;
-      const isSystemField = ['id', 'created_at', 'updated_at', 'organization_id'].includes(column.id);
-      return isValidColumn && !isSystemField;
-    });
-  }, [columns]);
+    return columns.filter((column) => {
+      const isValidColumn = column && column.id
+      const isSystemField = ['id', 'created_at', 'updated_at', 'organization_id'].includes(
+        column.id,
+      )
+      return isValidColumn && !isSystemField
+    })
+  }, [columns])
 
   // Initialize form data when dialog opens
   React.useEffect(() => {
     if (isOpen && formFields.length > 0) {
-      const initialData: Record<string, FieldValue> = {};
-      formFields.forEach(field => {
+      const initialData: Record<string, FieldValue> = {}
+      formFields.forEach((field) => {
         // Use enhanced validation metadata for required check
-        const isRequired = field.required || field.validation?.required || field.id === 'name';
+        const isRequired = field.required || field.validation?.required || field.id === 'name'
 
         // Use defaultValue from enhanced schema if available
-        let defaultValue = field.defaultValue;
+        let defaultValue = field.defaultValue
         if (defaultValue === undefined || defaultValue === null) {
           if (field.type === 'boolean') {
-            defaultValue = false;
+            defaultValue = false
           } else {
-            defaultValue = '';
+            defaultValue = ''
           }
         }
 
         initialData[field.id] = {
           value: defaultValue,
           isValid: !isRequired, // Only mark as invalid if required and no default
-          error: undefined
-        };
-      });
-      setFormData(initialData);
-      setHasAttemptedSubmit(false); // Reset submission attempt state
+          error: undefined,
+        }
+      })
+      setFormData(initialData)
+      setHasAttemptedSubmit(false) // Reset submission attempt state
     }
-  }, [isOpen, formFields]);
+  }, [isOpen, formFields])
 
-  const validateField = (fieldId: string, value: any, field: any): { isValid: boolean; error?: string } => {
-    if (!field) return { isValid: true };
+  const validateField = (
+    fieldId: string,
+    value: any,
+    field: any,
+  ): { isValid: boolean; error?: string } => {
+    if (!field) return { isValid: true }
 
     // Use enhanced validation metadata from backend schema
-    const validation = field.validation;
-    const isRequired = field.required || validation?.required || fieldId === 'name';
+    const validation = field.validation
+    const isRequired = field.required || validation?.required || fieldId === 'name'
 
     // Required field validation
     if (isRequired && (value === '' || value === null || value === undefined)) {
-      const errorMessage = validation?.messages?.required || `${field.label || fieldId} is required`;
-      return { isValid: false, error: errorMessage };
+      const errorMessage = validation?.messages?.required || `${field.label || fieldId} is required`
+      return { isValid: false, error: errorMessage }
     }
 
     // Skip validation for empty optional fields
     if (!isRequired && (value === '' || value === null || value === undefined)) {
-      return { isValid: true };
+      return { isValid: true }
     }
 
     // Pattern validation (covers email, phone, url, etc.)
     if (validation?.pattern && value !== '' && value !== null) {
-      const pattern = new RegExp(validation.pattern);
+      const pattern = new RegExp(validation.pattern)
       if (!pattern.test(String(value))) {
-        const errorMessage = validation.messages?.pattern ||
-                            validation.messages?.custom?.[`INVALID_${field.type.toUpperCase()}`] ||
-                            `Invalid ${field.type} format`;
-        return { isValid: false, error: errorMessage };
+        const errorMessage =
+          validation.messages?.pattern ||
+          validation.messages?.custom?.[`INVALID_${field.type.toUpperCase()}`] ||
+          `Invalid ${field.type} format`
+        return { isValid: false, error: errorMessage }
       }
     }
 
     // Length validation
     if (validation?.maxLength && String(value).length > validation.maxLength) {
-      const errorMessage = validation.messages?.maxLength ||
-                          `Too long (maximum ${validation.maxLength} characters)`;
-      return { isValid: false, error: errorMessage };
+      const errorMessage =
+        validation.messages?.maxLength || `Too long (maximum ${validation.maxLength} characters)`
+      return { isValid: false, error: errorMessage }
     }
 
     if (validation?.minLength && String(value).length < validation.minLength) {
-      const errorMessage = validation.messages?.minLength ||
-                          `Too short (minimum ${validation.minLength} characters)`;
-      return { isValid: false, error: errorMessage };
+      const errorMessage =
+        validation.messages?.minLength || `Too short (minimum ${validation.minLength} characters)`
+      return { isValid: false, error: errorMessage }
     }
 
     // Number range validation
-    if ((field.type === 'number' || field.type === 'integer' || field.type === 'decimal') && value !== '' && value !== null) {
-      const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    if (
+      (field.type === 'number' || field.type === 'integer' || field.type === 'decimal') &&
+      value !== '' &&
+      value !== null
+    ) {
+      const numValue = typeof value === 'string' ? parseFloat(value) : value
       if (isNaN(numValue)) {
-        const errorMessage = validation?.messages?.custom?.INVALID_NUMBER || 'Please enter a valid number';
-        return { isValid: false, error: errorMessage };
+        const errorMessage =
+          validation?.messages?.custom?.INVALID_NUMBER || 'Please enter a valid number'
+        return { isValid: false, error: errorMessage }
       }
 
       if (validation?.min !== undefined && numValue < validation.min) {
-        const errorMessage = validation.messages?.min || `Must be at least ${validation.min}`;
-        return { isValid: false, error: errorMessage };
+        const errorMessage = validation.messages?.min || `Must be at least ${validation.min}`
+        return { isValid: false, error: errorMessage }
       }
 
       if (validation?.max !== undefined && numValue > validation.max) {
-        const errorMessage = validation.messages?.max || `Must be no more than ${validation.max}`;
-        return { isValid: false, error: errorMessage };
+        const errorMessage = validation.messages?.max || `Must be no more than ${validation.max}`
+        return { isValid: false, error: errorMessage }
       }
     }
 
-    return { isValid: true };
-  };
+    return { isValid: true }
+  }
 
   const updateFieldValue = (fieldId: string, newValue: any) => {
-    const field = formFields.find(f => f.id === fieldId);
-    if (!field) return;
+    const field = formFields.find((f) => f.id === fieldId)
+    if (!field) return
 
-    const validation = validateField(fieldId, newValue, field);
+    const validation = validateField(fieldId, newValue, field)
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [fieldId]: {
         value: newValue,
         isValid: validation.isValid,
-        error: validation.error
-      }
-    }));
-  };
+        error: validation.error,
+      },
+    }))
+  }
 
   const isFormValid = useMemo(() => {
     fileLog.debug('Form validation check', {
       formData,
       allFields: Object.keys(formData),
-      invalidFields: Object.entries(formData).filter(([key, field]) => !field.isValid).map(([key]) => key),
-      isValid: Object.values(formData).every(field => field.isValid)
-    });
-    return Object.values(formData).every(field => field.isValid);
-  }, [formData]);
+      invalidFields: Object.entries(formData)
+        .filter(([key, field]) => !field.isValid)
+        .map(([key]) => key),
+      isValid: Object.values(formData).every((field) => field.isValid),
+    })
+    return Object.values(formData).every((field) => field.isValid)
+  }, [formData])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setHasAttemptedSubmit(true); // Mark that user has attempted to submit
+    e.preventDefault()
+    setHasAttemptedSubmit(true) // Mark that user has attempted to submit
 
     // Force validation on all fields before submit
-    const validationErrors: string[] = [];
+    const validationErrors: string[] = []
     Object.entries(formData).forEach(([fieldId, fieldValue]) => {
-      const field = formFields.find(f => f.id === fieldId);
+      const field = formFields.find((f) => f.id === fieldId)
       if (field) {
-        const validation = validateField(fieldId, fieldValue.value, field);
+        const validation = validateField(fieldId, fieldValue.value, field)
         if (!validation.isValid) {
-          validationErrors.push(validation.error || `${fieldId} is invalid`);
+          validationErrors.push(validation.error || `${fieldId} is invalid`)
         }
       }
-    });
+    })
 
     if (validationErrors.length > 0) {
-      fileLog.warn('Validation errors', { validationErrors });
+      fileLog.warn('Validation errors', { validationErrors })
       // Don't show alert - the status indicator will show the error message
-      return;
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     try {
       // Prepare entity data
-      const now = new Date().toISOString();
+      const now = new Date().toISOString()
       const entityData: Record<string, any> = {
         id: crypto.randomUUID(),
         created_at: now,
         updated_at: now,
-        organization_id: orgId
-      };
+        organization_id: orgId,
+      }
 
       // Add form field values
       Object.entries(formData).forEach(([key, field]) => {
         if (field.value !== '' && field.value !== null) {
-          entityData[key] = field.value;
+          entityData[key] = field.value
         }
-      });
+      })
 
       // Add default status and priority if not provided
       if (!entityData.status) {
-        entityData.status = 'draft';
+        entityData.status = 'draft'
       }
       if (!entityData.priority) {
-        entityData.priority = 'medium';
+        entityData.priority = 'medium'
       }
 
       fileLog.debug('Creating entity', {
         entityName,
-        data: entityData
-      });
+        data: entityData,
+      })
 
       // Create the entity using TanStack DB mutation
-      createEntity(entityData);
+      createEntity(entityData)
 
-      fileLog.debug('Entity created successfully');
+      fileLog.debug('Entity created successfully')
 
       // Reset form and close dialog
-      setFormData({});
-      setIsOpen(false);
+      setFormData({})
+      setIsOpen(false)
     } catch (error) {
-      fileLog.error('Error creating entity', { error });
+      fileLog.error('Error creating entity', { error })
       // You could add a toast notification here
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Error creating ${displayName}: ${errorMessage}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Error creating ${displayName}: ${errorMessage}`)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const renderField = (field: any) => {
-    const fieldValue = formData[field.id];
-    if (!fieldValue) return null;
+    const fieldValue = formData[field.id]
+    if (!fieldValue) return null
 
     // Enhanced visual feedback for field states
-    const isRequired = field.required || field.validation?.required || field.id === 'name';
-    const hasError = !fieldValue.isValid;
-    const isEmpty = fieldValue.value === '' || fieldValue.value === null || fieldValue.value === undefined;
-    const showRequiredState = isRequired && isEmpty && !fieldValue.error;
+    const isRequired = field.required || field.validation?.required || field.id === 'name'
+    const hasError = !fieldValue.isValid
+    const isEmpty =
+      fieldValue.value === '' || fieldValue.value === null || fieldValue.value === undefined
+    const showRequiredState = isRequired && isEmpty && !fieldValue.error
 
-    const containerClassName = `space-y-2 ${hasError ? 'border-l-4 border-l-red-500 pl-3' : showRequiredState ? 'border-l-4 border-l-orange-300 pl-3' : ''}`;
+    const containerClassName = `space-y-2 ${hasError ? 'border-l-4 border-l-red-500 pl-3' : showRequiredState ? 'border-l-4 border-l-orange-300 pl-3' : ''}`
 
     // Use enhanced display metadata for label and placeholder
-    const fieldLabel = field.label ||
-                      field.display?.label ||
-                      field.id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const fieldLabel =
+      field.label ||
+      field.display?.label ||
+      field.id.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
 
-    const placeholder = field.display?.placeholder ||
-                       field.validation?.messages?.placeholder ||
-                       field.description ||
-                       `Enter ${fieldLabel.toLowerCase()}`;
+    const placeholder =
+      field.display?.placeholder ||
+      field.validation?.messages?.placeholder ||
+      field.description ||
+      `Enter ${fieldLabel.toLowerCase()}`
 
     // Enhanced input styling based on validation state
     const getInputClassName = (baseClasses = '') => {
-      const classes = [baseClasses];
+      const classes = [baseClasses]
 
       if (hasError) {
-        classes.push('border-red-500 focus:border-red-500 focus:ring-red-200');
+        classes.push('border-red-500 focus:border-red-500 focus:ring-red-200')
       } else if (showRequiredState) {
-        classes.push('border-orange-300 focus:border-orange-400 focus:ring-orange-100');
+        classes.push('border-orange-300 focus:border-orange-400 focus:ring-orange-100')
       } else if (isRequired && !isEmpty) {
-        classes.push('border-green-400 focus:border-green-500 focus:ring-green-100');
+        classes.push('border-green-400 focus:border-green-500 focus:ring-green-100')
       }
 
-      return classes.filter(Boolean).join(' ');
-    };
+      return classes.filter(Boolean).join(' ')
+    }
 
     return (
       <div key={field.id} className={containerClassName}>
-        <Label htmlFor={field.id} className={`text-sm font-medium ${hasError ? 'text-red-700' : showRequiredState ? 'text-orange-700' : ''}`}>
+        <Label
+          htmlFor={field.id}
+          className={`text-sm font-medium ${hasError ? 'text-red-700' : showRequiredState ? 'text-orange-700' : ''}`}
+        >
           {fieldLabel}
           {isRequired && (
-            <span className={`ml-1 ${hasError ? 'text-red-500' : showRequiredState ? 'text-orange-500' : 'text-red-400'}`}>*</span>
+            <span
+              className={`ml-1 ${hasError ? 'text-red-500' : showRequiredState ? 'text-orange-500' : 'text-red-400'}`}
+            >
+              *
+            </span>
           )}
         </Label>
 
         {(() => {
           // Check if this is a select field based on actual field data
-          const isSelectField = field.type === 'status' ||
-                               field.type === 'single-select' ||
-                               field.cellType === 'select' ||
-                               field.cellType === 'single-select' ||
-                               field.referenceType?.includes('_option') ||
-                               field.systemOptionType;
+          const isSelectField =
+            field.type === 'status' ||
+            field.type === 'single-select' ||
+            field.cellType === 'select' ||
+            field.cellType === 'single-select' ||
+            field.referenceType?.includes('_option') ||
+            field.systemOptionType
 
           if (isSelectField) {
             // For select fields, we need to provide some common options based on the field
             const getOptionsForField = (fieldId: string, fieldType: string) => {
-              const lowerFieldId = fieldId.toLowerCase();
+              const lowerFieldId = fieldId.toLowerCase()
 
               if (lowerFieldId.includes('status')) {
-                return ['draft', 'active', 'inactive', 'pending', 'archived'];
+                return ['draft', 'active', 'inactive', 'pending', 'archived']
               } else if (lowerFieldId.includes('industry')) {
-                return ['Technology', 'Healthcare', 'Finance', 'Retail', 'Manufacturing', 'Education', 'Government'];
+                return [
+                  'Technology',
+                  'Healthcare',
+                  'Finance',
+                  'Retail',
+                  'Manufacturing',
+                  'Education',
+                  'Government',
+                ]
               } else if (lowerFieldId.includes('size')) {
-                return ['Startup', 'Small', 'Medium', 'Large', 'Enterprise'];
+                return ['Startup', 'Small', 'Medium', 'Large', 'Enterprise']
               } else if (lowerFieldId.includes('tier')) {
-                return ['Bronze', 'Silver', 'Gold', 'Platinum'];
+                return ['Bronze', 'Silver', 'Gold', 'Platinum']
               } else if (lowerFieldId.includes('priority')) {
-                return ['low', 'medium', 'high', 'urgent'];
+                return ['low', 'medium', 'high', 'urgent']
               }
-              return [];
-            };
+              return []
+            }
 
-            const options = getOptionsForField(field.id, field.type);
+            const options = getOptionsForField(field.id, field.type)
 
             return (
               <Popover>
@@ -345,10 +397,14 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   <Button
                     variant="outline"
                     role="combobox"
-                    className={getInputClassName("w-full justify-between")}
+                    className={getInputClassName('w-full justify-between')}
                   >
                     {fieldValue.value
-                      ? (options.find(option => option === fieldValue.value)?.charAt(0).toUpperCase() || '') + (options.find(option => option === fieldValue.value)?.slice(1) || '')
+                      ? (options
+                          .find((option) => option === fieldValue.value)
+                          ?.charAt(0)
+                          .toUpperCase() || '') +
+                        (options.find((option) => option === fieldValue.value)?.slice(1) || '')
                       : `Select ${fieldLabel.toLowerCase()}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -359,7 +415,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     <CommandList>
                       <CommandEmpty>No {fieldLabel.toLowerCase()} found.</CommandEmpty>
                       <CommandGroup>
-                        {options.map(option => (
+                        {options.map((option) => (
                           <CommandItem
                             key={option}
                             value={option}
@@ -378,7 +434,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   </Command>
                 </PopoverContent>
               </Popover>
-            );
+            )
           }
 
           switch (field.type) {
@@ -389,11 +445,13 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   id={field.id}
                   type="number"
                   value={fieldValue.value}
-                  onChange={(e) => updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) =>
+                    updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')
+                  }
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
 
             case 'currency':
               return (
@@ -402,11 +460,13 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   type="number"
                   step="0.01"
                   value={fieldValue.value}
-                  onChange={(e) => updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) =>
+                    updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')
+                  }
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
 
             case 'boolean':
               return (
@@ -422,7 +482,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     {field.description || `Enable ${fieldLabel.toLowerCase()}`}
                   </Label>
                 </div>
-              );
+              )
 
             case 'date':
               return (
@@ -431,22 +491,24 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     <Button
                       id={field.id}
                       variant="outline"
-                      className={getInputClassName("w-full justify-start text-left font-normal")}
+                      className={getInputClassName('w-full justify-start text-left font-normal')}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {fieldValue.value ? format(new Date(fieldValue.value), "PPP") : "Pick a date"}
+                      {fieldValue.value ? format(new Date(fieldValue.value), 'PPP') : 'Pick a date'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
                       selected={fieldValue.value ? new Date(fieldValue.value) : undefined}
-                      onSelect={(date) => updateFieldValue(field.id, date?.toISOString().split('T')[0] || '')}
+                      onSelect={(date) =>
+                        updateFieldValue(field.id, date?.toISOString().split('T')[0] || '')
+                      }
                       initialFocus
                     />
                   </PopoverContent>
                 </Popover>
-              );
+              )
 
             case 'email':
               return (
@@ -458,7 +520,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
 
             case 'url':
               return (
@@ -470,7 +532,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
 
             case 'phone':
               return (
@@ -482,7 +544,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
 
             case 'rating':
               return (
@@ -492,10 +554,12 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   min="1"
                   max="5"
                   value={fieldValue.value}
-                  onChange={(e) => updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) =>
+                    updateFieldValue(field.id, e.target.value ? Number(e.target.value) : '')
+                  }
                   placeholder="1-5 rating"
                 />
-              );
+              )
 
             case 'address':
               return (
@@ -504,13 +568,13 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   value={fieldValue.value}
                   onChange={(e) => updateFieldValue(field.id, e.target.value)}
                   placeholder={placeholder}
-                  className={getInputClassName("min-h-[80px]")}
+                  className={getInputClassName('min-h-[80px]')}
                 />
-              );
+              )
 
-            default:
+            default: {
               // Detect field types from field ID patterns
-              const lowerFieldId = field.id.toLowerCase();
+              const lowerFieldId = field.id.toLowerCase()
 
               if (lowerFieldId.includes('email')) {
                 return (
@@ -521,7 +585,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     onChange={(e) => updateFieldValue(field.id, e.target.value)}
                     placeholder={placeholder}
                   />
-                );
+                )
               }
 
               if (lowerFieldId.includes('url') || lowerFieldId.includes('website')) {
@@ -533,7 +597,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     onChange={(e) => updateFieldValue(field.id, e.target.value)}
                     placeholder={placeholder}
                   />
-                );
+                )
               }
 
               if (lowerFieldId.includes('phone')) {
@@ -545,14 +609,15 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     onChange={(e) => updateFieldValue(field.id, e.target.value)}
                     placeholder={placeholder}
                   />
-                );
+                )
               }
 
               // For text fields, use textarea for longer content
-              const isLongText = lowerFieldId.includes('description') ||
-                               lowerFieldId.includes('notes') ||
-                               lowerFieldId.includes('content') ||
-                               lowerFieldId.includes('address');
+              const isLongText =
+                lowerFieldId.includes('description') ||
+                lowerFieldId.includes('notes') ||
+                lowerFieldId.includes('content') ||
+                lowerFieldId.includes('address')
 
               return isLongText ? (
                 <Textarea
@@ -560,7 +625,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   value={fieldValue.value}
                   onChange={(e) => updateFieldValue(field.id, e.target.value)}
                   placeholder={placeholder}
-                  className={getInputClassName("min-h-[80px]")}
+                  className={getInputClassName('min-h-[80px]')}
                 />
               ) : (
                 <Input
@@ -571,20 +636,17 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                   placeholder={placeholder}
                   className={getInputClassName()}
                 />
-              );
+              )
+            }
           }
         })()}
 
-        {fieldValue.error && (
-          <p className="text-xs text-red-500">{fieldValue.error}</p>
-        )}
+        {fieldValue.error && <p className="text-xs text-red-500">{fieldValue.error}</p>}
 
-        {field.description && (
-          <p className="text-xs text-muted-foreground">{field.description}</p>
-        )}
+        {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -599,10 +661,10 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
         <DialogHeader>
           <DialogTitle>Add New {displayName}</DialogTitle>
           <DialogDescription>
-            Create a new {displayName.toLowerCase()} record using the same field editors as the table.
+            Create a new {displayName.toLowerCase()} record using the same field editors as the
+            table.
           </DialogDescription>
         </DialogHeader>
-
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">
@@ -624,15 +686,12 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || !isFormValid}
-            >
+            <Button type="submit" disabled={isSubmitting || !isFormValid}>
               {isSubmitting ? 'Creating...' : `Create ${displayName}`}
             </Button>
           </div>
         </form>
       </DialogContent>
     </Dialog>
-  );
-});
+  )
+})

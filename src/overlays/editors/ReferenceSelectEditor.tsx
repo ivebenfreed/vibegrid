@@ -2,13 +2,14 @@
  * Reference Select Editor for system and custom option fields
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { createLogger } from '@/shared/lib/logging';
+import type React from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createLogger } from '@/shared/lib/logging'
 // TODO: Replace with TanStack DB query for reference options
 // import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
-import type { EditorProps } from './index';
+import type { EditorProps } from './index'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/ReferenceSelectEditor');
+const fileLog = createLogger('components/vibegrid/overlays/editors/ReferenceSelectEditor')
 
 /**
  * Infer entity type from field name for entity references
@@ -16,26 +17,27 @@ const fileLog = createLogger('components/vibegrid/overlays/editors/ReferenceSele
  */
 function inferEntityFromFieldName(fieldName: string): string {
   if (fieldName.endsWith('_id')) {
-    const baseName = fieldName.slice(0, -3);
+    const baseName = fieldName.slice(0, -3)
     // Convert snake_case to PascalCase for entity names
-    return baseName.split('_').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join('');
+    return baseName
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('')
   }
-  return 'Entity';
+  return 'Entity'
 }
 
-export function ReferenceSelectEditor({ 
-  cell, 
-  column, 
-  initialValue, 
-  onCommit, 
-  onCancel, 
+export function ReferenceSelectEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
   onUpdate,
-  onBlur 
+  onBlur,
 }: EditorProps) {
-  const [value, setValue] = useState<string>(initialValue || '');
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const [value, setValue] = useState<string>(initialValue || '')
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   // TODO: Load reference options from TanStack DB
   // For now, use stub data
@@ -77,30 +79,30 @@ export function ReferenceSelectEditor({
   useEffect(() => {
     // Focus the select element when mounted
     if (selectRef.current) {
-      selectRef.current.focus();
+      selectRef.current.focus()
     }
-  }, []);
+  }, [])
 
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = event.target.value;
-    setValue(newValue);
-    onUpdate?.(newValue);
-  };
+    const newValue = event.target.value
+    setValue(newValue)
+    onUpdate?.(newValue)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      onCommit(value);
+      event.preventDefault()
+      onCommit(value)
     } else if (event.key === 'Escape') {
-      event.preventDefault();
-      onCancel();
+      event.preventDefault()
+      onCancel()
     }
-  };
+  }
 
   const handleBlur = () => {
-    onCommit(value);
-    onBlur?.();
-  };
+    onCommit(value)
+    onBlur?.()
+  }
 
   // Debug logging
   useEffect(() => {
@@ -114,9 +116,9 @@ export function ReferenceSelectEditor({
       optionsCount: options.length,
       isLoading,
       error,
-      options: options.slice(0, 3) // Log first 3 for debugging
-    });
-  }, [options, isLoading, error, column.id]);
+      options: options.slice(0, 3), // Log first 3 for debugging
+    })
+  }, [options, isLoading, error, column.id])
 
   return (
     <select
@@ -134,5 +136,5 @@ export function ReferenceSelectEditor({
         </option>
       ))}
     </select>
-  );
+  )
 }

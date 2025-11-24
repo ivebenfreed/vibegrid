@@ -15,14 +15,14 @@
  * - Progress tracking for debugging and UI feedback
  */
 
-import { makeObservable, observable, action, computed } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
-import { DisposerManager } from '@/app/stores/utils/disposer'
+import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
-import type { TableCoreStore } from './TableCoreStore'
-import type { VisualStateStore } from './VisualStateStore'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import { createLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from './InteractionStore'
 import type { PersistenceStore } from './PersistenceStore'
+import type { TableCoreStore } from './TableCoreStore'
+import type { VisualStateStore } from './VisualStateStore'
 
 const log = createLogger('components/vibegrid/stores/InitStore')
 
@@ -93,14 +93,14 @@ export class InitStore implements IStore {
 
     // Renderer dependencies
     rendererInitialized: false,
-    eventHandlersReady: false
+    eventHandlersReady: false,
   }
 
   @observable errors: HydrationError[] = []
 
   @observable metrics: HydrationMetrics = {
     startTime: Date.now(),
-    dependencyTimings: {}
+    dependencyTimings: {},
   }
 
   // ====================================
@@ -133,7 +133,7 @@ export class InitStore implements IStore {
     log.info('🚀 InitStore created', {
       tableId,
       entityType,
-      totalDependencies: Object.keys(this.hydrationState).length
+      totalDependencies: Object.keys(this.hydrationState).length,
     })
   }
 
@@ -157,14 +157,13 @@ export class InitStore implements IStore {
     this.persistenceStore = store
   }
 
-
   // ====================================
   // COMPUTED VALUES
   // ====================================
 
   @computed
   get isFullyHydrated(): boolean {
-    const allReady = Object.values(this.hydrationState).every(ready => ready === true)
+    const allReady = Object.values(this.hydrationState).every((ready) => ready === true)
 
     if (allReady && !this.metrics.endTime) {
       this.recordHydrationComplete()
@@ -180,13 +179,13 @@ export class InitStore implements IStore {
 
   @computed
   get criticalErrors(): HydrationError[] {
-    return this.errors.filter(error => !error.canRetry)
+    return this.errors.filter((error) => !error.canRetry)
   }
 
   @computed
   get hydrationProgress(): number {
     const values = Object.values(this.hydrationState)
-    const completed = values.filter(ready => ready === true).length
+    const completed = values.filter((ready) => ready === true).length
     const total = values.length
     return Math.round((completed / total) * 100)
   }
@@ -203,7 +202,7 @@ export class InitStore implements IStore {
     if (this.hydrationState[dependency]) {
       log.warn('🔄 Dependency already marked ready', {
         dependency,
-        tableId: this.tableId
+        tableId: this.tableId,
       })
       return
     }
@@ -223,7 +222,7 @@ export class InitStore implements IStore {
       dependency,
       timing: `${timing}ms`,
       tableId: this.tableId,
-      progress: this.hydrationProgress
+      progress: this.hydrationProgress,
     })
   }
 
@@ -236,7 +235,7 @@ export class InitStore implements IStore {
       dependency,
       error,
       timestamp: Date.now(),
-      canRetry
+      canRetry,
     }
 
     this.errors.push(hydrationError)
@@ -245,7 +244,7 @@ export class InitStore implements IStore {
       dependency,
       error,
       canRetry,
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
@@ -256,7 +255,7 @@ export class InitStore implements IStore {
   async initializeStores(): Promise<void> {
     log.info('🔄 Initializing all stores...', {
       tableId: this.tableId,
-      entityType: this.entityType
+      entityType: this.entityType,
     })
 
     try {
@@ -286,13 +285,13 @@ export class InitStore implements IStore {
       }
 
       log.info('✅ All stores initialized successfully', {
-        tableId: this.tableId
+        tableId: this.tableId,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       log.error('❌ Store initialization failed', {
         tableId: this.tableId,
-        error: errorMessage
+        error: errorMessage,
       })
       throw error
     }
@@ -303,7 +302,7 @@ export class InitStore implements IStore {
    */
   disposeStores(): void {
     log.info('🧹 Disposing all stores...', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
 
     this.tableCoreStore?.dispose()
@@ -312,7 +311,7 @@ export class InitStore implements IStore {
     this.persistenceStore?.dispose()
 
     log.info('✅ All stores disposed', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
@@ -322,7 +321,7 @@ export class InitStore implements IStore {
   @action
   resetStores(): void {
     log.info('🔄 Resetting all stores...', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
 
     this.tableCoreStore?.reset()
@@ -334,7 +333,7 @@ export class InitStore implements IStore {
     this.resetHydrationState()
 
     log.info('✅ All stores reset', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
@@ -350,7 +349,7 @@ export class InitStore implements IStore {
       state: this.hydrationState,
       errors: this.errors,
       metrics: this.metrics,
-      pendingTimeouts: Array.from(this.timeouts.keys())
+      pendingTimeouts: Array.from(this.timeouts.keys()),
     }
   }
 
@@ -383,8 +382,8 @@ export class InitStore implements IStore {
           clearInterval(checkInterval)
           reject(
             new Error(
-              `Critical hydration errors: ${this.criticalErrors.map(e => e.error).join(', ')}`
-            )
+              `Critical hydration errors: ${this.criticalErrors.map((e) => e.error).join(', ')}`,
+            ),
           )
         }
       }, 100)
@@ -398,7 +397,7 @@ export class InitStore implements IStore {
   async init(): Promise<void> {
     log.info('🔄 Initializing InitStore...', {
       tableId: this.tableId,
-      entityType: this.entityType
+      entityType: this.entityType,
     })
 
     // Timeouts disabled - dependencies are marked ready by components during initialization
@@ -408,13 +407,13 @@ export class InitStore implements IStore {
     await this.initializeStores()
 
     log.info('✅ InitStore initialized', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
   dispose(): void {
     // Clear all timeouts
-    this.timeouts.forEach(timeout => clearTimeout(timeout))
+    this.timeouts.forEach((timeout) => clearTimeout(timeout))
     this.timeouts.clear()
 
     // Dispose all stores
@@ -424,14 +423,14 @@ export class InitStore implements IStore {
     this.disposers.dispose()
 
     log.info('🧹 InitStore disposed', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
   @action
   reset(): void {
     // Clear timeouts
-    this.timeouts.forEach(timeout => clearTimeout(timeout))
+    this.timeouts.forEach((timeout) => clearTimeout(timeout))
     this.timeouts.clear()
 
     // Reset all stores
@@ -444,7 +443,7 @@ export class InitStore implements IStore {
     this.setupTimeouts()
 
     log.info('🔄 InitStore reset', {
-      tableId: this.tableId
+      tableId: this.tableId,
     })
   }
 
@@ -461,14 +460,14 @@ export class InitStore implements IStore {
       tableId: this.tableId,
       entityType: this.entityType,
       duration: this.metrics.totalDuration,
-      dependencyTimings: this.metrics.dependencyTimings
+      dependencyTimings: this.metrics.dependencyTimings,
     })
   }
 
   @action
   private resetHydrationState(): void {
     // Reset hydration state
-    Object.keys(this.hydrationState).forEach(key => {
+    Object.keys(this.hydrationState).forEach((key) => {
       this.hydrationState[key as keyof HydrationState] = false
     })
 
@@ -476,12 +475,12 @@ export class InitStore implements IStore {
     this.errors = []
     this.metrics = {
       startTime: Date.now(),
-      dependencyTimings: {}
+      dependencyTimings: {},
     }
   }
 
   private setupTimeouts(): void {
-    Object.keys(this.hydrationState).forEach(dependency => {
+    Object.keys(this.hydrationState).forEach((dependency) => {
       this.setupTimeoutForDependency(dependency as keyof HydrationState)
     })
   }
@@ -493,7 +492,7 @@ export class InitStore implements IStore {
         this.markError(
           dependency,
           `Dependency '${dependency}' timed out after ${this.DEPENDENCY_TIMEOUT}ms`,
-          true
+          true,
         )
       }
     }, this.DEPENDENCY_TIMEOUT)

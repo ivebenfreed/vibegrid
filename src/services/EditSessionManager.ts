@@ -39,7 +39,13 @@ export interface EditValidation {
 }
 
 export type CommitReason = 'enter' | 'tab' | 'blur' | 'outside-click' | 'user-action'
-export type CancelReason = 'escape' | 'outside-click' | 'outside-pointer' | 'focus-loss' | 'navigation' | 'user-action'
+export type CancelReason =
+  | 'escape'
+  | 'outside-click'
+  | 'outside-pointer'
+  | 'focus-loss'
+  | 'navigation'
+  | 'user-action'
 export type BlurReason = 'outside-pointer' | 'focus-loss'
 
 export type BlurPolicy = 'commit' | 'cancel' | 'keep-open'
@@ -56,7 +62,7 @@ export class EditSessionManager {
 
   constructor(
     private interactionStore: InteractionStore,
-    private tableCoreStore: TableCoreStore
+    private tableCoreStore: TableCoreStore,
   ) {
     fileLog.info('EditSessionManager initialized')
   }
@@ -89,7 +95,7 @@ export class EditSessionManager {
       fieldType: column.fieldType?.id,
       // 🔍 DEBUG: Show what fields the rowData actually has
       rowDataFields: rowData ? Object.keys(rowData).slice(0, 20) : [],
-      hasDataField: rowData ? dataField in rowData : false
+      hasDataField: rowData ? dataField in rowData : false,
     })
 
     // 2. Create session to track state
@@ -99,7 +105,7 @@ export class EditSessionManager {
       originalValue: currentValue,
       pendingValue: currentValue, // Will be updated as user types
       validation: null,
-      startTime: Date.now()
+      startTime: Date.now(),
     }
 
     // 3. Update InteractionStore (triggers EditingOverlay via MobX reaction)
@@ -119,7 +125,7 @@ export class EditSessionManager {
       cellId: this.currentSession.cellId,
       oldValue: this.currentSession.pendingValue,
       newValue: value,
-      valueType: typeof value
+      valueType: typeof value,
     })
 
     // Track in session
@@ -142,9 +148,8 @@ export class EditSessionManager {
     }
 
     // Use explicit value if provided, otherwise pendingValue from session
-    const finalValue = explicitValue !== undefined
-      ? explicitValue
-      : this.currentSession.pendingValue
+    const finalValue =
+      explicitValue !== undefined ? explicitValue : this.currentSession.pendingValue
 
     const { cellId, originalValue, pendingValue } = this.currentSession
 
@@ -156,7 +161,7 @@ export class EditSessionManager {
       explicitValue,
       finalValue,
       valueChanged: finalValue !== originalValue,
-      duration: `${Date.now() - this.currentSession.startTime}ms`
+      duration: `${Date.now() - this.currentSession.startTime}ms`,
     })
 
     // Save via InteractionStore (optimistic update + TanStack DB persistence)
@@ -184,7 +189,7 @@ export class EditSessionManager {
       reason,
       originalValue,
       pendingValue,
-      duration: `${Date.now() - this.currentSession.startTime}ms`
+      duration: `${Date.now() - this.currentSession.startTime}ms`,
     })
 
     // Cancel in InteractionStore (clears editing state + sets isCancelling flag)
@@ -216,7 +221,7 @@ export class EditSessionManager {
       cellId,
       reason,
       pendingValue,
-      fieldType: column.fieldType?.id
+      fieldType: column.fieldType?.id,
     })
 
     // Get field blur policy
@@ -226,13 +231,13 @@ export class EditSessionManager {
     fileLog.debug('Applying blur policy', {
       cellId,
       policy: blurBehavior,
-      fieldType: column.fieldType?.id
+      fieldType: column.fieldType?.id,
     })
 
     switch (blurBehavior) {
       case 'commit':
         // Wait for editor to flush any pending state (RAF or microtask)
-        await new Promise(resolve => requestAnimationFrame(resolve))
+        await new Promise((resolve) => requestAnimationFrame(resolve))
         await this.commit('blur')
         break
 
@@ -247,7 +252,7 @@ export class EditSessionManager {
 
       default:
         fileLog.warn('Unknown blur policy, defaulting to commit', {
-          policy: blurBehavior
+          policy: blurBehavior,
         })
         await this.commit('blur')
     }
@@ -273,7 +278,7 @@ export class EditSessionManager {
   dispose(): void {
     if (this.currentSession) {
       fileLog.warn('Disposing EditSessionManager with active session', {
-        cellId: this.currentSession.cellId
+        cellId: this.currentSession.cellId,
       })
       this.cancel('navigation')
     }

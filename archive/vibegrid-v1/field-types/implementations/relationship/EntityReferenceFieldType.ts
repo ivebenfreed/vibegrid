@@ -4,99 +4,115 @@
  * Handles custom_entity_reference and entity_reference field types with dynamic target entities.
  */
 
+import type { TableCore$ } from '../../../stores/data-state'
 import type {
-  VibeGridFieldType,
-  CellRenderer,
+  AsyncDataLoader,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   EnhancedColumn,
-  ValidationResult,
   RelationshipData,
   RelationshipOption,
-  AsyncDataLoader
-} from '../../FieldTypeRegistry';
-import type { TableCore$ } from '../../../stores/data-state';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
 export class EntityDataLoader implements AsyncDataLoader {
-  async loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCore$): Promise<RelationshipData> {
-    const orgId = this.getOrgId();
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown';
+  async loadRelationshipData(
+    column: EnhancedColumn,
+    rowIds: string[],
+    tableCore$: TableCore$,
+  ): Promise<RelationshipData> {
+    const orgId = this.getOrgId()
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown'
 
     try {
-      const response = await fetch(`/api/dataforge/orgs/${orgId}/relationships/${targetEntity.toLowerCase()}?rowIds=${rowIds.join(',')}`);
-      if (!response.ok) throw new Error(`Failed to load ${targetEntity} data: ${response.status}`);
+      const response = await fetch(
+        `/api/dataforge/orgs/${orgId}/relationships/${targetEntity.toLowerCase()}?rowIds=${rowIds.join(',')}`,
+      )
+      if (!response.ok) throw new Error(`Failed to load ${targetEntity} data: ${response.status}`)
 
-      const result = await response.json();
-      return result.data || {};
+      const result = await response.json()
+      return result.data || {}
     } catch (error) {
-      console.error('Failed to load entity relationship data', { error, column: column.id });
-      throw error;
+      console.error('Failed to load entity relationship data', { error, column: column.id })
+      throw error
     }
   }
 
-  resolveDisplayValue(value: any, column: EnhancedColumn, relationshipData: RelationshipData): string {
-    if (value == null) return '';
+  resolveDisplayValue(
+    value: any,
+    column: EnhancedColumn,
+    relationshipData: RelationshipData,
+  ): string {
+    if (value == null) return ''
 
-    const entityId = String(value);
-    const targetEntity = column.relationshipConfig?.targetEntityType?.toLowerCase() || 'unknown';
-    const entityData = relationshipData[targetEntity]?.[entityId];
+    const entityId = String(value)
+    const targetEntity = column.relationshipConfig?.targetEntityType?.toLowerCase() || 'unknown'
+    const entityData = relationshipData[targetEntity]?.[entityId]
 
     if (entityData) {
-      const displayField = column.relationshipConfig?.displayField || 'name';
-      return entityData[displayField] || entityData.name || entityData.title || entityData.id;
+      const displayField = column.relationshipConfig?.displayField || 'name'
+      return entityData[displayField] || entityData.name || entityData.title || entityData.id
     }
 
-    return `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
+    return `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`
   }
 
-  async getSearchSuggestions(query: string, column: EnhancedColumn, limit: number = 10): Promise<RelationshipOption[]> {
-    const orgId = this.getOrgId();
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown';
+  async getSearchSuggestions(
+    query: string,
+    column: EnhancedColumn,
+    limit: number = 10,
+  ): Promise<RelationshipOption[]> {
+    const orgId = this.getOrgId()
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown'
 
     try {
       const searchParams = new URLSearchParams({
         q: query,
         limit: String(limit),
-        fields: column.relationshipConfig?.searchFields?.join(',') || 'name,title'
-      });
+        fields: column.relationshipConfig?.searchFields?.join(',') || 'name,title',
+      })
 
-      const response = await fetch(`/api/dataforge/orgs/${orgId}/data/${targetEntity}/search?${searchParams}`);
-      if (!response.ok) throw new Error(`${targetEntity} search failed: ${response.status}`);
+      const response = await fetch(
+        `/api/dataforge/orgs/${orgId}/data/${targetEntity}/search?${searchParams}`,
+      )
+      if (!response.ok) throw new Error(`${targetEntity} search failed: ${response.status}`)
 
-      const results = await response.json();
-      const displayField = column.relationshipConfig?.displayField || 'name';
+      const results = await response.json()
+      const displayField = column.relationshipConfig?.displayField || 'name'
 
       return results.data.map((item: any) => ({
         value: item.id,
         label: item[displayField] || item.name || item.title || item.id,
-        metadata: item
-      }));
+        metadata: item,
+      }))
     } catch (error) {
-      console.error(`Failed to search ${targetEntity}`, { error, query });
-      return [];
+      console.error(`Failed to search ${targetEntity}`, { error, query })
+      return []
     }
   }
 
   getCacheKey(column: EnhancedColumn, value: any): string {
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'unknown';
-    return `entity_ref:${targetEntity}:${column.id}:${String(value)}`;
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'unknown'
+    return `entity_ref:${targetEntity}:${column.id}:${String(value)}`
   }
 
   invalidateCache(column: EnhancedColumn): void {
-    console.debug('Invalidating entity reference cache', { column: column.id });
+    console.debug('Invalidating entity reference cache', { column: column.id })
   }
 
   private getOrgId(): string {
     try {
-      const path = window.location.pathname;
-      const orgMatch = path.match(/\/org\/([^\/]+)/);
+      const path = window.location.pathname
+      const orgMatch = path.match(/\/org\/([^\/]+)/)
       if (orgMatch) {
-        return orgMatch[1];
+        return orgMatch[1]
       }
-      return '01920000-1000-7000-8000-000000000001';
+      return '01920000-1000-7000-8000-000000000001'
     } catch (error) {
-      console.warn('Failed to get org ID from URL:', error);
-      return '01920000-1000-7000-8000-000000000001';
+      console.warn('Failed to get org ID from URL:', error)
+      return '01920000-1000-7000-8000-000000000001'
     }
   }
 }
@@ -105,54 +121,58 @@ export class EntityReferenceRenderer implements CellRenderer {
   constructor(private dataLoader: EntityDataLoader) {}
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'vibegridx-entity-reference';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-entity-reference'
 
     if (!value) {
-      container.className += ' vibegridx-entity-reference-empty';
-      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
-      container.textContent = column.editable ? `Select ${targetEntity}...` : `No ${targetEntity}`;
-      container.style.opacity = '0.6';
-      container.style.fontStyle = 'italic';
-      return container;
+      container.className += ' vibegridx-entity-reference-empty'
+      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity'
+      container.textContent = column.editable ? `Select ${targetEntity}...` : `No ${targetEntity}`
+      container.style.opacity = '0.6'
+      container.style.fontStyle = 'italic'
+      return container
     }
 
-    const resolvedValue = rowData[`__resolved_${column.id}`];
+    const resolvedValue = rowData[`__resolved_${column.id}`]
     if (resolvedValue) {
-      container.innerHTML = this.createEntityBadge(resolvedValue, value, column);
-      return container;
+      container.innerHTML = this.createEntityBadge(resolvedValue, value, column)
+      return container
     }
 
-    container.textContent = 'Loading...';
-    container.style.opacity = '0.7';
-    this.loadAndRenderEntity(container, value, column);
+    container.textContent = 'Loading...'
+    container.style.opacity = '0.7'
+    this.loadAndRenderEntity(container, value, column)
 
-    return container;
+    return container
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    element.className = 'vibegridx-entity-reference';
+    element.className = 'vibegridx-entity-reference'
 
     if (!value) {
-      element.className += ' vibegridx-entity-reference-empty';
-      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
-      element.textContent = column.editable ? `Select ${targetEntity}...` : `No ${targetEntity}`;
-      element.style.opacity = '0.6';
+      element.className += ' vibegridx-entity-reference-empty'
+      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity'
+      element.textContent = column.editable ? `Select ${targetEntity}...` : `No ${targetEntity}`
+      element.style.opacity = '0.6'
     } else {
-      element.textContent = 'Loading...';
-      this.loadAndRenderEntity(element, value, column);
+      element.textContent = 'Loading...'
+      this.loadAndRenderEntity(element, value, column)
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    const type = column.cellType || column.type || '';
-    return ['custom_entity_reference', 'entity_reference'].includes(type);
+    const type = column.cellType || column.type || ''
+    return ['custom_entity_reference', 'entity_reference'].includes(type)
   }
 
   private createEntityBadge(entityData: any, entityId: string, column: EnhancedColumn): string {
-    const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
-    const displayField = column.relationshipConfig?.displayField || 'name';
-    const displayName = entityData[displayField] || entityData.name || entityData.title || `${targetEntity} ${entityId}`;
+    const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity'
+    const displayField = column.relationshipConfig?.displayField || 'name'
+    const displayName =
+      entityData[displayField] ||
+      entityData.name ||
+      entityData.title ||
+      `${targetEntity} ${entityId}`
 
     return `
       <div class="vibegridx-entity-badge" style="
@@ -186,26 +206,30 @@ export class EntityReferenceRenderer implements CellRenderer {
           white-space: nowrap;
         ">${displayName}</span>
       </div>
-    `;
+    `
   }
 
-  private async loadAndRenderEntity(container: HTMLElement, entityId: string, column: EnhancedColumn) {
+  private async loadAndRenderEntity(
+    container: HTMLElement,
+    entityId: string,
+    column: EnhancedColumn,
+  ) {
     try {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 200))
 
-      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity';
+      const targetEntity = column.relationshipConfig?.targetEntityType || 'Entity'
       const mockEntityData = {
         id: entityId,
         name: `${targetEntity} ${entityId.slice(-4)}`,
-        title: `Sample ${targetEntity}`
-      };
+        title: `Sample ${targetEntity}`,
+      }
 
-      container.innerHTML = this.createEntityBadge(mockEntityData, entityId, column);
-      container.style.opacity = '1';
+      container.innerHTML = this.createEntityBadge(mockEntityData, entityId, column)
+      container.style.opacity = '1'
     } catch (error) {
-      console.error('Failed to load entity data', { error, entityId });
-      container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`;
-      container.className += ' vibegridx-entity-reference-error';
+      console.error('Failed to load entity data', { error, entityId })
+      container.textContent = `${column.relationshipConfig?.targetEntityType || 'Entity'} ${entityId}`
+      container.className += ' vibegridx-entity-reference-error'
     }
   }
 }
@@ -216,36 +240,55 @@ export const EntityReferenceFieldType: VibeGridFieldType = {
   renderer: new EntityReferenceRenderer(new EntityDataLoader()),
   editor: new (class implements CellEditor {
     create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-      const input = document.createElement('input');
-      input.placeholder = `Search ${column.relationshipConfig?.targetEntityType || 'entities'}...`;
-      input.value = value ? String(value) : '';
-      input.style.cssText = 'width: 100%; height: 100%; border: none; outline: none; padding: 0 8px;';
+      const input = document.createElement('input')
+      input.placeholder = `Search ${column.relationshipConfig?.targetEntityType || 'entities'}...`
+      input.value = value ? String(value) : ''
+      input.style.cssText =
+        'width: 100%; height: 100%; border: none; outline: none; padding: 0 8px;'
 
-      input.addEventListener('blur', () => onSave(input.value || null));
+      input.addEventListener('blur', () => onSave(input.value || null))
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); onSave(input.value || null); }
-        if (e.key === 'Escape') { e.preventDefault(); input.blur(); }
-      });
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onSave(input.value || null)
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          input.blur()
+        }
+      })
 
-      setTimeout(() => input.focus(), 0);
-      return input;
+      setTimeout(() => input.focus(), 0)
+      return input
     }
-    getValue(element: HTMLElement): any { return (element as HTMLInputElement).value || null; }
-    setValue(element: HTMLElement, value: any): void { (element as HTMLInputElement).value = value || ''; }
-    validate(): any { return { valid: true, errors: [] }; }
+    getValue(element: HTMLElement): any {
+      return (element as HTMLInputElement).value || null
+    }
+    setValue(element: HTMLElement, value: any): void {
+      ;(element as HTMLInputElement).value = value || ''
+    }
+    validate(): any {
+      return { valid: true, errors: [] }
+    }
     destroy(): void {}
-    requiresAsyncOptions(): boolean { return true; }
+    requiresAsyncOptions(): boolean {
+      return true
+    }
   })(),
   formatter: new (class implements CellFormatter {
-    format(value: any): string { return value ? String(value) : ''; }
-    parse(text: string): any { return text.trim() || null; }
+    format(value: any): string {
+      return value ? String(value) : ''
+    }
+    parse(text: string): any {
+      return text.trim() || null
+    }
   })(),
   asyncDataLoader: new EntityDataLoader(),
   relationshipConfig: {
     targetEntityType: 'dynamic',
     cardinality: 'many-to-one',
     displayField: 'name',
-    searchFields: ['name', 'title']
+    searchFields: ['name', 'title'],
   },
   metadata: {
     supportsSorting: true,
@@ -253,10 +296,11 @@ export const EntityReferenceFieldType: VibeGridFieldType = {
     supportsGrouping: true,
     requiresSpecialEditor: true,
     hasRichDisplay: true,
-    requiresAsyncData: true
-  }
-};
+    requiresAsyncData: true,
+  },
+}
 
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('custom_entity_reference', EntityReferenceFieldType);
-fieldTypeRegistry.register('entity_reference', EntityReferenceFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('custom_entity_reference', EntityReferenceFieldType)
+fieldTypeRegistry.register('entity_reference', EntityReferenceFieldType)

@@ -6,69 +6,70 @@
  */
 
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   CellValidator,
   EnhancedColumn,
-  ValidationResult,
+  FieldMetadata,
   FormattingContext,
-  FieldMetadata
-} from '../../FieldTypeRegistry';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
 /**
  * Boolean Cell Renderer
  */
 export class BooleanRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
+    const container = document.createElement('div')
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
       if (column.editable === false) {
-        container.className = 'vibegridx-cell-empty';
-        container.textContent = '';
+        container.className = 'vibegridx-cell-empty'
+        container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable';
-        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
-      return container;
+      return container
     }
 
     // Determine hover class based on editability
-    const hoverClass = column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable';
-    container.className = `vibegridx-boolean-badge ${hoverClass}`;
+    const hoverClass =
+      column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable'
+    container.className = `vibegridx-boolean-badge ${hoverClass}`
 
     // Format value for display
-    const boolValue = this.parseBoolean(value);
-    const displayValue = this.formatValue(value, column);
+    const boolValue = this.parseBoolean(value)
+    const displayValue = this.formatValue(value, column)
 
     // Create boolean badge
-    container.innerHTML = this.createBooleanBadge(displayValue, boolValue);
+    container.innerHTML = this.createBooleanBadge(displayValue, boolValue)
 
     // Apply backend display metadata if available
     if (column.display) {
-      this.applyDisplayMetadata(container, column.display);
+      this.applyDisplayMetadata(container, column.display)
     }
 
-    return container;
+    return container
   }
 
   private createBooleanBadge(displayValue: string, boolValue: boolean | null): string {
     // Determine colors based on boolean value
-    let backgroundColor = '#f3f4f6';
-    let textColor = '#6b7280';
-    let icon = '○';
+    let backgroundColor = '#f3f4f6'
+    let textColor = '#6b7280'
+    let icon = '○'
 
     if (boolValue === true) {
-      backgroundColor = '#d1fae5';
-      textColor = '#065f46';
-      icon = '✓';
+      backgroundColor = '#d1fae5'
+      textColor = '#065f46'
+      icon = '✓'
     } else if (boolValue === false) {
-      backgroundColor = '#fee2e2';
-      textColor = '#991b1b';
-      icon = '✗';
+      backgroundColor = '#fee2e2'
+      textColor = '#991b1b'
+      icon = '✗'
     }
 
     return `
@@ -96,88 +97,87 @@ export class BooleanRenderer implements CellRenderer {
           flex: 1;
         ">${displayValue}</span>
       </div>
-    `;
+    `
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     // Clear existing content
-    element.className = column.editable === false
-      ? 'vibegridx-cell-boolean'
-      : 'vibegridx-cell-boolean-editable';
+    element.className =
+      column.editable === false ? 'vibegridx-cell-boolean' : 'vibegridx-cell-boolean-editable'
 
     // Handle empty values with consistent empty state
     if (value == null || value === '') {
       if (column.editable === false) {
-        element.className = 'vibegridx-cell-empty';
-        element.textContent = '';
+        element.className = 'vibegridx-cell-empty'
+        element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable';
-        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>';
+        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
-      element.textContent = this.formatValue(value, column);
-      element.style.opacity = '1';
+      element.textContent = this.formatValue(value, column)
+      element.style.opacity = '1'
 
       // Apply color coding
-      const boolValue = this.parseBoolean(value);
+      const boolValue = this.parseBoolean(value)
       if (boolValue === true) {
-        element.style.color = '#059669';
+        element.style.color = '#059669'
       } else if (boolValue === false) {
-        element.style.color = '#dc2626';
+        element.style.color = '#dc2626'
       }
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    const type = column.cellType || column.type || '';
-    return type === 'boolean';
+    const type = column.cellType || column.type || ''
+    return type === 'boolean'
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {
-    const boolValue = this.parseBoolean(value);
+    const boolValue = this.parseBoolean(value)
 
-    if (boolValue === null) return '';
+    if (boolValue === null) return ''
 
     // Check for custom labels from backend metadata
     if (column.display?.trueLabel && column.display?.falseLabel) {
-      return boolValue ? column.display.trueLabel : column.display.falseLabel;
+      return boolValue ? column.display.trueLabel : column.display.falseLabel
     }
 
     // Default formatting
-    return boolValue ? 'Yes' : 'No';
+    return boolValue ? 'Yes' : 'No'
   }
 
   private parseBoolean(value: any): boolean | null {
-    if (value == null) return null;
+    if (value == null) return null
 
     if (typeof value === 'boolean') {
-      return value;
+      return value
     }
 
     if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase().trim();
+      const lowerValue = value.toLowerCase().trim()
       if (['true', 'yes', 'y', '1', 'on'].includes(lowerValue)) {
-        return true;
+        return true
       }
       if (['false', 'no', 'n', '0', 'off'].includes(lowerValue)) {
-        return false;
+        return false
       }
     }
 
     if (typeof value === 'number') {
-      return value !== 0;
+      return value !== 0
     }
 
-    return null;
+    return null
   }
 
   private applyDisplayMetadata(element: HTMLElement, displayMetadata: any): void {
     if (displayMetadata.textAlign) {
-      element.style.textAlign = displayMetadata.textAlign;
+      element.style.textAlign = displayMetadata.textAlign
     }
 
     if (displayMetadata.fontWeight) {
-      element.style.fontWeight = displayMetadata.fontWeight;
+      element.style.fontWeight = displayMetadata.fontWeight
     }
 
     if (displayMetadata.trueColor || displayMetadata.falseColor) {
@@ -190,21 +190,21 @@ export class BooleanRenderer implements CellRenderer {
  * Boolean Cell Editor
  */
 export class BooleanEditor implements CellEditor {
-  private currentElement: HTMLSelectElement | null = null;
-  private onSaveCallback: ((value: any) => void) | null = null;
+  private currentElement: HTMLSelectElement | null = null
+  private onSaveCallback: ((value: any) => void) | null = null
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    this.onSaveCallback = onSave;
+    this.onSaveCallback = onSave
 
     // Create a select dropdown for boolean values
-    const select = document.createElement('select');
-    this.currentElement = select;
+    const select = document.createElement('select')
+    this.currentElement = select
 
     // Set initial value
-    const boolValue = this.parseBoolean(value);
+    const boolValue = this.parseBoolean(value)
 
     // Apply styling
-    select.className = 'vibegridx-boolean-editor';
+    select.className = 'vibegridx-boolean-editor'
     select.style.cssText = `
       width: 100%;
       height: 100%;
@@ -216,161 +216,165 @@ export class BooleanEditor implements CellEditor {
       padding: 0;
       margin: 0;
       cursor: pointer;
-    `;
+    `
 
     // Add options
-    this.addOptions(select, column, boolValue);
+    this.addOptions(select, column, boolValue)
 
     // Apply backend editor metadata if available
     if (column.editor) {
-      this.applyEditorMetadata(select, column.editor);
+      this.applyEditorMetadata(select, column.editor)
     }
 
     // Event handlers
-    select.addEventListener('blur', () => this.handleSave());
-    select.addEventListener('keydown', (e) => this.handleKeyDown(e));
-    select.addEventListener('change', () => this.handleSave());
+    select.addEventListener('blur', () => this.handleSave())
+    select.addEventListener('keydown', (e) => this.handleKeyDown(e))
+    select.addEventListener('change', () => this.handleSave())
 
     // Auto-focus
-    setTimeout(() => select.focus(), 0);
+    setTimeout(() => select.focus(), 0)
 
-    return select as unknown as HTMLElement;
+    return select as unknown as HTMLElement
   }
 
   getValue(element: HTMLElement): any {
     if (element instanceof HTMLSelectElement) {
-      const value = element.value;
-      if (value === '') return null;
-      return value === 'true';
+      const value = element.value
+      if (value === '') return null
+      return value === 'true'
     }
-    return null;
+    return null
   }
 
   setValue(element: HTMLElement, value: any): void {
     if (element instanceof HTMLSelectElement) {
-      const boolValue = this.parseBoolean(value);
+      const boolValue = this.parseBoolean(value)
       if (boolValue === null) {
-        element.value = '';
+        element.value = ''
       } else {
-        element.value = boolValue ? 'true' : 'false';
+        element.value = boolValue ? 'true' : 'false'
       }
     }
   }
 
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const errors: string[] = [];
+    const errors: string[] = []
 
     // Handle null/empty values
     if (value == null) {
       if (column.validation?.required) {
-        errors.push(column.validation.messages?.required || `${column.name} is required`);
+        errors.push(column.validation.messages?.required || `${column.name} is required`)
       }
-      return { valid: errors.length === 0, errors, transformedValue: null };
+      return { valid: errors.length === 0, errors, transformedValue: null }
     }
 
-    const boolValue = this.parseBoolean(value);
+    const boolValue = this.parseBoolean(value)
 
     // Check if it's a valid boolean
     if (boolValue === null) {
-      errors.push(`${column.name} must be a valid boolean value`);
-      return { valid: false, errors, transformedValue: value };
+      errors.push(`${column.name} must be a valid boolean value`)
+      return { valid: false, errors, transformedValue: value }
     }
 
     return {
       valid: errors.length === 0,
       errors,
-      transformedValue: boolValue
-    };
+      transformedValue: boolValue,
+    }
   }
 
   destroy(element: HTMLElement): void {
-    this.currentElement = null;
-    this.onSaveCallback = null;
+    this.currentElement = null
+    this.onSaveCallback = null
   }
 
   supportsInlineEditing(): boolean {
-    return true;
+    return true
   }
 
   supportsModalEditing(): boolean {
-    return false;
+    return false
   }
 
   private parseBoolean(value: any): boolean | null {
-    if (value == null) return null;
+    if (value == null) return null
 
     if (typeof value === 'boolean') {
-      return value;
+      return value
     }
 
     if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase().trim();
+      const lowerValue = value.toLowerCase().trim()
       if (['true', 'yes', 'y', '1', 'on'].includes(lowerValue)) {
-        return true;
+        return true
       }
       if (['false', 'no', 'n', '0', 'off'].includes(lowerValue)) {
-        return false;
+        return false
       }
     }
 
     if (typeof value === 'number') {
-      return value !== 0;
+      return value !== 0
     }
 
-    return null;
+    return null
   }
 
-  private addOptions(select: HTMLSelectElement, column: EnhancedColumn, currentValue: boolean | null): void {
+  private addOptions(
+    select: HTMLSelectElement,
+    column: EnhancedColumn,
+    currentValue: boolean | null,
+  ): void {
     // Empty option for null value
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '(Select)';
-    select.appendChild(emptyOption);
+    const emptyOption = document.createElement('option')
+    emptyOption.value = ''
+    emptyOption.textContent = '(Select)'
+    select.appendChild(emptyOption)
 
     // True option
-    const trueOption = document.createElement('option');
-    trueOption.value = 'true';
-    trueOption.textContent = column.display?.trueLabel || 'Yes';
+    const trueOption = document.createElement('option')
+    trueOption.value = 'true'
+    trueOption.textContent = column.display?.trueLabel || 'Yes'
     if (currentValue === true) {
-      trueOption.selected = true;
+      trueOption.selected = true
     }
-    select.appendChild(trueOption);
+    select.appendChild(trueOption)
 
     // False option
-    const falseOption = document.createElement('option');
-    falseOption.value = 'false';
-    falseOption.textContent = column.display?.falseLabel || 'No';
+    const falseOption = document.createElement('option')
+    falseOption.value = 'false'
+    falseOption.textContent = column.display?.falseLabel || 'No'
     if (currentValue === false) {
-      falseOption.selected = true;
+      falseOption.selected = true
     }
-    select.appendChild(falseOption);
+    select.appendChild(falseOption)
   }
 
   private applyEditorMetadata(select: HTMLSelectElement, editorMetadata: any): void {
     if (editorMetadata.allowClear === false) {
       // Remove empty option
-      const emptyOption = select.querySelector('option[value=""]');
+      const emptyOption = select.querySelector('option[value=""]')
       if (emptyOption) {
-        emptyOption.remove();
+        emptyOption.remove()
       }
     }
   }
 
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
-      const value = this.getValue(this.currentElement as unknown as HTMLElement);
-      this.onSaveCallback(value);
+      const value = this.getValue(this.currentElement as unknown as HTMLElement)
+      this.onSaveCallback(value)
     }
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      this.handleSave();
+      event.preventDefault()
+      this.handleSave()
     } else if (event.key === 'Escape') {
-      event.preventDefault();
+      event.preventDefault()
       if (this.currentElement) {
-        this.currentElement.blur();
+        this.currentElement.blur()
       }
     }
   }
@@ -381,73 +385,73 @@ export class BooleanEditor implements CellEditor {
  */
 export class BooleanFormatter implements CellFormatter {
   format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
-    const boolValue = this.parseBoolean(value);
+    const boolValue = this.parseBoolean(value)
 
-    if (boolValue === null) return '';
+    if (boolValue === null) return ''
 
     // Check for custom labels from backend metadata or context
-    const trueLabel = column.display?.trueLabel || context?.trueLabel || 'Yes';
-    const falseLabel = column.display?.falseLabel || context?.falseLabel || 'No';
+    const trueLabel = column.display?.trueLabel || context?.trueLabel || 'Yes'
+    const falseLabel = column.display?.falseLabel || context?.falseLabel || 'No'
 
-    return boolValue ? trueLabel : falseLabel;
+    return boolValue ? trueLabel : falseLabel
   }
 
   parse(text: string, column: EnhancedColumn): any {
-    if (text.trim() === '') return null;
+    if (text.trim() === '') return null
 
-    const lowerText = text.toLowerCase().trim();
+    const lowerText = text.toLowerCase().trim()
 
     // Check custom labels first
     if (column.display?.trueLabel && lowerText === column.display.trueLabel.toLowerCase()) {
-      return true;
+      return true
     }
     if (column.display?.falseLabel && lowerText === column.display.falseLabel.toLowerCase()) {
-      return false;
+      return false
     }
 
     // Standard boolean parsing
     if (['true', 'yes', 'y', '1', 'on'].includes(lowerText)) {
-      return true;
+      return true
     }
     if (['false', 'no', 'n', '0', 'off'].includes(lowerText)) {
-      return false;
+      return false
     }
 
-    return null;
+    return null
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
-    return this.format(value, column);
+    return this.format(value, column)
   }
 
   formatForExport(value: any, column: EnhancedColumn): string {
-    const boolValue = this.parseBoolean(value);
-    if (boolValue === null) return '';
-    return boolValue ? 'true' : 'false';
+    const boolValue = this.parseBoolean(value)
+    if (boolValue === null) return ''
+    return boolValue ? 'true' : 'false'
   }
 
   private parseBoolean(value: any): boolean | null {
-    if (value == null) return null;
+    if (value == null) return null
 
     if (typeof value === 'boolean') {
-      return value;
+      return value
     }
 
     if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase().trim();
+      const lowerValue = value.toLowerCase().trim()
       if (['true', 'yes', 'y', '1', 'on'].includes(lowerValue)) {
-        return true;
+        return true
       }
       if (['false', 'no', 'n', '0', 'off'].includes(lowerValue)) {
-        return false;
+        return false
       }
     }
 
     if (typeof value === 'number') {
-      return value !== 0;
+      return value !== 0
     }
 
-    return null;
+    return null
   }
 }
 
@@ -456,18 +460,18 @@ export class BooleanFormatter implements CellFormatter {
  */
 export class BooleanValidator implements CellValidator {
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const editor = new BooleanEditor();
-    return editor.validate(value, column);
+    const editor = new BooleanEditor()
+    return editor.validate(value, column)
   }
 
   getConstraints(column: EnhancedColumn): Record<string, any> {
-    const constraints: Record<string, any> = {};
+    const constraints: Record<string, any> = {}
 
     if (column.validation?.required) {
-      constraints.required = true;
+      constraints.required = true
     }
 
-    return constraints;
+    return constraints
   }
 }
 
@@ -489,21 +493,22 @@ export const BooleanFieldType: VibeGridFieldType = {
     requiresSpecialEditor: false,
     hasRichDisplay: true,
     supportsValidation: true,
-    supportsFormatting: true
+    supportsFormatting: true,
   },
   getFormatter() {
-    const fmt = this.formatter;
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
+    const fmt = this.formatter
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy
   interactionPolicy: {
-    defaultAction: 'edit',         // Boolean fields are for editing
-    editTrigger: 'content-click',  // ✅ Click content to edit, click padding to select
-    blurPolicy: 'commit'           // Save on blur
-  }
-};
+    defaultAction: 'edit', // Boolean fields are for editing
+    editTrigger: 'content-click', // ✅ Click content to edit, click padding to select
+    blurPolicy: 'commit', // Save on blur
+  },
+}
 
 // Register with the global registry
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('boolean', BooleanFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('boolean', BooleanFieldType)

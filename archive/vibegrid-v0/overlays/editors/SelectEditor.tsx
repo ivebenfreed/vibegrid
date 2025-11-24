@@ -1,17 +1,17 @@
-import React from 'react';
-import { ComboboxEditor } from './ComboboxEditor';
-import type { CellRef, Column, RelationshipContext } from '../../types';
+import React from 'react'
+import type { CellRef, Column, RelationshipContext } from '../../types'
+import { ComboboxEditor } from './ComboboxEditor'
 
 interface SelectEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: string | null;
-  onCommit: (value: string | null) => void;
-  onCancel: () => void;
+  cell: CellRef
+  column: Column
+  initialValue: string | null
+  onCommit: (value: string | null) => void
+  onCancel: () => void
   // Additional context for relationship editors
   relationshipContext?: {
-    relationshipResolvers?: Record<string, (id: string | string[]) => string>;
-  };
+    relationshipResolvers?: Record<string, (id: string | string[]) => string>
+  }
 }
 
 export function SelectEditor({
@@ -20,14 +20,16 @@ export function SelectEditor({
   initialValue,
   onCommit,
   onCancel,
-  relationshipContext
+  relationshipContext,
 }: SelectEditorProps) {
   // Convert the old relationshipContext format to the new RelationshipContext
-  const newRelationshipContext: RelationshipContext | undefined = relationshipContext ? {
-    currentEntity: null, // Will be set by the actual editor call
-    column,
-    fieldName: column.field || column.id
-  } : undefined;
+  const newRelationshipContext: RelationshipContext | undefined = relationshipContext
+    ? {
+        currentEntity: null, // Will be set by the actual editor call
+        column,
+        fieldName: column.field || column.id,
+      }
+    : undefined
 
   return (
     <ComboboxEditor
@@ -36,9 +38,9 @@ export function SelectEditor({
       initialValue={initialValue}
       onCommit={onCommit}
       onCancel={onCancel}
-      placeholder={column.placeholder || "Select..."}
+      placeholder={column.placeholder || 'Select...'}
       searchPlaceholder="Search options..."
       relationshipContext={newRelationshipContext}
     />
-  );
+  )
 }

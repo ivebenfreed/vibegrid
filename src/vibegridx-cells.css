@@ -66,7 +66,7 @@
   --badge-hover-scale-large: 1.05;
   --badge-hover-transition: all 0.15s ease;
   --badge-hover-brightness: 0.95; /* Darken by 5% */
-  --badge-hover-brightness-strong: 0.90; /* Darken by 10% */
+  --badge-hover-brightness-strong: 0.9; /* Darken by 10% */
 
   /* Plain text hover - concrete fallback color */
   --text-hover-bg: rgba(0, 0, 0, 0.04); /* Light mode: subtle gray */
@@ -136,7 +136,9 @@
 /* Editable Plain Text Hover */
 .vibegridx-text-editable {
   cursor: pointer !important;
-  transition: background-color 0.15s ease, padding 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    padding 0.15s ease;
   padding: 2px 4px !important;
   border-radius: 4px !important;
   display: inline-block !important;
@@ -316,7 +318,7 @@ html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
 
 /* Add dropdown indicator for editable select badges */
 .vibegridx-cell-badge-editable::after {
-  content: '▼';
+  content: "▼";
   margin-left: 6px;
   font-size: 0.5rem;
   opacity: 0.6;
@@ -566,7 +568,7 @@ html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
   /* Dark Mode Hover Variables */
   :root {
     --badge-hover-brightness: 1.05; /* Lighten by 5% in dark mode */
-    --badge-hover-brightness-strong: 1.10; /* Lighten by 10% in dark mode */
+    --badge-hover-brightness-strong: 1.1; /* Lighten by 10% in dark mode */
   }
 
   .vibegridx-cell-content {
@@ -615,73 +617,73 @@ html.dark span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
   background-color: #1e3a8a;
   color: #dbeafe;
   border: 1px solid #3b82f6;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-in-progress {
   background-color: #78350f;
   color: #fef3c7;
   border: 1px solid #f59e0b;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-completed {
   background-color: #064e3b;
   color: #d1fae5;
   border: 1px solid #10b981;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-low {
   background-color: #374151;
   color: #e5e7eb;
   border: 1px solid #6b7280;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-medium {
   background-color: #78350f;
   color: #fef3c7;
   border: 1px solid #f59e0b;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-high {
   background-color: #7f1d1d;
   color: #fee2e2;
   border: 1px solid #ef4444;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-active {
   background-color: #064e3b;
   color: #d1fae5;
   border: 1px solid #10b981;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-inactive {
   background-color: #374151;
   color: #e5e7eb;
   border: 1px solid #6b7280;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-pending {
   background-color: #78350f;
   color: #fef3c7;
   border: 1px solid #f59e0b;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-approved {
   background-color: #064e3b;
   color: #d1fae5;
   border: 1px solid #10b981;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-rejected {
   background-color: #7f1d1d;
   color: #fee2e2;
   border: 1px solid #ef4444;
-  }
-  
+}
+
 .dark .vibegridx-enum-badge-unknown {
   background-color: #374151;
   color: #d1d5db;
   border: 1px solid #6b7280;
-  }
+}
 
 /* Dark mode relationship badge colors */
 .dark .vibegridx-badge--primary {

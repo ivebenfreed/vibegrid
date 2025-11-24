@@ -2,9 +2,9 @@
  * Reference Select Editor for system and custom option fields
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
-import type { EditorProps } from './index';
+import React, { useEffect, useRef, useState } from 'react'
+import { useReferenceOptions } from '@/legend-state/reference-system/hooks'
+import type { EditorProps } from './index'
 
 /**
  * Infer entity type from field name for entity references
@@ -12,45 +12,46 @@ import type { EditorProps } from './index';
  */
 function inferEntityFromFieldName(fieldName: string): string {
   if (fieldName.endsWith('_id')) {
-    const baseName = fieldName.slice(0, -3);
+    const baseName = fieldName.slice(0, -3)
     // Convert snake_case to PascalCase for entity names
-    return baseName.split('_').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join('');
+    return baseName
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('')
   }
-  return 'Entity';
+  return 'Entity'
 }
 
-export function ReferenceSelectEditor({ 
-  cell, 
-  column, 
-  initialValue, 
-  onCommit, 
-  onCancel, 
+export function ReferenceSelectEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
   onUpdate,
-  onBlur 
+  onBlur,
 }: EditorProps) {
-  const [value, setValue] = useState<string>(initialValue || '');
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const [value, setValue] = useState<string>(initialValue || '')
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   // Determine reference configuration based on field type
   const getReferenceConfig = () => {
-    const cellType = column.cellType || column.type;
+    const cellType = column.cellType || column.type
 
     if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
       return {
         referenceType: 'user_reference' as const,
-        referenceEntity: 'User'
-      };
+        referenceEntity: 'User',
+      }
     }
 
     if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
       // Infer entity type from field name (e.g., portfolio_id -> Portfolio)
-      const entityType = column.referenceEntity || inferEntityFromFieldName(column.id);
+      const entityType = column.referenceEntity || inferEntityFromFieldName(column.id)
       return {
         referenceType: 'entity_reference' as const,
-        referenceEntity: entityType
-      };
+        referenceEntity: entityType,
+      }
     }
 
     return {
@@ -58,40 +59,40 @@ export function ReferenceSelectEditor({
       systemOptionType: column.systemOptionType,
       systemArchetype: column.systemArchetype,
       customOptionSet: column.customOptionSet,
-      referenceEntity: column.referenceEntity
-    };
-  };
+      referenceEntity: column.referenceEntity,
+    }
+  }
 
   // Get options using the universal hook
-  const { options, isLoading, error } = useReferenceOptions(getReferenceConfig());
+  const { options, isLoading, error } = useReferenceOptions(getReferenceConfig())
 
   useEffect(() => {
     // Focus the select element when mounted
     if (selectRef.current) {
-      selectRef.current.focus();
+      selectRef.current.focus()
     }
-  }, []);
+  }, [])
 
   const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const newValue = event.target.value;
-    setValue(newValue);
-    onUpdate?.(newValue);
-  };
+    const newValue = event.target.value
+    setValue(newValue)
+    onUpdate?.(newValue)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      onCommit(value);
+      event.preventDefault()
+      onCommit(value)
     } else if (event.key === 'Escape') {
-      event.preventDefault();
-      onCancel();
+      event.preventDefault()
+      onCancel()
     }
-  };
+  }
 
   const handleBlur = () => {
-    onCommit(value);
-    onBlur?.();
-  };
+    onCommit(value)
+    onBlur?.()
+  }
 
   // Debug logging
   useEffect(() => {
@@ -101,13 +102,13 @@ export function ReferenceSelectEditor({
       systemOptionType: column.systemOptionType,
       systemArchetype: column.systemArchetype,
       customOptionSet: column.customOptionSet,
-      referenceEntity: column.referenceEntity,  // NEW: Log entity reference
+      referenceEntity: column.referenceEntity, // NEW: Log entity reference
       optionsCount: options.length,
       isLoading,
       error,
-      options: options.slice(0, 3) // Log first 3 for debugging
-    });
-  }, [options, isLoading, error, column.id]);
+      options: options.slice(0, 3), // Log first 3 for debugging
+    })
+  }, [options, isLoading, error, column.id])
 
   return (
     <select
@@ -125,5 +126,5 @@ export function ReferenceSelectEditor({
         </option>
       ))}
     </select>
-  );
+  )
 }

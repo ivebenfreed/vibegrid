@@ -1,14 +1,14 @@
-import React from 'react';
-import { ComboboxEditor } from './ComboboxEditor';
-import type { CellRef, Column } from '../../types';
+import React from 'react'
+import type { CellRef, Column } from '../../types'
+import { ComboboxEditor } from './ComboboxEditor'
 
 interface BooleanEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: boolean | null;
-  onCommit: (value: boolean | null) => void;
-  onCancel: () => void;
-  variant?: 'checkbox' | 'switch';
+  cell: CellRef
+  column: Column
+  initialValue: boolean | null
+  onCommit: (value: boolean | null) => void
+  onCancel: () => void
+  variant?: 'checkbox' | 'switch'
 }
 
 export function BooleanEditor({
@@ -17,27 +17,27 @@ export function BooleanEditor({
   initialValue,
   onCommit,
   onCancel,
-  variant = 'checkbox'
+  variant = 'checkbox',
 }: BooleanEditorProps) {
   // Convert boolean to string for ComboboxEditor
-  const stringValue = initialValue === null ? null : String(initialValue);
-  
+  const stringValue = initialValue === null ? null : String(initialValue)
+
   const handleCommit = (value: any) => {
     if (value === null) {
-      onCommit(null);
+      onCommit(null)
     } else {
-      onCommit(value === 'true');
+      onCommit(value === 'true')
     }
-  };
+  }
 
   // Create boolean options
   const booleanColumn = {
     ...column,
     options: [
       { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' }
-    ]
-  };
+      { value: 'false', label: 'No' },
+    ],
+  }
 
   return (
     <ComboboxEditor
@@ -49,5 +49,5 @@ export function BooleanEditor({
       placeholder="Select..."
       searchPlaceholder="Search..."
     />
-  );
+  )
 }

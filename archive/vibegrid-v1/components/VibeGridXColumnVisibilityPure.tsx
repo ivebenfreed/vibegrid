@@ -1,140 +1,151 @@
-import React from 'react';
-import { observer } from '@legendapp/state/react';
-import { Columns3, Eye, EyeOff, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import { observer } from '@legendapp/state/react'
+import { ChevronDown, Columns3, Eye, EyeOff } from 'lucide-react'
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuTrigger,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuItem
-} from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { Input } from '@/components/ui/input';
-import type { Column } from '../types';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
-import type { createVibeGridVisualState } from '../stores/visual-state';
-import { formatFieldName } from '../column-defaults';
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatFieldName } from '../column-defaults'
+import type { TableCore$ } from '../stores/data-state'
+import type { TableInteraction$ } from '../stores/interaction-state'
+import type { createVibeGridVisualState } from '../stores/visual-state'
+import type { Column } from '../types'
 
 interface VibeGridXColumnVisibilityPureProps {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  visualState: ReturnType<typeof createVibeGridVisualState>;
-  className?: string;
+  tableCore$: TableCore$
+  tableInteraction$: TableInteraction$
+  visualState: ReturnType<typeof createVibeGridVisualState>
+  className?: string
 }
 
 export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVisibilityPure({
   tableCore$,
   tableInteraction$,
   visualState,
-  className = ''
+  className = '',
 }: VibeGridXColumnVisibilityPureProps) {
   // Get reactive data from observables
-  const columns = visualState.visualInputs$.columns.get();
-  const columnVisibility = visualState.visualInputs$.columnVisibility.get();
-  const isOpen = tableInteraction$.columnVisibilityMenuState.isOpen.get();
-  const searchValue = tableInteraction$.columnVisibilityMenuState.searchValue.get();
+  const columns = visualState.visualInputs$.columns.get()
+  const columnVisibility = visualState.visualInputs$.columnVisibility.get()
+  const isOpen = tableInteraction$.columnVisibilityMenuState.isOpen.get()
+  const searchValue = tableInteraction$.columnVisibilityMenuState.searchValue.get()
 
   // Filter out Legend State internal properties when calculating counts
-  const legendStateInternalKeys = ['value', 'isFromPersist', 'isFromSync', 'changes'];
+  const legendStateInternalKeys = ['value', 'isFromPersist', 'isFromSync', 'changes']
   const actualColumnVisibilityEntries = Object.entries(columnVisibility).filter(
-    ([key]) => !legendStateInternalKeys.includes(key)
-  );
+    ([key]) => !legendStateInternalKeys.includes(key),
+  )
 
   // Computed values from visual state - CONSISTENT VERSION
   // Count based on actual columns, not just columnVisibility entries
-  const hiddenColumnCount = columns.filter(col => columnVisibility[col.id] === false).length;
-  const visibleColumnCount = columns.filter(col => columnVisibility[col.id] !== false).length;
-  
-  // Event handlers using observable methods
-  const handleOpenChange = React.useCallback((open: boolean) => {
-    console.log('ColumnVisibility dropdown:', open ? 'opening' : 'closing');
-    if (open) {
-      tableInteraction$.openColumnVisibilityMenu();
-    } else {
-      tableInteraction$.closeColumnVisibilityMenu();
-    }
-  }, [tableInteraction$]);
+  const hiddenColumnCount = columns.filter((col) => columnVisibility[col.id] === false).length
+  const visibleColumnCount = columns.filter((col) => columnVisibility[col.id] !== false).length
 
-  const handleToggleColumn = React.useCallback((columnId: string) => {
-    visualState.visualOperations.toggleColumnVisibility(columnId);
-  }, [visualState]);
+  // Event handlers using observable methods
+  const handleOpenChange = React.useCallback(
+    (open: boolean) => {
+      console.log('ColumnVisibility dropdown:', open ? 'opening' : 'closing')
+      if (open) {
+        tableInteraction$.openColumnVisibilityMenu()
+      } else {
+        tableInteraction$.closeColumnVisibilityMenu()
+      }
+    },
+    [tableInteraction$],
+  )
+
+  const handleToggleColumn = React.useCallback(
+    (columnId: string) => {
+      visualState.visualOperations.toggleColumnVisibility(columnId)
+    },
+    [visualState],
+  )
 
   const handleShowAll = React.useCallback(() => {
-    visualState.visualOperations.showAllColumns();
-    tableInteraction$.setColumnVisibilitySearch('');
-  }, [visualState, tableInteraction$]);
+    visualState.visualOperations.showAllColumns()
+    tableInteraction$.setColumnVisibilitySearch('')
+  }, [visualState, tableInteraction$])
 
   const handleHideAll = React.useCallback(() => {
-    visualState.visualOperations.hideAllColumns();
-    tableInteraction$.setColumnVisibilitySearch('');
-  }, [visualState, tableInteraction$]);
+    visualState.visualOperations.hideAllColumns()
+    tableInteraction$.setColumnVisibilitySearch('')
+  }, [visualState, tableInteraction$])
 
-  const handleSearchChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    tableInteraction$.setColumnVisibilitySearch(e.target.value);
-  }, [tableInteraction$]);
+  const handleSearchChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      tableInteraction$.setColumnVisibilitySearch(e.target.value)
+    },
+    [tableInteraction$],
+  )
 
   // Only calculate expensive operations when dropdown is open
   const filteredColumns = React.useMemo(() => {
-    if (!isOpen) return []; // Don't calculate unless dropdown is open
-    if (!searchValue) return columns;
-    return columns.filter(column => {
-      const displayName = getColumnDisplayName(column);
-      return displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
-             column.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-             (column.field && column.field.toLowerCase().includes(searchValue.toLowerCase()));
-    });
-  }, [columns, searchValue, isOpen]);
+    if (!isOpen) return [] // Don't calculate unless dropdown is open
+    if (!searchValue) return columns
+    return columns.filter((column) => {
+      const displayName = getColumnDisplayName(column)
+      return (
+        displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
+        column.id.toLowerCase().includes(searchValue.toLowerCase()) ||
+        (column.field && column.field.toLowerCase().includes(searchValue.toLowerCase()))
+      )
+    })
+  }, [columns, searchValue, isOpen])
 
   // Categorize columns only when dropdown is open
   const categorizedColumns = React.useMemo(() => {
-    if (!isOpen) return { required: [], business: [], system: [] }; // Don't calculate unless dropdown is open
-    
-    const required: Column[] = [];
-    const business: Column[] = [];
-    const system: Column[] = [];
+    if (!isOpen) return { required: [], business: [], system: [] } // Don't calculate unless dropdown is open
 
-    filteredColumns.forEach(column => {
-      const isRequired = column.hideable === false;
-      const isSystem = column.meta?.systemField;
+    const required: Column[] = []
+    const business: Column[] = []
+    const system: Column[] = []
+
+    filteredColumns.forEach((column) => {
+      const isRequired = column.hideable === false
+      const isSystem = column.meta?.systemField
 
       if (isRequired) {
-        required.push(column);
+        required.push(column)
       } else if (isSystem) {
-        system.push(column);
+        system.push(column)
       } else {
-        business.push(column);
+        business.push(column)
       }
-    });
+    })
 
-    return { required, business, system };
-  }, [filteredColumns, isOpen]);
+    return { required, business, system }
+  }, [filteredColumns, isOpen])
 
   const isColumnHidden = (columnId: string): boolean => {
-    return columnVisibility[columnId] === false;
-  };
+    return columnVisibility[columnId] === false
+  }
 
   const isColumnVisible = (columnId: string): boolean => {
     // Ensure explicit boolean value - treat undefined as true (default visible)
-    const visible = columnVisibility[columnId] === false ? false : true;
-    return visible;
-  };
+    const visible = columnVisibility[columnId] === false ? false : true
+    return visible
+  }
 
   const canHideColumn = (column: Column): boolean => {
-    return column.hideable !== false;
-  };
+    return column.hideable !== false
+  }
 
   const getColumnDisplayName = (column: Column): string => {
     // Use explicit name if available, otherwise format the field/id
-    return column.name || formatFieldName(column.field || column.id);
-  };
+    return column.name || formatFieldName(column.field || column.id)
+  }
 
   const renderColumnItem = (column: Column, isRequired: boolean, category: string = 'default') => {
-    const isVisible = isColumnVisible(column.id);
-    const canHide = canHideColumn(column);
+    const isVisible = isColumnVisible(column.id)
+    const canHide = canHideColumn(column)
 
     const columnItem = (
       <DropdownMenuItem
@@ -146,54 +157,40 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
           disabled={!canHide}
           onCheckedChange={(checked) => {
             if (canHide) {
-              handleToggleColumn(column.id);
+              handleToggleColumn(column.id)
             }
           }}
         />
-        <span className="flex-1 text-sm">
-          {getColumnDisplayName(column)}
-        </span>
-        {isRequired && (
-          <span className="text-xs text-muted-foreground">Required</span>
-        )}
+        <span className="flex-1 text-sm">{getColumnDisplayName(column)}</span>
+        {isRequired && <span className="text-xs text-muted-foreground">Required</span>}
         {canHide && (
           <span className="text-xs text-muted-foreground opacity-60">
             {isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           </span>
         )}
       </DropdownMenuItem>
-    );
+    )
 
     if (isRequired) {
       return (
         <Tooltip key={`${category}-${column.id}`}>
-          <TooltipTrigger asChild>
-            {columnItem}
-          </TooltipTrigger>
+          <TooltipTrigger asChild>{columnItem}</TooltipTrigger>
           <TooltipContent>
             <p>This field is required and cannot be hidden</p>
           </TooltipContent>
         </Tooltip>
-      );
+      )
     }
 
-    return <div key={`${category}-${column.id}`}>{columnItem}</div>;
-  };
+    return <div key={`${category}-${column.id}`}>{columnItem}</div>
+  }
 
-  const hidableColumnCount = columns.filter(col => canHideColumn(col)).length;
+  const hidableColumnCount = columns.filter((col) => canHideColumn(col)).length
 
   return (
-    <DropdownMenu 
-      open={isOpen} 
-      onOpenChange={handleOpenChange}
-      modal={false}
-    >
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className={`h-8 px-2 ${className}`}
-        >
+        <Button variant="outline" size="sm" className={`h-8 px-2 ${className}`}>
           <Columns3 className="h-4 w-4 mr-1" />
           <span className="text-xs">
             Columns
@@ -206,9 +203,9 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
           <ChevronDown className="h-3 w-3 ml-1" />
         </Button>
       </DropdownMenuTrigger>
-      
-      <DropdownMenuContent 
-        className="w-64 data-[state=open]:animate-none data-[state=closed]:animate-none" 
+
+      <DropdownMenuContent
+        className="w-64 data-[state=open]:animate-none data-[state=closed]:animate-none"
         align="end"
         sideOffset={8}
         avoidCollisions={true}
@@ -217,104 +214,104 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         side="bottom"
         alignOffset={-8}
       >
-          <DropdownMenuLabel className="flex items-center justify-between">
-            <span>Column Visibility</span>
-            <span className="text-xs text-muted-foreground">
-              {visibleColumnCount}/{columns.length}
-            </span>
-          </DropdownMenuLabel>
-          
-          <div className="px-2 pb-2">
-            <Input
-              placeholder="Search columns..."
-              value={searchValue}
-              onChange={handleSearchChange}
-              className="h-8 text-xs"
-            />
-          </div>
-          
-          <DropdownMenuSeparator />
-          
-          {/* Show/Hide All Controls */}
-          <div className="flex gap-1 px-2 pb-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs flex-1"
-              onClick={handleShowAll}
-            >
-              <Eye className="h-3 w-3 mr-1" />
-              Show All
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs flex-1"
-              onClick={handleHideAll}
-              disabled={hidableColumnCount === 0}
-            >
-              <EyeOff className="h-3 w-3 mr-1" />
-              Hide All
-            </Button>
-          </div>
-          
-          <DropdownMenuSeparator />
+        <DropdownMenuLabel className="flex items-center justify-between">
+          <span>Column Visibility</span>
+          <span className="text-xs text-muted-foreground">
+            {visibleColumnCount}/{columns.length}
+          </span>
+        </DropdownMenuLabel>
 
-          {/* Required Fields */}
-          {categorizedColumns.required.length > 0 && (
-            <>
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Required Fields ({categorizedColumns.required.length})
-              </DropdownMenuLabel>
-              {categorizedColumns.required.map(col => renderColumnItem(col, true, 'required'))}
-              {(categorizedColumns.business.length > 0 || categorizedColumns.system.length > 0) && (
-                <DropdownMenuSeparator />
-              )}
-            </>
-          )}
+        <div className="px-2 pb-2">
+          <Input
+            placeholder="Search columns..."
+            value={searchValue}
+            onChange={handleSearchChange}
+            className="h-8 text-xs"
+          />
+        </div>
 
-          {/* Business Fields */}
-          {categorizedColumns.business.length > 0 && (
-            <>
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Business Fields ({categorizedColumns.business.length})
-              </DropdownMenuLabel>
-              {categorizedColumns.business.map(col => renderColumnItem(col, false, 'business'))}
-              {categorizedColumns.system.length > 0 && <DropdownMenuSeparator />}
-            </>
-          )}
+        <DropdownMenuSeparator />
 
-          {/* System Fields */}
-          {categorizedColumns.system.length > 0 && (
-            <>
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                System Fields ({categorizedColumns.system.length})
-              </DropdownMenuLabel>
-              {categorizedColumns.system.map(col => renderColumnItem(col, false, 'system'))}
-            </>
-          )}
+        {/* Show/Hide All Controls */}
+        <div className="flex gap-1 px-2 pb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs flex-1"
+            onClick={handleShowAll}
+          >
+            <Eye className="h-3 w-3 mr-1" />
+            Show All
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs flex-1"
+            onClick={handleHideAll}
+            disabled={hidableColumnCount === 0}
+          >
+            <EyeOff className="h-3 w-3 mr-1" />
+            Hide All
+          </Button>
+        </div>
 
-          {/* No Results */}
-          {filteredColumns.length === 0 && searchValue && (
-            <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-              No columns found matching "{searchValue}"
-            </div>
-          )}
+        <DropdownMenuSeparator />
 
-          {/* Footer Info */}
-          <DropdownMenuSeparator />
-          <div className="px-2 py-2 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Visible: {visibleColumnCount}</span>
-              <span>Hidden: {hiddenColumnCount}</span>
-            </div>
-            {hidableColumnCount < columns.length && (
-              <div className="mt-1 text-xs opacity-75">
-                {columns.length - hidableColumnCount} required field(s) always visible
-              </div>
+        {/* Required Fields */}
+        {categorizedColumns.required.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Required Fields ({categorizedColumns.required.length})
+            </DropdownMenuLabel>
+            {categorizedColumns.required.map((col) => renderColumnItem(col, true, 'required'))}
+            {(categorizedColumns.business.length > 0 || categorizedColumns.system.length > 0) && (
+              <DropdownMenuSeparator />
             )}
+          </>
+        )}
+
+        {/* Business Fields */}
+        {categorizedColumns.business.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              Business Fields ({categorizedColumns.business.length})
+            </DropdownMenuLabel>
+            {categorizedColumns.business.map((col) => renderColumnItem(col, false, 'business'))}
+            {categorizedColumns.system.length > 0 && <DropdownMenuSeparator />}
+          </>
+        )}
+
+        {/* System Fields */}
+        {categorizedColumns.system.length > 0 && (
+          <>
+            <DropdownMenuLabel className="text-xs text-muted-foreground">
+              System Fields ({categorizedColumns.system.length})
+            </DropdownMenuLabel>
+            {categorizedColumns.system.map((col) => renderColumnItem(col, false, 'system'))}
+          </>
+        )}
+
+        {/* No Results */}
+        {filteredColumns.length === 0 && searchValue && (
+          <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+            No columns found matching "{searchValue}"
           </div>
-        </DropdownMenuContent>
+        )}
+
+        {/* Footer Info */}
+        <DropdownMenuSeparator />
+        <div className="px-2 py-2 text-xs text-muted-foreground">
+          <div className="flex justify-between">
+            <span>Visible: {visibleColumnCount}</span>
+            <span>Hidden: {hiddenColumnCount}</span>
+          </div>
+          {hidableColumnCount < columns.length && (
+            <div className="mt-1 text-xs opacity-75">
+              {columns.length - hidableColumnCount} required field(s) always visible
+            </div>
+          )}
+        </div>
+      </DropdownMenuContent>
     </DropdownMenu>
-  );
-});
+  )
+})

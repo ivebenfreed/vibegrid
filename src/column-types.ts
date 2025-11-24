@@ -24,71 +24,75 @@
  */
 
 // Map entity field types to allowed cell types
-type FieldTypeToCellType<T> = 
-  T extends string | null | undefined ? 'text' | 'select' :
-  T extends number | null | undefined ? 'number' :
-  T extends boolean | null | undefined ? 'boolean' :
-  T extends Date | null | undefined ? 'date' :
-  T extends Array<any> ? 'select-multi' :
-  'text';
+type FieldTypeToCellType<T> = T extends string | null | undefined
+  ? 'text' | 'select'
+  : T extends number | null | undefined
+    ? 'number'
+    : T extends boolean | null | undefined
+      ? 'boolean'
+      : T extends Date | null | undefined
+        ? 'date'
+        : T extends Array<any>
+          ? 'select-multi'
+          : 'text'
 
 // Type-safe column that validates cellType matches field type
 export interface Column<T, K extends keyof T = keyof T> {
-  id: string;
-  field: K & string;
-  name: string;
-  cellType: K extends keyof T ? FieldTypeToCellType<T[K]> : never;
-  
+  id: string
+  field: K & string
+  name: string
+  cellType: K extends keyof T ? FieldTypeToCellType<T[K]> : never
+
   // Optional properties
-  width?: number;
-  minWidth?: number;
-  maxWidth?: number;
-  editable?: boolean;
-  
+  width?: number
+  minWidth?: number
+  maxWidth?: number
+  editable?: boolean
+
   // For relationships
-  relationshipTable?: string;
-  relationshipDisplayField?: string;
-  
+  relationshipTable?: string
+  relationshipDisplayField?: string
+
   // For enums and selects
-  options?: Array<{ value: string; label: string; color?: string; group?: string }>;
-  
+  options?: Array<{ value: string; label: string; color?: string; group?: string }>
+
   // For system/custom references
-  referenceType?: 'system' | 'custom';
-  systemOptionType?: string; // e.g., 'priority', 'status'
-  systemArchetype?: string;  // e.g., 'project', 'task'
-  customOptionSet?: string;
+  referenceType?: 'system' | 'custom'
+  systemOptionType?: string // e.g., 'priority', 'status'
+  systemArchetype?: string // e.g., 'project', 'task'
+  customOptionSet?: string
 
   // PERFORMANCE: Pre-computed field config for optimized cell creation
   _cachedRenderer?: {
-    fieldTypeConfig: any;
-    resolvedAt: number;
-  };
+    fieldTypeConfig: any
+    resolvedAt: number
+  }
 }
 
 // Helper type to make column creation easier
 export type ColumnDef<T> = {
-  [K in keyof T]: Column<T, K>;
-}[keyof T];
+  [K in keyof T]: Column<T, K>
+}[keyof T]
 
 // Export cell type union for use elsewhere - aligned with DataForge field types
 export type CellType =
   // Basic types
   | 'text'
   | 'longtext'
-  | 'textarea'  // Multi-line text input
+  | 'textarea' // Multi-line text input
   | 'rich-text'
-  | 'rich_text'  // DataForge variant
+  | 'rich_text' // DataForge variant
   | 'number'
   | 'integer'
   | 'decimal'
-  | 'percentage'  // Number formatted as percentage
+  | 'percentage' // Number formatted as percentage
   | 'boolean'
   | 'date'
   | 'datetime'
-  | 'datetime-local'  // HTML5 datetime-local input
-  | 'time'  // Time picker
-  | 'timestamp'  // Unix timestamp
-  | 'timestamptz'  // Timestamp with timezone
+  | 'datetime-local' // HTML5 datetime-local input
+  | 'time' // Time picker
+  | 'timestamp' // Unix timestamp
+  | 'timestamptz' // Timestamp with timezone
   // Selection types
   | 'select'
   | 'single-select'
@@ -100,10 +104,10 @@ export type CellType =
   | 'phone'
   // Rich data types
   | 'file'
-  | 'image'  // Image upload/display
+  | 'image' // Image upload/display
   | 'currency'
   | 'color'
-  | 'json'  // JSON field type
+  | 'json' // JSON field type
   // System option types (DataForge)
   | 'status'
   | 'status_option'
@@ -113,9 +117,9 @@ export type CellType =
   | 'discussion_type_option'
   // Reference types
   | 'reference-select'
-  | 'user_reference'  // DataForge variant
+  | 'user_reference' // DataForge variant
   | 'custom_user_reference'
-  | 'entity_reference'  // DataForge variant
+  | 'entity_reference' // DataForge variant
   | 'custom_entity_reference'
   // Computed/rollup types
   | 'rollup_count'
@@ -123,7 +127,7 @@ export type CellType =
   | 'rollup_average'
   | 'rollup_concat'
   | 'computed_expression'
-  | 'computed_formula';
+  | 'computed_formula'
 
 // OPTIMIZED: Pre-computed Sets for O(1) lookup performance
 export const SELECT_CELL_TYPES = new Set<CellType>([
@@ -132,15 +136,15 @@ export const SELECT_CELL_TYPES = new Set<CellType>([
   'single-select',
   'select-multi',
   'multi-select',
-  'reference-select'
-] as const);
+  'reference-select',
+] as const)
 
 export const DROPDOWN_CELL_TYPES = new Set<CellType>([
   ...SELECT_CELL_TYPES,
   'boolean',
   'date',
-  'datetime'
-] as const);
+  'datetime',
+] as const)
 
 export const TEXT_CELL_TYPES = new Set<CellType>([
   'text',
@@ -148,10 +152,12 @@ export const TEXT_CELL_TYPES = new Set<CellType>([
   'rich-text',
   'email',
   'url',
-  'phone'
-] as const);
+  'phone',
+] as const)
 
 // Utility functions for optimal type checking
-export const isSelectType = (cellType: string): boolean => SELECT_CELL_TYPES.has(cellType as CellType);
-export const isDropdownType = (cellType: string): boolean => DROPDOWN_CELL_TYPES.has(cellType as CellType);
-export const isTextType = (cellType: string): boolean => TEXT_CELL_TYPES.has(cellType as CellType);
+export const isSelectType = (cellType: string): boolean =>
+  SELECT_CELL_TYPES.has(cellType as CellType)
+export const isDropdownType = (cellType: string): boolean =>
+  DROPDOWN_CELL_TYPES.has(cellType as CellType)
+export const isTextType = (cellType: string): boolean => TEXT_CELL_TYPES.has(cellType as CellType)

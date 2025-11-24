@@ -1,26 +1,26 @@
 /**
  * Loading Cell Components
- * 
+ *
  * Provides visual feedback when cells are waiting for dependencies
  * Different loading states for different cell types to maintain visual consistency
  */
 
-import { Column } from '../types';
-import { DependencyError } from '../types/cell-dependencies';
-import { log } from '@/logger';
+import { log } from '@/logger'
+import { Column } from '../types'
+import { DependencyError } from '../types/cell-dependencies'
 
-const fileLog = log('components/custom/vibegrid/components/LoadingCell.ts');
+const fileLog = log('components/custom/vibegrid/components/LoadingCell.ts')
 
 /**
  * Create a loading cell that matches the expected final cell appearance
  */
 export function createLoadingCell(cellType: string, column: Column): HTMLElement {
-  const loading = document.createElement('div');
-  loading.className = `vibegrid-cell vibegrid-cell-loading vibegrid-cell-loading-${cellType}`;
-  loading.dataset.columnId = column.id;
-  loading.dataset.cellType = cellType;
-  loading.dataset.loadingState = 'true';
-  
+  const loading = document.createElement('div')
+  loading.className = `vibegrid-cell vibegrid-cell-loading vibegrid-cell-loading-${cellType}`
+  loading.dataset.columnId = column.id
+  loading.dataset.cellType = cellType
+  loading.dataset.loadingState = 'true'
+
   // Set consistent cell styling
   loading.style.cssText = `
     flex: 0 0 ${column.width}px;
@@ -34,78 +34,78 @@ export function createLoadingCell(cellType: string, column: Column): HTMLElement
     position: relative;
     cursor: default;
     background-color: #fafafa;
-  `;
-  
+  `
+
   // Create loading content based on cell type
-  const content = createLoadingContent(cellType, column);
-  loading.appendChild(content);
-  
+  const content = createLoadingContent(cellType, column)
+  loading.appendChild(content)
+
   // Add tooltip
-  loading.title = `Loading ${column.label || column.id}...`;
-  
+  loading.title = `Loading ${column.label || column.id}...`
+
   fileLog.debug('🔄 Created loading cell', {
     columnId: column.id,
     cellType,
-    width: column.width
-  });
-  
-  return loading;
+    width: column.width,
+  })
+
+  return loading
 }
 
 /**
  * Create type-specific loading content
  */
 function createLoadingContent(cellType: string, column: Column): HTMLElement {
-  const container = document.createElement('div');
-  container.className = 'loading-content';
-  
+  const container = document.createElement('div')
+  container.className = 'loading-content'
+
   switch (cellType) {
     case 'relationship-single':
-      container.innerHTML = createRelationshipSingleLoading();
-      break;
-      
+      container.innerHTML = createRelationshipSingleLoading()
+      break
+
     case 'relationship-multi':
-      container.innerHTML = createRelationshipMultiLoading();
-      break;
-      
+      container.innerHTML = createRelationshipMultiLoading()
+      break
+
     case 'enum':
     case 'select':
-      container.innerHTML = createEnumLoading();
-      break;
-      
+      container.innerHTML = createEnumLoading()
+      break
+
     case 'rollup_count':
     case 'rollup_sum':
     case 'rollup_average':
-      container.innerHTML = createRollupNumberLoading();
-      break;
-      
+      container.innerHTML = createRollupNumberLoading()
+      break
+
     case 'rollup_concat':
-      container.innerHTML = createRollupTextLoading();
-      break;
-      
+      container.innerHTML = createRollupTextLoading()
+      break
+
     case 'computed_expression':
     case 'computed_formula':
-      container.innerHTML = createComputedLoading();
-      break;
-      
+      container.innerHTML = createComputedLoading()
+      break
+
     case 'date':
-      container.innerHTML = createDateLoading();
-      break;
-      
+      container.innerHTML = createDateLoading()
+      break
+
     case 'number':
-      container.innerHTML = createNumberLoading();
-      break;
-      
+      container.innerHTML = createNumberLoading()
+      break
+
     case 'boolean':
-      container.innerHTML = createBooleanLoading();
-      break;
-      
+      container.innerHTML = createBooleanLoading()
+      break
+
     default:
-      container.innerHTML = createTextLoading();
-      break;
+      container.innerHTML = createTextLoading()
+      break
   }
-  
-  return container;
+
+  return container
 }
 
 /**
@@ -124,7 +124,7 @@ function createRelationshipSingleLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 function createRelationshipMultiLoading(): string {
@@ -149,7 +149,7 @@ function createRelationshipMultiLoading(): string {
         "></div>
       </div>
     </div>
-  `;
+  `
 }
 
 function createEnumLoading(): string {
@@ -165,7 +165,7 @@ function createEnumLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 function createRollupNumberLoading(): string {
@@ -180,7 +180,7 @@ function createRollupNumberLoading(): string {
       "></div>
       <div class="text-xs text-muted-foreground">📊</div>
     </div>
-  `;
+  `
 }
 
 function createRollupTextLoading(): string {
@@ -195,7 +195,7 @@ function createRollupTextLoading(): string {
       "></div>
       <div class="text-xs text-muted-foreground">📊</div>
     </div>
-  `;
+  `
 }
 
 function createComputedLoading(): string {
@@ -211,7 +211,7 @@ function createComputedLoading(): string {
       "></div>
       <div class="text-xs text-muted-foreground">🧮</div>
     </div>
-  `;
+  `
 }
 
 function createDateLoading(): string {
@@ -226,7 +226,7 @@ function createDateLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 function createNumberLoading(): string {
@@ -240,7 +240,7 @@ function createNumberLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 function createBooleanLoading(): string {
@@ -255,7 +255,7 @@ function createBooleanLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 function createTextLoading(): string {
@@ -270,18 +270,18 @@ function createTextLoading(): string {
         animation: pulse 2s infinite;
       "></div>
     </div>
-  `;
+  `
 }
 
 /**
  * Create an error cell for when loading fails
  */
 export function createErrorCell(error: Error | DependencyError, column: Column): HTMLElement {
-  const errorCell = document.createElement('div');
-  errorCell.className = `vibegrid-cell vibegrid-cell-error`;
-  errorCell.dataset.columnId = column.id;
-  errorCell.dataset.errorState = 'true';
-  
+  const errorCell = document.createElement('div')
+  errorCell.className = `vibegrid-cell vibegrid-cell-error`
+  errorCell.dataset.columnId = column.id
+  errorCell.dataset.errorState = 'true'
+
   // Set consistent cell styling with error indication
   errorCell.style.cssText = `
     flex: 0 0 ${column.width}px;
@@ -295,11 +295,11 @@ export function createErrorCell(error: Error | DependencyError, column: Column):
     position: relative;
     cursor: default;
     background-color: #fef2f2;
-  `;
-  
+  `
+
   // Create error content
-  const errorContent = document.createElement('div');
-  errorContent.className = 'error-content';
+  const errorContent = document.createElement('div')
+  errorContent.className = 'error-content'
   errorContent.innerHTML = `
     <div class="flex items-center gap-2 text-red-600">
       <svg class="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -307,31 +307,31 @@ export function createErrorCell(error: Error | DependencyError, column: Column):
       </svg>
       <span class="text-xs truncate">Error</span>
     </div>
-  `;
-  
-  errorCell.appendChild(errorContent);
-  
+  `
+
+  errorCell.appendChild(errorContent)
+
   // Set detailed error tooltip
-  const errorMessage = 'message' in error ? error.message : error.message;
-  errorCell.title = `Error in ${column.label || column.id}: ${errorMessage}`;
-  
+  const errorMessage = 'message' in error ? error.message : error.message
+  errorCell.title = `Error in ${column.label || column.id}: ${errorMessage}`
+
   fileLog.error('❌ Created error cell', {
     columnId: column.id,
-    error: errorMessage
-  });
-  
-  return errorCell;
+    error: errorMessage,
+  })
+
+  return errorCell
 }
 
 /**
  * Create a timeout cell for when dependencies take too long
  */
 export function createTimeoutCell(column: Column, timeoutMs: number): HTMLElement {
-  const timeoutCell = document.createElement('div');
-  timeoutCell.className = `vibegrid-cell vibegrid-cell-timeout`;
-  timeoutCell.dataset.columnId = column.id;
-  timeoutCell.dataset.timeoutState = 'true';
-  
+  const timeoutCell = document.createElement('div')
+  timeoutCell.className = `vibegrid-cell vibegrid-cell-timeout`
+  timeoutCell.dataset.columnId = column.id
+  timeoutCell.dataset.timeoutState = 'true'
+
   // Set consistent cell styling with timeout indication
   timeoutCell.style.cssText = `
     flex: 0 0 ${column.width}px;
@@ -345,11 +345,11 @@ export function createTimeoutCell(column: Column, timeoutMs: number): HTMLElemen
     position: relative;
     cursor: default;
     background-color: #fffbeb;
-  `;
-  
+  `
+
   // Create timeout content
-  const timeoutContent = document.createElement('div');
-  timeoutContent.className = 'timeout-content';
+  const timeoutContent = document.createElement('div')
+  timeoutContent.className = 'timeout-content'
   timeoutContent.innerHTML = `
     <div class="flex items-center gap-2 text-amber-600">
       <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,56 +357,59 @@ export function createTimeoutCell(column: Column, timeoutMs: number): HTMLElemen
       </svg>
       <span class="text-xs truncate">Timeout</span>
     </div>
-  `;
-  
-  timeoutCell.appendChild(timeoutContent);
-  
+  `
+
+  timeoutCell.appendChild(timeoutContent)
+
   // Set timeout tooltip
-  timeoutCell.title = `Loading timeout for ${column.label || column.id} (${timeoutMs}ms)`;
-  
+  timeoutCell.title = `Loading timeout for ${column.label || column.id} (${timeoutMs}ms)`
+
   fileLog.warn('⏰ Created timeout cell', {
     columnId: column.id,
-    timeoutMs
-  });
-  
-  return timeoutCell;
+    timeoutMs,
+  })
+
+  return timeoutCell
 }
 
 /**
  * Check if an element is a loading cell
  */
 export function isLoadingCell(element: Element): boolean {
-  return element.hasAttribute('data-loading-state') && 
-         element.getAttribute('data-loading-state') === 'true';
+  return (
+    element.hasAttribute('data-loading-state') &&
+    element.getAttribute('data-loading-state') === 'true'
+  )
 }
 
 /**
  * Check if an element is an error cell
  */
 export function isErrorCell(element: Element): boolean {
-  return element.hasAttribute('data-error-state') && 
-         element.getAttribute('data-error-state') === 'true';
+  return (
+    element.hasAttribute('data-error-state') && element.getAttribute('data-error-state') === 'true'
+  )
 }
 
 /**
  * Update loading cell progress (for long-running operations)
  */
 export function updateLoadingProgress(
-  loadingCell: HTMLElement, 
-  progress: { message?: string; percentage?: number }
+  loadingCell: HTMLElement,
+  progress: { message?: string; percentage?: number },
 ): void {
-  const spinner = loadingCell.querySelector('.loading-spinner-sm');
-  
+  const spinner = loadingCell.querySelector('.loading-spinner-sm')
+
   if (progress.message) {
-    const messageEl = loadingCell.querySelector('.loading-message');
+    const messageEl = loadingCell.querySelector('.loading-message')
     if (messageEl) {
-      messageEl.textContent = progress.message;
+      messageEl.textContent = progress.message
     }
   }
-  
+
   if (progress.percentage !== undefined && spinner) {
     // Add progress ring around spinner
-    spinner.style.background = `conic-gradient(#3b82f6 ${progress.percentage * 3.6}deg, #e5e7eb 0deg)`;
+    spinner.style.background = `conic-gradient(#3b82f6 ${progress.percentage * 3.6}deg, #e5e7eb 0deg)`
   }
 }
 
@@ -415,7 +418,7 @@ export function updateLoadingProgress(
  * Should be called once during app initialization
  */
 export function injectLoadingCSS(): void {
-  const style = document.createElement('style');
+  const style = document.createElement('style')
   style.textContent = `
     @keyframes pulse {
       0%, 100% { opacity: 1; }
@@ -455,19 +458,19 @@ export function injectLoadingCSS(): void {
     .vibegrid-cell-timeout {
       cursor: help;
     }
-  `;
-  
-  document.head.appendChild(style);
-  
-  fileLog.info('💄 Loading cell CSS injected');
+  `
+
+  document.head.appendChild(style)
+
+  fileLog.info('💄 Loading cell CSS injected')
 }
 
 // Auto-inject CSS when module loads
 if (typeof document !== 'undefined') {
   // Only inject if not already present
   if (!document.querySelector('style[data-loading-cells]')) {
-    const style = document.createElement('style');
-    style.dataset.loadingCells = 'true';
+    const style = document.createElement('style')
+    style.dataset.loadingCells = 'true'
     style.textContent = `
       @keyframes pulse {
         0%, 100% { opacity: 1; }
@@ -501,8 +504,8 @@ if (typeof document !== 'undefined') {
       .vibegrid-cell-timeout {
         cursor: help;
       }
-    `;
-    
-    document.head.appendChild(style);
+    `
+
+    document.head.appendChild(style)
   }
 }

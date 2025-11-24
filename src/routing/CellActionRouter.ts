@@ -12,9 +12,9 @@
  */
 
 import { createLogger } from '@/shared/lib/logging'
-import type { EditSessionManager } from '../services/EditSessionManager'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { FieldInteractionPolicy } from '../field-types/FieldTypeRegistry'
+import type { EditSessionManager } from '../services/EditSessionManager'
 
 const fileLog = createLogger('components/vibegrid/routing/CellActionRouter')
 
@@ -54,10 +54,10 @@ export type OnCellClickCallback = (rowId: string, columnId: string) => void | 'h
 export class CellActionRouter {
   constructor(
     private editSessionManager: EditSessionManager,
-    private onCellClick?: OnCellClickCallback
+    private onCellClick?: OnCellClickCallback,
   ) {
     fileLog.info('CellActionRouter initialized', {
-      hasCallback: !!onCellClick
+      hasCallback: !!onCellClick,
     })
   }
 
@@ -79,7 +79,7 @@ export class CellActionRouter {
       columnId: column?.id,
       fieldType: column.fieldType?.id,
       hasCallback: !!this.onCellClick,
-      hasPolicy: !!fieldPolicy
+      hasPolicy: !!fieldPolicy,
     })
 
     // 1. Determine action FIRST (based on explicit triggers and policies)
@@ -89,14 +89,14 @@ export class CellActionRouter {
       cellId,
       action,
       fieldType: column.fieldType?.id,
-      policy: fieldPolicy?.defaultAction
+      policy: fieldPolicy?.defaultAction,
     })
 
     // 2. For navigate actions, invoke onCellClick callback
     if (action === 'navigate' && this.onCellClick && row && column) {
       fileLog.debug('Invoking onCellClick callback for navigation', {
         rowId: row.id,
-        columnId: column.id
+        columnId: column.id,
       })
 
       const result = this.onCellClick(row.id, column.id)
@@ -105,7 +105,7 @@ export class CellActionRouter {
       if (result === 'handled' || nativeEvent.defaultPrevented) {
         fileLog.debug('Navigation prevented by callback', {
           result,
-          defaultPrevented: nativeEvent.defaultPrevented
+          defaultPrevented: nativeEvent.defaultPrevented,
         })
         return
       }
@@ -133,7 +133,7 @@ export class CellActionRouter {
     const editTrigger = (target as HTMLElement).closest('[data-edit-trigger="true"]')
     if (editTrigger) {
       fileLog.debug('Explicit edit trigger found', {
-        element: (editTrigger as HTMLElement).tagName
+        element: (editTrigger as HTMLElement).tagName,
       })
       return 'edit'
     }
@@ -145,7 +145,7 @@ export class CellActionRouter {
       if (explicitAction && ['navigate', 'edit', 'custom', 'none'].includes(explicitAction)) {
         fileLog.debug('Explicit action from data-action attribute', {
           action: explicitAction,
-          element: (actionElement as HTMLElement).tagName
+          element: (actionElement as HTMLElement).tagName,
         })
         return explicitAction
       }
@@ -157,7 +157,7 @@ export class CellActionRouter {
       const explicitAction = cellElement.getAttribute('data-cell-action') as CellAction
       if (explicitAction && ['navigate', 'edit', 'custom', 'none'].includes(explicitAction)) {
         fileLog.debug('Explicit action from data-cell-action attribute', {
-          action: explicitAction
+          action: explicitAction,
         })
         return explicitAction
       }
@@ -169,20 +169,24 @@ export class CellActionRouter {
       if (fieldPolicy.editTrigger === 'content-click') {
         // Check if target is content element (span/first child) vs cell padding
         const cellContainer = (target as HTMLElement).closest('[data-row-id][data-column-id]')
-        const contentElement = cellContainer?.querySelector('span') || cellContainer?.firstElementChild
+        const contentElement =
+          cellContainer?.querySelector('span') || cellContainer?.firstElementChild
 
         // If clicking content element (or its children), start edit
-        if (contentElement && (target === contentElement || contentElement.contains(target as Node))) {
+        if (
+          contentElement &&
+          (target === contentElement || contentElement.contains(target as Node))
+        ) {
           fileLog.debug('Content element clicked - starting edit', {
             targetTag: (target as HTMLElement).tagName,
-            contentTag: (contentElement as HTMLElement).tagName
+            contentTag: (contentElement as HTMLElement).tagName,
           })
           return 'edit'
         }
 
         // If clicking cell padding, use defaultAction (usually should be 'none' or 'navigate')
         fileLog.debug('Cell padding clicked - no edit', {
-          defaultAction: fieldPolicy.defaultAction
+          defaultAction: fieldPolicy.defaultAction,
         })
         // For fields with defaultAction='edit', return 'none' when clicking padding
         return fieldPolicy.defaultAction === 'edit' ? 'none' : fieldPolicy.defaultAction
@@ -201,14 +205,14 @@ export class CellActionRouter {
       // For fields with special triggers (icon, f2), clicking padding = selection only
       fileLog.debug('No explicit trigger - defaulting to selection only', {
         editTrigger: fieldPolicy.editTrigger,
-        defaultAction: fieldPolicy.defaultAction
+        defaultAction: fieldPolicy.defaultAction,
       })
       return 'none'
     }
 
     // No policy - default to 'none' (selection only)
     fileLog.debug('No field policy - defaulting to none', {
-      fieldType: column.fieldType?.id
+      fieldType: column.fieldType?.id,
     })
     return 'none'
   }
@@ -229,7 +233,7 @@ export class CellActionRouter {
       case 'edit':
         fileLog.debug('Starting edit session', {
           cellId,
-          fieldType: column.fieldType?.id
+          fieldType: column.fieldType?.id,
         })
         this.editSessionManager.start(cellId, column)
         break
@@ -237,7 +241,7 @@ export class CellActionRouter {
       case 'custom':
         fileLog.debug('Custom action (delegating to field type)', {
           cellId,
-          fieldType: column.fieldType?.id
+          fieldType: column.fieldType?.id,
         })
         column.fieldType?.handleClick?.(context)
         break
@@ -250,7 +254,7 @@ export class CellActionRouter {
       default:
         fileLog.warn('Unknown action', {
           action,
-          cellId
+          cellId,
         })
     }
   }

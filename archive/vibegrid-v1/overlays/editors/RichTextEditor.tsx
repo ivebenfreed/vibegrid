@@ -5,34 +5,34 @@
  * Uses a simple contentEditable approach with basic formatting tools.
  */
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import ReactDOM from 'react-dom';
-import { log } from '@/logger';
-import { GRID_DIMENSIONS } from '../../constants/grid-dimensions';
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import ReactDOM from 'react-dom'
+import { log } from '@/logger'
+import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 
-const fileLog = log('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx');
+const fileLog = log('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx')
 
 interface RichTextEditorProps {
   cell: {
-    rowId: string;
-    columnId: string;
-  };
+    rowId: string
+    columnId: string
+  }
   column: {
-    name: string;
-    placeholder?: string;
-    maxLength?: number;
-  };
-  initialValue: string;
-  onCommit: (value: string) => void;
-  onCancel: () => void;
-  isOpen: boolean;
+    name: string
+    placeholder?: string
+    maxLength?: number
+  }
+  initialValue: string
+  onCommit: (value: string) => void
+  onCancel: () => void
+  isOpen: boolean
 }
 
 interface FormatButton {
-  command: string;
-  icon: string;
-  title: string;
-  requiresValue?: boolean;
+  command: string
+  icon: string
+  title: string
+  requiresValue?: boolean
 }
 
 const formatButtons: FormatButton[] = [
@@ -40,18 +40,18 @@ const formatButtons: FormatButton[] = [
   { command: 'italic', icon: 'I', title: 'Italic (Ctrl+I)' },
   { command: 'underline', icon: 'U', title: 'Underline (Ctrl+U)' },
   { command: 'strikeThrough', icon: 'S', title: 'Strikethrough' },
-];
+]
 
 const listButtons: FormatButton[] = [
   { command: 'insertUnorderedList', icon: '•', title: 'Bullet List' },
   { command: 'insertOrderedList', icon: '1.', title: 'Numbered List' },
-];
+]
 
 const alignButtons: FormatButton[] = [
   { command: 'justifyLeft', icon: '⟵', title: 'Align Left' },
   { command: 'justifyCenter', icon: '—', title: 'Align Center' },
   { command: 'justifyRight', icon: '⟶', title: 'Align Right' },
-];
+]
 
 export function RichTextEditor({
   cell,
@@ -59,174 +59,172 @@ export function RichTextEditor({
   initialValue,
   onCommit,
   onCancel,
-  isOpen
+  isOpen,
 }: RichTextEditorProps) {
-  const [htmlValue, setHtmlValue] = useState(initialValue || '');
-  const [isDirty, setIsDirty] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const [htmlValue, setHtmlValue] = useState(initialValue || '')
+  const [isDirty, setIsDirty] = useState(false)
+  const editorRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   // Convert plain text to HTML and vice versa
   const textToHtml = useCallback((text: string): string => {
-    if (!text) return '';
+    if (!text) return ''
     // Simple conversion: preserve line breaks and basic formatting
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/\n/g, '<br>');
-  }, []);
+      .replace(/\n/g, '<br>')
+  }, [])
 
   const htmlToText = useCallback((html: string): string => {
-    if (!html) return '';
+    if (!html) return ''
     // Create a temporary element to extract text content
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    return temp.textContent || temp.innerText || '';
-  }, []);
+    const temp = document.createElement('div')
+    temp.innerHTML = html
+    return temp.textContent || temp.innerText || ''
+  }, [])
 
   // Reset value when modal opens
   useEffect(() => {
     if (isOpen) {
       // Check if initialValue is HTML or plain text
-      const isHtml = /<[^>]*>/.test(initialValue);
-      const htmlContent = isHtml ? initialValue : textToHtml(initialValue);
-      setHtmlValue(htmlContent);
-      setIsDirty(false);
+      const isHtml = /<[^>]*>/.test(initialValue)
+      const htmlContent = isHtml ? initialValue : textToHtml(initialValue)
+      setHtmlValue(htmlContent)
+      setIsDirty(false)
 
       fileLog.debug('RichTextEditor opened', {
         cellId: `${cell.rowId}:${cell.columnId}`,
         initialLength: (initialValue || '').length,
-        isHtml
-      });
+        isHtml,
+      })
     }
-  }, [isOpen, initialValue, cell.rowId, cell.columnId, textToHtml]);
+  }, [isOpen, initialValue, cell.rowId, cell.columnId, textToHtml])
 
   // Focus editor when modal opens
   useEffect(() => {
     if (isOpen && editorRef.current) {
       const timeout = setTimeout(() => {
-        editorRef.current?.focus();
+        editorRef.current?.focus()
         // Place cursor at the beginning
-        const range = document.createRange();
-        const selection = window.getSelection();
+        const range = document.createRange()
+        const selection = window.getSelection()
         if (editorRef.current.firstChild) {
-          range.setStart(editorRef.current.firstChild, 0);
-          range.collapse(true);
-          selection?.removeAllRanges();
-          selection?.addRange(range);
+          range.setStart(editorRef.current.firstChild, 0)
+          range.collapse(true)
+          selection?.removeAllRanges()
+          selection?.addRange(range)
         }
-      }, 100);
-      return () => clearTimeout(timeout);
+      }, 100)
+      return () => clearTimeout(timeout)
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   // Handle escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleCancel();
+        e.preventDefault()
+        e.stopPropagation()
+        handleCancel()
       }
-    };
+    }
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape, { capture: true });
-      return () => document.removeEventListener('keydown', handleEscape, { capture: true });
+      document.addEventListener('keydown', handleEscape, { capture: true })
+      return () => document.removeEventListener('keydown', handleEscape, { capture: true })
     }
-  }, [isOpen, isDirty]);
+  }, [isOpen, isDirty])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden'
       return () => {
-        document.body.style.overflow = '';
-      };
+        document.body.style.overflow = ''
+      }
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   const handleInput = () => {
     if (editorRef.current) {
-      const newContent = editorRef.current.innerHTML;
-      setHtmlValue(newContent);
-      setIsDirty(newContent !== (initialValue || ''));
+      const newContent = editorRef.current.innerHTML
+      setHtmlValue(newContent)
+      setIsDirty(newContent !== (initialValue || ''))
     }
-  };
+  }
 
   const handleSave = () => {
     // Return the HTML content as-is, let the caller decide how to handle it
-    const content = editorRef.current?.innerHTML || htmlValue;
+    const content = editorRef.current?.innerHTML || htmlValue
     fileLog.debug('RichTextEditor saving', {
       cellId: `${cell.rowId}:${cell.columnId}`,
       contentLength: content.length,
-      isDirty
-    });
-    onCommit(content);
-  };
+      isDirty,
+    })
+    onCommit(content)
+  }
 
   const handleCancel = () => {
     if (isDirty) {
-      const confirmed = window.confirm(
-        'You have unsaved changes. Are you sure you want to cancel?'
-      );
-      if (!confirmed) return;
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
+      if (!confirmed) return
     }
 
     fileLog.debug('RichTextEditor cancelled', {
       cellId: `${cell.rowId}:${cell.columnId}`,
-      isDirty
-    });
-    onCancel();
-  };
+      isDirty,
+    })
+    onCancel()
+  }
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === modalRef.current) {
-      handleCancel();
+      handleCancel()
     }
-  };
+  }
 
   const executeCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput(); // Update state after command
-  };
+    document.execCommand(command, false, value)
+    editorRef.current?.focus()
+    handleInput() // Update state after command
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Ctrl+Enter or Cmd+Enter to save
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleSave();
+      e.preventDefault()
+      handleSave()
     }
 
     // Handle common formatting shortcuts
     if (e.ctrlKey || e.metaKey) {
       switch (e.key.toLowerCase()) {
         case 'b':
-          e.preventDefault();
-          executeCommand('bold');
-          break;
+          e.preventDefault()
+          executeCommand('bold')
+          break
         case 'i':
-          e.preventDefault();
-          executeCommand('italic');
-          break;
+          e.preventDefault()
+          executeCommand('italic')
+          break
         case 'u':
-          e.preventDefault();
-          executeCommand('underline');
-          break;
+          e.preventDefault()
+          executeCommand('underline')
+          break
       }
     }
-  };
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
-  const textLength = htmlToText(htmlValue).length;
-  const hasMaxLength = column.maxLength && column.maxLength > 0;
-  const isOverLimit = hasMaxLength && textLength > column.maxLength!;
+  const textLength = htmlToText(htmlValue).length
+  const hasMaxLength = column.maxLength && column.maxLength > 0
+  const isOverLimit = hasMaxLength && textLength > column.maxLength!
 
   // Create portal to render outside the grid container
-  const portalTarget = document.body;
+  const portalTarget = document.body
 
   return ReactDOM.createPortal(
     <div
@@ -243,7 +241,7 @@ export function RichTextEditor({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px'
+        padding: '20px',
       }}
       onClick={handleBackdropClick}
     >
@@ -260,7 +258,7 @@ export function RichTextEditor({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_CONTENT
+          zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_CONTENT,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -272,7 +270,7 @@ export function RichTextEditor({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            backgroundColor: '#f8f9fa'
+            backgroundColor: '#f8f9fa',
           }}
         >
           <div>
@@ -291,7 +289,7 @@ export function RichTextEditor({
               fontSize: '18px',
               cursor: 'pointer',
               padding: '4px',
-              color: '#666'
+              color: '#666',
             }}
             title="Close (Esc)"
           >
@@ -307,7 +305,7 @@ export function RichTextEditor({
             display: 'flex',
             gap: '12px',
             alignItems: 'center',
-            backgroundColor: '#fafbfc'
+            backgroundColor: '#fafbfc',
           }}
         >
           {/* Format buttons */}
@@ -326,8 +324,12 @@ export function RichTextEditor({
                   fontSize: '14px',
                   fontWeight: button.command === 'bold' ? 'bold' : 'normal',
                   fontStyle: button.command === 'italic' ? 'italic' : 'normal',
-                  textDecoration: button.command === 'underline' ? 'underline' :
-                                 button.command === 'strikeThrough' ? 'line-through' : 'none'
+                  textDecoration:
+                    button.command === 'underline'
+                      ? 'underline'
+                      : button.command === 'strikeThrough'
+                        ? 'line-through'
+                        : 'none',
                 }}
                 title={button.title}
               >
@@ -350,7 +352,7 @@ export function RichTextEditor({
                   borderRadius: '4px',
                   backgroundColor: 'white',
                   cursor: 'pointer',
-                  fontSize: '12px'
+                  fontSize: '12px',
                 }}
                 title={button.title}
               >
@@ -374,7 +376,7 @@ export function RichTextEditor({
                   borderRadius: '4px',
                   backgroundColor: 'white',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: '14px',
                 }}
                 title={button.title}
               >
@@ -395,7 +397,7 @@ export function RichTextEditor({
               backgroundColor: 'white',
               cursor: 'pointer',
               fontSize: '12px',
-              color: '#666'
+              color: '#666',
             }}
             title="Clear formatting"
           >
@@ -410,7 +412,7 @@ export function RichTextEditor({
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}
         >
           <div
@@ -433,7 +435,7 @@ export function RichTextEditor({
               outline: 'none',
               overflow: 'auto',
               backgroundColor: isOverLimit ? '#fef2f2' : 'white',
-              borderColor: isOverLimit ? '#ef4444' : '#d1d5db'
+              borderColor: isOverLimit ? '#ef4444' : '#d1d5db',
             }}
           />
 
@@ -445,7 +447,7 @@ export function RichTextEditor({
               justifyContent: 'space-between',
               alignItems: 'center',
               fontSize: '12px',
-              color: '#666'
+              color: '#666',
             }}
           >
             <div>
@@ -455,13 +457,9 @@ export function RichTextEditor({
                   {isOverLimit && ' (over limit)'}
                 </span>
               )}
-              {!hasMaxLength && (
-                <span>{textLength.toLocaleString()} characters</span>
-              )}
+              {!hasMaxLength && <span>{textLength.toLocaleString()} characters</span>}
             </div>
-            <div style={{ color: '#9ca3af' }}>
-              Ctrl+Enter to save
-            </div>
+            <div style={{ color: '#9ca3af' }}>Ctrl+Enter to save</div>
           </div>
         </div>
 
@@ -473,7 +471,7 @@ export function RichTextEditor({
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '12px',
-            backgroundColor: '#f8f9fa'
+            backgroundColor: '#f8f9fa',
           }}
         >
           <button
@@ -485,7 +483,7 @@ export function RichTextEditor({
               backgroundColor: 'white',
               color: '#374151',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '14px',
             }}
           >
             Cancel
@@ -501,7 +499,7 @@ export function RichTextEditor({
               color: 'white',
               cursor: isOverLimit ? 'not-allowed' : 'pointer',
               fontSize: '14px',
-              opacity: isOverLimit ? 0.6 : 1
+              opacity: isOverLimit ? 0.6 : 1,
             }}
           >
             Save {isDirty && '*'}
@@ -509,6 +507,6 @@ export function RichTextEditor({
         </div>
       </div>
     </div>,
-    portalTarget
-  );
+    portalTarget,
+  )
 }

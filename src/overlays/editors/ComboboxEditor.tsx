@@ -9,18 +9,26 @@
  * ✅ NO TRIGGER: Only shows dropdown content, no extra cell display
  */
 
+import { Check } from 'lucide-react'
 import React from 'react'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/shared/components/ui/command'
 import { createLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/shared/components/ui/command'
-import { Check } from 'lucide-react'
-import type { CellRef, Column, RelationshipContext, EnumOption } from '../../types'
+import type { CellRef, Column, EnumOption, RelationshipContext } from '../../types'
 import { getOptionIconDisplay } from '../../utils/icon-mapping'
+
 // TODO: Remove Legend State dependencies - not needed for this editor
 // import { use$ } from '@legendapp/state/react'
 // import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/ComboboxEditor');
+const fileLog = createLogger('components/vibegrid/overlays/editors/ComboboxEditor')
 
 export interface ComboboxEditorProps {
   cell: CellRef
@@ -36,18 +44,17 @@ export interface ComboboxEditorProps {
   relationshipContext?: RelationshipContext
 }
 
-
 export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
   cell,
   column,
   initialValue,
   onCommit,
   onCancel,
-  placeholder = "Select...",
-  searchPlaceholder = "Search...",
-  className = "",
+  placeholder = 'Select...',
+  searchPlaceholder = 'Search...',
+  className = '',
   isMultiSelect = false,
-  relationshipContext
+  relationshipContext,
 }) => {
   const [searchValue, setSearchValue] = React.useState('')
   const [highlightedIndex, setHighlightedIndex] = React.useState(0)
@@ -56,7 +63,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
   const [isLoadingOptions, setIsLoadingOptions] = React.useState(false)
   // For multi-select, track selected values separately
   const [selectedValues, setSelectedValues] = React.useState<string[]>(
-    isMultiSelect && Array.isArray(initialValue) ? initialValue : []
+    isMultiSelect && Array.isArray(initialValue) ? initialValue : [],
   )
 
   // Load options from provider if available
@@ -67,16 +74,16 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       hasContext: !!relationshipContext,
       relationshipContext: relationshipContext,
       relationshipTable: column.relationshipTable,
-      relationshipEntityType: column.relationshipEntityType
-    });
+      relationshipEntityType: column.relationshipEntityType,
+    })
 
     if (column.relationshipOptionsProvider && relationshipContext) {
       fileLog.debug('ComboboxEditor: Loading relationship options', {
         columnId: column.id,
         relationshipTable: column.relationshipTable,
         hasProvider: !!column.relationshipOptionsProvider,
-        hasContext: !!relationshipContext
-      });
+        hasContext: !!relationshipContext,
+      })
 
       setIsLoadingOptions(true)
 
@@ -87,8 +94,8 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
           fileLog.debug('ComboboxEditor: Loaded relationship options', {
             columnId: column.id,
             optionCount: providerOptions.length,
-            options: providerOptions.map(opt => ({ value: opt.value, label: opt.label }))
-          });
+            options: providerOptions.map((opt) => ({ value: opt.value, label: opt.label })),
+          })
 
           setDynamicOptions(providerOptions)
         } catch (error) {
@@ -113,28 +120,34 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     } else {
       rawOptions = column.enumOptions || column.options || []
     }
-    
+
     fileLog.debug('ComboboxEditor: Computing options', {
       columnId: column.id,
       hasProvider: !!column.relationshipOptionsProvider,
       dynamicOptionsCount: dynamicOptions.length,
       staticOptionsCount: (column.enumOptions || column.options || []).length,
       usingDynamic: column.relationshipOptionsProvider && dynamicOptions.length > 0,
-      rawOptionsCount: rawOptions.length
-    });
-    
+      rawOptionsCount: rawOptions.length,
+    })
+
     // Convert to standard format and apply hardcoded styling
-    const standardOptions = rawOptions.map(option => {
-      let optionData;
+    const standardOptions = rawOptions.map((option) => {
+      let optionData
       if (typeof option === 'string') {
-        optionData = { value: option, label: option };
+        optionData = { value: option, label: option }
       } else {
-        optionData = { value: option.value, label: option.label, color: option.color, backgroundColor: option.backgroundColor, icon: option.icon };
+        optionData = {
+          value: option.value,
+          label: option.label,
+          color: option.color,
+          backgroundColor: option.backgroundColor,
+          icon: option.icon,
+        }
       }
 
       // Note: Removed hardcoded styling - now uses schema data verbatim
 
-      return optionData;
+      return optionData
     })
 
     // Add null option for nullable fields
@@ -147,21 +160,28 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     fileLog.debug('ComboboxEditor: Final options', {
       columnId: column.id,
       optionCount: standardOptions.length,
-      options: standardOptions.map(opt => ({ value: opt.value, label: opt.label })),
+      options: standardOptions.map((opt) => ({ value: opt.value, label: opt.label })),
       rawColumnOptions: column.options,
       rawEnumOptions: column.enumOptions,
-      columnType: column.cellType || column.type
-    });
+      columnType: column.cellType || column.type,
+    })
 
     return standardOptions
-  }, [column.enumOptions, column.options, column.nullLabel, column.relationshipOptionsProvider, dynamicOptions])
+  }, [
+    column.enumOptions,
+    column.options,
+    column.nullLabel,
+    column.relationshipOptionsProvider,
+    dynamicOptions,
+  ])
 
   // Filter options based on search
   const filteredOptions = React.useMemo(() => {
     if (!searchValue) return options
-    return options.filter(option => 
-      option.label.toLowerCase().includes(searchValue.toLowerCase()) ||
-      option.value.toLowerCase().includes(searchValue.toLowerCase())
+    return options.filter(
+      (option) =>
+        option.label.toLowerCase().includes(searchValue.toLowerCase()) ||
+        option.value.toLowerCase().includes(searchValue.toLowerCase()),
     )
   }, [options, searchValue])
 
@@ -171,13 +191,11 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault()
-          setHighlightedIndex(prev => 
-            prev < filteredOptions.length - 1 ? prev + 1 : prev
-          )
+          setHighlightedIndex((prev) => (prev < filteredOptions.length - 1 ? prev + 1 : prev))
           break
         case 'ArrowUp':
           e.preventDefault()
-          setHighlightedIndex(prev => prev > 0 ? prev - 1 : prev)
+          setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : prev))
           break
         case 'Enter':
           e.preventDefault()
@@ -227,7 +245,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
       // For multi-select, toggle the value in the array
       const newValues = [...selectedValues]
       const index = newValues.indexOf(value)
-      
+
       if (index >= 0) {
         // Remove if already selected
         newValues.splice(index, 1)
@@ -235,7 +253,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
         // Add if not selected
         newValues.push(value)
       }
-      
+
       setSelectedValues(newValues)
       // Don't commit immediately for multi-select
     } else {
@@ -271,7 +289,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
   }, [filteredOptions])
 
   return (
-    <div className={cn("w-full h-full", className)}>
+    <div className={cn('w-full h-full', className)}>
       <Command shouldFilter={false} className="border rounded-md shadow-lg bg-background">
         <CommandInput
           placeholder={searchPlaceholder}
@@ -282,60 +300,66 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
         />
         <CommandList className="max-h-64 overflow-auto">
           {isLoadingOptions ? (
-            <div className="p-4 text-center text-sm text-muted-foreground">
-              Loading options...
-            </div>
+            <div className="p-4 text-center text-sm text-muted-foreground">Loading options...</div>
           ) : (
             <>
               <CommandEmpty>No results found.</CommandEmpty>
               {/* Group options by their group property */}
               {(() => {
                 // Group the filtered options
-                const grouped = filteredOptions.reduce((acc, option) => {
-                  const group = (option as any).group || 'Other';
-                  if (!acc[group]) acc[group] = [];
-                  acc[group].push(option);
-                  return acc;
-                }, {} as Record<string, any[]>);
-                
+                const grouped = filteredOptions.reduce(
+                  (acc, option) => {
+                    const group = (option as any).group || 'Other'
+                    if (!acc[group]) acc[group] = []
+                    acc[group].push(option)
+                    return acc
+                  },
+                  {} as Record<string, any[]>,
+                )
+
                 // Sort groups
-                const sortedGroups = Object.keys(grouped).sort();
-                
+                const sortedGroups = Object.keys(grouped).sort()
+
                 // Render grouped options
-                return sortedGroups.map(groupName => (
+                return sortedGroups.map((groupName) => (
                   <CommandGroup key={groupName} heading={groupName}>
                     {grouped[groupName].map((option, groupIndex) => {
-                      const globalIndex = filteredOptions.findIndex(o => o.value === option.value);
+                      const globalIndex = filteredOptions.findIndex((o) => o.value === option.value)
                       return (
                         <CommandItem
                           key={option.value}
                           value={option.value}
                           onSelect={() => {
-                            fileLog.debug('ComboboxEditor: onSelect called', { value: option.value });
-                            handleSelect(option.value);
+                            fileLog.debug('ComboboxEditor: onSelect called', {
+                              value: option.value,
+                            })
+                            handleSelect(option.value)
                           }}
                           onClick={(e) => {
-                            fileLog.debug('ComboboxEditor: onClick called', { value: option.value });
-                            e.stopPropagation();
-                            handleSelect(option.value);
+                            fileLog.debug('ComboboxEditor: onClick called', { value: option.value })
+                            e.stopPropagation()
+                            handleSelect(option.value)
                           }}
                           className={cn(
-                            "cursor-pointer",
-                            globalIndex === highlightedIndex && "bg-accent"
+                            'cursor-pointer',
+                            globalIndex === highlightedIndex && 'bg-accent',
                           )}
                         >
                           <Check
                             className={cn(
-                              "mr-2 h-4 w-4 flex-shrink-0",
+                              'mr-2 h-4 w-4 flex-shrink-0',
                               isMultiSelect
-                                ? (selectedValues.includes(option.value) ? "opacity-100" : "opacity-0")
-                                : (initialValue === option.value || (initialValue === null && option.value === '__null__') ? "opacity-100" : "opacity-0")
+                                ? selectedValues.includes(option.value)
+                                  ? 'opacity-100'
+                                  : 'opacity-0'
+                                : initialValue === option.value ||
+                                    (initialValue === null && option.value === '__null__')
+                                  ? 'opacity-100'
+                                  : 'opacity-0',
                             )}
                           />
                           {option.value === '__null__' ? (
-                            <span className="text-muted-foreground italic">
-                              {option.label}
-                            </span>
+                            <span className="text-muted-foreground italic">{option.label}</span>
                           ) : (
                             <span
                               style={{
@@ -349,7 +373,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                                 whiteSpace: 'nowrap',
                                 backgroundColor: option.backgroundColor || '#f3f4f6',
                                 color: option.color || '#374151',
-                                border: `1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'}`
+                                border: `1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'}`,
                               }}
                             >
                               {option.icon && (
@@ -361,10 +385,10 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                             </span>
                           )}
                         </CommandItem>
-                      );
+                      )
                     })}
                   </CommandGroup>
-                ));
+                ))
               })()}
             </>
           )}
@@ -376,9 +400,9 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
               <button
                 className="px-2 py-1 text-xs rounded hover:bg-accent"
                 onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCancel();
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleCancel()
                 }}
               >
                 Cancel (Esc)
@@ -386,9 +410,9 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
               <button
                 className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCommit(selectedValues);
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleCommit(selectedValues)
                 }}
               >
                 Done (Tab)

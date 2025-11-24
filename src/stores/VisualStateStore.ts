@@ -13,13 +13,13 @@
  * All renderers, managers, and components should read from this store ONLY.
  */
 
-import { makeObservable, observable, action, computed, runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
-import { DisposerManager } from '@/app/stores/utils/disposer'
+import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
-import type { Column, GroupConfig, SortConfig, FilterConfig, VirtualRow } from '../types'
-import { GroupProcessor } from '../processors/GroupProcessor'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import { createLogger } from '@/shared/lib/logging'
 import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import { GroupProcessor } from '../processors/GroupProcessor'
+import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
 
 const log = createLogger('components/vibegrid/stores/VisualStateStore')
 
@@ -208,7 +208,7 @@ export class VisualStateStore implements IStore {
     const layouts: ColumnLayout[] = []
 
     this.columnOrder.forEach((columnId, index) => {
-      const column = this.columns.find(c => c.id === columnId)
+      const column = this.columns.find((c) => c.id === columnId)
       if (!column) return
 
       const width = this.columnWidths[columnId] || column.width || 150
@@ -219,7 +219,7 @@ export class VisualStateStore implements IStore {
         width,
         xOffset: cumulativeX,
         visible,
-        order: index
+        order: index,
       }
 
       layouts.push(layout)
@@ -236,7 +236,7 @@ export class VisualStateStore implements IStore {
    * Visible columns only (filtered)
    */
   @computed get visibleColumns(): ColumnLayout[] {
-    return this.columnLayouts.filter(col => col.visible)
+    return this.columnLayouts.filter((col) => col.visible)
   }
 
   /**
@@ -270,7 +270,7 @@ export class VisualStateStore implements IStore {
     // Always render ALL columns to maintain sync between header and body
     return {
       start: 0,
-      end: this.visibleColumns.length
+      end: this.visibleColumns.length,
     }
   }
 
@@ -284,13 +284,13 @@ export class VisualStateStore implements IStore {
       const endRowIndex = Math.min(
         this.rowCount - 1,
         this.tableCoreStore.findRowAtScrollPosition(
-          this.scrollTop + Math.max(this.viewportHeight, 400)
-        ) + 1
+          this.scrollTop + Math.max(this.viewportHeight, 400),
+        ) + 1,
       )
 
       return {
         start: startRowIndex,
-        end: endRowIndex
+        end: endRowIndex,
       }
     }
 
@@ -298,12 +298,12 @@ export class VisualStateStore implements IStore {
     const startRowIndex = Math.floor(this.scrollTop / this.rowHeight)
     const endRowIndex = Math.min(
       this.rowCount,
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
+      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1,
     )
 
     return {
       start: startRowIndex,
-      end: endRowIndex
+      end: endRowIndex,
     }
   }
 
@@ -319,7 +319,7 @@ export class VisualStateStore implements IStore {
       totalWidth: this.totalWidth,
       totalHeight: this.totalHeight,
       visibleColumnRange: this.visibleColumnRange,
-      visibleRowRange: this.visibleRowRange
+      visibleRowRange: this.visibleRowRange,
     }
   }
 
@@ -328,10 +328,11 @@ export class VisualStateStore implements IStore {
    */
   @computed get orderedColumns(): Column[] {
     // Safety check: If columnOrder is empty but columns exist, use columns order
-    const orderToUse = this.columnOrder.length > 0 ? this.columnOrder : this.columns.map(col => col.id)
+    const orderToUse =
+      this.columnOrder.length > 0 ? this.columnOrder : this.columns.map((col) => col.id)
 
     return orderToUse
-      .map(id => this.columns.find(col => col.id === id))
+      .map((id) => this.columns.find((col) => col.id === id))
       .filter((col): col is Column => col !== undefined)
   }
 
@@ -339,7 +340,7 @@ export class VisualStateStore implements IStore {
    * Get visible ordered columns
    */
   @computed get visibleOrderedColumns(): Column[] {
-    return this.orderedColumns.filter(col => this.columnVisibility[col.id] !== false)
+    return this.orderedColumns.filter((col) => this.columnVisibility[col.id] !== false)
   }
 
   // ====================================
@@ -351,13 +352,9 @@ export class VisualStateStore implements IStore {
    */
   @action
   initialize(columns: Column[], entityType: string, orgId: string, userId: string): void {
-    const defaultWidths = Object.fromEntries(
-      columns.map(col => [col.id, col.width || 150])
-    )
-    const defaultVisibility = Object.fromEntries(
-      columns.map(col => [col.id, true])
-    )
-    const defaultOrder = columns.map(col => col.id)
+    const defaultWidths = Object.fromEntries(columns.map((col) => [col.id, col.width || 150]))
+    const defaultVisibility = Object.fromEntries(columns.map((col) => [col.id, true]))
+    const defaultOrder = columns.map((col) => col.id)
 
     this.columns = columns
     this.columnWidths = defaultWidths
@@ -383,12 +380,7 @@ export class VisualStateStore implements IStore {
    * Initialize columns with saved preferences
    */
   @action
-  initializeColumns(
-    columns: Column[],
-    entityType: string,
-    orgId: string,
-    userId: string
-  ): void {
+  initializeColumns(columns: Column[], entityType: string, orgId: string, userId: string): void {
     // NOTE: PersistenceStore loads preferences BEFORE this method is called.
     // We should only apply defaults for values that haven't been loaded yet.
     // Check if values already exist before overwriting them.
@@ -400,17 +392,17 @@ export class VisualStateStore implements IStore {
 
     // Only set columnWidths if empty (PersistenceStore may have already loaded them)
     if (Object.keys(this.columnWidths).length === 0) {
-      this.columnWidths = Object.fromEntries(columns.map(col => [col.id, col.width || 150]))
+      this.columnWidths = Object.fromEntries(columns.map((col) => [col.id, col.width || 150]))
     }
 
     // Only set columnVisibility if empty (PersistenceStore may have already loaded them)
     if (Object.keys(this.columnVisibility).length === 0) {
-      this.columnVisibility = Object.fromEntries(columns.map(col => [col.id, true]))
+      this.columnVisibility = Object.fromEntries(columns.map((col) => [col.id, true]))
     }
 
     // Only set columnOrder if empty (PersistenceStore may have already loaded it)
     if (this.columnOrder.length === 0) {
-      this.columnOrder = columns.map(col => col.id)
+      this.columnOrder = columns.map((col) => col.id)
     }
 
     // Only set groupConfig if null (PersistenceStore may have already loaded it)
@@ -441,7 +433,7 @@ export class VisualStateStore implements IStore {
       hasGroupConfig: !!this.groupConfig,
       hasSortBy: this.sortBy.length > 0,
       hasFilters: this.filters.length > 0,
-      coordinatorInitialized: !!this.coordinateManager
+      coordinatorInitialized: !!this.coordinateManager,
     })
   }
 
@@ -456,7 +448,7 @@ export class VisualStateStore implements IStore {
   setColumnWidth(columnId: string, width: number): void {
     this.columnWidths = {
       ...this.columnWidths,
-      [columnId]: width
+      [columnId]: width,
     }
 
     // 🔧 FIX: Use visibleOrderedColumns with actual widths, not schema defaults
@@ -483,7 +475,7 @@ export class VisualStateStore implements IStore {
     }
 
     // 2. Fall back to column schema default
-    const column = this.columns.find(c => c.id === columnId)
+    const column = this.columns.find((c) => c.id === columnId)
     if (column?.width != null) {
       return column.width
     }
@@ -501,7 +493,7 @@ export class VisualStateStore implements IStore {
 
     this.columnVisibility = {
       ...this.columnVisibility,
-      [columnId]: newVisibility
+      [columnId]: newVisibility,
     }
 
     // Clear selections on column operations (simpler UX)
@@ -517,7 +509,11 @@ export class VisualStateStore implements IStore {
    * Reorder columns
    */
   @action
-  reorderColumns(sourceColumnId: string, targetColumnId: string, insertBefore: boolean = true): void {
+  reorderColumns(
+    sourceColumnId: string,
+    targetColumnId: string,
+    insertBefore: boolean = true,
+  ): void {
     const currentOrder = [...this.columnOrder]
     const sourceIndex = currentOrder.indexOf(sourceColumnId)
     const targetIndex = currentOrder.indexOf(targetColumnId)
@@ -527,7 +523,7 @@ export class VisualStateStore implements IStore {
         sourceColumnId,
         targetColumnId,
         sourceIndex,
-        targetIndex
+        targetIndex,
       })
       return
     }
@@ -554,7 +550,7 @@ export class VisualStateStore implements IStore {
       sourceColumnId,
       targetColumnId,
       insertBefore,
-      newOrder: currentOrder
+      newOrder: currentOrder,
     })
   }
 
@@ -572,10 +568,10 @@ export class VisualStateStore implements IStore {
     // Hidden columns should not exist in coordinate mapping
     // This ensures column indices match what's rendered in the DOM
     const layoutColumns = this.orderedColumns
-      .filter(col => this.columnVisibility[col.id] !== false)
-      .map(col => ({
+      .filter((col) => this.columnVisibility[col.id] !== false)
+      .map((col) => ({
         ...col,
-        width: this.getColumnWidth(col.id)
+        width: this.getColumnWidth(col.id),
       }))
 
     log.info('🔧 Updating coordinator with VISIBLE columns only', {
@@ -583,8 +579,8 @@ export class VisualStateStore implements IStore {
       totalColumns: this.orderedColumns.length,
       visibleColumns: layoutColumns.length,
       hiddenColumns: this.orderedColumns.length - layoutColumns.length,
-      columnIds: layoutColumns.map(c => c.id),
-      widths: layoutColumns.map(c => c.width)
+      columnIds: layoutColumns.map((c) => c.id),
+      widths: layoutColumns.map((c) => c.width),
     })
 
     this.coordinateManager.updateColumns(layoutColumns, BASE_OFFSET)
@@ -595,9 +591,9 @@ export class VisualStateStore implements IStore {
    */
   @action
   resetColumns(): void {
-    const defaultWidths = Object.fromEntries(this.columns.map(col => [col.id, col.width || 150]))
-    const defaultVisibility = Object.fromEntries(this.columns.map(col => [col.id, true]))
-    const defaultOrder = this.columns.map(col => col.id)
+    const defaultWidths = Object.fromEntries(this.columns.map((col) => [col.id, col.width || 150]))
+    const defaultVisibility = Object.fromEntries(this.columns.map((col) => [col.id, true]))
+    const defaultOrder = this.columns.map((col) => col.id)
 
     this.columnWidths = defaultWidths
     this.columnVisibility = defaultVisibility
@@ -611,9 +607,7 @@ export class VisualStateStore implements IStore {
    */
   @action
   showAllColumns(): void {
-    const allVisible = Object.fromEntries(
-      this.columns.map(col => [col.id, true])
-    )
+    const allVisible = Object.fromEntries(this.columns.map((col) => [col.id, true]))
 
     this.columnVisibility = allVisible
     log.info('All columns shown', { columnCount: this.columns.length })
@@ -625,7 +619,7 @@ export class VisualStateStore implements IStore {
   @action
   hideAllColumns(): void {
     const allHidden = Object.fromEntries(
-      this.columns.map(col => [col.id, col.id === 'id' || col.id === '__selection'])
+      this.columns.map((col) => [col.id, col.id === 'id' || col.id === '__selection']),
     )
 
     this.columnVisibility = allHidden
@@ -670,10 +664,18 @@ export class VisualStateStore implements IStore {
    * Handle viewport scroll with change detection
    */
   @action
-  handleViewportScroll(scrollLeft: number, scrollTop: number, source: 'header' | 'body' = 'body'): void {
+  handleViewportScroll(
+    scrollLeft: number,
+    scrollTop: number,
+    source: 'header' | 'body' = 'body',
+  ): void {
     // Skip update if values haven't changed
     if (this.scrollLeft === scrollLeft && this.scrollTop === scrollTop) {
-      log.debug('Scroll event with same values - skipping update', { scrollLeft, scrollTop, source })
+      log.debug('Scroll event with same values - skipping update', {
+        scrollLeft,
+        scrollTop,
+        source,
+      })
       return
     }
 
@@ -696,11 +698,13 @@ export class VisualStateStore implements IStore {
    * Check if a specific column is in the visible viewport
    */
   isColumnInViewport(columnId: string): boolean {
-    const column = this.columnLayouts.find(c => c.id === columnId)
+    const column = this.columnLayouts.find((c) => c.id === columnId)
     if (!column || !column.visible) return false
 
-    return column.xOffset < this.scrollLeft + this.viewportWidth &&
-           column.xOffset + column.width > this.scrollLeft
+    return (
+      column.xOffset < this.scrollLeft + this.viewportWidth &&
+      column.xOffset + column.width > this.scrollLeft
+    )
   }
 
   /**
@@ -708,12 +712,14 @@ export class VisualStateStore implements IStore {
    */
   @action
   scrollToColumn(columnId: string): void {
-    const column = this.columnLayouts.find(c => c.id === columnId)
+    const column = this.columnLayouts.find((c) => c.id === columnId)
     if (!column || !column.visible) return
 
     // Check if column is already visible
-    if (column.xOffset >= this.scrollLeft &&
-        column.xOffset + column.width <= this.scrollLeft + this.viewportWidth) {
+    if (
+      column.xOffset >= this.scrollLeft &&
+      column.xOffset + column.width <= this.scrollLeft + this.viewportWidth
+    ) {
       return // Already visible
     }
 
@@ -771,7 +777,7 @@ export class VisualStateStore implements IStore {
       config,
       hasFields: !!config?.fields,
       fieldsLength: config?.fields?.length,
-      fields: config?.fields
+      fields: config?.fields,
     })
 
     // Clear selections on grouping changes (layout changes significantly)
@@ -829,7 +835,7 @@ export class VisualStateStore implements IStore {
 
     this.groupConfig = {
       ...this.groupConfig,
-      expandedGroups
+      expandedGroups,
     }
 
     // 🔧 FIX: Notify TableCoreStore that config changed so it can increment configVersion
@@ -849,7 +855,7 @@ export class VisualStateStore implements IStore {
 
     this.groupConfig = {
       ...this.groupConfig,
-      expandedGroups: allGroupIds
+      expandedGroups: allGroupIds,
     }
 
     // 🔧 FIX: Notify TableCoreStore to trigger re-render
@@ -870,7 +876,7 @@ export class VisualStateStore implements IStore {
 
     this.groupConfig = {
       ...this.groupConfig,
-      expandedGroups: new Set()
+      expandedGroups: new Set(),
     }
 
     // 🔧 FIX: Notify TableCoreStore to trigger re-render
@@ -891,7 +897,7 @@ export class VisualStateStore implements IStore {
    */
   @action
   setFilter(field: string, value: any, operator: FilterConfig['operator'] = 'equals'): void {
-    const existingIndex = this.filters.findIndex(f => f.field === field)
+    const existingIndex = this.filters.findIndex((f) => f.field === field)
     const newFilter: FilterConfig = { field, value, operator }
 
     if (existingIndex >= 0) {
@@ -912,7 +918,7 @@ export class VisualStateStore implements IStore {
    */
   @action
   removeFilter(field: string): void {
-    this.filters = this.filters.filter(f => f.field !== field)
+    this.filters = this.filters.filter((f) => f.field !== field)
     log.debug('Filter removed', { field })
   }
 
@@ -934,13 +940,13 @@ export class VisualStateStore implements IStore {
    */
   @action
   toggleSort(field: string, isMultiSort: boolean = false): void {
-    const existingIndex = this.sortBy.findIndex(s => s.field === field)
+    const existingIndex = this.sortBy.findIndex((s) => s.field === field)
 
     log.info('toggleSort called', {
       field,
       isMultiSort,
       currentSortBy: this.sortBy,
-      existingIndex
+      existingIndex,
     })
 
     if (existingIndex >= 0) {
@@ -952,7 +958,7 @@ export class VisualStateStore implements IStore {
         this.sortBy = updatedSort
       } else {
         // Remove sort
-        this.sortBy = this.sortBy.filter(s => s.field !== field)
+        this.sortBy = this.sortBy.filter((s) => s.field !== field)
       }
     } else {
       // Add new sort (asc)
@@ -973,7 +979,7 @@ export class VisualStateStore implements IStore {
     log.info('Sort toggled (selection cleared)', {
       field,
       isMultiSort,
-      sortBy: this.sortBy
+      sortBy: this.sortBy,
     })
   }
 
@@ -1002,7 +1008,11 @@ export class VisualStateStore implements IStore {
   /**
    * Load ALL saved preferences from localStorage
    */
-  loadAllSavedPreferences(columns: Column[], entityType: string, orgId: string): {
+  loadAllSavedPreferences(
+    columns: Column[],
+    entityType: string,
+    orgId: string,
+  ): {
     columnVisibility: Record<string, boolean> | null
     columnWidths: Record<string, number> | null
     columnOrder: string[] | null
@@ -1024,7 +1034,7 @@ export class VisualStateStore implements IStore {
             originalEntityType: entityType,
             extractedOrgId: firstPart,
             baseEntityType,
-            providedOrgId: orgId
+            providedOrgId: orgId,
           })
         }
       }
@@ -1035,7 +1045,9 @@ export class VisualStateStore implements IStore {
         .toLowerCase()
         .replace(/^-/, '')
 
-      const storageKey = orgId ? `vibegrid-simple-${orgId}_${normalizedEntityType}` : `vibegrid-simple-${normalizedEntityType}`
+      const storageKey = orgId
+        ? `vibegrid-simple-${orgId}_${normalizedEntityType}`
+        : `vibegrid-simple-${normalizedEntityType}`
       const stored = localStorage.getItem(storageKey)
 
       if (stored) {
@@ -1047,21 +1059,32 @@ export class VisualStateStore implements IStore {
           hasColumnOrder: !!parsed.columnOrder,
           hasSortBy: !!parsed.sortBy,
           hasFilters: !!parsed.filters,
-          hasGroupConfig: !!parsed.groupConfig
+          hasGroupConfig: !!parsed.groupConfig,
         })
 
         const parsedColumnOrder = Array.isArray(parsed.columnOrder) ? parsed.columnOrder : null
 
         return {
-          columnVisibility: parsed.columnVisibility && typeof parsed.columnVisibility === 'object' ? parsed.columnVisibility : null,
-          columnWidths: parsed.columnWidths && typeof parsed.columnWidths === 'object' ? parsed.columnWidths : null,
+          columnVisibility:
+            parsed.columnVisibility && typeof parsed.columnVisibility === 'object'
+              ? parsed.columnVisibility
+              : null,
+          columnWidths:
+            parsed.columnWidths && typeof parsed.columnWidths === 'object'
+              ? parsed.columnWidths
+              : null,
           columnOrder: parsedColumnOrder,
           sortBy: Array.isArray(parsed.sortBy) ? parsed.sortBy : null,
           filters: Array.isArray(parsed.filters) ? parsed.filters : null,
-          groupConfig: parsed.groupConfig && parsed.groupConfig.fields && Array.isArray(parsed.groupConfig.fields) ? {
-            ...parsed.groupConfig,
-            expandedGroups: new Set(parsed.groupConfig.expandedGroups || [])
-          } : null
+          groupConfig:
+            parsed.groupConfig &&
+            parsed.groupConfig.fields &&
+            Array.isArray(parsed.groupConfig.fields)
+              ? {
+                  ...parsed.groupConfig,
+                  expandedGroups: new Set(parsed.groupConfig.expandedGroups || []),
+                }
+              : null,
         }
       }
     } catch (error) {
@@ -1074,7 +1097,7 @@ export class VisualStateStore implements IStore {
       columnOrder: null,
       sortBy: null,
       filters: null,
-      groupConfig: null
+      groupConfig: null,
     }
   }
 

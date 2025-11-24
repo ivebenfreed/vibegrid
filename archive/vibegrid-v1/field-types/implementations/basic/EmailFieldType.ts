@@ -6,105 +6,103 @@
  */
 
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   CellValidator,
   EnhancedColumn,
-  ValidationResult,
+  FieldMetadata,
   FormattingContext,
-  FieldMetadata
-} from '../../FieldTypeRegistry';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
 /**
  * Email Cell Renderer
  */
 export class EmailRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('span');
-    container.className = column.editable === false
-      ? 'vibegridx-cell-email'
-      : 'vibegridx-cell-email-editable';
+    const container = document.createElement('span')
+    container.className =
+      column.editable === false ? 'vibegridx-cell-email' : 'vibegridx-cell-email-editable'
 
     // Handle null/undefined values
     if (value == null || value === '') {
-      container.className += ' vibegridx-cell-empty';
-      container.textContent = column.editable === false ? '' : 'Click to edit';
-      container.style.opacity = '0.6';
-      container.style.fontSize = '12px';
-      return container;
+      container.className += ' vibegridx-cell-empty'
+      container.textContent = column.editable === false ? '' : 'Click to edit'
+      container.style.opacity = '0.6'
+      container.style.fontSize = '12px'
+      return container
     }
 
     // Format value for display
-    const displayValue = this.formatValue(value, column);
-    container.textContent = displayValue;
+    const displayValue = this.formatValue(value, column)
+    container.textContent = displayValue
 
     // Apply email-specific styling
-    container.style.color = '#2563eb'; // Blue for email links
-    container.style.textDecoration = 'none';
-    container.style.cursor = 'pointer';
+    container.style.color = '#2563eb' // Blue for email links
+    container.style.textDecoration = 'none'
+    container.style.cursor = 'pointer'
 
     // Make it clickable to open email client
     container.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.open(`mailto:${displayValue}`, '_blank');
-    });
+      e.stopPropagation()
+      window.open(`mailto:${displayValue}`, '_blank')
+    })
 
     // Apply backend display metadata if available
     if (column.display) {
-      this.applyDisplayMetadata(container, column.display);
+      this.applyDisplayMetadata(container, column.display)
     }
 
-    return container;
+    return container
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
     // Clear existing content
-    element.className = column.editable === false
-      ? 'vibegridx-cell-email'
-      : 'vibegridx-cell-email-editable';
+    element.className =
+      column.editable === false ? 'vibegridx-cell-email' : 'vibegridx-cell-email-editable'
 
     // Handle empty values
     if (value == null || value === '') {
-      element.className += ' vibegridx-cell-empty';
-      element.textContent = column.editable === false ? '' : 'Click to edit';
-      element.style.opacity = '0.6';
+      element.className += ' vibegridx-cell-empty'
+      element.textContent = column.editable === false ? '' : 'Click to edit'
+      element.style.opacity = '0.6'
     } else {
-      element.textContent = this.formatValue(value, column);
-      element.style.opacity = '1';
-      element.style.color = '#2563eb';
+      element.textContent = this.formatValue(value, column)
+      element.style.opacity = '1'
+      element.style.color = '#2563eb'
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    const type = column.cellType || column.type || '';
-    return type === 'email';
+    const type = column.cellType || column.type || ''
+    return type === 'email'
   }
 
   private formatValue(value: any, column: EnhancedColumn): string {
-    if (value == null) return '';
+    if (value == null) return ''
 
-    const emailValue = String(value).toLowerCase().trim();
+    const emailValue = String(value).toLowerCase().trim()
 
     // Apply length limits from backend metadata if available
     if (column.validation?.maxLength && emailValue.length > column.validation.maxLength) {
-      return emailValue.substring(0, column.validation.maxLength) + '...';
+      return emailValue.substring(0, column.validation.maxLength) + '...'
     }
 
-    return emailValue;
+    return emailValue
   }
 
   private applyDisplayMetadata(element: HTMLElement, displayMetadata: any): void {
     if (displayMetadata.textAlign) {
-      element.style.textAlign = displayMetadata.textAlign;
+      element.style.textAlign = displayMetadata.textAlign
     }
 
     if (displayMetadata.showLinkIcon) {
-      const icon = document.createElement('span');
-      icon.textContent = '📧';
-      icon.style.marginLeft = '4px';
-      element.appendChild(icon);
+      const icon = document.createElement('span')
+      icon.textContent = '📧'
+      icon.style.marginLeft = '4px'
+      element.appendChild(icon)
     }
   }
 }
@@ -113,24 +111,24 @@ export class EmailRenderer implements CellRenderer {
  * Email Cell Editor
  */
 export class EmailEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null;
-  private onSaveCallback: ((value: any) => void) | null = null;
+  private currentElement: HTMLElement | null = null
+  private onSaveCallback: ((value: any) => void) | null = null
 
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    this.onSaveCallback = onSave;
+    this.onSaveCallback = onSave
 
-    const input = document.createElement('input');
-    this.currentElement = input;
+    const input = document.createElement('input')
+    this.currentElement = input
 
     // Set input type and attributes
-    input.type = 'email';
+    input.type = 'email'
 
     // Set initial value
-    const emailValue = value == null ? '' : String(value);
-    input.value = emailValue;
+    const emailValue = value == null ? '' : String(value)
+    input.value = emailValue
 
     // Apply styling
-    input.className = 'vibegridx-email-editor';
+    input.className = 'vibegridx-email-editor'
     input.style.cssText = `
       width: 100%;
       height: 100%;
@@ -141,136 +139,140 @@ export class EmailEditor implements CellEditor {
       font-size: inherit;
       padding: 0;
       margin: 0;
-    `;
+    `
 
     // Apply backend editor metadata if available
     if (column.editor) {
-      this.applyEditorMetadata(input, column.editor);
+      this.applyEditorMetadata(input, column.editor)
     }
 
     // Apply validation metadata if available
     if (column.validation) {
-      this.applyValidationMetadata(input, column.validation);
+      this.applyValidationMetadata(input, column.validation)
     }
 
     // Event handlers
-    input.addEventListener('blur', () => this.handleSave());
-    input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    input.addEventListener('blur', () => this.handleSave())
+    input.addEventListener('keydown', (e) => this.handleKeyDown(e))
 
     // Auto-focus and select all
     setTimeout(() => {
-      input.focus();
-      input.select();
-    }, 0);
+      input.focus()
+      input.select()
+    }, 0)
 
-    return input;
+    return input
   }
 
   getValue(element: HTMLElement): any {
     if (element instanceof HTMLInputElement) {
-      const value = element.value.trim().toLowerCase();
-      return value === '' ? null : value;
+      const value = element.value.trim().toLowerCase()
+      return value === '' ? null : value
     }
-    return null;
+    return null
   }
 
   setValue(element: HTMLElement, value: any): void {
     if (element instanceof HTMLInputElement) {
-      element.value = value == null ? '' : String(value).toLowerCase();
+      element.value = value == null ? '' : String(value).toLowerCase()
     }
   }
 
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const errors: string[] = [];
+    const errors: string[] = []
 
     // Handle null/empty values
     if (value == null || value === '') {
       if (column.validation?.required) {
-        errors.push(column.validation.messages?.required || `${column.name} is required`);
+        errors.push(column.validation.messages?.required || `${column.name} is required`)
       }
-      return { valid: errors.length === 0, errors, transformedValue: null };
+      return { valid: errors.length === 0, errors, transformedValue: null }
     }
 
-    const emailValue = String(value).toLowerCase().trim();
+    const emailValue = String(value).toLowerCase().trim()
 
     // Basic email format validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(emailValue)) {
-      errors.push(column.validation?.messages?.pattern || `${column.name} must be a valid email address`);
+      errors.push(
+        column.validation?.messages?.pattern || `${column.name} must be a valid email address`,
+      )
     }
 
     // Length validation
     if (column.validation?.maxLength && emailValue.length > column.validation.maxLength) {
-      errors.push(`${column.name} must be no more than ${column.validation.maxLength} characters`);
+      errors.push(`${column.name} must be no more than ${column.validation.maxLength} characters`)
     }
 
     // Domain validation (if specified in backend)
     if (column.validation?.allowedDomains && Array.isArray(column.validation.allowedDomains)) {
-      const domain = emailValue.split('@')[1];
+      const domain = emailValue.split('@')[1]
       if (!column.validation.allowedDomains.includes(domain)) {
-        errors.push(`${column.name} must use an allowed domain: ${column.validation.allowedDomains.join(', ')}`);
+        errors.push(
+          `${column.name} must use an allowed domain: ${column.validation.allowedDomains.join(', ')}`,
+        )
       }
     }
 
     return {
       valid: errors.length === 0,
       errors,
-      transformedValue: emailValue // Auto-lowercase transformation
-    };
+      transformedValue: emailValue, // Auto-lowercase transformation
+    }
   }
 
   destroy(element: HTMLElement): void {
-    this.currentElement = null;
-    this.onSaveCallback = null;
+    this.currentElement = null
+    this.onSaveCallback = null
   }
 
   supportsInlineEditing(): boolean {
-    return true;
+    return true
   }
 
   supportsModalEditing(): boolean {
-    return false;
+    return false
   }
 
   private applyEditorMetadata(input: HTMLInputElement, editorMetadata: any): void {
     if (editorMetadata.placeholder) {
-      input.placeholder = editorMetadata.placeholder;
+      input.placeholder = editorMetadata.placeholder
     }
 
     if (editorMetadata.autoComplete !== false) {
-      input.autocomplete = 'email';
+      input.autocomplete = 'email'
     }
   }
 
   private applyValidationMetadata(input: HTMLInputElement, validationMetadata: any): void {
     if (validationMetadata.maxLength) {
-      input.maxLength = validationMetadata.maxLength;
+      input.maxLength = validationMetadata.maxLength
     }
 
     if (validationMetadata.pattern) {
-      input.pattern = validationMetadata.pattern;
+      input.pattern = validationMetadata.pattern
     }
 
     if (validationMetadata.required) {
-      input.required = true;
+      input.required = true
     }
   }
 
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
-      const value = this.getValue(this.currentElement);
-      this.onSaveCallback(value);
+      const value = this.getValue(this.currentElement)
+      this.onSaveCallback(value)
     }
   }
 
   private handleKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-      event.preventDefault();
-      this.handleSave();
+      event.preventDefault()
+      this.handleSave()
     } else if (event.key === 'Escape') {
-      event.preventDefault();
+      event.preventDefault()
       if (this.currentElement) {
-        this.currentElement.blur();
+        this.currentElement.blur()
       }
     }
   }
@@ -281,25 +283,25 @@ export class EmailEditor implements CellEditor {
  */
 export class EmailFormatter implements CellFormatter {
   format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
-    if (value == null) return '';
+    if (value == null) return ''
 
     // Auto-lowercase email addresses
-    return String(value).toLowerCase().trim();
+    return String(value).toLowerCase().trim()
   }
 
   parse(text: string, column: EnhancedColumn): any {
-    if (text.trim() === '') return null;
+    if (text.trim() === '') return null
 
     // Auto-lowercase and trim
-    return text.toLowerCase().trim();
+    return text.toLowerCase().trim()
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
-    return this.format(value, column);
+    return this.format(value, column)
   }
 
   formatForExport(value: any, column: EnhancedColumn): string {
-    return value == null ? '' : String(value);
+    return value == null ? '' : String(value)
   }
 }
 
@@ -308,25 +310,25 @@ export class EmailFormatter implements CellFormatter {
  */
 export class EmailValidator implements CellValidator {
   validate(value: any, column: EnhancedColumn): ValidationResult {
-    const editor = new EmailEditor();
-    return editor.validate(value, column);
+    const editor = new EmailEditor()
+    return editor.validate(value, column)
   }
 
   getConstraints(column: EnhancedColumn): Record<string, any> {
-    const constraints: Record<string, any> = {};
+    const constraints: Record<string, any> = {}
 
     if (column.validation?.required) {
-      constraints.required = true;
+      constraints.required = true
     }
 
     if (column.validation?.maxLength) {
-      constraints.maxLength = column.validation.maxLength;
+      constraints.maxLength = column.validation.maxLength
     }
 
-    constraints.pattern = '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$';
-    constraints.format = 'email';
+    constraints.pattern = '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$'
+    constraints.format = 'email'
 
-    return constraints;
+    return constraints
   }
 }
 
@@ -348,10 +350,11 @@ export const EmailFieldType: VibeGridFieldType = {
     requiresSpecialEditor: false,
     hasRichDisplay: true,
     supportsValidation: true,
-    supportsFormatting: true
-  }
-};
+    supportsFormatting: true,
+  },
+}
 
 // Register with the global registry
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('email', EmailFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('email', EmailFieldType)

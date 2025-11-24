@@ -5,23 +5,23 @@
  * This bypasses the normal inline editing flow for long text content.
  */
 
-import React, { useEffect, useState } from 'react';
-import { LongTextEditor } from './LongTextEditor';
-import { RichTextEditor } from './RichTextEditor';
-import type { CellRef, Column } from '../../types';
-import { createLogger } from '@/shared/lib/logging';
+import React, { useEffect, useState } from 'react'
+import { createLogger } from '@/shared/lib/logging'
+import type { CellRef, Column } from '../../types'
+import { LongTextEditor } from './LongTextEditor'
+import { RichTextEditor } from './RichTextEditor'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx');
+const fileLog = createLogger('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx')
 
 interface ModalTextEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: string;
-  onCommit: (value: string) => void;
-  onCancel: () => void;
-  onUpdate?: (value: string) => void;
-  onBlur?: () => void;
-  editorType: 'longtext' | 'richtext';
+  cell: CellRef
+  column: Column
+  initialValue: string
+  onCommit: (value: string) => void
+  onCancel: () => void
+  onUpdate?: (value: string) => void
+  onBlur?: () => void
+  editorType: 'longtext' | 'richtext'
 }
 
 export function ModalTextEditor({
@@ -32,43 +32,43 @@ export function ModalTextEditor({
   onCancel,
   onUpdate,
   onBlur,
-  editorType
+  editorType,
 }: ModalTextEditorProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false)
 
   // Immediately open the modal when this component mounts
   useEffect(() => {
     fileLog.debug('ModalTextEditor mounting, opening modal', {
       editorType,
       cellId: `${cell.rowId}:${cell.columnId}`,
-      initialValueLength: (initialValue || '').length
-    });
+      initialValueLength: (initialValue || '').length,
+    })
 
-    setIsOpen(true);
-  }, [cell.rowId, cell.columnId, editorType, initialValue]);
+    setIsOpen(true)
+  }, [cell.rowId, cell.columnId, editorType, initialValue])
 
   const handleCommit = (value: string) => {
     fileLog.debug('ModalTextEditor committing', {
       editorType,
       cellId: `${cell.rowId}:${cell.columnId}`,
-      valueLength: value.length
-    });
+      valueLength: value.length,
+    })
 
-    setIsOpen(false);
+    setIsOpen(false)
     // Small delay to ensure state updates before calling onCommit
-    setTimeout(() => onCommit(value), 0);
-  };
+    setTimeout(() => onCommit(value), 0)
+  }
 
   const handleCancel = () => {
     fileLog.debug('ModalTextEditor cancelling', {
       editorType,
-      cellId: `${cell.rowId}:${cell.columnId}`
-    });
+      cellId: `${cell.rowId}:${cell.columnId}`,
+    })
 
-    setIsOpen(false);
+    setIsOpen(false)
     // Small delay to ensure state updates before calling onCancel
-    setTimeout(() => onCancel(), 0);
-  };
+    setTimeout(() => onCancel(), 0)
+  }
 
   return (
     <>
@@ -86,7 +86,7 @@ export function ModalTextEditor({
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
           color: isOpen ? '#666' : 'inherit',
-          opacity: isOpen ? 0.7 : 1
+          opacity: isOpen ? 0.7 : 1,
         }}
       >
         {initialValue || ''}
@@ -112,5 +112,5 @@ export function ModalTextEditor({
         />
       )}
     </>
-  );
+  )
 }

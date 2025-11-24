@@ -16,10 +16,10 @@
  * This is the most complex interaction layer with sophisticated selection logic.
  */
 
-import { makeObservable, observable, action, computed, runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
-import { DisposerManager } from '@/app/stores/utils/disposer'
+import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
+import { DisposerManager } from '@/app/stores/utils/disposer'
+import { createLogger } from '@/shared/lib/logging'
 
 const log = createLogger('components/vibegrid/stores/InteractionStore')
 
@@ -167,23 +167,23 @@ export class InteractionStore implements IStore {
   @observable headerMenuState: HeaderMenuState = {
     openMenu: null,
     position: { x: 0, y: 0 },
-    menuType: null
+    menuType: null,
   }
 
   @observable contextMenuState: ContextMenuState = {
     isOpen: false,
     position: { x: 0, y: 0 },
     context: null,
-    targetId: null
+    targetId: null,
   }
 
   @observable columnVisibilityMenuState: ColumnVisibilityMenuState = {
     isOpen: false,
-    searchValue: ''
+    searchValue: '',
   }
 
   @observable groupConfigMenuState: GroupConfigMenuState = {
-    isOpen: false
+    isOpen: false,
   }
 
   // ====================================
@@ -227,7 +227,7 @@ export class InteractionStore implements IStore {
   setCollection(collection: any): void {
     this.collection = collection
     log.info('TanStack DB collection set', {
-      hasCollection: !!collection
+      hasCollection: !!collection,
     })
   }
 
@@ -280,7 +280,12 @@ export class InteractionStore implements IStore {
     this.resizeStartWidth = 0
     this.columnResize = null
     this.headerMenuState = { openMenu: null, position: { x: 0, y: 0 }, menuType: null }
-    this.contextMenuState = { isOpen: false, position: { x: 0, y: 0 }, context: null, targetId: null }
+    this.contextMenuState = {
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      context: null,
+      targetId: null,
+    }
     this.columnVisibilityMenuState = { isOpen: false, searchValue: '' }
     this.groupConfigMenuState = { isOpen: false }
     this.clipboard = null
@@ -390,7 +395,7 @@ export class InteractionStore implements IStore {
     if (now - this.lastBulkSelectionTime < 50) {
       log.info('Skipping cell click - recent bulk selection detected', {
         cellId,
-        timeSinceLastBulk: now - this.lastBulkSelectionTime
+        timeSinceLastBulk: now - this.lastBulkSelectionTime,
       })
       return
     }
@@ -406,7 +411,7 @@ export class InteractionStore implements IStore {
       log.info('Shift+click range selection', {
         from: this.anchorCell,
         to: cellId,
-        hasDataContext: !!dataContext
+        hasDataContext: !!dataContext,
       })
     } else if (ctrlKey) {
       // CTRL+CLICK: Multi-select (toggle cell in selection)
@@ -426,14 +431,16 @@ export class InteractionStore implements IStore {
       cellId,
       ctrlKey,
       shiftKey,
-      selectedCells: this.selectedCells.size
+      selectedCells: this.selectedCells.size,
     })
   }
 
   /**
    * Get data context for range selection (MobX stores)
    */
-  private getDataContext(): { rows: any[], columns: any[], columnVisibility: Record<string, boolean> } | undefined {
+  private getDataContext():
+    | { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> }
+    | undefined {
     if (!this.tableCoreStore || !this.visualStateStore) {
       log.warn('Cannot get data context - stores not set')
       return undefined
@@ -485,7 +492,11 @@ export class InteractionStore implements IStore {
    * Select all cells
    */
   @action
-  selectAll(dataContext?: { rows: any[], columns: any[], columnVisibility: Record<string, boolean> }): void {
+  selectAll(dataContext?: {
+    rows: any[]
+    columns: any[]
+    columnVisibility: Record<string, boolean>
+  }): void {
     if (!dataContext) {
       log.warn('selectAll called without data context - ignoring')
       return
@@ -504,7 +515,7 @@ export class InteractionStore implements IStore {
     this.selectedCells = allCells
 
     log.info('All cells selected with data context', {
-      totalCells: this.selectedCells.size
+      totalCells: this.selectedCells.size,
     })
   }
 
@@ -560,7 +571,7 @@ export class InteractionStore implements IStore {
   selectRange(
     startCellId: string,
     endCellId: string,
-    dataContext?: { rows: any[], columns: any[], columnVisibility: Record<string, boolean> }
+    dataContext?: { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> },
   ): void {
     // If no data context provided, fall back to simple selection
     if (!dataContext) {
@@ -574,7 +585,7 @@ export class InteractionStore implements IStore {
       log.info('Simple range selection (no data context)', {
         count: cellsToSelect.size,
         from: startCellId,
-        to: endCellId
+        to: endCellId,
       })
       return
     }
@@ -597,7 +608,7 @@ export class InteractionStore implements IStore {
         startRowIndex,
         endRowIndex,
         startColIndex,
-        endColIndex
+        endColIndex,
       })
 
       // Fallback to simple selection
@@ -609,7 +620,7 @@ export class InteractionStore implements IStore {
       this.anchorCell = startCellId
 
       log.info('Fallback range selection (index lookup failed)', {
-        count: cellsToSelect.size
+        count: cellsToSelect.size,
       })
       return
     }
@@ -636,7 +647,7 @@ export class InteractionStore implements IStore {
           log.info('Selection constrained to group boundary', {
             originalMaxRow: Math.max(startRowIndex, endRowIndex),
             constrainedMaxRow: maxRowIndex,
-            groupId: startGroupId
+            groupId: startGroupId,
           })
           break
         }
@@ -661,7 +672,7 @@ export class InteractionStore implements IStore {
       end: endCellId,
       totalCells: newSelection.size,
       rowRange: `${minRowIndex}-${maxRowIndex}`,
-      colRange: `${minColIndex}-${maxColIndex}`
+      colRange: `${minColIndex}-${maxColIndex}`,
     })
   }
 
@@ -686,7 +697,7 @@ export class InteractionStore implements IStore {
 
     log.info('Row cells selected', {
       rowId,
-      cellCount: selectedCells.size
+      cellCount: selectedCells.size,
     })
   }
 
@@ -710,7 +721,7 @@ export class InteractionStore implements IStore {
 
     log.info('Column cells selected', {
       columnId,
-      cellCount: selectedCells.size
+      cellCount: selectedCells.size,
     })
   }
 
@@ -725,7 +736,7 @@ export class InteractionStore implements IStore {
       rowCells.push(`${rowId}:${column.id}`)
     }
 
-    const isRowSelected = rowCells.every(cellId => this.selectedCells.has(cellId))
+    const isRowSelected = rowCells.every((cellId) => this.selectedCells.has(cellId))
 
     if (isRowSelected) {
       // Deselect row - remove only this row's cells from selection
@@ -746,7 +757,12 @@ export class InteractionStore implements IStore {
    * Toggle cell selection
    */
   @action
-  toggleCellSelection(rowId: string, columnId: string, isCtrlKey: boolean = false, isShiftKey: boolean = false): void {
+  toggleCellSelection(
+    rowId: string,
+    columnId: string,
+    isCtrlKey: boolean = false,
+    isShiftKey: boolean = false,
+  ): void {
     const cellId = `${rowId}:${columnId}`
     const cells = new Set(this.selectedCells)
 
@@ -777,12 +793,12 @@ export class InteractionStore implements IStore {
     const rowStates = new Map<string, boolean>()
 
     // Filter out selection column
-    const dataColumns = visibleColumns.filter(col => col.id !== 'selection')
+    const dataColumns = visibleColumns.filter((col) => col.id !== 'selection')
 
     for (const row of rows) {
-      const isRowSelected = dataColumns.every(col =>
-        this.selectedCells.has(`${row.id}:${col.id}`)
-      ) && dataColumns.length > 0
+      const isRowSelected =
+        dataColumns.every((col) => this.selectedCells.has(`${row.id}:${col.id}`)) &&
+        dataColumns.length > 0
 
       rowStates.set(row.id, isRowSelected)
     }
@@ -847,7 +863,7 @@ export class InteractionStore implements IStore {
     if (cellParts.length !== 2) {
       log.warn('Invalid cell ID format for entity update', {
         editingCell,
-        expectedFormat: 'rowId:columnId'
+        expectedFormat: 'rowId:columnId',
       })
       return
     }
@@ -861,12 +877,12 @@ export class InteractionStore implements IStore {
         editingCell,
         rowId,
         fieldName,
-        hint: 'Call setCollection() before editing'
+        hint: 'Call setCollection() before editing',
       })
 
       this.editValidation = {
         isValid: false,
-        message: 'Save failed: Database collection not available'
+        message: 'Save failed: Database collection not available',
       }
       return
     }
@@ -880,7 +896,7 @@ export class InteractionStore implements IStore {
       log.info('Skipping save - value unchanged', {
         rowId,
         fieldName,
-        value: editValue
+        value: editValue,
       })
 
       // Clear editing state without saving
@@ -910,7 +926,7 @@ export class InteractionStore implements IStore {
       editValue,
       localDuration: `${localDuration.toFixed(1)}ms`,
       cellId: editingCell,
-      note: 'Table will react automatically via useVibeGridData hook'
+      note: 'Table will react automatically via useVibeGridData hook',
     })
 
     // Clear editing state immediately (optimistic UX)
@@ -933,7 +949,7 @@ export class InteractionStore implements IStore {
           localDuration: `${localDuration.toFixed(1)}ms`,
           totalDuration: `${totalDuration.toFixed(1)}ms`,
           networkDuration: `${(totalDuration - localDuration).toFixed(1)}ms`,
-          note: 'Optimistic update confirmed'
+          note: 'Optimistic update confirmed',
         })
       })
       .catch((error: any) => {
@@ -944,7 +960,7 @@ export class InteractionStore implements IStore {
           fieldName,
           editValue,
           error: errorMessage,
-          note: 'Collection automatically rolled back, table will react via hook'
+          note: 'Collection automatically rolled back, table will react via hook',
         })
 
         // TanStack DB automatically rolls back the collection state
@@ -1065,7 +1081,7 @@ export class InteractionStore implements IStore {
   @action
   updateDragSelection(
     cellId: string,
-    dataContext?: { rows: any[], columns: any[], columnVisibility: Record<string, boolean> }
+    dataContext?: { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> },
   ): void {
     // When dragging, select the range from start to current
     if (this.dragSelectStart && cellId !== this.dragSelectCurrent) {
@@ -1098,7 +1114,7 @@ export class InteractionStore implements IStore {
       isResizing: true,
       columnId,
       startWidth,
-      newWidth: startWidth
+      newWidth: startWidth,
     }
 
     log.info('Column resize started, selections cleared', { columnId, startX, startWidth })
@@ -1115,12 +1131,12 @@ export class InteractionStore implements IStore {
       log.info('Setting columnResize with new width', {
         resizingColumn: this.resizingColumn,
         newWidth,
-        previousWidth: this.columnResize.newWidth
+        previousWidth: this.columnResize.newWidth,
       })
 
       this.columnResize = {
         ...this.columnResize,
-        newWidth
+        newWidth,
       }
     }
 
@@ -1147,7 +1163,11 @@ export class InteractionStore implements IStore {
   // ====================================
 
   @action
-  openHeaderMenu(columnId: string, position: { x: number; y: number }, menuType: 'filter' | 'sort' | 'settings'): void {
+  openHeaderMenu(
+    columnId: string,
+    position: { x: number; y: number },
+    menuType: 'filter' | 'sort' | 'settings',
+  ): void {
     // Close other menus first
     this.contextMenuState.isOpen = false
     this.columnVisibilityMenuState.isOpen = false
@@ -1157,7 +1177,7 @@ export class InteractionStore implements IStore {
     this.headerMenuState = {
       openMenu: columnId,
       position,
-      menuType
+      menuType,
     }
 
     log.info('Header menu opened', { columnId, position, menuType })
@@ -1168,14 +1188,18 @@ export class InteractionStore implements IStore {
     this.headerMenuState = {
       openMenu: null,
       position: { x: 0, y: 0 },
-      menuType: null
+      menuType: null,
     }
 
     log.info('Header menu closed')
   }
 
   @action
-  openContextMenu(position: { x: number; y: number }, context: 'cell' | 'row' | 'column' | 'header', targetId: string): void {
+  openContextMenu(
+    position: { x: number; y: number },
+    context: 'cell' | 'row' | 'column' | 'header',
+    targetId: string,
+  ): void {
     // Close other menus first
     this.headerMenuState.openMenu = null
     this.columnVisibilityMenuState.isOpen = false
@@ -1186,7 +1210,7 @@ export class InteractionStore implements IStore {
       isOpen: true,
       position,
       context,
-      targetId
+      targetId,
     }
 
     log.info('Context menu opened', { position, context, targetId })
@@ -1198,7 +1222,7 @@ export class InteractionStore implements IStore {
       isOpen: false,
       position: { x: 0, y: 0 },
       context: null,
-      targetId: null
+      targetId: null,
     }
 
     log.info('Context menu closed')
@@ -1214,7 +1238,7 @@ export class InteractionStore implements IStore {
     // Open column visibility menu
     this.columnVisibilityMenuState = {
       isOpen: true,
-      searchValue: ''
+      searchValue: '',
     }
 
     log.info('Column visibility menu opened')
@@ -1224,7 +1248,7 @@ export class InteractionStore implements IStore {
   closeColumnVisibilityMenu(): void {
     this.columnVisibilityMenuState = {
       isOpen: false,
-      searchValue: ''
+      searchValue: '',
     }
 
     log.info('Column visibility menu closed')
@@ -1234,7 +1258,7 @@ export class InteractionStore implements IStore {
   setColumnVisibilitySearch(searchValue: string): void {
     this.columnVisibilityMenuState = {
       ...this.columnVisibilityMenuState,
-      searchValue
+      searchValue,
     }
   }
 
@@ -1247,7 +1271,7 @@ export class InteractionStore implements IStore {
 
     // Open group config menu
     this.groupConfigMenuState = {
-      isOpen: true
+      isOpen: true,
     }
 
     log.info('Group config menu opened')
@@ -1256,7 +1280,7 @@ export class InteractionStore implements IStore {
   @action
   closeGroupConfigMenu(): void {
     this.groupConfigMenuState = {
-      isOpen: false
+      isOpen: false,
     }
 
     log.info('Group config menu closed')
@@ -1267,18 +1291,22 @@ export class InteractionStore implements IStore {
   // ====================================
 
   @action
-  setClipboard(clipboardData: { data: any[][], operation: 'copy' | 'cut', richData?: import('../types/clipboard-types').VibeGridClipboardData }): void {
+  setClipboard(clipboardData: {
+    data: any[][]
+    operation: 'copy' | 'cut'
+    richData?: import('../types/clipboard-types').VibeGridClipboardData
+  }): void {
     this.clipboard = {
       data: clipboardData.data,
       operation: clipboardData.operation,
       copiedCells: new Set(this.selectedCells),
-      richData: clipboardData.richData
+      richData: clipboardData.richData,
     }
 
     log.info('Clipboard set', {
       operation: clipboardData.operation,
       cellCount: this.selectedCells.size,
-      hasRichData: !!clipboardData.richData
+      hasRichData: !!clipboardData.richData,
     })
   }
 
@@ -1296,15 +1324,15 @@ export class InteractionStore implements IStore {
    * Update visual selection state for cells in the DOM
    */
   updateCellSelectionVisuals(
-    getCellElement: (rowId: string, columnId: string) => HTMLElement | null
+    getCellElement: (rowId: string, columnId: string) => HTMLElement | null,
   ): void {
     // Find all cells with selection class and remove it
-    document.querySelectorAll('.vibegridx-selected').forEach(el => {
+    document.querySelectorAll('.vibegridx-selected').forEach((el) => {
       el.classList.remove('vibegridx-selected')
     })
 
     // Add selection class to currently selected cells
-    this.selectedCells.forEach(cellKey => {
+    this.selectedCells.forEach((cellKey) => {
       const [rowId, columnId] = cellKey.split(':')
       const element = getCellElement(rowId, columnId)
       element?.classList.add('vibegridx-selected')
@@ -1315,7 +1343,7 @@ export class InteractionStore implements IStore {
    * Update visual selection state for rows in the DOM
    */
   updateRowSelectionVisuals(
-    forEachRowElement: (callback: (element: HTMLElement, rowId: string) => void) => void
+    forEachRowElement: (callback: (element: HTMLElement, rowId: string) => void) => void,
   ): void {
     // Update all row elements
     forEachRowElement((element, rowId) => {
@@ -1333,7 +1361,7 @@ export class InteractionStore implements IStore {
   updateEditingCellVisual(
     getCellElement: (rowId: string, columnId: string) => HTMLElement | null,
     oldCellId?: string | null,
-    newCellId?: string | null
+    newCellId?: string | null,
   ): void {
     // Remove editing state from old cell
     if (oldCellId) {

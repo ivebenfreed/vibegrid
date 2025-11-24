@@ -13,11 +13,11 @@
 
 import { runInAction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
+import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
-import type { ModifierKeys } from '../coordination/InteractionCoordinator'
-import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 
 const fileLog = createLogger('components/vibegrid/services/SelectionService')
 
@@ -29,7 +29,7 @@ export class SelectionService {
     private interactionStore: InteractionStore,
     private tableCoreStore: TableCoreStore,
     private visualStateStore: VisualStateStore,
-    private coordinateManager: VibeGridXCoordinateManager
+    private coordinateManager: VibeGridXCoordinateManager,
   ) {
     fileLog.info('SelectionService initialized with coordinate manager')
   }
@@ -46,7 +46,7 @@ export class SelectionService {
     fileLog.debug('handlePointerDown', {
       cellId,
       modifiers,
-      currentAnchor: this.interactionStore.anchorCell
+      currentAnchor: this.interactionStore.anchorCell,
     })
 
     // Set focus first
@@ -85,14 +85,14 @@ export class SelectionService {
   selectRange(fromCellId: string, toCellId: string): void {
     fileLog.debug('selectRange', {
       from: fromCellId,
-      to: toCellId
+      to: toCellId,
     })
 
     const cells = this.calculateRangeCells(fromCellId, toCellId)
 
     fileLog.debug('Range calculated', {
       cellCount: cells.length,
-      cells: cells.slice(0, 5) // Log first 5 for debugging
+      cells: cells.slice(0, 5), // Log first 5 for debugging
     })
 
     runInAction(() => {
@@ -129,26 +129,28 @@ export class SelectionService {
    */
   toggleRow(rowId: string): void {
     // Select ONLY VISIBLE columns (coordinator only tracks visible columns)
-    const columns = this.visualStateStore.visibleOrderedColumns.filter(col => col.id !== 'selection')
-    const cells = columns.map(col => `${rowId}:${col.id}`)
+    const columns = this.visualStateStore.visibleOrderedColumns.filter(
+      (col) => col.id !== 'selection',
+    )
+    const cells = columns.map((col) => `${rowId}:${col.id}`)
 
     fileLog.debug('toggleRow (visible columns only)', {
       rowId,
       cellCount: cells.length,
-      visibleColumns: columns.length
+      visibleColumns: columns.length,
     })
 
     runInAction(() => {
       const selected = new Set(this.interactionStore.selectedCells)
-      const allSelected = cells.every(c => selected.has(c))
+      const allSelected = cells.every((c) => selected.has(c))
 
       if (allSelected) {
         // Deselect all cells in row
-        cells.forEach(c => selected.delete(c))
+        cells.forEach((c) => selected.delete(c))
         fileLog.debug('Row deselected', { rowId })
       } else {
         // Select all cells in row
-        cells.forEach(c => selected.add(c))
+        cells.forEach((c) => selected.add(c))
         fileLog.debug('Row selected', { rowId })
       }
 
@@ -186,7 +188,7 @@ export class SelectionService {
     // This automatically uses the latest column order from VisualStateStore
     const cellRange = this.coordinateManager.calculateCellRange(
       { rowId: fromRowId, columnId: fromColId },
-      { rowId: toRowId, columnId: toColId }
+      { rowId: toRowId, columnId: toColId },
     )
 
     const cells = Array.from(cellRange)
@@ -195,7 +197,7 @@ export class SelectionService {
       from,
       to,
       cellCount: cells.length,
-      coordinatorVersion: this.coordinateManager.getVersion()
+      coordinatorVersion: this.coordinateManager.getVersion(),
     })
 
     return cells

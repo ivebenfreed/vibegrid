@@ -1,8 +1,9 @@
 // Import Legend State entity operations
-import { entityOperations } from '@/legend-state';
-import type { VibeGridXEntityType } from '../hooks/useDexieEntityConfig';
-import { log } from '@/logger';
-const fileLog = log('components/custom/vibegrid/utils/entity-update-helpers.ts');
+import { entityOperations } from '@/legend-state'
+import { log } from '@/logger'
+import type { VibeGridXEntityType } from '../hooks/useDexieEntityConfig'
+
+const fileLog = log('components/custom/vibegrid/utils/entity-update-helpers.ts')
 
 /**
  * Get the appropriate update function for an entity type using Legend State
@@ -10,20 +11,24 @@ const fileLog = log('components/custom/vibegrid/utils/entity-update-helpers.ts')
  */
 export function getUpdateFunction(entityType: VibeGridXEntityType | null) {
   return async (id: string, updates: Record<string, any>) => {
-    fileLog.info('[getUpdateFunction] onEntityUpdate called with Legend State', { id, updates, entityType });
-    
+    fileLog.info('[getUpdateFunction] onEntityUpdate called with Legend State', {
+      id,
+      updates,
+      entityType,
+    })
+
     if (!entityType) {
-      fileLog.warn('[getUpdateFunction] No entity type provided');
-      return;
+      fileLog.warn('[getUpdateFunction] No entity type provided')
+      return
     }
-    
+
     try {
       // Entity type should already be in proper PascalCase format (e.g., "WorkTask")
-      await entityOperations.updateEntity(entityType, id, updates);
-      fileLog.info(`[getUpdateFunction] Successfully updated ${entityType}:${id}`);
+      await entityOperations.updateEntity(entityType, id, updates)
+      fileLog.info(`[getUpdateFunction] Successfully updated ${entityType}:${id}`)
     } catch (error) {
-      fileLog.error(`[getUpdateFunction] Failed to update ${entityType}:${id}:`, error);
-      throw error;
+      fileLog.error(`[getUpdateFunction] Failed to update ${entityType}:${id}:`, error)
+      throw error
     }
-  };
+  }
 }

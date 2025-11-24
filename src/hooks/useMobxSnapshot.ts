@@ -21,8 +21,8 @@
  * ```
  */
 
-import { useState, useEffect, useRef } from 'react'
 import { autorun } from 'mobx'
+import { useEffect, useRef, useState } from 'react'
 
 /**
  * Bridge MobX computed value to React state with stable reference
@@ -38,7 +38,7 @@ export function useMobxSnapshot<T>(getValue: () => T): T {
   useEffect(() => {
     const disposer = autorun(() => {
       const newValue = getterRef.current()
-      setSnapshot(prev => (Object.is(prev, newValue) ? prev : newValue))
+      setSnapshot((prev) => (Object.is(prev, newValue) ? prev : newValue))
     })
 
     return disposer

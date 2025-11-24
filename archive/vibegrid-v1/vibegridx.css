@@ -1,7 +1,7 @@
 /* VibeGridX Styles */
 
 /* Import additional styles */
-@import './vibegridx-cells.css';
+@import "./vibegridx-cells.css";
 
 /* CSS Variables for dynamic configuration */
 :root {
@@ -9,7 +9,6 @@
   --vibegridx-cell-height: 40px;
   --vibegridx-cell-width: 120px;
 }
-
 
 /* Container */
 .vibegridx-container {
@@ -57,7 +56,7 @@
 
 /* Header */
 .vibegridx-header-viewport {
-  overflow-x: hidden;  /* Changed from auto to hidden since we handle scroll via transform */
+  overflow-x: hidden; /* Changed from auto to hidden since we handle scroll via transform */
   overflow-y: hidden;
   position: relative;
   background: hsl(var(--muted));
@@ -114,7 +113,6 @@
   border-left: 1px solid var(--border);
 }
 
-
 .vibegridx-header-cell:hover {
   background-color: hsl(var(--accent));
   z-index: 1; /* Ensure hover state shows above adjacent cells */
@@ -150,7 +148,10 @@
 /* Sort dropdown icon - Enhanced sizing and visibility */
 .vibegridx-sort-icon {
   margin-left: 6px;
-  transition: opacity 0.2s ease, background-color 0.2s ease, transform 0.1s ease;
+  transition:
+    opacity 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.1s ease;
   color: hsl(var(--muted-foreground));
   font-size: 20px;
   display: flex;
@@ -292,7 +293,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-column-drop-indicator::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -5px;
   left: -4px;
@@ -304,7 +305,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-column-drop-indicator::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -5px;
   left: -4px;
@@ -338,7 +339,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-end-drop-zone::before {
-  content: '+';
+  content: "+";
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 300;
@@ -358,14 +359,16 @@ body.vibegridx-dragging-active * {
   background-color: hsl(var(--primary));
   pointer-events: none;
   z-index: 10;
-  transition: opacity 0.2s ease-out, top 0.2s ease-out;
+  transition:
+    opacity 0.2s ease-out,
+    top 0.2s ease-out;
   opacity: 0;
   box-shadow: 0 0 8px hsl(var(--primary) / 0.5);
 }
 
 .vibegridx-row-drop-indicator::before,
 .vibegridx-row-drop-indicator::after {
-  content: '';
+  content: "";
   position: absolute;
   top: -4px;
   width: 11px;
@@ -383,7 +386,6 @@ body.vibegridx-dragging-active * {
   right: -5px;
 }
 
-
 /* Column resize handle */
 .vibegridx-resize-handle {
   position: absolute;
@@ -397,7 +399,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-resize-handle::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 2px;
   top: 50%;
@@ -670,7 +672,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-cell-dropdown-editing::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -796,11 +798,11 @@ body.vibegridx-dragging-active * {
 }
 
 @keyframes vibegridx-pulse {
-  0% { 
-    background-color: hsl(var(--chart-1) / 0.2); 
+  0% {
+    background-color: hsl(var(--chart-1) / 0.2);
   }
-  100% { 
-    background-color: transparent; 
+  100% {
+    background-color: transparent;
   }
 }
 
@@ -883,7 +885,7 @@ body.vibegridx-dragging-active * {
     max-width: calc(100vw - 16px); /* 16px for margins */
     min-width: 320px; /* Minimum usable width */
   }
-  
+
   .vibegridx-header-cell,
   .vibegridx-cell {
     /* Slightly reduce padding to fit more content */
@@ -900,7 +902,7 @@ body.vibegridx-dragging-active * {
     padding: 6px 8px;
     font-size: 12px;
   }
-  
+
   .vibegridx-header {
     font-size: 11px;
   }
@@ -967,7 +969,7 @@ body.vibegridx-dragging-active * {
 }
 
 .vibegridx-checkbox-wrapper input[type="checkbox"]:checked ~ .vibegridx-checkbox-custom::after {
-  content: '';
+  content: "";
   position: absolute;
   display: block;
   left: 5px;
@@ -984,8 +986,10 @@ body.vibegridx-dragging-active * {
   border-color: hsl(var(--primary));
 }
 
-.vibegridx-checkbox-wrapper input[type="checkbox"]:indeterminate ~ .vibegridx-checkbox-custom::after {
-  content: '';
+.vibegridx-checkbox-wrapper
+  input[type="checkbox"]:indeterminate
+  ~ .vibegridx-checkbox-custom::after {
+  content: "";
   position: absolute;
   display: block;
   left: 3px;

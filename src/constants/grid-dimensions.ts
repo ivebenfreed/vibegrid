@@ -22,11 +22,11 @@ export const GRID_DIMENSIONS = {
 
   // Derived calculations (getters for consistency)
   get CONTENT_OFFSET_X() {
-    return this.DRAG_COLUMN_WIDTH + this.ROW_HEADER_WIDTH; // 70px total
+    return this.DRAG_COLUMN_WIDTH + this.ROW_HEADER_WIDTH // 70px total
   },
 
   get TOTAL_HEADER_HEIGHT() {
-    return this.HEADER_HEIGHT;
+    return this.HEADER_HEIGHT
   },
 
   // Virtualization settings
@@ -44,21 +44,21 @@ export const GRID_DIMENSIONS = {
   // Z-index layers
   Z_INDEX: {
     TABLE_CONTENT: 1,
-    OVERLAYS: 100,           // Base overlay layer
-    CLIPBOARD: 100,          // Clipboard indicators (same as base, integer value)
-    SELECTION: 101,          // Selection highlighting
-    FILL_PREVIEW: 102,       // Fill drag preview (above selection)
-    FILL_HANDLE: 103,        // Fill handle knob (above preview)
-    EDITING: 104,            // Active cell editor (above fill layers)
-    DRAG_PREVIEW: 105,       // Row/column drag preview
-    CONTEXT_MENU: 106,       // Context menus
+    OVERLAYS: 100, // Base overlay layer
+    CLIPBOARD: 100, // Clipboard indicators (same as base, integer value)
+    SELECTION: 101, // Selection highlighting
+    FILL_PREVIEW: 102, // Fill drag preview (above selection)
+    FILL_HANDLE: 103, // Fill handle knob (above preview)
+    EDITING: 104, // Active cell editor (above fill layers)
+    DRAG_PREVIEW: 105, // Row/column drag preview
+    CONTEXT_MENU: 106, // Context menus
     MODAL_BACKDROP: 9990,
-    MODAL_CONTENT: 9999
-  }
-} as const;
+    MODAL_CONTENT: 9999,
+  },
+} as const
 
 // Type for dimensions (useful for props/interfaces)
-export type GridDimensions = typeof GRID_DIMENSIONS;
+export type GridDimensions = typeof GRID_DIMENSIONS
 
 // Helper functions for common calculations
 export const GridCalculations = {
@@ -66,46 +66,50 @@ export const GridCalculations = {
    * Calculate total content width including fixed columns
    */
   getTotalContentWidth(visibleColumnWidths: number[]): number {
-    const columnsWidth = visibleColumnWidths.reduce((sum, width) => sum + width, 0);
-    return GRID_DIMENSIONS.CONTENT_OFFSET_X + columnsWidth;
+    const columnsWidth = visibleColumnWidths.reduce((sum, width) => sum + width, 0)
+    return GRID_DIMENSIONS.CONTENT_OFFSET_X + columnsWidth
   },
 
   /**
    * Calculate total content height for virtualization
    */
   getTotalContentHeight(rowCount: number): number {
-    return GRID_DIMENSIONS.HEADER_HEIGHT + (rowCount * GRID_DIMENSIONS.ROW_HEIGHT);
+    return GRID_DIMENSIONS.HEADER_HEIGHT + rowCount * GRID_DIMENSIONS.ROW_HEIGHT
   },
 
   /**
    * Get row position from index
    */
   getRowOffset(rowIndex: number): number {
-    return GRID_DIMENSIONS.HEADER_HEIGHT + (rowIndex * GRID_DIMENSIONS.ROW_HEIGHT);
+    return GRID_DIMENSIONS.HEADER_HEIGHT + rowIndex * GRID_DIMENSIONS.ROW_HEIGHT
   },
 
   /**
    * Get column position from cumulative widths
    */
   getColumnOffset(columnIndex: number, columnWidths: number[]): number {
-    let offset = GRID_DIMENSIONS.CONTENT_OFFSET_X;
+    let offset = GRID_DIMENSIONS.CONTENT_OFFSET_X
     for (let i = 0; i < columnIndex && i < columnWidths.length; i++) {
-      offset += columnWidths[i];
+      offset += columnWidths[i]
     }
-    return offset;
+    return offset
   },
 
   /**
    * Calculate visible row range for virtualization
    */
-  getVisibleRowRange(scrollTop: number, viewportHeight: number, totalRows: number): { start: number; end: number } {
-    const buffer = GRID_DIMENSIONS.BUFFER_ROWS;
-    const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT;
+  getVisibleRowRange(
+    scrollTop: number,
+    viewportHeight: number,
+    totalRows: number,
+  ): { start: number; end: number } {
+    const buffer = GRID_DIMENSIONS.BUFFER_ROWS
+    const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
 
-    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer);
-    const end = Math.min(totalRows, Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer);
+    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer)
+    const end = Math.min(totalRows, Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer)
 
-    return { start, end };
+    return { start, end }
   },
 
   /**
@@ -114,33 +118,33 @@ export const GridCalculations = {
   getVisibleColumnRange(
     scrollLeft: number,
     viewportWidth: number,
-    columnWidths: number[]
+    columnWidths: number[],
   ): { start: number; end: number } {
-    const buffer = GRID_DIMENSIONS.BUFFER_COLUMNS;
-    let currentX = GRID_DIMENSIONS.CONTENT_OFFSET_X;
-    let start = 0;
-    let end = columnWidths.length;
+    const buffer = GRID_DIMENSIONS.BUFFER_COLUMNS
+    let currentX = GRID_DIMENSIONS.CONTENT_OFFSET_X
+    let start = 0
+    let end = columnWidths.length
 
     for (let i = 0; i < columnWidths.length; i++) {
-      const colWidth = columnWidths[i];
+      const colWidth = columnWidths[i]
 
       // Find start column
       if (currentX + colWidth > scrollLeft && start === 0) {
-        start = Math.max(0, i - buffer);
+        start = Math.max(0, i - buffer)
       }
 
       // Find end column
       if (currentX > scrollLeft + viewportWidth && end === columnWidths.length) {
-        end = Math.min(columnWidths.length, i + buffer);
-        break;
+        end = Math.min(columnWidths.length, i + buffer)
+        break
       }
 
-      currentX += colWidth;
+      currentX += colWidth
     }
 
-    return { start, end };
-  }
-};
+    return { start, end }
+  },
+}
 
 // Export individual constants for convenience
 export const {
@@ -149,5 +153,5 @@ export const {
   DEFAULT_COLUMN_WIDTH,
   CONTENT_OFFSET_X,
   BUFFER_ROWS,
-  BUFFER_COLUMNS
-} = GRID_DIMENSIONS;
+  BUFFER_COLUMNS,
+} = GRID_DIMENSIONS

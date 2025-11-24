@@ -1,13 +1,13 @@
-import React from 'react';
-import { Input } from '@/shared/components/ui/input';
-import type { CellRef, Column } from '../../types';
+import React from 'react'
+import { Input } from '@/shared/components/ui/input'
+import type { CellRef, Column } from '../../types'
 
 interface NumberEditorProps {
-  cell: CellRef;
-  column: Column;
-  initialValue: number | null;
-  onCommit: (value: number | null) => void;
-  onCancel: () => void;
+  cell: CellRef
+  column: Column
+  initialValue: number | null
+  onCommit: (value: number | null) => void
+  onCancel: () => void
 }
 
 export function NumberEditor({
@@ -15,53 +15,53 @@ export function NumberEditor({
   column,
   initialValue,
   onCommit,
-  onCancel
+  onCancel,
 }: NumberEditorProps) {
-  const [value, setValue] = React.useState(initialValue?.toString() || '');
-  
+  const [value, setValue] = React.useState(initialValue?.toString() || '')
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter':
-        e.preventDefault();
-        commitValue();
-        break;
+        e.preventDefault()
+        commitValue()
+        break
       case 'Escape':
-        e.preventDefault();
-        e.stopPropagation(); // Stop the event from reaching KeyboardNavigationController
-        onCancel();
-        break;
+        e.preventDefault()
+        e.stopPropagation() // Stop the event from reaching KeyboardNavigationController
+        onCancel()
+        break
       case 'Tab':
-        e.preventDefault();
-        commitValue();
-        break;
+        e.preventDefault()
+        commitValue()
+        break
     }
-  };
+  }
 
   const commitValue = () => {
     if (value === '') {
-      onCommit(null);
+      onCommit(null)
     } else {
-      const numValue = parseFloat(value);
+      const numValue = parseFloat(value)
       if (!isNaN(numValue)) {
-        onCommit(numValue);
+        onCommit(numValue)
       } else {
-        onCancel(); // Invalid number, cancel edit
+        onCancel() // Invalid number, cancel edit
       }
     }
-  };
+  }
 
   const handleBlur = () => {
     // Always commit - XState will decide what to do
-    commitValue();
-  };
+    commitValue()
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
+    const newValue = e.target.value
     // Allow empty, numbers, and decimal points
     if (newValue === '' || /^-?\d*\.?\d*$/.test(newValue)) {
-      setValue(newValue);
+      setValue(newValue)
     }
-  };
+  }
 
   return (
     <Input
@@ -75,5 +75,5 @@ export function NumberEditor({
       placeholder={(column as any).placeholder}
       step={column.type === 'number' ? 'any' : '1'}
     />
-  );
+  )
 }

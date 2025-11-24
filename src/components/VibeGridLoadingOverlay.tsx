@@ -5,21 +5,21 @@
  * Displays progress, errors, and provides retry functionality.
  */
 
-import React from 'react';
-import { observer } from 'mobx-react-lite';
-import { Loader2, AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
-import type { InitStore } from '../stores/InitStore';
-import { TableSkeleton } from './TableSkeleton';
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react'
+import { observer } from 'mobx-react-lite'
+import React from 'react'
+import type { InitStore } from '../stores/InitStore'
+import { TableSkeleton } from './TableSkeleton'
 
 // ====================================
 // COMPONENT PROPS
 // ====================================
 
 interface VibeGridLoadingOverlayProps {
-  initStore: InitStore;
-  height?: number | string;
-  width?: number | string;
-  showDetailedProgress?: boolean;
+  initStore: InitStore
+  height?: number | string
+  width?: number | string
+  showDetailedProgress?: boolean
 }
 
 // ====================================
@@ -32,25 +32,21 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
   width = '100%',
   showDetailedProgress = false,
 }: VibeGridLoadingOverlayProps) {
-
   // Access MobX store properties directly
-  const isFullyInitialized = initStore.isFullyHydrated;
-  const errors = initStore.errors;
-  const hasErrors = initStore.hasErrors;
-  const criticalErrors = initStore.criticalErrors;
+  const isFullyInitialized = initStore.isFullyHydrated
+  const errors = initStore.errors
+  const hasErrors = initStore.hasErrors
+  const criticalErrors = initStore.criticalErrors
 
   // Always render - let parent control visibility to prevent flash
   // if (isFullyInitialized) {
   //   return null;
   // }
 
-  const hasCriticalErrors = criticalErrors.length > 0;
+  const hasCriticalErrors = criticalErrors.length > 0
 
   return (
-    <div
-      className="relative bg-white"
-      style={{ height, width }}
-    >
+    <div className="relative bg-white" style={{ height, width }}>
       {/* Clean Table Skeleton */}
       <TableSkeleton columns={6} rows={8} />
 
@@ -87,9 +83,8 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
         </div>
       )}
     </div>
-  );
+  )
 })
-
 
 // ====================================
 // LOADING STATE HOOK
@@ -106,8 +101,8 @@ export function useVibeGridLoadingState(initStore: InitStore) {
     progress: initStore.hydrationProgress,
     hasErrors: initStore.hasErrors,
     hasCriticalErrors: initStore.criticalErrors.length > 0,
-    canRetry: initStore.criticalErrors.some(error => error.canRetry),
+    canRetry: initStore.criticalErrors.some((error) => error.canRetry),
     retry: () => initStore.reset(),
     getStatus: () => initStore.getStatus(),
-  };
+  }
 }

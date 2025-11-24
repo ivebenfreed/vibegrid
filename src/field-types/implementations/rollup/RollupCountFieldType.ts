@@ -5,41 +5,47 @@
  * and proper display formatting. Integrates with RollupCalculationManager.
  */
 
-import { createLogger } from '@/shared/lib/logging';
+import { createLogger } from '@/shared/lib/logging'
+import { RollupCountCalculator } from '../../../managers/RollupCalculationManager'
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
+  CellRenderer,
   CellValidator,
   EnhancedColumn,
-  ValidationResult,
+  FieldMetadata,
   FormattingContext,
-  FieldMetadata
-} from '../../FieldTypeRegistry';
-import { RollupCountCalculator } from '../../../managers/RollupCalculationManager';
+  ValidationResult,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
-const fileLog = createLogger('components/vibegrid/field-types/implementations/rollup/RollupCountFieldType');
+const fileLog = createLogger(
+  'components/vibegrid/field-types/implementations/rollup/RollupCountFieldType',
+)
 
 /**
  * Rollup Count Cell Renderer
  */
 export class RollupCountRenderer implements CellRenderer {
-  private calculator = new RollupCountCalculator();
+  private calculator = new RollupCountCalculator()
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'vibegridx-rollup-count';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-rollup-count'
 
     // Calculate value in real-time if rollup config is available
-    let displayValue = value;
+    let displayValue = value
     if (column.rollupConfig) {
       try {
-        const sourceData = this.getSourceData(column, rowData);
-        displayValue = this.calculator.calculate(column.rollupConfig, sourceData, rowData.id);
+        const sourceData = this.getSourceData(column, rowData)
+        displayValue = this.calculator.calculate(column.rollupConfig, sourceData, rowData.id)
       } catch (error) {
-        fileLog.warn('Failed to calculate rollup count', { error, columnId: column.id, rowId: rowData.id });
-        displayValue = value || 0;
+        fileLog.warn('Failed to calculate rollup count', {
+          error,
+          columnId: column.id,
+          rowId: rowData.id,
+        })
+        displayValue = value || 0
       }
     }
 
@@ -49,59 +55,59 @@ export class RollupCountRenderer implements CellRenderer {
       gap: 6px;
       font-variant-numeric: tabular-nums;
       color: #374151;
-    `;
+    `
 
     // Create value display
-    const valueSpan = document.createElement('span');
-    valueSpan.className = 'vibegridx-rollup-value';
-    valueSpan.textContent = String(displayValue || 0);
+    const valueSpan = document.createElement('span')
+    valueSpan.className = 'vibegridx-rollup-value'
+    valueSpan.textContent = String(displayValue || 0)
     valueSpan.style.cssText = `
       font-weight: 500;
       text-align: right;
-    `;
+    `
 
     // Create rollup indicator
-    const indicator = document.createElement('span');
-    indicator.className = 'vibegridx-rollup-indicator';
-    indicator.textContent = '📊';
-    indicator.title = 'Calculated count field';
+    const indicator = document.createElement('span')
+    indicator.className = 'vibegridx-rollup-indicator'
+    indicator.textContent = '📊'
+    indicator.title = 'Calculated count field'
     indicator.style.cssText = `
       font-size: 10px;
       opacity: 0.7;
-    `;
+    `
 
-    container.appendChild(valueSpan);
-    container.appendChild(indicator);
+    container.appendChild(valueSpan)
+    container.appendChild(indicator)
 
     // Apply backend display metadata if available
     if (column.display) {
-      this.applyDisplayMetadata(container, column.display);
+      this.applyDisplayMetadata(container, column.display)
     }
 
-    return container;
+    return container
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    const valueSpan = element.querySelector('.vibegridx-rollup-value');
+    const valueSpan = element.querySelector('.vibegridx-rollup-value')
     if (valueSpan) {
       // Recalculate if rollup config is available
-      let displayValue = value;
+      let displayValue = value
       if (column.rollupConfig) {
         try {
-          const sourceData = this.getSourceData(column, { id: 'unknown' });
-          displayValue = this.calculator.calculate(column.rollupConfig, sourceData, 'unknown');
+          const sourceData = this.getSourceData(column, { id: 'unknown' })
+          displayValue = this.calculator.calculate(column.rollupConfig, sourceData, 'unknown')
         } catch (error) {
-          displayValue = value || 0;
+          displayValue = value || 0
         }
       }
 
-      valueSpan.textContent = String(displayValue || 0);
+      valueSpan.textContent = String(displayValue || 0)
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    const type = column.cellType || column.type || '';
-    return (type as string) === 'rollup_count';
+    const type = column.cellType || column.type || ''
+    return (type as string) === 'rollup_count'
   }
 
   private getSourceData(column: EnhancedColumn, rowData: any): any[] {
@@ -111,43 +117,43 @@ export class RollupCountRenderer implements CellRenderer {
     // 3. Return the related records for calculation
 
     // For now, return mock data for demonstration
-    const mockData = [];
-    const config = column.rollupConfig;
+    const mockData = []
+    const config = column.rollupConfig
 
     if (config?.conditions) {
       // Create mock data that matches conditions
       for (let i = 0; i < Math.floor(Math.random() * 10); i++) {
-        const item: any = { id: `mock-${i}` };
+        const item: any = { id: `mock-${i}` }
 
         // Add condition fields
         Object.entries(config.conditions).forEach(([field, value]) => {
-          item[field] = Math.random() > 0.5 ? value : 'other';
-        });
+          item[field] = Math.random() > 0.5 ? value : 'other'
+        })
 
-        mockData.push(item);
+        mockData.push(item)
       }
     } else {
       // Create simple mock data
       for (let i = 0; i < Math.floor(Math.random() * 15); i++) {
-        mockData.push({ id: `mock-${i}` });
+        mockData.push({ id: `mock-${i}` })
       }
     }
 
-    return mockData;
+    return mockData
   }
 
   private applyDisplayMetadata(element: HTMLElement, displayMetadata: any): void {
     if (displayMetadata.textAlign) {
-      const valueSpan = element.querySelector('.vibegridx-rollup-value') as HTMLElement;
+      const valueSpan = element.querySelector('.vibegridx-rollup-value') as HTMLElement
       if (valueSpan) {
-        valueSpan.style.textAlign = displayMetadata.textAlign;
+        valueSpan.style.textAlign = displayMetadata.textAlign
       }
     }
 
     if (displayMetadata.showCalculationIndicator === false) {
-      const indicator = element.querySelector('.vibegridx-rollup-indicator') as HTMLElement;
+      const indicator = element.querySelector('.vibegridx-rollup-indicator') as HTMLElement
       if (indicator) {
-        indicator.style.display = 'none';
+        indicator.style.display = 'none'
       }
     }
   }
@@ -158,8 +164,8 @@ export class RollupCountRenderer implements CellRenderer {
  */
 export class RollupCountEditor implements CellEditor {
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'vibegridx-rollup-count-editor';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-rollup-count-editor'
     container.style.cssText = `
       width: 100%;
       height: 100%;
@@ -171,15 +177,15 @@ export class RollupCountEditor implements CellEditor {
       border-radius: 4px;
       font-size: 12px;
       color: #6b7280;
-    `;
+    `
 
-    container.textContent = 'This field is automatically calculated';
+    container.textContent = 'This field is automatically calculated'
 
-    return container;
+    return container
   }
 
   getValue(element: HTMLElement): any {
-    return null; // Read-only field
+    return null // Read-only field
   }
 
   setValue(element: HTMLElement, value: any): void {
@@ -190,8 +196,8 @@ export class RollupCountEditor implements CellEditor {
     return {
       valid: true,
       errors: [],
-      transformedValue: value
-    };
+      transformedValue: value,
+    }
   }
 
   destroy(element: HTMLElement): void {
@@ -199,11 +205,11 @@ export class RollupCountEditor implements CellEditor {
   }
 
   supportsInlineEditing(): boolean {
-    return false; // Read-only
+    return false // Read-only
   }
 
   supportsModalEditing(): boolean {
-    return false; // Read-only
+    return false // Read-only
   }
 }
 
@@ -212,24 +218,24 @@ export class RollupCountEditor implements CellEditor {
  */
 export class RollupCountFormatter implements CellFormatter {
   format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
-    if (value == null) return '0';
+    if (value == null) return '0'
 
-    const numValue = Number(value);
-    if (isNaN(numValue)) return '0';
+    const numValue = Number(value)
+    if (isNaN(numValue)) return '0'
 
-    return numValue.toLocaleString();
+    return numValue.toLocaleString()
   }
 
   parse(text: string, column: EnhancedColumn): any {
-    return null; // Read-only field
+    return null // Read-only field
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
-    return this.format(value, column);
+    return this.format(value, column)
   }
 
   formatForExport(value: any, column: EnhancedColumn): string {
-    return value == null ? '0' : String(value);
+    return value == null ? '0' : String(value)
   }
 }
 
@@ -242,16 +248,16 @@ export class RollupCountValidator implements CellValidator {
     return {
       valid: true,
       errors: [],
-      transformedValue: value
-    };
+      transformedValue: value,
+    }
   }
 
   getConstraints(column: EnhancedColumn): Record<string, any> {
     return {
       readOnly: true,
       calculatedField: true,
-      rollupType: 'count'
-    };
+      rollupType: 'count',
+    }
   }
 }
 
@@ -271,7 +277,7 @@ export const RollupCountFieldType: VibeGridFieldType = {
     calculationType: 'count',
     sourceRelationship: 'belongs_to', // Default, overridden by column config
     sourceEntityType: 'dynamic', // Determined from column config
-    realTimeUpdates: true
+    realTimeUpdates: true,
   },
 
   metadata: {
@@ -284,14 +290,15 @@ export const RollupCountFieldType: VibeGridFieldType = {
     supportsValidation: false,
     supportsFormatting: true,
     isCalculatedField: true,
-    isReadOnly: true
+    isReadOnly: true,
   },
   getFormatter() {
-    const fmt = this.formatter;
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column);
-  }
-};
+    const fmt = this.formatter
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+  },
+}
 
 // Register with the global registry
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('rollup_count', RollupCountFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('rollup_count', RollupCountFieldType)

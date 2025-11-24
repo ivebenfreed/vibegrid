@@ -13,9 +13,9 @@
  */
 
 import { createLogger } from '@/shared/lib/logging'
-import type { SelectionService } from '../services/SelectionService'
-import type { EditSessionManager } from '../services/EditSessionManager'
 import type { CellActionRouter } from '../routing/CellActionRouter'
+import type { EditSessionManager } from '../services/EditSessionManager'
+import type { SelectionService } from '../services/SelectionService'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
@@ -68,7 +68,7 @@ interface CellData {
  * InteractionCoordinator - Central coordination point for all grid interactions
  */
 export class InteractionCoordinator {
-  private overlayManager?: any; // Optional reference for fill handle delegation
+  private overlayManager?: any // Optional reference for fill handle delegation
 
   constructor(
     private container: HTMLElement,
@@ -77,7 +77,7 @@ export class InteractionCoordinator {
     private cellActionRouter: CellActionRouter,
     private editSessionManager: EditSessionManager,
     private tableCoreStore: TableCoreStore,
-    private visualStateStore: VisualStateStore
+    private visualStateStore: VisualStateStore,
   ) {
     fileLog.info('InteractionCoordinator initialized')
   }
@@ -86,7 +86,7 @@ export class InteractionCoordinator {
    * Set overlay manager reference for fill handle delegation
    */
   setOverlayManager(overlayManager: any): void {
-    this.overlayManager = overlayManager;
+    this.overlayManager = overlayManager
   }
 
   /**
@@ -103,7 +103,7 @@ export class InteractionCoordinator {
       rowId,
       columnId,
       modifiers,
-      position: { x, y }
+      position: { x, y },
     })
 
     // Update pointer state in InteractionStore
@@ -128,7 +128,7 @@ export class InteractionCoordinator {
       rowId,
       columnId,
       modifiers,
-      targetTag: (target as HTMLElement).tagName
+      targetTag: (target as HTMLElement).tagName,
     })
 
     // Skip action during multi-select
@@ -139,7 +139,7 @@ export class InteractionCoordinator {
 
     // Get cell metadata
     const cellData = this.getCellData(rowId, columnId)
-    const column = this.visualStateStore.columns.find(c => c.id === columnId)
+    const column = this.visualStateStore.columns.find((c) => c.id === columnId)
 
     if (!column) {
       fileLog.warn('Column not found', { columnId })
@@ -154,7 +154,7 @@ export class InteractionCoordinator {
       fieldPolicy: column.fieldType?.interactionPolicy,
       target,
       modifiers,
-      nativeEvent
+      nativeEvent,
     })
   }
 
@@ -170,7 +170,7 @@ export class InteractionCoordinator {
       cellId,
       rowId,
       columnId,
-      modifiers
+      modifiers,
     })
 
     // Skip during multi-select
@@ -179,7 +179,7 @@ export class InteractionCoordinator {
     }
 
     // Get column metadata
-    const column = this.visualStateStore.columns.find(c => c.id === columnId)
+    const column = this.visualStateStore.columns.find((c) => c.id === columnId)
     if (!column) {
       fileLog.warn('Column not found for double-click', { columnId })
       return
@@ -190,7 +190,7 @@ export class InteractionCoordinator {
     if (policy?.editTrigger === 'double-click') {
       fileLog.debug('Starting edit via double-click policy', {
         cellId,
-        fieldType: column.fieldType?.id
+        fieldType: column.fieldType?.id,
       })
       this.editSessionManager.start(cellId, column)
     }
@@ -204,7 +204,7 @@ export class InteractionCoordinator {
   handleOutsidePointer(event: PointerEvent): void {
     fileLog.debug('handleOutsidePointer', {
       isEditing: this.editSessionManager.isEditing(),
-      target: (event.target as HTMLElement)?.tagName
+      target: (event.target as HTMLElement)?.tagName,
     })
 
     if (this.editSessionManager.isEditing()) {
@@ -254,10 +254,10 @@ export class InteractionCoordinator {
    * Handle fill start - delegate to overlay manager
    */
   handleFillStart(): void {
-    fileLog.debug('Fill start - delegating to overlay manager');
-    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    fileLog.debug('Fill start - delegating to overlay manager')
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.()
     if (fillHandleLayer) {
-      fillHandleLayer.handleFillStart();
+      fillHandleLayer.handleFillStart()
     }
   }
 
@@ -265,9 +265,9 @@ export class InteractionCoordinator {
    * Handle fill move - delegate to overlay manager
    */
   handleFillMove(cell: { rowId: string; columnId: string }): void {
-    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.()
     if (fillHandleLayer) {
-      fillHandleLayer.handleFillMove(cell);
+      fillHandleLayer.handleFillMove(cell)
     }
   }
 
@@ -275,10 +275,10 @@ export class InteractionCoordinator {
    * Handle fill complete - delegate to overlay manager
    */
   handleFillComplete(cell: { rowId: string; columnId: string }): void {
-    fileLog.debug('Fill complete - delegating to overlay manager');
-    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.();
+    fileLog.debug('Fill complete - delegating to overlay manager')
+    const fillHandleLayer = this.overlayManager?.getCanvasOverlay()?.getFillHandleLayer?.()
     if (fillHandleLayer) {
-      fillHandleLayer.handleFillComplete(cell);
+      fillHandleLayer.handleFillComplete(cell)
     }
   }
 

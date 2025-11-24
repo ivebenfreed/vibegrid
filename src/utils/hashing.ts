@@ -10,7 +10,7 @@ export const METADATA_COLUMNS = new Set([
   'createdAt',
   'version',
   'lastModifiedBy',
-  'lastModifiedAt'
+  'lastModifiedAt',
 ])
 
 /**
@@ -33,7 +33,10 @@ export function normalizeValue(column: Column, value: any): any {
   // Multi-reference fields: normalize to array of IDs
   if (fieldType === 'multi_select' || fieldType === 'tags') {
     if (!Array.isArray(value)) return []
-    return value.map(v => (typeof v === 'string' ? v : v?.id || null)).filter(Boolean).sort()
+    return value
+      .map((v) => (typeof v === 'string' ? v : v?.id || null))
+      .filter(Boolean)
+      .sort()
   }
 
   // Dates: normalize to ISO string
@@ -80,18 +83,15 @@ export function hashValue(value: any): string {
 export interface RowSnapshot {
   id: string
   orderIndex: number
-  dataHash: string  // Hash of non-metadata columns only
-  columnHashes: Map<string, string>  // Per-column hashes
+  dataHash: string // Hash of non-metadata columns only
+  columnHashes: Map<string, string> // Per-column hashes
 }
 
 /**
  * Create row snapshot with per-column hashing and loop-back protection
  * Normalizes values per field type before hashing to prevent false positives
  */
-export function createRowSnapshot(
-  row: any,
-  columns: Column[]
-): RowSnapshot {
+export function createRowSnapshot(row: any, columns: Column[]): RowSnapshot {
   const columnHashes = new Map<string, string>()
   const dataColumnHashes: string[] = []
 
@@ -115,6 +115,6 @@ export function createRowSnapshot(
     id: row.id,
     orderIndex: row.orderIndex || 0,
     dataHash,
-    columnHashes
+    columnHashes,
   }
 }

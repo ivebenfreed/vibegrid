@@ -7,17 +7,19 @@
  * - Aligns with Notion/Linear/Airtable patterns
  */
 
+import { createLogger } from '@/shared/lib/logging'
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
+  CellRenderer,
   EnhancedColumn,
+  VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
-import { createLogger } from '@/shared/lib/logging'
-import { TextRenderer, TextEditor, TextFormatter, TextValidator } from './TextFieldType'
+import { TextEditor, TextFormatter, TextRenderer, TextValidator } from './TextFieldType'
 
-const fieldLog = createLogger('components/vibegrid/field-types/implementations/basic/EntityNameFieldType')
+const fieldLog = createLogger(
+  'components/vibegrid/field-types/implementations/basic/EntityNameFieldType',
+)
 
 /**
  * Entity Name Cell Renderer
@@ -113,9 +115,9 @@ export class EntityNameRenderer implements CellRenderer {
     const textElement = element.querySelector('.vibegridx-entity-name-text') as HTMLSpanElement
     if (textElement) {
       // Force update by always setting textContent (no caching/diffing)
-      const newText = (value == null || value === '') ? 'Untitled' : String(value)
-      const newOpacity = (value == null || value === '') ? '0.5' : '1'
-      const newFontStyle = (value == null || value === '') ? 'italic' : 'normal'
+      const newText = value == null || value === '' ? 'Untitled' : String(value)
+      const newOpacity = value == null || value === '' ? '0.5' : '1'
+      const newFontStyle = value == null || value === '' ? 'italic' : 'normal'
 
       // Always update, even if values appear the same
       textElement.textContent = newText
@@ -158,9 +160,9 @@ export const EntityNameFieldType: VibeGridFieldType = {
 
   // 🚀 NEW: Interaction policy
   interactionPolicy: {
-    defaultAction: 'navigate',  // Clicking navigates to entity detail
-    editTrigger: 'icon',        // Only edit via pencil icon (future implementation)
-    blurPolicy: 'commit'        // Save on blur when editing
+    defaultAction: 'navigate', // Clicking navigates to entity detail
+    editTrigger: 'icon', // Only edit via pencil icon (future implementation)
+    blurPolicy: 'commit', // Save on blur when editing
   },
 }
 

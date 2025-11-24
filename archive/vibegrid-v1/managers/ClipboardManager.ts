@@ -9,104 +9,108 @@
  * - Number fields (validation)
  */
 
-import { log } from '@/logger';
-import { toast } from 'sonner';
-import type { TableCore$ } from '../stores/data-state';
-import type { TableInteraction$ } from '../stores/interaction-state';
-import type { VibeGridClipboardData, ClipboardCell, PasteValidationResult } from '../types/clipboard-types';
+import { toast } from 'sonner'
+import { log } from '@/logger'
+import type { TableCore$ } from '../stores/data-state'
+import type { TableInteraction$ } from '../stores/interaction-state'
+import type {
+  ClipboardCell,
+  PasteValidationResult,
+  VibeGridClipboardData,
+} from '../types/clipboard-types'
 
-const fileLog = log('components/custom/vibegrid/managers/ClipboardManager.ts');
+const fileLog = log('components/custom/vibegrid/managers/ClipboardManager.ts')
 
 export interface ClipboardManagerOptions {
-  tableCore$: TableCore$;
-  tableInteraction$: TableInteraction$;
-  onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
+  tableCore$: TableCore$
+  tableInteraction$: TableInteraction$
+  onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
 }
 
 export interface PasteResult {
-  success: boolean;
-  pastedCount: number;
-  errorCount: number;
-  skippedCount: number;
-  blockedCount: number;
-  errorMessage?: string;
+  success: boolean
+  pastedCount: number
+  errorCount: number
+  skippedCount: number
+  blockedCount: number
+  errorMessage?: string
   details: Array<{
-    rowId: string;
-    columnId: string;
-    status: 'success' | 'error' | 'skipped' | 'blocked';
-    originalValue?: any;
-    newValue?: any;
-    errorReason?: string;
-    sourceType?: string;
-    targetType?: string;
-  }>;
+    rowId: string
+    columnId: string
+    status: 'success' | 'error' | 'skipped' | 'blocked'
+    originalValue?: any
+    newValue?: any
+    errorReason?: string
+    sourceType?: string
+    targetType?: string
+  }>
 }
 
 export interface TypeCompatibility {
-  sourceType: string;
-  targetType: string;
-  compatible: boolean;
-  reason?: string;
+  sourceType: string
+  targetType: string
+  compatible: boolean
+  reason?: string
 }
 
 export class ClipboardManager {
-  private tableCore$: TableCore$;
-  private tableInteraction$: TableInteraction$;
-  private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void;
+  private tableCore$: TableCore$
+  private tableInteraction$: TableInteraction$
+  private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
 
   constructor(options: ClipboardManagerOptions) {
-    this.tableCore$ = options.tableCore$;
-    this.tableInteraction$ = options.tableInteraction$;
-    this.onEntityUpdate = options.onEntityUpdate;
+    this.tableCore$ = options.tableCore$
+    this.tableInteraction$ = options.tableInteraction$
+    this.onEntityUpdate = options.onEntityUpdate
   }
 
   /**
    * Handle copy operation with rich metadata
    */
   async handleCopy(): Promise<boolean> {
-    fileLog.info('📋 ClipboardManager: Copy action triggered');
+    fileLog.info('📋 ClipboardManager: Copy action triggered')
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells.get()
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select cells to copy first',
-        duration: 3000
-      });
-      return false;
+        duration: 3000,
+      })
+      return false
     }
 
     try {
-      const clipboardData = this.extractRichClipboardData(selectedCells);
-      await this.copyToSystemClipboard(clipboardData);
+      const clipboardData = this.extractRichClipboardData(selectedCells)
+      await this.copyToSystemClipboard(clipboardData)
 
       // Store in internal clipboard with metadata and type information
       this.tableInteraction$.setClipboard({
-        data: clipboardData.cells.map(cell => [cell.value]), // Convert for backward compatibility
+        data: clipboardData.cells.map((cell) => [cell.value]), // Convert for backward compatibility
         operation: 'copy',
         metadata: {
           columnTypes: clipboardData.columnTypes,
-          sourceColumns: clipboardData.cells.map(cell => ({
+          sourceColumns: clipboardData.cells.map((cell) => ({
             columnId: cell.columnId,
             type: clipboardData.columnTypes[cell.columnId],
-            index: cell.columnIndex
-          }))
-        }
-      });
+            index: cell.columnIndex,
+          })),
+        },
+      })
 
       toast.success('Copied to clipboard', {
         description: `${selectedCells.size} cells copied`,
-        duration: 2000
-      });
+        duration: 2000,
+      })
 
-      fileLog.info('📋 Copy completed with metadata', { cellCount: selectedCells.size });
-      return true;
+      fileLog.info('📋 Copy completed with metadata', { cellCount: selectedCells.size })
+      return true
     } catch (error) {
-      fileLog.error('📋 Copy failed', error);
+      fileLog.error('📋 Copy failed', error)
       toast.error('Copy failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
-        duration: 4000
-      });
-      return false;
+        duration: 4000,
+      })
+      return false
     }
   }
 
@@ -114,14 +118,14 @@ export class ClipboardManager {
    * Handle paste operation with column type awareness
    */
   async handlePaste(): Promise<PasteResult> {
-    fileLog.info('📋 ClipboardManager: Paste action triggered');
+    fileLog.info('📋 ClipboardManager: Paste action triggered')
 
-    const clipboard = this.tableInteraction$.clipboard.get();
+    const clipboard = this.tableInteraction$.clipboard.get()
     if (!clipboard || !clipboard.data) {
       toast.warning('No clipboard data', {
         description: 'Copy some cells first before pasting',
-        duration: 3000
-      });
+        duration: 3000,
+      })
       return {
         success: false,
         pastedCount: 0,
@@ -129,16 +133,16 @@ export class ClipboardManager {
         skippedCount: 0,
         blockedCount: 0,
         errorMessage: 'No clipboard data available',
-        details: []
-      };
+        details: [],
+      }
     }
 
-    const selectedCells = this.tableInteraction$.selectedCells.get();
+    const selectedCells = this.tableInteraction$.selectedCells.get()
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select target cells before pasting',
-        duration: 3000
-      });
+        duration: 3000,
+      })
       return {
         success: false,
         pastedCount: 0,
@@ -146,59 +150,61 @@ export class ClipboardManager {
         skippedCount: 0,
         blockedCount: 0,
         errorMessage: 'No target cells selected',
-        details: []
-      };
+        details: [],
+      }
     }
 
     try {
-      const result = await this.performColumnAwarePaste(clipboard.data, selectedCells);
+      const result = await this.performColumnAwarePaste(clipboard.data, selectedCells)
 
       // Clear copy overlay on successful paste
       if (result.success && result.pastedCount > 0) {
-        this.tableInteraction$.clearClipboard();
-        fileLog.info('📋 Clipboard cleared after successful paste');
+        this.tableInteraction$.clearClipboard()
+        fileLog.info('📋 Clipboard cleared after successful paste')
       }
 
       // Show appropriate toast based on results
       if (result.errorCount === 0 && result.skippedCount === 0 && result.blockedCount === 0) {
         toast.success('Data pasted successfully', {
           description: `${result.pastedCount} cells updated`,
-          duration: 2000
-        });
+          duration: 2000,
+        })
       } else if (result.pastedCount > 0) {
-        const issueDetails = [];
-        if (result.errorCount > 0) issueDetails.push(`${result.errorCount} failed`);
-        if (result.skippedCount > 0) issueDetails.push(`${result.skippedCount} skipped`);
-        if (result.blockedCount > 0) issueDetails.push(`${result.blockedCount} blocked (incompatible types)`);
+        const issueDetails = []
+        if (result.errorCount > 0) issueDetails.push(`${result.errorCount} failed`)
+        if (result.skippedCount > 0) issueDetails.push(`${result.skippedCount} skipped`)
+        if (result.blockedCount > 0)
+          issueDetails.push(`${result.blockedCount} blocked (incompatible types)`)
 
         toast.warning('Paste completed with issues', {
           description: `${result.pastedCount} updated, ${issueDetails.join(', ')}`,
-          duration: 5000
-        });
+          duration: 5000,
+        })
       } else {
         // Show specific error for blocked types
-        const blockedDetails = result.details.filter(d => d.status === 'blocked');
+        const blockedDetails = result.details.filter((d) => d.status === 'blocked')
         if (blockedDetails.length > 0) {
-          const firstBlocked = blockedDetails[0];
+          const firstBlocked = blockedDetails[0]
           toast.error('Paste blocked - Incompatible types', {
-            description: firstBlocked.errorReason || 'Cannot paste between incompatible column types',
-            duration: 5000
-          });
+            description:
+              firstBlocked.errorReason || 'Cannot paste between incompatible column types',
+            duration: 5000,
+          })
         } else {
           toast.error('Paste failed', {
             description: result.errorMessage || 'All paste operations failed',
-            duration: 4000
-          });
+            duration: 4000,
+          })
         }
       }
 
-      return result;
+      return result
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('Paste operation failed', {
         description: errorMessage,
-        duration: 4000
-      });
+        duration: 4000,
+      })
 
       return {
         success: false,
@@ -207,68 +213,72 @@ export class ClipboardManager {
         skippedCount: 0,
         blockedCount: 0,
         errorMessage,
-        details: []
-      };
+        details: [],
+      }
     }
   }
 
   /**
    * Check if source and target column types are compatible
    */
-  private checkTypeCompatibility(sourceType: string, targetType: string, sourceValue: any): TypeCompatibility {
+  private checkTypeCompatibility(
+    sourceType: string,
+    targetType: string,
+    sourceValue: any,
+  ): TypeCompatibility {
     // Normalize types
     const normalizeType = (type: string) => {
       switch (type) {
         case 'single-select':
         case 'select':
-          return 'select';
+          return 'select'
         case 'multi-select':
-          return 'multi-select';
+          return 'multi-select'
         case 'textarea':
-          return 'text';
+          return 'text'
         case 'datetime':
-          return 'date';
+          return 'date'
         default:
-          return type;
+          return type
       }
-    };
+    }
 
-    const normSource = normalizeType(sourceType);
-    const normTarget = normalizeType(targetType);
+    const normSource = normalizeType(sourceType)
+    const normTarget = normalizeType(targetType)
 
     // Same type is always compatible
     if (normSource === normTarget) {
-      return { sourceType, targetType, compatible: true };
+      return { sourceType, targetType, compatible: true }
     }
 
     // Define compatibility rules
     const compatibilityMatrix: Record<string, string[]> = {
       // Text can accept most simple types (but not complex ones)
-      'text': ['number', 'currency', 'phone', 'email', 'url', 'date', 'boolean'],
+      text: ['number', 'currency', 'phone', 'email', 'url', 'date', 'boolean'],
 
       // Numbers can accept text that looks numeric
-      'number': ['text', 'currency'],
-      'currency': ['text', 'number'],
+      number: ['text', 'currency'],
+      currency: ['text', 'number'],
 
       // Dates can accept text that looks like dates
-      'date': ['text'],
+      date: ['text'],
 
       // Booleans can accept text that looks boolean
-      'boolean': ['text'],
+      boolean: ['text'],
 
       // Email/URL/Phone can accept text
-      'email': ['text'],
-      'url': ['text'],
-      'phone': ['text'],
+      email: ['text'],
+      url: ['text'],
+      phone: ['text'],
 
       // Select types have special rules
-      'select': [], // Select should NOT accept arbitrary text
+      select: [], // Select should NOT accept arbitrary text
       'multi-select': [], // Multi-select should NOT accept arbitrary text
-    };
+    }
 
     // Check if target can accept source
-    const allowedSources = compatibilityMatrix[normTarget] || [];
-    const isCompatible = allowedSources.includes(normSource);
+    const allowedSources = compatibilityMatrix[normTarget] || []
+    const isCompatible = allowedSources.includes(normSource)
 
     // Special cases with detailed reasons
     if (!isCompatible) {
@@ -277,8 +287,8 @@ export class ClipboardManager {
           sourceType,
           targetType,
           compatible: false,
-          reason: `Cannot paste select option "${sourceValue}" into text field. Use the display text instead.`
-        };
+          reason: `Cannot paste select option "${sourceValue}" into text field. Use the display text instead.`,
+        }
       }
 
       if (normSource === 'text' && normTarget === 'select') {
@@ -286,8 +296,8 @@ export class ClipboardManager {
           sourceType,
           targetType,
           compatible: false,
-          reason: `Cannot paste arbitrary text "${sourceValue}" into select field. Must match available options.`
-        };
+          reason: `Cannot paste arbitrary text "${sourceValue}" into select field. Must match available options.`,
+        }
       }
 
       if (normSource === 'multi-select' && normTarget === 'text') {
@@ -295,8 +305,8 @@ export class ClipboardManager {
           sourceType,
           targetType,
           compatible: false,
-          reason: `Cannot paste multi-select values "${sourceValue}" into text field. Use comma-separated text instead.`
-        };
+          reason: `Cannot paste multi-select values "${sourceValue}" into text field. Use comma-separated text instead.`,
+        }
       }
 
       if (normSource === 'date' && normTarget === 'number') {
@@ -304,42 +314,42 @@ export class ClipboardManager {
           sourceType,
           targetType,
           compatible: false,
-          reason: `Cannot paste date "${sourceValue}" into number field.`
-        };
+          reason: `Cannot paste date "${sourceValue}" into number field.`,
+        }
       }
 
       return {
         sourceType,
         targetType,
         compatible: false,
-        reason: `Incompatible types: cannot paste ${normSource} data into ${normTarget} field.`
-      };
+        reason: `Incompatible types: cannot paste ${normSource} data into ${normTarget} field.`,
+      }
     }
 
-    return { sourceType, targetType, compatible: true };
+    return { sourceType, targetType, compatible: true }
   }
 
   /**
    * Extract rich clipboard data with column metadata
    */
   private extractRichClipboardData(selectedCells: Set<string>): VibeGridClipboardData {
-    const rows = this.tableCore$.processedRows.get();
-    const columns = this.tableCore$.columns.get();
+    const rows = this.tableCore$.processedRows.get()
+    const columns = this.tableCore$.columns.get()
 
-    const cells: ClipboardCell[] = [];
-    const columnTypes: Record<string, string> = {};
-    const columnIds: string[] = [];
+    const cells: ClipboardCell[] = []
+    const columnTypes: Record<string, string> = {}
+    const columnIds: string[] = []
 
     // Extract cell data with metadata
-    selectedCells.forEach(cellId => {
-      const [rowId, columnId] = cellId.split(':');
-      const row = rows.find(r => r.id === rowId);
-      const column = columns.find(c => c.id === columnId);
+    selectedCells.forEach((cellId) => {
+      const [rowId, columnId] = cellId.split(':')
+      const row = rows.find((r) => r.id === rowId)
+      const column = columns.find((c) => c.id === columnId)
 
-      if (!row || !column) return;
+      if (!row || !column) return
 
-      const value = row[columnId];
-      const displayValue = this.getDisplayValue(value, column);
+      const value = row[columnId]
+      const displayValue = this.getDisplayValue(value, column)
 
       cells.push({
         rowId,
@@ -348,18 +358,18 @@ export class ClipboardManager {
         displayValue,
         rowIndex: rows.indexOf(row),
         columnIndex: columns.indexOf(column),
-        field: columnId
-      });
+        field: columnId,
+      })
 
-      columnTypes[columnId] = column.type || 'text';
+      columnTypes[columnId] = column.type || 'text'
       if (!columnIds.includes(columnId)) {
-        columnIds.push(columnId);
+        columnIds.push(columnId)
       }
-    });
+    })
 
     // Calculate bounds
-    const rowIndices = cells.map(c => c.rowIndex);
-    const colIndices = cells.map(c => c.columnIndex);
+    const rowIndices = cells.map((c) => c.rowIndex)
+    const colIndices = cells.map((c) => c.columnIndex)
 
     return {
       cells,
@@ -369,49 +379,52 @@ export class ClipboardManager {
         endRow: Math.max(...rowIndices),
         endCol: Math.max(...colIndices),
         rowCount: Math.max(...rowIndices) - Math.min(...rowIndices) + 1,
-        colCount: Math.max(...colIndices) - Math.min(...colIndices) + 1
+        colCount: Math.max(...colIndices) - Math.min(...colIndices) + 1,
       },
       columnIds,
       columnTypes,
       timestamp: Date.now(),
-      isCut: false
-    };
+      isCut: false,
+    }
   }
 
   /**
    * Get display value for different column types
    */
   private getDisplayValue(value: any, column: any): string | undefined {
-    if (value === null || value === undefined) return undefined;
+    if (value === null || value === undefined) return undefined
 
     switch (column.type) {
       case 'select':
       case 'single-select':
         // For select fields, preserve the option label if available
-        return column.options?.find((opt: any) => opt.value === value)?.label || String(value);
+        return column.options?.find((opt: any) => opt.value === value)?.label || String(value)
       case 'multi-select':
         if (Array.isArray(value)) {
-          return value.map(v =>
-            column.options?.find((opt: any) => opt.value === v)?.label || String(v)
-          ).join(', ');
+          return value
+            .map((v) => column.options?.find((opt: any) => opt.value === v)?.label || String(v))
+            .join(', ')
         }
-        return String(value);
+        return String(value)
       case 'date':
       case 'datetime':
-        return value instanceof Date ? value.toISOString() : String(value);
+        return value instanceof Date ? value.toISOString() : String(value)
       case 'currency':
-        return typeof value === 'number' ? value.toString() : String(value);
+        return typeof value === 'number' ? value.toString() : String(value)
       default:
-        return String(value);
+        return String(value)
     }
   }
 
   /**
    * Perform column-aware paste operation
    */
-  private async performColumnAwarePaste(data: any[][], targetCells: Set<string>): Promise<PasteResult> {
-    const processedRows = this.tableCore$.processedRows.get();
-    const allColumns = this.tableCore$.columns.get();
+  private async performColumnAwarePaste(
+    data: any[][],
+    targetCells: Set<string>,
+  ): Promise<PasteResult> {
+    const processedRows = this.tableCore$.processedRows.get()
+    const allColumns = this.tableCore$.columns.get()
 
     if (processedRows.length === 0 || allColumns.length === 0) {
       return {
@@ -421,97 +434,105 @@ export class ClipboardManager {
         skippedCount: 0,
         blockedCount: 0,
         errorMessage: 'Grid data not ready for paste operation',
-        details: []
-      };
+        details: [],
+      }
     }
 
     // Group cells by row and sort for consistent pasting
-    const targetCellArray = Array.from(targetCells);
-    const cellsByRow = new Map<string, string[]>();
+    const targetCellArray = Array.from(targetCells)
+    const cellsByRow = new Map<string, string[]>()
 
-    targetCellArray.forEach(cellId => {
-      const [rowId, columnId] = cellId.split(':');
+    targetCellArray.forEach((cellId) => {
+      const [rowId, columnId] = cellId.split(':')
       if (!cellsByRow.has(rowId)) {
-        cellsByRow.set(rowId, []);
+        cellsByRow.set(rowId, [])
       }
-      cellsByRow.get(rowId)!.push(columnId);
-    });
+      cellsByRow.get(rowId)!.push(columnId)
+    })
 
     const sortedRows = Array.from(cellsByRow.keys()).sort((a, b) => {
-      const indexA = processedRows.findIndex(row => row.id === a);
-      const indexB = processedRows.findIndex(row => row.id === b);
-      return indexA - indexB;
-    });
+      const indexA = processedRows.findIndex((row) => row.id === a)
+      const indexB = processedRows.findIndex((row) => row.id === b)
+      return indexA - indexB
+    })
 
-    let pastedCount = 0;
-    let errorCount = 0;
-    let skippedCount = 0;
-    let blockedCount = 0;
-    const details: PasteResult['details'] = [];
+    let pastedCount = 0
+    let errorCount = 0
+    let skippedCount = 0
+    let blockedCount = 0
+    const details: PasteResult['details'] = []
 
     // Get source column metadata from clipboard for type checking
-    const clipboard = this.tableInteraction$.clipboard.get();
-    const sourceColumns = new Map<number, any>(); // Map column index to source column info
+    const clipboard = this.tableInteraction$.clipboard.get()
+    const sourceColumns = new Map<number, any>() // Map column index to source column info
 
     // Extract source column type information if available
     if (clipboard?.metadata?.sourceColumns) {
       clipboard.metadata.sourceColumns.forEach((sourceCol: any, index: number) => {
-        sourceColumns.set(index, sourceCol);
-      });
+        sourceColumns.set(index, sourceCol)
+      })
     }
 
     fileLog.info('📋 Starting column-aware paste operation', {
       dataRows: data.length,
       dataCols: data[0]?.length || 0,
       targetRowsCount: sortedRows.length,
-      targetCellsTotal: targetCells.size
-    });
+      targetCellsTotal: targetCells.size,
+    })
 
     // Paste data row by row with column type awareness
-    for (let dataRowIdx = 0; dataRowIdx < data.length && dataRowIdx < sortedRows.length; dataRowIdx++) {
-      const rowId = sortedRows[dataRowIdx];
-      const columnsInRow = cellsByRow.get(rowId) || [];
+    for (
+      let dataRowIdx = 0;
+      dataRowIdx < data.length && dataRowIdx < sortedRows.length;
+      dataRowIdx++
+    ) {
+      const rowId = sortedRows[dataRowIdx]
+      const columnsInRow = cellsByRow.get(rowId) || []
 
       // Sort columns by their position
       const sortedColumnsInRow = columnsInRow.sort((a, b) => {
-        const indexA = allColumns.findIndex(col => col.id === a);
-        const indexB = allColumns.findIndex(col => col.id === b);
-        return indexA - indexB;
-      });
+        const indexA = allColumns.findIndex((col) => col.id === a)
+        const indexB = allColumns.findIndex((col) => col.id === b)
+        return indexA - indexB
+      })
 
-      for (let dataColIdx = 0; dataColIdx < data[dataRowIdx].length && dataColIdx < sortedColumnsInRow.length; dataColIdx++) {
-        const columnId = sortedColumnsInRow[dataColIdx];
-        const rawValue = data[dataRowIdx][dataColIdx];
-        const column = allColumns.find(c => c.id === columnId);
+      for (
+        let dataColIdx = 0;
+        dataColIdx < data[dataRowIdx].length && dataColIdx < sortedColumnsInRow.length;
+        dataColIdx++
+      ) {
+        const columnId = sortedColumnsInRow[dataColIdx]
+        const rawValue = data[dataRowIdx][dataColIdx]
+        const column = allColumns.find((c) => c.id === columnId)
 
         if (!column || columnId === 'selection') {
-          skippedCount++;
+          skippedCount++
           details.push({
             rowId,
             columnId,
             status: 'skipped',
-            errorReason: 'Invalid column or selection column'
-          });
-          continue;
+            errorReason: 'Invalid column or selection column',
+          })
+          continue
         }
 
         // CHECK TYPE COMPATIBILITY BEFORE PROCESSING
-        const sourceColumn = sourceColumns.get(dataColIdx);
-        const sourceType = sourceColumn?.type || 'text'; // Default to text if unknown
-        const targetType = column.type || 'text';
+        const sourceColumn = sourceColumns.get(dataColIdx)
+        const sourceType = sourceColumn?.type || 'text' // Default to text if unknown
+        const targetType = column.type || 'text'
 
-        const compatibility = this.checkTypeCompatibility(sourceType, targetType, rawValue);
+        const compatibility = this.checkTypeCompatibility(sourceType, targetType, rawValue)
 
         if (!compatibility.compatible) {
-          blockedCount++;
+          blockedCount++
           details.push({
             rowId,
             columnId,
             status: 'blocked',
             errorReason: compatibility.reason,
             sourceType,
-            targetType
-          });
+            targetType,
+          })
 
           fileLog.warn('📋 Cross-type paste blocked', {
             rowId,
@@ -519,18 +540,18 @@ export class ClipboardManager {
             sourceType,
             targetType,
             value: rawValue,
-            reason: compatibility.reason
-          });
-          continue;
+            reason: compatibility.reason,
+          })
+          continue
         }
 
         try {
-          const processedValue = this.processValueForColumn(rawValue, column);
-          const originalValue = processedRows.find(r => r.id === rowId)?.[columnId];
+          const processedValue = this.processValueForColumn(rawValue, column)
+          const originalValue = processedRows.find((r) => r.id === rowId)?.[columnId]
 
           if (this.onEntityUpdate) {
-            await this.onEntityUpdate(rowId, { [columnId]: processedValue });
-            pastedCount++;
+            await this.onEntityUpdate(rowId, { [columnId]: processedValue })
+            pastedCount++
 
             details.push({
               rowId,
@@ -539,8 +560,8 @@ export class ClipboardManager {
               originalValue,
               newValue: processedValue,
               sourceType,
-              targetType
-            });
+              targetType,
+            })
 
             fileLog.debug('📋 Successfully pasted to column-aware cell', {
               rowId,
@@ -548,22 +569,22 @@ export class ClipboardManager {
               sourceType,
               targetType,
               originalValue,
-              processedValue
-            });
+              processedValue,
+            })
           } else {
-            errorCount++;
+            errorCount++
             details.push({
               rowId,
               columnId,
               status: 'error',
               errorReason: 'No update callback available',
               sourceType,
-              targetType
-            });
+              targetType,
+            })
           }
         } catch (error) {
-          errorCount++;
-          const errorReason = error instanceof Error ? error.message : 'Unknown error';
+          errorCount++
+          const errorReason = error instanceof Error ? error.message : 'Unknown error'
 
           details.push({
             rowId,
@@ -571,8 +592,8 @@ export class ClipboardManager {
             status: 'error',
             errorReason,
             sourceType,
-            targetType
-          });
+            targetType,
+          })
 
           fileLog.error('📋 Failed to paste to column-aware cell', {
             rowId,
@@ -580,8 +601,8 @@ export class ClipboardManager {
             sourceType,
             targetType,
             value: rawValue,
-            error: errorReason
-          });
+            error: errorReason,
+          })
         }
       }
     }
@@ -591,8 +612,8 @@ export class ClipboardManager {
       errorCount,
       skippedCount,
       blockedCount,
-      totalAttempted: Math.min(data.length, sortedRows.length) * (data[0]?.length || 0)
-    });
+      totalAttempted: Math.min(data.length, sortedRows.length) * (data[0]?.length || 0),
+    })
 
     return {
       success: pastedCount > 0,
@@ -601,8 +622,8 @@ export class ClipboardManager {
       skippedCount,
       blockedCount,
       errorMessage: errorCount > 0 ? `${errorCount} cells failed to paste` : undefined,
-      details
-    };
+      details,
+    }
   }
 
   /**
@@ -610,48 +631,48 @@ export class ClipboardManager {
    */
   private processValueForColumn(rawValue: any, column: any): any {
     if (rawValue === null || rawValue === undefined || rawValue === '') {
-      return null;
+      return null
     }
 
-    const columnType = column.type || 'text';
-    const stringValue = String(rawValue).trim();
+    const columnType = column.type || 'text'
+    const stringValue = String(rawValue).trim()
 
     switch (columnType) {
       case 'select':
       case 'single-select':
-        return this.processSelectValue(stringValue, column);
+        return this.processSelectValue(stringValue, column)
 
       case 'multi-select':
-        return this.processMultiSelectValue(stringValue, column);
+        return this.processMultiSelectValue(stringValue, column)
 
       case 'number':
-        return this.processNumberValue(stringValue);
+        return this.processNumberValue(stringValue)
 
       case 'currency':
-        return this.processCurrencyValue(stringValue);
+        return this.processCurrencyValue(stringValue)
 
       case 'date':
-        return this.processDateValue(stringValue);
+        return this.processDateValue(stringValue)
 
       case 'datetime':
-        return this.processDateTimeValue(stringValue);
+        return this.processDateTimeValue(stringValue)
 
       case 'boolean':
-        return this.processBooleanValue(stringValue);
+        return this.processBooleanValue(stringValue)
 
       case 'email':
-        return this.processEmailValue(stringValue);
+        return this.processEmailValue(stringValue)
 
       case 'url':
-        return this.processUrlValue(stringValue);
+        return this.processUrlValue(stringValue)
 
       case 'phone':
-        return this.processPhoneValue(stringValue);
+        return this.processPhoneValue(stringValue)
 
       case 'text':
       case 'textarea':
       default:
-        return stringValue;
+        return stringValue
     }
   }
 
@@ -659,52 +680,58 @@ export class ClipboardManager {
    * Process select field values
    */
   private processSelectValue(value: string, column: any): string | null {
-    const options = column.options || [];
+    const options = column.options || []
 
     // First try exact match by label
-    const exactMatch = options.find((opt: any) => opt.label === value);
-    if (exactMatch) return exactMatch.value;
+    const exactMatch = options.find((opt: any) => opt.label === value)
+    if (exactMatch) return exactMatch.value
 
     // Try exact match by value
-    const valueMatch = options.find((opt: any) => opt.value === value);
-    if (valueMatch) return valueMatch.value;
+    const valueMatch = options.find((opt: any) => opt.value === value)
+    if (valueMatch) return valueMatch.value
 
     // Try case-insensitive match
-    const caseInsensitiveMatch = options.find((opt: any) =>
-      opt.label?.toLowerCase() === value.toLowerCase() ||
-      opt.value?.toLowerCase() === value.toLowerCase()
-    );
-    if (caseInsensitiveMatch) return caseInsensitiveMatch.value;
+    const caseInsensitiveMatch = options.find(
+      (opt: any) =>
+        opt.label?.toLowerCase() === value.toLowerCase() ||
+        opt.value?.toLowerCase() === value.toLowerCase(),
+    )
+    if (caseInsensitiveMatch) return caseInsensitiveMatch.value
 
     // If no match found, return null and log warning
     fileLog.warn('📋 Select value not found in options', {
       value,
-      availableOptions: options.map((opt: any) => ({ label: opt.label, value: opt.value }))
-    });
+      availableOptions: options.map((opt: any) => ({ label: opt.label, value: opt.value })),
+    })
 
-    throw new Error(`Invalid option "${value}" for select field. Available options: ${options.map((opt: any) => opt.label).join(', ')}`);
+    throw new Error(
+      `Invalid option "${value}" for select field. Available options: ${options.map((opt: any) => opt.label).join(', ')}`,
+    )
   }
 
   /**
    * Process multi-select field values
    */
   private processMultiSelectValue(value: string, column: any): string[] | null {
-    const options = column.options || [];
+    const options = column.options || []
 
     // Split by common delimiters
-    const values = value.split(/[,;|]/).map(v => v.trim()).filter(v => v.length > 0);
-    const processedValues: string[] = [];
+    const values = value
+      .split(/[,;|]/)
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0)
+    const processedValues: string[] = []
 
     for (const val of values) {
       try {
-        const processed = this.processSelectValue(val, column);
-        if (processed) processedValues.push(processed);
+        const processed = this.processSelectValue(val, column)
+        if (processed) processedValues.push(processed)
       } catch (error) {
-        fileLog.warn('📋 Skipping invalid multi-select value', { value: val, error });
+        fileLog.warn('📋 Skipping invalid multi-select value', { value: val, error })
       }
     }
 
-    return processedValues.length > 0 ? processedValues : null;
+    return processedValues.length > 0 ? processedValues : null
   }
 
   /**
@@ -712,14 +739,14 @@ export class ClipboardManager {
    */
   private processNumberValue(value: string): number | null {
     // Remove common formatting
-    const cleaned = value.replace(/[$,\s]/g, '');
-    const parsed = parseFloat(cleaned);
+    const cleaned = value.replace(/[$,\s]/g, '')
+    const parsed = parseFloat(cleaned)
 
     if (isNaN(parsed)) {
-      throw new Error(`"${value}" is not a valid number`);
+      throw new Error(`"${value}" is not a valid number`)
     }
 
-    return parsed;
+    return parsed
   }
 
   /**
@@ -727,14 +754,14 @@ export class ClipboardManager {
    */
   private processCurrencyValue(value: string): number | null {
     // Remove currency symbols and formatting
-    const cleaned = value.replace(/[$€£¥,\s]/g, '');
-    const parsed = parseFloat(cleaned);
+    const cleaned = value.replace(/[$€£¥,\s]/g, '')
+    const parsed = parseFloat(cleaned)
 
     if (isNaN(parsed)) {
-      throw new Error(`"${value}" is not a valid currency amount`);
+      throw new Error(`"${value}" is not a valid currency amount`)
     }
 
-    return parsed;
+    return parsed
   }
 
   /**
@@ -742,13 +769,13 @@ export class ClipboardManager {
    */
   private processDateValue(value: string): string | null {
     try {
-      const date = new Date(value);
+      const date = new Date(value)
       if (isNaN(date.getTime())) {
-        throw new Error(`"${value}" is not a valid date`);
+        throw new Error(`"${value}" is not a valid date`)
       }
-      return date.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+      return date.toISOString().split('T')[0] // Return YYYY-MM-DD format
     } catch (error) {
-      throw new Error(`"${value}" is not a valid date format`);
+      throw new Error(`"${value}" is not a valid date format`)
     }
   }
 
@@ -757,13 +784,13 @@ export class ClipboardManager {
    */
   private processDateTimeValue(value: string): string | null {
     try {
-      const date = new Date(value);
+      const date = new Date(value)
       if (isNaN(date.getTime())) {
-        throw new Error(`"${value}" is not a valid date/time`);
+        throw new Error(`"${value}" is not a valid date/time`)
       }
-      return date.toISOString();
+      return date.toISOString()
     } catch (error) {
-      throw new Error(`"${value}" is not a valid date/time format`);
+      throw new Error(`"${value}" is not a valid date/time format`)
     }
   }
 
@@ -771,30 +798,30 @@ export class ClipboardManager {
    * Process boolean field values
    */
   private processBooleanValue(value: string): boolean | null {
-    const lower = value.toLowerCase();
+    const lower = value.toLowerCase()
 
     if (['true', 'yes', '1', 'on', 'checked', '✓'].includes(lower)) {
-      return true;
+      return true
     }
 
     if (['false', 'no', '0', 'off', 'unchecked', '✗'].includes(lower)) {
-      return false;
+      return false
     }
 
-    throw new Error(`"${value}" is not a valid boolean value (use true/false, yes/no, 1/0)`);
+    throw new Error(`"${value}" is not a valid boolean value (use true/false, yes/no, 1/0)`)
   }
 
   /**
    * Process email field values
    */
   private processEmailValue(value: string): string | null {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
     if (!emailRegex.test(value)) {
-      throw new Error(`"${value}" is not a valid email address`);
+      throw new Error(`"${value}" is not a valid email address`)
     }
 
-    return value.toLowerCase();
+    return value.toLowerCase()
   }
 
   /**
@@ -803,11 +830,11 @@ export class ClipboardManager {
   private processUrlValue(value: string): string | null {
     try {
       // Add protocol if missing
-      const urlToTest = value.startsWith('http') ? value : `https://${value}`;
-      new URL(urlToTest);
-      return urlToTest;
+      const urlToTest = value.startsWith('http') ? value : `https://${value}`
+      new URL(urlToTest)
+      return urlToTest
     } catch (error) {
-      throw new Error(`"${value}" is not a valid URL`);
+      throw new Error(`"${value}" is not a valid URL`)
     }
   }
 
@@ -816,14 +843,14 @@ export class ClipboardManager {
    */
   private processPhoneValue(value: string): string | null {
     // Remove common phone formatting
-    const cleaned = value.replace(/[\s\-\(\)\+]/g, '');
+    const cleaned = value.replace(/[\s\-\(\)\+]/g, '')
 
     // Basic validation - should be mostly digits
     if (!/^\d{10,15}$/.test(cleaned)) {
-      throw new Error(`"${value}" is not a valid phone number`);
+      throw new Error(`"${value}" is not a valid phone number`)
     }
 
-    return cleaned;
+    return cleaned
   }
 
   /**
@@ -832,23 +859,23 @@ export class ClipboardManager {
   private async copyToSystemClipboard(clipboardData: VibeGridClipboardData): Promise<void> {
     try {
       // Convert to simple 2D array for system clipboard
-      const textData = this.convertToTextFormat(clipboardData);
-      const text = textData.map(row => row.join('\t')).join('\n');
+      const textData = this.convertToTextFormat(clipboardData)
+      const text = textData.map((row) => row.join('\t')).join('\n')
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(text)
       } else {
         // Fallback for older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
       }
     } catch (error) {
-      fileLog.error('📋 Failed to copy to system clipboard', error);
-      throw error;
+      fileLog.error('📋 Failed to copy to system clipboard', error)
+      throw error
     }
   }
 
@@ -856,70 +883,77 @@ export class ClipboardManager {
    * Convert rich clipboard data to simple text format
    */
   private convertToTextFormat(clipboardData: VibeGridClipboardData): string[][] {
-    const { bounds, cells } = clipboardData;
-    const grid: string[][] = [];
+    const { bounds, cells } = clipboardData
+    const grid: string[][] = []
 
     // Initialize grid
     for (let row = 0; row < bounds.rowCount; row++) {
-      grid[row] = new Array(bounds.colCount).fill('');
+      grid[row] = new Array(bounds.colCount).fill('')
     }
 
     // Fill grid with cell data
-    cells.forEach(cell => {
-      const relativeRow = cell.rowIndex - bounds.startRow;
-      const relativeCol = cell.columnIndex - bounds.startCol;
+    cells.forEach((cell) => {
+      const relativeRow = cell.rowIndex - bounds.startRow
+      const relativeCol = cell.columnIndex - bounds.startCol
 
-      if (relativeRow >= 0 && relativeRow < bounds.rowCount &&
-          relativeCol >= 0 && relativeCol < bounds.colCount) {
-        grid[relativeRow][relativeCol] = cell.displayValue || String(cell.value || '');
+      if (
+        relativeRow >= 0 &&
+        relativeRow < bounds.rowCount &&
+        relativeCol >= 0 &&
+        relativeCol < bounds.colCount
+      ) {
+        grid[relativeRow][relativeCol] = cell.displayValue || String(cell.value || '')
       }
-    });
+    })
 
-    return grid;
+    return grid
   }
 
   /**
    * Validate paste operation before execution
    */
-  validatePaste(clipboardData: VibeGridClipboardData, targetCells: Set<string>): PasteValidationResult {
-    const targetCellArray = Array.from(targetCells);
+  validatePaste(
+    clipboardData: VibeGridClipboardData,
+    targetCells: Set<string>,
+  ): PasteValidationResult {
+    const targetCellArray = Array.from(targetCells)
 
     if (targetCellArray.length === 0) {
       return {
         isValid: false,
-        reason: 'No target cells selected'
-      };
+        reason: 'No target cells selected',
+      }
     }
 
-    const columns = this.tableCore$.columns.get();
-    const targetCellOperations: PasteValidationResult['targetCells'] = [];
+    const columns = this.tableCore$.columns.get()
+    const targetCellOperations: PasteValidationResult['targetCells'] = []
 
     // Validate each target cell
-    targetCellArray.forEach(cellId => {
-      const [rowId, columnId] = cellId.split(':');
-      const column = columns.find(c => c.id === columnId);
+    targetCellArray.forEach((cellId) => {
+      const [rowId, columnId] = cellId.split(':')
+      const column = columns.find((c) => c.id === columnId)
 
       if (!column) {
-        return;
+        return
       }
 
       // Find corresponding source cell
-      const sourceCell = clipboardData.cells.find(c =>
-        c.rowIndex === 0 && c.columnIndex === 0 // Simplified for now
-      );
+      const sourceCell = clipboardData.cells.find(
+        (c) => c.rowIndex === 0 && c.columnIndex === 0, // Simplified for now
+      )
 
       if (sourceCell) {
         targetCellOperations!.push({
           rowId,
           columnId,
-          sourceValue: sourceCell.value
-        });
+          sourceValue: sourceCell.value,
+        })
       }
-    });
+    })
 
     return {
       isValid: true,
-      targetCells: targetCellOperations
-    };
+      targetCells: targetCellOperations,
+    }
   }
 }

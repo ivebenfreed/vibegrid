@@ -5,21 +5,21 @@
  * Displays progress, errors, and provides retry functionality.
  */
 
-import React from 'react';
-import { Loader2, AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
-import { useSelector } from '@legendapp/state/react';
-import type { VibeGridHydrationManager } from '../stores/init-state';
-import { TableSkeleton } from './TableSkeleton';
+import { useSelector } from '@legendapp/state/react'
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react'
+import React from 'react'
+import type { VibeGridHydrationManager } from '../stores/init-state'
+import { TableSkeleton } from './TableSkeleton'
 
 // ====================================
 // COMPONENT PROPS
 // ====================================
 
 interface VibeGridLoadingOverlayProps {
-  initManager: VibeGridHydrationManager;
-  height?: number | string;
-  width?: number | string;
-  showDetailedProgress?: boolean;
+  initManager: VibeGridHydrationManager
+  height?: number | string
+  width?: number | string
+  showDetailedProgress?: boolean
 }
 
 // ====================================
@@ -32,25 +32,21 @@ export function VibeGridLoadingOverlay({
   width = '100%',
   showDetailedProgress = false,
 }: VibeGridLoadingOverlayProps) {
-
   // Subscribe to init state
-  const isFullyInitialized = useSelector(initManager.isFullyHydrated$);
-  const errors = useSelector(initManager.errors$);
-  const hasErrors = useSelector(initManager.hasErrors$);
-  const criticalErrors = useSelector(initManager.criticalErrors$);
+  const isFullyInitialized = useSelector(initManager.isFullyHydrated$)
+  const errors = useSelector(initManager.errors$)
+  const hasErrors = useSelector(initManager.hasErrors$)
+  const criticalErrors = useSelector(initManager.criticalErrors$)
 
   // Always render - let parent control visibility to prevent flash
   // if (isFullyInitialized) {
   //   return null;
   // }
 
-  const hasCriticalErrors = criticalErrors.length > 0;
+  const hasCriticalErrors = criticalErrors.length > 0
 
   return (
-    <div
-      className="relative bg-white"
-      style={{ height, width }}
-    >
+    <div className="relative bg-white" style={{ height, width }}>
       {/* Clean Table Skeleton */}
       <TableSkeleton columns={6} rows={8} />
 
@@ -87,9 +83,8 @@ export function VibeGridLoadingOverlay({
         </div>
       )}
     </div>
-  );
+  )
 }
-
 
 // ====================================
 // LOADING STATE HOOK
@@ -99,10 +94,10 @@ export function VibeGridLoadingOverlay({
  * Hook for using VibeGrid loading state in components
  */
 export function useVibeGridLoadingState(initManager: VibeGridHydrationManager) {
-  const isFullyInitialized = useSelector(initManager.isFullyHydrated$);
-  const progress = useSelector(initManager.hydrationProgress$);
-  const hasErrors = useSelector(initManager.hasErrors$);
-  const criticalErrors = useSelector(initManager.criticalErrors$);
+  const isFullyInitialized = useSelector(initManager.isFullyHydrated$)
+  const progress = useSelector(initManager.hydrationProgress$)
+  const hasErrors = useSelector(initManager.hasErrors$)
+  const criticalErrors = useSelector(initManager.criticalErrors$)
 
   return {
     isLoading: !isFullyInitialized,
@@ -110,8 +105,8 @@ export function useVibeGridLoadingState(initManager: VibeGridHydrationManager) {
     progress,
     hasErrors,
     hasCriticalErrors: criticalErrors.length > 0,
-    canRetry: criticalErrors.some(error => error.canRetry),
+    canRetry: criticalErrors.some((error) => error.canRetry),
     retry: () => initManager.reset(),
     getStatus: () => initManager.getStatus(),
-  };
+  }
 }

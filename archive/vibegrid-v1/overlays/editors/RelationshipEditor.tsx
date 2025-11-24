@@ -4,12 +4,12 @@
  * Uses ComboboxEditor UI but with specialized relationship data loading and saving
  */
 
-import React from 'react'
 import { use$ } from '@legendapp/state/react'
+import React from 'react'
 import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
+import { log } from '@/logger'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
-import { log } from '@/logger'
 
 const fileLog = log('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
 
@@ -20,7 +20,7 @@ export function RelationshipEditor({
   onCommit,
   onCancel,
   onUpdate,
-  onBlur
+  onBlur,
 }: EditorProps) {
   const currentOrgId = use$(universeOrgId$)
   const cellType = column.cellType || column.type
@@ -32,11 +32,15 @@ export function RelationshipEditor({
 
   // Load entity data for entity_reference fields
   const entityType = React.useMemo(() => {
-    if ((cellType === 'entity_reference' || cellType === 'custom_entity_reference') && column.id.endsWith('_id')) {
+    if (
+      (cellType === 'entity_reference' || cellType === 'custom_entity_reference') &&
+      column.id.endsWith('_id')
+    ) {
       const baseName = column.id.slice(0, -3)
-      return baseName.split('_').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-      ).join('')
+      return baseName
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('')
     }
     return null
   }, [cellType, column.id])
@@ -51,13 +55,13 @@ export function RelationshipEditor({
       if (userData && typeof userData === 'object') {
         const options = Object.values(userData).map((user: any) => ({
           value: user.id,
-          label: user.name || user.email || user.id
+          label: user.name || user.email || user.id,
         }))
 
         fileLog.info('🔍 RelationshipEditor: Loaded user options', {
           columnId: column.id,
           userCount: options.length,
-          sampleUsers: options.slice(0, 3)
+          sampleUsers: options.slice(0, 3),
         })
 
         return options
@@ -66,14 +70,14 @@ export function RelationshipEditor({
       if (entityData && typeof entityData === 'object') {
         const options = Object.values(entityData).map((entity: any) => ({
           value: entity.id,
-          label: entity.name || entity.title || entity.id
+          label: entity.name || entity.title || entity.id,
         }))
 
         fileLog.info('🔍 RelationshipEditor: Loaded entity options', {
           columnId: column.id,
           entityType,
           entityCount: options.length,
-          sampleEntities: options.slice(0, 3)
+          sampleEntities: options.slice(0, 3),
         })
 
         return options
@@ -84,25 +88,31 @@ export function RelationshipEditor({
   }, [cellType, column.id, userData, entityData, entityType])
 
   // Create enhanced column with relationship options
-  const enhancedColumn = React.useMemo(() => ({
-    ...column,
-    options: relationshipOptions,
-    enumOptions: relationshipOptions
-  }), [column, relationshipOptions])
+  const enhancedColumn = React.useMemo(
+    () => ({
+      ...column,
+      options: relationshipOptions,
+      enumOptions: relationshipOptions,
+    }),
+    [column, relationshipOptions],
+  )
 
   // Handle relationship-specific saving
-  const handleRelationshipCommit = React.useCallback((value: any) => {
-    fileLog.info('🔗 RelationshipEditor: Committing relationship value', {
-      columnId: column.id,
-      cellType,
-      value,
-      initialValue
-    })
+  const handleRelationshipCommit = React.useCallback(
+    (value: any) => {
+      fileLog.info('🔗 RelationshipEditor: Committing relationship value', {
+        columnId: column.id,
+        cellType,
+        value,
+        initialValue,
+      })
 
-    // For relationships, we save the ID value just like regular fields
-    // The backend relationship system will handle the storage in relationship tables
-    onCommit(value)
-  }, [column.id, cellType, onCommit, initialValue])
+      // For relationships, we save the ID value just like regular fields
+      // The backend relationship system will handle the storage in relationship tables
+      onCommit(value)
+    },
+    [column.id, cellType, onCommit, initialValue],
+  )
 
   const getPlaceholder = () => {
     if (cellType === 'user_reference' || cellType === 'custom_user_reference') {

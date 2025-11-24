@@ -5,116 +5,116 @@
  * Manages drag state and delegates click events to appropriate handlers.
  */
 
-import { createLogger } from '@/shared/lib/logging';
-import { runInAction } from 'mobx';
-import type { VisualStateStore } from '../../stores/VisualStateStore';
-import type { InteractionCoordinator } from '../../coordination/InteractionCoordinator';
+import { runInAction } from 'mobx'
+import { createLogger } from '@/shared/lib/logging'
+import type { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
+import type { VisualStateStore } from '../../stores/VisualStateStore'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts');
+const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts')
 
 export interface MouseControllerOptions {
-  container: HTMLElement;
-  bodyRenderer?: any; // Will delegate cell clicks here
-  scrollController?: any; // Will delegate outside clicks here
-  selectionController?: any; // For row/column selection operations
-  interactionStore: any; // For reactive state updates
-  visualStateStore: VisualStateStore;
-  tableCoreStore?: any; // For accessing processed rows and columns
-  keyboardController?: any; // For ensuring focus after interactions
-  coordinator?: InteractionCoordinator; // ✅ NEW: InteractionCoordinator for clean event delegation
-  enableSelectionColumn?: boolean; // Control whether row header clicks select rows
+  container: HTMLElement
+  bodyRenderer?: any // Will delegate cell clicks here
+  scrollController?: any // Will delegate outside clicks here
+  selectionController?: any // For row/column selection operations
+  interactionStore: any // For reactive state updates
+  visualStateStore: VisualStateStore
+  tableCoreStore?: any // For accessing processed rows and columns
+  keyboardController?: any // For ensuring focus after interactions
+  coordinator?: InteractionCoordinator // ✅ NEW: InteractionCoordinator for clean event delegation
+  enableSelectionColumn?: boolean // Control whether row header clicks select rows
 }
 
 export class MouseController {
-  private container: HTMLElement;
-  private bodyRenderer?: any;
-  private scrollController?: any;
-  private selectionController?: any;
-  private interactionStore: any;
-  private visualStateStore: VisualStateStore;
-  private visualState?: any; // Legacy visual state reference
-  private tableCoreStore?: any;
-  private keyboardController?: any;
-  private coordinator?: InteractionCoordinator; // ✅ NEW: Coordinator for clean event handling
-  private enableSelectionColumn: boolean;
+  private container: HTMLElement
+  private bodyRenderer?: any
+  private scrollController?: any
+  private selectionController?: any
+  private interactionStore: any
+  private visualStateStore: VisualStateStore
+  private visualState?: any // Legacy visual state reference
+  private tableCoreStore?: any
+  private keyboardController?: any
+  private coordinator?: InteractionCoordinator // ✅ NEW: Coordinator for clean event handling
+  private enableSelectionColumn: boolean
 
   // Mouse state tracking
-  private isDragging = false;
-  private isTracking = false; // Flag to track if we're monitoring for drag
-  private dragThreshold = 8; // pixels (increased to be less sensitive)
-  private startPosition: { x: number; y: number } = { x: 0, y: 0 };
-  private justEndedDrag = false; // Flag to prevent click events immediately after drag
+  private isDragging = false
+  private isTracking = false // Flag to track if we're monitoring for drag
+  private dragThreshold = 8 // pixels (increased to be less sensitive)
+  private startPosition: { x: number; y: number } = { x: 0, y: 0 }
+  private justEndedDrag = false // Flag to prevent click events immediately after drag
 
   // Column drag state
-  private isColumnDrag = false;
-  private dragColumnId: string | null = null;
-  private dragPreviewElement: HTMLElement | null = null;
-  private dropLineElement: HTMLElement | null = null;
+  private isColumnDrag = false
+  private dragColumnId: string | null = null
+  private dragPreviewElement: HTMLElement | null = null
+  private dropLineElement: HTMLElement | null = null
 
   // Row drag state
-  private isRowDrag = false;
-  private dragRowId: string | null = null;
-  private dragRowGroupId: string | null = null;
+  private isRowDrag = false
+  private dragRowId: string | null = null
+  private dragRowGroupId: string | null = null
 
   // Column resize state
-  private isColumnResize = false;
+  private isColumnResize = false
 
   // Fill handle drag state
-  private isFillDrag = false;
+  private isFillDrag = false
 
   // Throttling for resize updates
-  private resizeThrottleTimeout: number | null = null;
-  private lastResizeUpdate: number = 0;
-  private readonly RESIZE_THROTTLE_MS = 16; // ~60fps
+  private resizeThrottleTimeout: number | null = null
+  private lastResizeUpdate: number = 0
+  private readonly RESIZE_THROTTLE_MS = 16 // ~60fps
 
   // Event listeners for cleanup
   private eventListeners: Array<{
-    element: EventTarget;
-    event: string;
-    handler: EventListener;
-  }> = [];
+    element: EventTarget
+    event: string
+    handler: EventListener
+  }> = []
 
   constructor(options: MouseControllerOptions) {
-    this.container = options.container;
-    this.bodyRenderer = options.bodyRenderer;
-    this.scrollController = options.scrollController;
-    this.selectionController = options.selectionController;
-    this.interactionStore = options.interactionStore;
-    this.visualStateStore = options.visualStateStore;
-    this.tableCoreStore = options.tableCoreStore;
-    this.keyboardController = options.keyboardController;
-    this.coordinator = options.coordinator; // ✅ NEW: Store coordinator for event delegation
-    this.enableSelectionColumn = options.enableSelectionColumn ?? true; // Default to true
+    this.container = options.container
+    this.bodyRenderer = options.bodyRenderer
+    this.scrollController = options.scrollController
+    this.selectionController = options.selectionController
+    this.interactionStore = options.interactionStore
+    this.visualStateStore = options.visualStateStore
+    this.tableCoreStore = options.tableCoreStore
+    this.keyboardController = options.keyboardController
+    this.coordinator = options.coordinator // ✅ NEW: Store coordinator for event delegation
+    this.enableSelectionColumn = options.enableSelectionColumn ?? true // Default to true
 
     // Prevent text selection during drag operations
-    this.container.style.userSelect = 'none';
-    this.container.style.webkitUserSelect = 'none';
+    this.container.style.userSelect = 'none'
+    this.container.style.webkitUserSelect = 'none'
 
-    this.setupGlobalMouseHandling();
-    fileLog.debug('🖱️ MouseController initialized with global event handling');
+    this.setupGlobalMouseHandling()
+    fileLog.debug('🖱️ MouseController initialized with global event handling')
   }
 
   /**
    * Setup global mouse event listeners - ONLY these listeners should exist for mouse events
    */
   private setupGlobalMouseHandling(): void {
-    fileLog.debug('🖱️ Setting up global mouse event coordination');
+    fileLog.debug('🖱️ Setting up global mouse event coordination')
 
     // Global mouse event handlers
-    const mouseDownHandler = this.onMouseDown.bind(this);
-    const mouseMoveHandler = this.onMouseMove.bind(this);
-    const mouseUpHandler = this.onMouseUp.bind(this);
-    const clickHandler = this.onClick.bind(this);
+    const mouseDownHandler = this.onMouseDown.bind(this)
+    const mouseMoveHandler = this.onMouseMove.bind(this)
+    const mouseUpHandler = this.onMouseUp.bind(this)
+    const clickHandler = this.onClick.bind(this)
 
     // Add global listeners to document to catch all mouse events
-    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener);
-    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener);
-    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener);
-    this.addEventListenerTracked(document, 'click', clickHandler as EventListener);
+    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener)
+    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener)
+    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener)
+    this.addEventListenerTracked(document, 'click', clickHandler as EventListener)
 
     // NOTE: No HTML5 drag events needed - we use pure mouse events for column drag
 
-    fileLog.debug('✅ Global mouse event coordination setup complete');
+    fileLog.debug('✅ Global mouse event coordination setup complete')
   }
 
   /**
@@ -123,22 +123,22 @@ export class MouseController {
   private onMouseDown(e: MouseEvent): void {
     // Only handle events within our container
     if (!this.container.contains(e.target as Node)) {
-      return;
+      return
     }
 
-    this.startPosition = { x: e.clientX, y: e.clientY };
-    this.isDragging = false;
-    this.isTracking = true;
-    this.isColumnDrag = false;
-    this.dragColumnId = null;
-    this.isRowDrag = false;
-    this.dragRowId = null;
-    this.dragRowGroupId = null;
-    this.isColumnResize = false;
-    this.isFillDrag = false;
+    this.startPosition = { x: e.clientX, y: e.clientY }
+    this.isDragging = false
+    this.isTracking = true
+    this.isColumnDrag = false
+    this.dragColumnId = null
+    this.isRowDrag = false
+    this.dragRowId = null
+    this.dragRowGroupId = null
+    this.isColumnResize = false
+    this.isFillDrag = false
 
     // Provide immediate visual feedback on mouse down
-    const target = e.target as HTMLElement;
+    const target = e.target as HTMLElement
 
     fileLog.debug('🖱️ Mouse down on element', {
       tagName: target.tagName,
@@ -151,101 +151,105 @@ export class MouseController {
       hasResizeHandle: target.classList.contains('vibegridx-resize-handle'),
       closestResizeHandle: !!target.closest('.vibegridx-resize-handle'),
       hasFillHandle: target.classList.contains('vibegridx-fill-handle'),
-      closestFillHandle: !!target.closest('.vibegridx-fill-handle')
-    });
+      closestFillHandle: !!target.closest('.vibegridx-fill-handle'),
+    })
 
     // Check for fill handle first (highest priority - should not trigger selection)
-    const fillHandle = target.closest('.vibegridx-fill-handle');
+    const fillHandle = target.closest('.vibegridx-fill-handle')
     if (fillHandle) {
-      this.isFillDrag = true;
-      fileLog.info('📋 Fill handle mousedown detected - starting fill drag');
+      this.isFillDrag = true
+      fileLog.info('📋 Fill handle mousedown detected - starting fill drag')
 
       // Notify coordinator or overlay manager about fill start
       if (this.coordinator) {
-        this.coordinator.handleFillStart?.();
+        this.coordinator.handleFillStart?.()
       }
 
-      e.preventDefault();
-      e.stopPropagation();
-      return;
+      e.preventDefault()
+      e.stopPropagation()
+      return
     }
 
     // Check for column resize handle second (high priority)
-    const resizeHandle = target.closest('.vibegridx-resize-handle');
+    const resizeHandle = target.closest('.vibegridx-resize-handle')
     if (resizeHandle) {
-      const headerElement = resizeHandle.closest('[data-column-id]');
-      const columnId = headerElement?.getAttribute('data-column-id');
+      const headerElement = resizeHandle.closest('[data-column-id]')
+      const columnId = headerElement?.getAttribute('data-column-id')
       if (columnId) {
-        this.isColumnResize = true;
+        this.isColumnResize = true
         // Get initial column width from the visual state
-        const columnWidths = this.visualStateStore.columnWidths;
-        const initialWidth = columnWidths[columnId] || 150; // Default width
+        const columnWidths = this.visualStateStore.columnWidths
+        const initialWidth = columnWidths[columnId] || 150 // Default width
 
         // Delegate to interaction state following the proper pattern
-        this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth);
+        this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth)
 
         fileLog.debug('[RESIZE] 📏 Column resize handle mouse down', {
           columnId,
           initialWidth,
           element: resizeHandle.tagName,
-          mouseX: e.clientX
-        });
+          mouseX: e.clientX,
+        })
 
         // Prevent default to avoid text selection during resize
-        e.preventDefault();
-        return;
+        e.preventDefault()
+        return
       }
     }
 
     // Check for column header drag second
-    const headerElement = target.closest('[data-column-id]:not([data-row-id])');
+    const headerElement = target.closest('[data-column-id]:not([data-row-id])')
     if (headerElement) {
-      const columnId = headerElement.getAttribute('data-column-id');
+      const columnId = headerElement.getAttribute('data-column-id')
       fileLog.debug('🎯 Header element detected', {
         element: headerElement.tagName,
         columnId,
         hasColumnId: !!columnId,
-        attributes: Array.from(headerElement.attributes).map(a => `${a.name}="${a.value}"`).join(' ')
-      });
+        attributes: Array.from(headerElement.attributes)
+          .map((a) => `${a.name}="${a.value}"`)
+          .join(' '),
+      })
       if (columnId) {
-        this.isColumnDrag = true;
-        this.dragColumnId = columnId;
-        fileLog.debug('🎯 Column header mouse down - preparing for drag', { columnId });
-        return;
+        this.isColumnDrag = true
+        this.dragColumnId = columnId
+        fileLog.debug('🎯 Column header mouse down - preparing for drag', { columnId })
+        return
       } else {
         fileLog.warn('⚠️ Header element found but no column ID', {
           element: headerElement.tagName,
-          attributes: Array.from(headerElement.attributes).map(a => `${a.name}="${a.value}"`).join(' ')
-        });
+          attributes: Array.from(headerElement.attributes)
+            .map((a) => `${a.name}="${a.value}"`)
+            .join(' '),
+        })
       }
     }
 
-    const cellElement = target.closest('[data-row-id][data-column-id]');
+    const cellElement = target.closest('[data-row-id][data-column-id]')
 
     if (cellElement) {
       // Get cell info
-      const rowId = cellElement.getAttribute('data-row-id');
-      const columnId = cellElement.getAttribute('data-column-id');
-      const cellId = `${rowId}:${columnId}`;
+      const rowId = cellElement.getAttribute('data-row-id')
+      const columnId = cellElement.getAttribute('data-column-id')
+      const cellId = `${rowId}:${columnId}`
 
       // Check if this is a drag handle cell - if so, prepare for row drag
       if (columnId === '__drag_handle') {
         // Get row element to extract group information
-        const rowElement = cellElement.closest('[data-row-id]');
-        const groupElement = rowElement?.closest('[data-group-id]');
-        const groupId = groupElement?.getAttribute('data-group-id');
+        const rowElement = cellElement.closest('[data-row-id]')
+        const groupElement = rowElement?.closest('[data-group-id]')
+        const groupId = groupElement?.getAttribute('data-group-id')
 
-        this.isRowDrag = true;
-        this.dragRowId = rowId;
-        this.dragRowGroupId = groupId || null;
+        this.isRowDrag = true
+        this.dragRowId = rowId
+        this.dragRowGroupId = groupId || null
 
         fileLog.debug('🖱️ Row drag handle mouse down - preparing for row drag', {
           cellId,
           rowId,
           groupId,
-          targetElement: target.tagName
-        });
-        return;
+          targetElement: target.tagName,
+        })
+        return
       }
 
       // Detect if click is on an editable element
@@ -253,24 +257,24 @@ export class MouseController {
       // that call stopPropagation(). We should NOT pass isEditableElement=true for them
       // because they handle their own editing. Only native input elements should be
       // marked as editable here.
-      const isEditableElement = target.matches('input, textarea, select') ||
-                                target.contentEditable === 'true';
+      const isEditableElement =
+        target.matches('input, textarea, select') || target.contentEditable === 'true'
 
       fileLog.debug('🖱️ Cell mouse down - pure event coordination', {
         cellId,
         tagName: target.tagName,
         className: target.className,
         isEditableElement,
-        hasCoordinator: !!this.coordinator
-      });
+        hasCoordinator: !!this.coordinator,
+      })
 
       // ✅ Delegate to InteractionCoordinator (coordinator is always initialized)
       if (!this.coordinator) {
-        fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen');
-        return;
+        fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen')
+        return
       }
 
-      fileLog.debug('🎯 Delegating pointer down to InteractionCoordinator');
+      fileLog.debug('🎯 Delegating pointer down to InteractionCoordinator')
 
       this.coordinator.handlePointerDown({
         cellId,
@@ -283,33 +287,33 @@ export class MouseController {
           ctrl: e.ctrlKey,
           shift: e.shiftKey,
           alt: e.altKey,
-          meta: e.metaKey
+          meta: e.metaKey,
         },
-        nativeEvent: e as PointerEvent
-      });
+        nativeEvent: e as PointerEvent,
+      })
 
       // Ensure container gets focus for keyboard navigation after cell selection
       if (this.keyboardController && !isEditableElement) {
-        this.keyboardController.ensureContainerFocus();
+        this.keyboardController.ensureContainerFocus()
       }
 
       // Only prevent tracking for actual input elements that need native behavior
       if (target.matches('input, textarea, select') || target.contentEditable === 'true') {
         // Don't track mouse for native input elements - allow normal editing behavior
-        this.isDragging = false;
-        this.isTracking = false;
-        this.startPosition = { x: 0, y: 0 };
-        return;
+        this.isDragging = false
+        this.isTracking = false
+        this.startPosition = { x: 0, y: 0 }
+        return
       } else {
         // For all other elements (including badges), track for drag selection
-        e.preventDefault();
+        e.preventDefault()
       }
     }
 
     fileLog.debug('🖱️ Mouse down tracked', {
       position: this.startPosition,
-      target: target.tagName
-    });
+      target: target.tagName,
+    })
   }
 
   /**
@@ -320,8 +324,8 @@ export class MouseController {
     if (this.isTracking) {
       const distance = Math.hypot(
         e.clientX - this.startPosition.x,
-        e.clientY - this.startPosition.y
-      );
+        e.clientY - this.startPosition.y,
+      )
 
       fileLog.debug('🖱️ Mouse move while tracking', {
         distance,
@@ -329,122 +333,131 @@ export class MouseController {
         startPos: this.startPosition,
         currentPos: { x: e.clientX, y: e.clientY },
         isTracking: this.isTracking,
-        isDragging: this.isDragging
-      });
+        isDragging: this.isDragging,
+      })
     }
 
     // Only track if we started within our container
     if (!this.isTracking) {
-      return;
+      return
     }
 
     // Handle column resize immediately (no threshold needed)
     if (this.isColumnResize) {
-      this.handleColumnResize(e);
-      return;
+      this.handleColumnResize(e)
+      return
     }
 
     // Calculate distance from start position
-    const distance = Math.hypot(
-      e.clientX - this.startPosition.x,
-      e.clientY - this.startPosition.y
-    );
+    const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
 
     // Update drag state if threshold exceeded
     if (!this.isDragging && distance > this.dragThreshold) {
-      this.isDragging = true;
+      this.isDragging = true
       fileLog.debug('🖱️ Drag threshold exceeded - now dragging', {
         distance,
         threshold: this.dragThreshold,
         isColumnDrag: this.isColumnDrag,
         dragColumnId: this.dragColumnId,
         isRowDrag: this.isRowDrag,
-        dragRowId: this.dragRowId
-      });
+        dragRowId: this.dragRowId,
+      })
 
       if (this.isColumnResize) {
         // Handle column resize (no drag threshold needed - start immediately)
-        this.handleColumnResize(e);
+        this.handleColumnResize(e)
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Start column drag
-        fileLog.debug('🎯 Column drag started', { columnId: this.dragColumnId });
-        runInAction(() => { this.interactionStore.isDragging = true });
-        runInAction(() => { this.interactionStore.dragSource = this.dragColumnId });
-        this.createDragPreview(this.dragColumnId);
+        fileLog.debug('🎯 Column drag started', { columnId: this.dragColumnId })
+        runInAction(() => {
+          this.interactionStore.isDragging = true
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = this.dragColumnId
+        })
+        this.createDragPreview(this.dragColumnId)
       } else if (this.isRowDrag && this.dragRowId) {
         // Start row drag
         fileLog.debug('🚀 Row drag started', {
           rowId: this.dragRowId,
-          groupId: this.dragRowGroupId
-        });
-        runInAction(() => { this.interactionStore.isDragging = true });
-        runInAction(() => { this.interactionStore.dragSource = this.dragRowId });
-        this.createRowDragPreview(this.dragRowId);
+          groupId: this.dragRowGroupId,
+        })
+        runInAction(() => {
+          this.interactionStore.isDragging = true
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = this.dragRowId
+        })
+        this.createRowDragPreview(this.dragRowId)
       } else if (this.isColumnDrag) {
         // Column drag was attempted but failed - don't fall back to cell selection
-        fileLog.warn('⚠️ Column drag detected but dragColumnId is missing');
+        fileLog.warn('⚠️ Column drag detected but dragColumnId is missing')
       } else if (this.isRowDrag) {
         // Row drag was attempted but failed - don't fall back to cell selection
-        fileLog.warn('⚠️ Row drag detected but dragRowId is missing');
+        fileLog.warn('⚠️ Row drag detected but dragRowId is missing')
       } else if (this.isFillDrag) {
         // Start fill drag - notify coordinator/overlay about fill start
-        fileLog.info('📋 Fill drag started');
+        fileLog.info('📋 Fill drag started')
         if (this.coordinator?.handleFillStart) {
-          this.coordinator.handleFillStart();
+          this.coordinator.handleFillStart()
         }
       } else {
         // PURE: Start drag selection with focused cell as anchor (only for cell drags)
-        const startCell = this.interactionStore.focusedCell;
+        const startCell = this.interactionStore.focusedCell
         if (startCell) {
-          this.interactionStore.startDragSelect(startCell);
-          fileLog.debug('🖱️ Started drag selection reactively', { startCell });
+          this.interactionStore.startDragSelect(startCell)
+          fileLog.debug('🖱️ Started drag selection reactively', { startCell })
         } else {
-          fileLog.warn('⚠️ No focused cell for drag start');
+          fileLog.warn('⚠️ No focused cell for drag start')
         }
       }
     }
 
     // Handle column drag target detection
     if (this.isDragging && this.isColumnDrag && this.dragColumnId) {
-      const target = e.target as HTMLElement;
-      const targetHeaderElement = target.closest('[data-column-id]:not([data-row-id])');
+      const target = e.target as HTMLElement
+      const targetHeaderElement = target.closest('[data-column-id]:not([data-row-id])')
       if (targetHeaderElement) {
-        const targetColumnId = targetHeaderElement.getAttribute('data-column-id');
+        const targetColumnId = targetHeaderElement.getAttribute('data-column-id')
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
-          runInAction(() => { this.interactionStore.dragTarget = targetColumnId });
-          this.showDropLine(targetHeaderElement as HTMLElement, e.clientX);
+          runInAction(() => {
+            this.interactionStore.dragTarget = targetColumnId
+          })
+          this.showDropLine(targetHeaderElement as HTMLElement, e.clientX)
           fileLog.debug('🎯 Column drag over target', {
             sourceColumnId: this.dragColumnId,
-            targetColumnId
-          });
+            targetColumnId,
+          })
         }
       } else {
         // Clear drop line when not over a valid target
-        this.hideDropLine();
+        this.hideDropLine()
       }
     }
 
     // Handle row drag target detection
     if (this.isDragging && this.isRowDrag && this.dragRowId) {
-      const target = e.target as HTMLElement;
-      const targetRowElement = target.closest('[data-row-id]');
+      const target = e.target as HTMLElement
+      const targetRowElement = target.closest('[data-row-id]')
       if (targetRowElement) {
-        const targetRowId = targetRowElement.getAttribute('data-row-id');
+        const targetRowId = targetRowElement.getAttribute('data-row-id')
         // Skip drag handle cells and group headers for drop targets
-        const targetCellElement = target.closest('[data-column-id]');
-        const targetColumnId = targetCellElement?.getAttribute('data-column-id');
+        const targetCellElement = target.closest('[data-column-id]')
+        const targetColumnId = targetCellElement?.getAttribute('data-column-id')
 
         if (targetRowId && targetRowId !== this.dragRowId) {
-          runInAction(() => { this.interactionStore.dragTarget = targetRowId });
-          this.showRowDropIndicator(targetRowElement as HTMLElement, e.clientY);
+          runInAction(() => {
+            this.interactionStore.dragTarget = targetRowId
+          })
+          this.showRowDropIndicator(targetRowElement as HTMLElement, e.clientY)
           fileLog.debug('🎯 Row drag over target', {
             sourceRowId: this.dragRowId,
-            targetRowId
-          });
+            targetRowId,
+          })
         }
       } else {
         // Clear drop indicator when not over a valid target
-        this.hideRowDropIndicator();
+        this.hideRowDropIndicator()
       }
     }
 
@@ -452,50 +465,55 @@ export class MouseController {
     if (this.isDragging && this.isFillDrag) {
       if (this.coordinator?.handleFillMove) {
         // Find cell under mouse (same as selection!) instead of using coordinates
-        const target = e.target as HTMLElement;
-        const cellElement = target.closest('[data-row-id][data-column-id]');
+        const target = e.target as HTMLElement
+        const cellElement = target.closest('[data-row-id][data-column-id]')
 
         if (cellElement) {
-          const rowId = cellElement.getAttribute('data-row-id');
-          const columnId = cellElement.getAttribute('data-column-id');
+          const rowId = cellElement.getAttribute('data-row-id')
+          const columnId = cellElement.getAttribute('data-column-id')
 
           if (rowId && columnId) {
-            this.coordinator.handleFillMove({ rowId, columnId });
+            this.coordinator.handleFillMove({ rowId, columnId })
           }
         }
       }
-      return; // Don't allow fill drag to trigger selection updates
+      return // Don't allow fill drag to trigger selection updates
     }
 
     // Handle cell drag selection updates
-    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting) {
-      const target = e.target as HTMLElement;
-      const cellElement = target.closest('[data-row-id][data-column-id]');
+    if (
+      this.isDragging &&
+      !this.isColumnDrag &&
+      !this.isRowDrag &&
+      this.interactionStore.isDragSelecting
+    ) {
+      const target = e.target as HTMLElement
+      const cellElement = target.closest('[data-row-id][data-column-id]')
 
       if (cellElement) {
-        const rowId = cellElement.getAttribute('data-row-id');
-        const columnId = cellElement.getAttribute('data-column-id');
-        const currentCellId = `${rowId}:${columnId}`;
+        const rowId = cellElement.getAttribute('data-row-id')
+        const columnId = cellElement.getAttribute('data-column-id')
+        const currentCellId = `${rowId}:${columnId}`
 
         // Update drag selection if we're over a different cell
-        const currentDragCell = this.interactionStore.dragSelectCurrent;
+        const currentDragCell = this.interactionStore.dragSelectCurrent
         if (currentCellId !== currentDragCell) {
           fileLog.debug('🖱️ Drag selection updated to new cell', {
             previousCell: currentDragCell,
-            currentCell: currentCellId
-          });
+            currentCell: currentCellId,
+          })
 
           // Get data context from MobX stores for proper range selection
           try {
-            const rows = this.tableCoreStore?.processedRows || [];
-            const columns = this.visualStateStore.columns || [];
-            const columnVisibility = this.visualStateStore.columnVisibility || {};
+            const rows = this.tableCoreStore?.processedRows || []
+            const columns = this.visualStateStore.columns || []
+            const columnVisibility = this.visualStateStore.columnVisibility || {}
 
             const dataContext = {
               rows,
               columns,
-              columnVisibility
-            };
+              columnVisibility,
+            }
 
             fileLog.debug('🖱️ Drag selection data context', {
               rowsCount: dataContext.rows.length,
@@ -503,41 +521,49 @@ export class MouseController {
               visibilityKeys: Object.keys(dataContext.columnVisibility).length,
               firstRowId: dataContext.rows[0]?.id,
               firstColumnId: dataContext.columns[0]?.id,
-              visibleColumns: dataContext.columns.filter(col => dataContext.columnVisibility[col.id] !== false).map(c => c.id).slice(0, 3)
-            });
+              visibleColumns: dataContext.columns
+                .filter((col) => dataContext.columnVisibility[col.id] !== false)
+                .map((c) => c.id)
+                .slice(0, 3),
+            })
 
             // Only use data context if we have valid data
             if (dataContext.rows.length > 0 && dataContext.columns.length > 0) {
-              this.interactionStore.updateDragSelection(currentCellId, dataContext);
+              this.interactionStore.updateDragSelection(currentCellId, dataContext)
             } else {
-              fileLog.warn('⚠️ Empty data context for drag selection, falling back to simple update', {
-                rowsCount: dataContext.rows.length,
-                columnsCount: dataContext.columns.length
-              });
-              this.interactionStore.updateDragSelection(currentCellId);
+              fileLog.warn(
+                '⚠️ Empty data context for drag selection, falling back to simple update',
+                {
+                  rowsCount: dataContext.rows.length,
+                  columnsCount: dataContext.columns.length,
+                },
+              )
+              this.interactionStore.updateDragSelection(currentCellId)
             }
           } catch (error) {
-            fileLog.warn('⚠️ Failed to get data context for drag selection, falling back to simple update', { error });
-            this.interactionStore.updateDragSelection(currentCellId);
+            fileLog.warn(
+              '⚠️ Failed to get data context for drag selection, falling back to simple update',
+              { error },
+            )
+            this.interactionStore.updateDragSelection(currentCellId)
           }
         }
       }
     }
 
     // PURE: Always update mouse coordinates (computed observables react to changes)
-    this.interactionStore.setMousePosition(e.clientX, e.clientY);
+    this.interactionStore.setMousePosition(e.clientX, e.clientY)
 
     // Update drag preview position for column drag
     if (this.isDragging && this.isColumnDrag && this.dragPreviewElement) {
-      this.updateDragPreviewPosition(e.clientX, e.clientY);
+      this.updateDragPreviewPosition(e.clientX, e.clientY)
     }
 
     // Update drag preview position for row drag
     if (this.isDragging && this.isRowDrag && this.dragPreviewElement) {
-      this.updateDragPreviewPosition(e.clientX, e.clientY);
+      this.updateDragPreviewPosition(e.clientX, e.clientY)
     }
   }
-
 
   /**
    * Handle mouse up - reset drag state
@@ -551,166 +577,180 @@ export class MouseController {
       wasDragging: this.isDragging,
       wasColumnDrag: this.isColumnDrag,
       wasRowDrag: this.isRowDrag,
-      wasColumnResize: this.isColumnResize
-    });
+      wasColumnResize: this.isColumnResize,
+    })
 
     if (this.isDragging || this.isColumnResize) {
       if (this.isColumnResize) {
         // Clear any pending throttled update to ensure final state is applied
         if (this.resizeThrottleTimeout) {
-          window.clearTimeout(this.resizeThrottleTimeout);
-          this.resizeThrottleTimeout = null;
+          window.clearTimeout(this.resizeThrottleTimeout)
+          this.resizeThrottleTimeout = null
         }
 
         // Handle column resize completion
-        const resizeResult = this.interactionStore.endColumnResize();
+        const resizeResult = this.interactionStore.endColumnResize()
 
         fileLog.debug('[RESIZE] 📏 Column resize ended via MouseController', {
           columnId: resizeResult?.columnId,
           newWidth: resizeResult?.newWidth,
-          finalMouseX: e.clientX
-        });
+          finalMouseX: e.clientX,
+        })
 
         // Apply the final width to visual state
         fileLog.debug('[RESIZE] 📏 Attempting to persist column width', {
           hasResizeResult: !!resizeResult,
           columnId: resizeResult?.columnId,
-          newWidth: resizeResult?.newWidth
-        });
+          newWidth: resizeResult?.newWidth,
+        })
 
         if (resizeResult?.columnId && resizeResult?.newWidth) {
           fileLog.debug('[RESIZE] 📏 Calling updateColumnWidth to persist', {
             columnId: resizeResult.columnId,
-            newWidth: resizeResult.newWidth
-          });
-          this.visualStateStore.updateColumnWidth(resizeResult.columnId, resizeResult.newWidth);
+            newWidth: resizeResult.newWidth,
+          })
+          this.visualStateStore.updateColumnWidth(resizeResult.columnId, resizeResult.newWidth)
         } else {
           fileLog.warn('[RESIZE] ⚠️ Cannot persist column width - missing data', {
-            resizeResult
-          });
+            resizeResult,
+          })
         }
 
         // CRITICAL FIX: Prevent click event after resize operation (same as drag)
-        e.preventDefault();
-        e.stopPropagation();
-        this.justEndedDrag = true; // Reuse the same flag to prevent clicks after resize
+        e.preventDefault()
+        e.stopPropagation()
+        this.justEndedDrag = true // Reuse the same flag to prevent clicks after resize
       } else if (this.isColumnDrag && this.dragColumnId) {
         // Handle column drag completion
-        const targetColumnId = this.interactionStore.dragTarget;
+        const targetColumnId = this.interactionStore.dragTarget
         if (targetColumnId && targetColumnId !== this.dragColumnId) {
           // Calculate the same insertBefore logic used for drop line positioning
-          const targetHeaderElement = this.container.querySelector(`[data-column-id="${targetColumnId}"]:not([data-row-id])`);
-          let insertBefore = true; // default
+          const targetHeaderElement = this.container.querySelector(
+            `[data-column-id="${targetColumnId}"]:not([data-row-id])`,
+          )
+          let insertBefore = true // default
 
           if (targetHeaderElement) {
-            const rect = targetHeaderElement.getBoundingClientRect();
-            const cellCenterX = rect.left + rect.width / 2;
-            insertBefore = e.clientX < cellCenterX;
+            const rect = targetHeaderElement.getBoundingClientRect()
+            const cellCenterX = rect.left + rect.width / 2
+            insertBefore = e.clientX < cellCenterX
           }
 
           fileLog.debug('🎯 Column dropped for reordering', {
             sourceColumnId: this.dragColumnId,
             targetColumnId,
             insertBefore,
-            mouseX: e.clientX
-          });
-          this.visualStateStore.reorderColumns(this.dragColumnId, targetColumnId, insertBefore);
+            mouseX: e.clientX,
+          })
+          this.visualStateStore.reorderColumns(this.dragColumnId, targetColumnId, insertBefore)
         }
 
         // Reset column drag state
-        fileLog.debug('🎯 Column drag ended', { columnId: this.dragColumnId });
-        runInAction(() => { this.interactionStore.isDragging = false });
-        runInAction(() => { this.interactionStore.dragSource = null });
-        runInAction(() => { this.interactionStore.dragTarget = null });
-        this.removeDragPreview();
-        this.hideDropLine();
-        fileLog.debug('🎯 Column drag state reset, continuing to general reset');
+        fileLog.debug('🎯 Column drag ended', { columnId: this.dragColumnId })
+        runInAction(() => {
+          this.interactionStore.isDragging = false
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = null
+        })
+        runInAction(() => {
+          this.interactionStore.dragTarget = null
+        })
+        this.removeDragPreview()
+        this.hideDropLine()
+        fileLog.debug('🎯 Column drag state reset, continuing to general reset')
       } else if (this.isFillDrag) {
         // Handle fill drag completion
-        fileLog.info('📋 Fill drag ended - completing fill operation');
+        fileLog.info('📋 Fill drag ended - completing fill operation')
         if (this.coordinator?.handleFillComplete) {
           // Find cell under mouse (same as fillMove!)
-          const target = e.target as HTMLElement;
-          const cellElement = target.closest('[data-row-id][data-column-id]');
+          const target = e.target as HTMLElement
+          const cellElement = target.closest('[data-row-id][data-column-id]')
 
           if (cellElement) {
-            const rowId = cellElement.getAttribute('data-row-id');
-            const columnId = cellElement.getAttribute('data-column-id');
+            const rowId = cellElement.getAttribute('data-row-id')
+            const columnId = cellElement.getAttribute('data-column-id')
 
             if (rowId && columnId) {
-              this.coordinator.handleFillComplete({ rowId, columnId });
+              this.coordinator.handleFillComplete({ rowId, columnId })
             }
           }
         }
       } else if (this.isRowDrag && this.dragRowId) {
         // Handle row drag completion
-        const targetRowId = this.interactionStore.dragTarget;
+        const targetRowId = this.interactionStore.dragTarget
         if (targetRowId && targetRowId !== this.dragRowId) {
-          this.handleRowDrop(targetRowId, e.clientY);
+          this.handleRowDrop(targetRowId, e.clientY)
         }
 
         // Reset row drag state
-        fileLog.debug('🏁 Row drag ended', { rowId: this.dragRowId });
-        runInAction(() => { this.interactionStore.isDragging = false });
-        runInAction(() => { this.interactionStore.dragSource = null });
-        runInAction(() => { this.interactionStore.dragTarget = null });
-        this.removeRowDragPreview();
-        this.hideRowDropIndicator();
-        fileLog.debug('🎯 Row drag state reset, continuing to general reset');
+        fileLog.debug('🏁 Row drag ended', { rowId: this.dragRowId })
+        runInAction(() => {
+          this.interactionStore.isDragging = false
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = null
+        })
+        runInAction(() => {
+          this.interactionStore.dragTarget = null
+        })
+        this.removeRowDragPreview()
+        this.hideRowDropIndicator()
+        fileLog.debug('🎯 Row drag state reset, continuing to general reset')
       } else {
         // PURE: End drag selection reactively
-        const dragResult = this.interactionStore.endDragSelect();
-        fileLog.debug('🖱️ Ended drag selection reactively', dragResult);
+        const dragResult = this.interactionStore.endDragSelect()
+        fileLog.debug('🖱️ Ended drag selection reactively', dragResult)
       }
 
-      fileLog.debug('🖱️ Mouse up after drag - preventing synthetic click');
-      fileLog.debug('🖱️ About to reset all drag state');
+      fileLog.debug('🖱️ Mouse up after drag - preventing synthetic click')
+      fileLog.debug('🖱️ About to reset all drag state')
       // Prevent the browser from generating a click event after drag
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault()
+      e.stopPropagation()
 
       // Set flag to prevent click events immediately after drag
-      this.justEndedDrag = true;
+      this.justEndedDrag = true
 
       // Reset drag state immediately - no delay needed
-      this.isDragging = false;
-      this.isTracking = false;
-      this.isColumnDrag = false;
-      this.dragColumnId = null;
-      this.isRowDrag = false;
-      this.dragRowId = null;
-      this.dragRowGroupId = null;
-      this.isColumnResize = false;
-      this.startPosition = { x: 0, y: 0 };
+      this.isDragging = false
+      this.isTracking = false
+      this.isColumnDrag = false
+      this.dragColumnId = null
+      this.isRowDrag = false
+      this.dragRowId = null
+      this.dragRowGroupId = null
+      this.isColumnResize = false
+      this.startPosition = { x: 0, y: 0 }
       fileLog.debug('🖱️ Drag state reset immediately', {
         isDragging: this.isDragging,
         isTracking: this.isTracking,
         isColumnDrag: this.isColumnDrag,
-        isRowDrag: this.isRowDrag
-      });
+        isRowDrag: this.isRowDrag,
+      })
 
       // Clear the flag after a brief delay to allow normal clicks again
       setTimeout(() => {
-        this.justEndedDrag = false;
-        fileLog.debug('🖱️ Post-drag click blocking cleared');
-      }, 100);
+        this.justEndedDrag = false
+        fileLog.debug('🖱️ Post-drag click blocking cleared')
+      }, 100)
     } else {
       // No drag was happening, reset immediately
-      this.isDragging = false;
-      this.isTracking = false;
-      this.isColumnDrag = false;
-      this.dragColumnId = null;
-      this.isRowDrag = false;
-      this.dragRowId = null;
-      this.dragRowGroupId = null;
-      this.isColumnResize = false;
-      this.startPosition = { x: 0, y: 0 };
+      this.isDragging = false
+      this.isTracking = false
+      this.isColumnDrag = false
+      this.dragColumnId = null
+      this.isRowDrag = false
+      this.dragRowId = null
+      this.dragRowGroupId = null
+      this.isColumnResize = false
+      this.startPosition = { x: 0, y: 0 }
       fileLog.debug('🖱️ Non-drag mouse up - state reset', {
         isDragging: this.isDragging,
         isTracking: this.isTracking,
         isColumnDrag: this.isColumnDrag,
-        isRowDrag: this.isRowDrag
-      });
+        isRowDrag: this.isRowDrag,
+      })
     }
   }
 
@@ -723,15 +763,15 @@ export class MouseController {
     if (this.isDragging || this.justEndedDrag) {
       fileLog.debug('🖱️ Click blocked - was result of drag or resize operation', {
         isDragging: this.isDragging,
-        justEndedDrag: this.justEndedDrag
-      });
-      e.preventDefault();
-      e.stopPropagation();
-      return;
+        justEndedDrag: this.justEndedDrag,
+      })
+      e.preventDefault()
+      e.stopPropagation()
+      return
     }
 
-    const target = e.target as HTMLElement;
-    const isWithinContainer = this.container.contains(e.target as Node);
+    const target = e.target as HTMLElement
+    const isWithinContainer = this.container.contains(e.target as Node)
 
     fileLog.debug('🔍 onClick entry', {
       targetTag: target.tagName,
@@ -740,19 +780,19 @@ export class MouseController {
       isWithinContainer,
       targetHasDataColumnId: target.hasAttribute('data-column-id'),
       targetHasDataInteractionType: target.hasAttribute('data-interaction-type'),
-      targetDataInteractionType: target.getAttribute('data-interaction-type')
-    });
+      targetDataInteractionType: target.getAttribute('data-interaction-type'),
+    })
 
     if (isWithinContainer) {
       // Handle clicks within the container
-      const cellElement = target.closest('[data-row-id][data-column-id]');
-      const rowHeaderElement = target.closest('[data-interaction-type="row-header"]');
+      const cellElement = target.closest('[data-row-id][data-column-id]')
+      const rowHeaderElement = target.closest('[data-interaction-type="row-header"]')
 
       if (cellElement && this.selectionController) {
         // Handle cell clicks
-        const rowId = cellElement.getAttribute('data-row-id');
-        const columnId = cellElement.getAttribute('data-column-id');
-        const cellId = `${rowId}:${columnId}`;
+        const rowId = cellElement.getAttribute('data-row-id')
+        const columnId = cellElement.getAttribute('data-column-id')
+        const cellId = `${rowId}:${columnId}`
 
         fileLog.debug('🖱️ Cell click detected', {
           cellId,
@@ -760,16 +800,16 @@ export class MouseController {
           columnId,
           isShiftKey: e.shiftKey,
           isCtrlKey: e.ctrlKey || e.metaKey,
-          hasCoordinator: !!this.coordinator
-        });
+          hasCoordinator: !!this.coordinator,
+        })
 
         // ✅ Delegate to InteractionCoordinator (coordinator is always initialized)
         if (!this.coordinator) {
-          fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen');
-          return;
+          fileLog.error('❌ CRITICAL: Coordinator not initialized - this should never happen')
+          return
         }
 
-        fileLog.debug('🎯 Delegating cell click to InteractionCoordinator');
+        fileLog.debug('🎯 Delegating cell click to InteractionCoordinator')
 
         this.coordinator.handleClick({
           cellId,
@@ -782,29 +822,28 @@ export class MouseController {
             ctrl: e.ctrlKey,
             shift: e.shiftKey,
             alt: e.altKey,
-            meta: e.metaKey
+            meta: e.metaKey,
           },
-          nativeEvent: e
-        });
+          nativeEvent: e,
+        })
 
         // Prevent event propagation
-        e.stopPropagation();
-        return;
-
+        e.stopPropagation()
+        return
       } else if (rowHeaderElement && this.selectionController) {
         // Handle row header clicks (only if selection column is enabled)
         if (!this.enableSelectionColumn) {
           // Row header disabled - don't handle selection
-          return;
+          return
         }
 
-        const rowId = rowHeaderElement.getAttribute('data-row-id');
+        const rowId = rowHeaderElement.getAttribute('data-row-id')
         if (rowId) {
           fileLog.debug('🖱️ Row header click detected', {
             rowId,
             isShiftKey: e.shiftKey,
-            isCtrlKey: e.ctrlKey
-          });
+            isCtrlKey: e.ctrlKey,
+          })
 
           // Handle different click types properly:
           // Regular click -> toggle row selection
@@ -812,41 +851,41 @@ export class MouseController {
           // Ctrl+click -> disabled (treated as regular click)
           if (e.shiftKey) {
             // Shift+click: Range selection
-            const lastRowId = this.selectionController.getLastSelectedRowId();
+            const lastRowId = this.selectionController.getLastSelectedRowId()
             if (lastRowId) {
-              this.selectionController.selectRowRange(lastRowId, rowId);
+              this.selectionController.selectRowRange(lastRowId, rowId)
             } else {
-              this.selectionController.selectRow(rowId);
+              this.selectionController.selectRow(rowId)
             }
           } else {
             // Regular click or Ctrl+click: Toggle row selection
             // (Ctrl+click is disabled in this system, treated as regular click)
-            this.selectionController.toggleRowSelection(rowId);
+            this.selectionController.toggleRowSelection(rowId)
           }
         }
       } else {
         // Check for group header row clicks (entire row is clickable)
-        const groupRowElement = target.closest('.vibegridx-group-header');
+        const groupRowElement = target.closest('.vibegridx-group-header')
 
         if (groupRowElement) {
-          const groupId = groupRowElement.getAttribute('data-group-id');
+          const groupId = groupRowElement.getAttribute('data-group-id')
 
           if (groupId) {
             fileLog.debug('🎯 Group header row clicked', {
               groupId,
               targetTag: target.tagName,
-              targetClass: target.className
-            });
+              targetClass: target.className,
+            })
 
             // Toggle group expansion via MobX store
-            this.visualStateStore.toggleGroupExpansion(groupId);
-            fileLog.debug('🔄 toggleGroupExpansion called', { groupId });
-            return; // Important: exit early to prevent further processing
+            this.visualStateStore.toggleGroupExpansion(groupId)
+            fileLog.debug('🔄 toggleGroupExpansion called', { groupId })
+            return // Important: exit early to prevent further processing
           }
         }
 
         // Check for column header clicks
-        const columnHeaderElement = target.closest('[data-interaction-type="column-header"]');
+        const columnHeaderElement = target.closest('[data-interaction-type="column-header"]')
 
         fileLog.debug('🔍 Click target analysis', {
           targetTag: target.tagName,
@@ -856,108 +895,108 @@ export class MouseController {
           targetDataInteractionType: target.getAttribute('data-interaction-type'),
           columnHeaderElement: !!columnHeaderElement,
           columnHeaderTag: columnHeaderElement?.tagName,
-          columnHeaderClass: columnHeaderElement?.className
-        });
+          columnHeaderClass: columnHeaderElement?.className,
+        })
 
         if (columnHeaderElement) {
           // Don't sort if clicking on resize handle
           if ((e.target as HTMLElement).classList.contains('vibegridx-resize-handle')) {
-            return;
+            return
           }
 
-          const columnId = columnHeaderElement.getAttribute('data-column-id');
-          const field = columnHeaderElement.getAttribute('data-field');
+          const columnId = columnHeaderElement.getAttribute('data-column-id')
+          const field = columnHeaderElement.getAttribute('data-field')
 
           if (columnId && field) {
-            const isCtrlKey = e.ctrlKey || e.metaKey;
-            const isShiftKey = e.shiftKey;
+            const isCtrlKey = e.ctrlKey || e.metaKey
+            const isShiftKey = e.shiftKey
 
             fileLog.debug('🖱️ Column header click detected', {
               columnId,
               field,
               isShiftKey,
-              isCtrlKey
-            });
+              isCtrlKey,
+            })
 
             // Ctrl+click for column selection is disabled in this system
             // Regular click or Shift+click - toggle sort
             // Shift+click enables multi-column sorting
-            const isMultiSort = isShiftKey;
+            const isMultiSort = isShiftKey
 
             fileLog.debug('🔄 Column header clicked for sort', {
               columnId,
               field,
               isMultiSort,
-              isShiftKey
-            });
+              isShiftKey,
+            })
 
-              // Use visual state operations for sorting
+            // Use visual state operations for sorting
             fileLog.debug('🔄 About to call toggleSort', {
               hasVisualState: !!this.visualState,
               hasVisualOperations: !!this.visualState?.visualOperations,
               hasToggleSort: !!this.visualState?.visualOperations?.toggleSort,
               field,
-              isMultiSort
-            });
-            this.visualStateStore.toggleSort(field, isMultiSort);
-            fileLog.debug('🔄 toggleSort call completed');
+              isMultiSort,
+            })
+            this.visualStateStore.toggleSort(field, isMultiSort)
+            fileLog.debug('🔄 toggleSort call completed')
           }
         } else if (!cellElement) {
-        // Check if this was actually a column header click that didn't get detected
-        const columnHeaderElement = target.closest('[data-interaction-type="column-header"]');
+          // Check if this was actually a column header click that didn't get detected
+          const columnHeaderElement = target.closest('[data-interaction-type="column-header"]')
 
-        if (columnHeaderElement) {
-          // This is a column header click that was missed in the earlier check
-          const columnId = columnHeaderElement.getAttribute('data-column-id');
-          const field = columnHeaderElement.getAttribute('data-field');
+          if (columnHeaderElement) {
+            // This is a column header click that was missed in the earlier check
+            const columnId = columnHeaderElement.getAttribute('data-column-id')
+            const field = columnHeaderElement.getAttribute('data-field')
 
-          fileLog.debug('🔍 FOUND MISSED COLUMN HEADER in fallback check', {
-            columnId,
-            field,
-            targetTag: target.tagName,
-            targetClass: target.className
-          });
-
-          if (columnId && field) {
-            const isShiftKey = e.shiftKey;
-
-            // Ctrl+click for column selection is disabled in this system
-            // Regular click or Shift+click - toggle sort
-            const isMultiSort = isShiftKey;
-            fileLog.debug('🔄 Column header clicked for sort via fallback', {
+            fileLog.debug('🔍 FOUND MISSED COLUMN HEADER in fallback check', {
               columnId,
               field,
-              isMultiSort,
-              isShiftKey
-            });
-            this.visualStateStore.toggleSort(field, isMultiSort);
-            return; // Important: exit early to prevent "container click" message
-          }
-        }
+              targetTag: target.tagName,
+              targetClass: target.className,
+            })
 
-        // Click within container but not on a cell or row header - this should NOT clear selection
-        // Only clicks outside the entire container should clear selection
-        fileLog.debug('🖱️ Container click (non-cell) detected - preserving selection', {
-          targetTag: target.tagName,
-          targetClass: target.className,
-          targetId: target.id,
-          targetHasDataColumnId: target.hasAttribute('data-column-id'),
-          targetHasDataInteractionType: target.hasAttribute('data-interaction-type'),
-          targetDataInteractionType: target.getAttribute('data-interaction-type'),
-          closestColumnHeader: !!target.closest('[data-interaction-type="column-header"]'),
-          closestWithDataColumnId: !!target.closest('[data-column-id]')
-        });
-        // Do nothing - preserve current selection
+            if (columnId && field) {
+              const isShiftKey = e.shiftKey
+
+              // Ctrl+click for column selection is disabled in this system
+              // Regular click or Shift+click - toggle sort
+              const isMultiSort = isShiftKey
+              fileLog.debug('🔄 Column header clicked for sort via fallback', {
+                columnId,
+                field,
+                isMultiSort,
+                isShiftKey,
+              })
+              this.visualStateStore.toggleSort(field, isMultiSort)
+              return // Important: exit early to prevent "container click" message
+            }
+          }
+
+          // Click within container but not on a cell or row header - this should NOT clear selection
+          // Only clicks outside the entire container should clear selection
+          fileLog.debug('🖱️ Container click (non-cell) detected - preserving selection', {
+            targetTag: target.tagName,
+            targetClass: target.className,
+            targetId: target.id,
+            targetHasDataColumnId: target.hasAttribute('data-column-id'),
+            targetHasDataInteractionType: target.hasAttribute('data-interaction-type'),
+            targetDataInteractionType: target.getAttribute('data-interaction-type'),
+            closestColumnHeader: !!target.closest('[data-interaction-type="column-header"]'),
+            closestWithDataColumnId: !!target.closest('[data-column-id]'),
+          })
+          // Do nothing - preserve current selection
         }
       }
     } else {
       // Click outside the container - this is a true outside click for blur
-      fileLog.debug('🖱️ Outside container click detected - delegating to ScrollController for blur');
+      fileLog.debug('🖱️ Outside container click detected - delegating to ScrollController for blur')
 
       if (this.scrollController?.handleOutsideClick) {
-        this.scrollController.handleOutsideClick(e);
+        this.scrollController.handleOutsideClick(e)
       } else {
-        fileLog.warn('⚠️ ScrollController handleOutsideClick method not available');
+        fileLog.warn('⚠️ ScrollController handleOutsideClick method not available')
       }
     }
   }
@@ -968,17 +1007,17 @@ export class MouseController {
    */
   private hasEditableClass(element: HTMLElement): boolean {
     // Check if any class name matches the editable pattern
-    const classList = Array.from(element.classList);
-    return classList.some(className =>
-      className.startsWith('vibegridx-cell-') && className.endsWith('-editable')
-    );
+    const classList = Array.from(element.classList)
+    return classList.some(
+      (className) => className.startsWith('vibegridx-cell-') && className.endsWith('-editable'),
+    )
   }
 
   /**
    * Get current drag state - for other components to query
    */
   get isCurrentlyDragging(): boolean {
-    return this.isDragging;
+    return this.isDragging
   }
 
   /**
@@ -991,53 +1030,57 @@ export class MouseController {
       wasColumnDrag: this.isColumnDrag,
       dragColumnId: this.dragColumnId,
       wasRowDrag: this.isRowDrag,
-      dragRowId: this.dragRowId
-    });
+      dragRowId: this.dragRowId,
+    })
 
-    this.isDragging = false;
-    this.isTracking = false;
-    this.isColumnDrag = false;
-    this.dragColumnId = null;
-    this.isRowDrag = false;
-    this.dragRowId = null;
-    this.dragRowGroupId = null;
-    this.isColumnResize = false;
-    this.startPosition = { x: 0, y: 0 };
-    this.removeDragPreview();
-    this.hideDropLine();
-    this.removeRowDragPreview();
-    this.hideRowDropIndicator();
+    this.isDragging = false
+    this.isTracking = false
+    this.isColumnDrag = false
+    this.dragColumnId = null
+    this.isRowDrag = false
+    this.dragRowId = null
+    this.dragRowGroupId = null
+    this.isColumnResize = false
+    this.startPosition = { x: 0, y: 0 }
+    this.removeDragPreview()
+    this.hideDropLine()
+    this.removeRowDragPreview()
+    this.hideRowDropIndicator()
   }
 
   /**
    * Update renderer references (for late initialization)
    */
   setBodyRenderer(bodyRenderer: any): void {
-    this.bodyRenderer = bodyRenderer;
-    fileLog.debug('🖱️ BodyRenderer reference updated');
+    this.bodyRenderer = bodyRenderer
+    fileLog.debug('🖱️ BodyRenderer reference updated')
   }
 
   setScrollController(scrollController: any): void {
-    this.scrollController = scrollController;
-    fileLog.debug('🖱️ ScrollController reference updated');
+    this.scrollController = scrollController
+    fileLog.debug('🖱️ ScrollController reference updated')
   }
 
   setSelectionController(selectionController: any): void {
-    this.selectionController = selectionController;
-    fileLog.debug('🖱️ SelectionController reference updated');
+    this.selectionController = selectionController
+    fileLog.debug('🖱️ SelectionController reference updated')
   }
 
   setKeyboardController(keyboardController: any): void {
-    this.keyboardController = keyboardController;
-    fileLog.debug('🖱️ KeyboardController reference updated');
+    this.keyboardController = keyboardController
+    fileLog.debug('🖱️ KeyboardController reference updated')
   }
 
   /**
    * Add event listener with tracking for cleanup
    */
-  private addEventListenerTracked(element: EventTarget, event: string, handler: EventListener): void {
-    element.addEventListener(event, handler);
-    this.eventListeners.push({ element, event, handler });
+  private addEventListenerTracked(
+    element: EventTarget,
+    event: string,
+    handler: EventListener,
+  ): void {
+    element.addEventListener(event, handler)
+    this.eventListeners.push({ element, event, handler })
   }
 
   /**
@@ -1045,13 +1088,15 @@ export class MouseController {
    */
   private createDragPreview(columnId: string): void {
     // Get column info for preview text
-    const headerElement = this.container.querySelector(`[data-column-id="${columnId}"]:not([data-row-id])`);
-    const columnText = headerElement?.textContent?.trim() || columnId;
+    const headerElement = this.container.querySelector(
+      `[data-column-id="${columnId}"]:not([data-row-id])`,
+    )
+    const columnText = headerElement?.textContent?.trim() || columnId
 
     // Create floating preview element
-    this.dragPreviewElement = document.createElement('div');
-    this.dragPreviewElement.className = 'vibegridx-column-drag-preview';
-    this.dragPreviewElement.textContent = columnText;
+    this.dragPreviewElement = document.createElement('div')
+    this.dragPreviewElement.className = 'vibegridx-column-drag-preview'
+    this.dragPreviewElement.textContent = columnText
 
     // Style the preview (similar to interaction-handlers.ts drag image)
     Object.assign(this.dragPreviewElement.style, {
@@ -1070,21 +1115,21 @@ export class MouseController {
       pointerEvents: 'none',
       opacity: '0.9',
       transform: 'translate(-50%, -100%)', // Center horizontally, above cursor
-      transition: 'none' // No transitions during drag
-    });
+      transition: 'none', // No transitions during drag
+    })
 
-    document.body.appendChild(this.dragPreviewElement);
-    fileLog.debug('🎯 Column drag preview created', { columnId, text: columnText });
+    document.body.appendChild(this.dragPreviewElement)
+    fileLog.debug('🎯 Column drag preview created', { columnId, text: columnText })
   }
 
   /**
    * Update drag preview position to follow mouse
    */
   private updateDragPreviewPosition(x: number, y: number): void {
-    if (!this.dragPreviewElement) return;
+    if (!this.dragPreviewElement) return
 
-    this.dragPreviewElement.style.left = `${x}px`;
-    this.dragPreviewElement.style.top = `${y}px`; // Transform handles positioning above cursor
+    this.dragPreviewElement.style.left = `${x}px`
+    this.dragPreviewElement.style.top = `${y}px` // Transform handles positioning above cursor
   }
 
   /**
@@ -1092,9 +1137,9 @@ export class MouseController {
    */
   private removeDragPreview(): void {
     if (this.dragPreviewElement) {
-      this.dragPreviewElement.remove();
-      this.dragPreviewElement = null;
-      fileLog.debug('🎯 Column drag preview removed');
+      this.dragPreviewElement.remove()
+      this.dragPreviewElement = null
+      fileLog.debug('🎯 Column drag preview removed')
     }
   }
 
@@ -1103,27 +1148,27 @@ export class MouseController {
    */
   private showDropLine(targetHeaderElement: HTMLElement, mouseX: number): void {
     // Calculate if inserting before or after based on mouse position
-    const rect = targetHeaderElement.getBoundingClientRect();
-    const cellCenterX = rect.left + rect.width / 2;
-    const insertBefore = mouseX < cellCenterX;
+    const rect = targetHeaderElement.getBoundingClientRect()
+    const cellCenterX = rect.left + rect.width / 2
+    const insertBefore = mouseX < cellCenterX
 
     // Get the header container
-    const headerContainer = targetHeaderElement.parentElement;
-    if (!headerContainer) return;
+    const headerContainer = targetHeaderElement.parentElement
+    if (!headerContainer) return
 
     // Remove existing drop line
-    this.hideDropLine();
+    this.hideDropLine()
 
     // Create new drop line
-    this.dropLineElement = document.createElement('div');
-    this.dropLineElement.className = 'vibegridx-column-drop-line';
+    this.dropLineElement = document.createElement('div')
+    this.dropLineElement.className = 'vibegridx-column-drop-line'
 
     // Calculate position relative to the header container
-    const headerRect = headerContainer.getBoundingClientRect();
-    const cellRect = targetHeaderElement.getBoundingClientRect();
-    const linePosition = insertBefore ?
-      cellRect.left - headerRect.left :
-      cellRect.right - headerRect.left;
+    const headerRect = headerContainer.getBoundingClientRect()
+    const cellRect = targetHeaderElement.getBoundingClientRect()
+    const linePosition = insertBefore
+      ? cellRect.left - headerRect.left
+      : cellRect.right - headerRect.left
 
     // Style the drop line
     Object.assign(this.dropLineElement.style, {
@@ -1137,14 +1182,14 @@ export class MouseController {
       zIndex: '9999',
       boxShadow: '0 0 4px rgba(59, 130, 246, 0.5)',
       pointerEvents: 'none',
-      height: `${cellRect.height}px`
-    });
+      height: `${cellRect.height}px`,
+    })
 
     // Ensure header container has relative positioning
-    headerContainer.style.position = 'relative';
-    headerContainer.appendChild(this.dropLineElement);
+    headerContainer.style.position = 'relative'
+    headerContainer.appendChild(this.dropLineElement)
 
-    fileLog.debug('🎯 Drop line shown', { insertBefore, linePosition });
+    fileLog.debug('🎯 Drop line shown', { insertBefore, linePosition })
   }
 
   /**
@@ -1152,9 +1197,9 @@ export class MouseController {
    */
   private hideDropLine(): void {
     if (this.dropLineElement) {
-      this.dropLineElement.remove();
-      this.dropLineElement = null;
-      fileLog.debug('🎯 Drop line hidden');
+      this.dropLineElement.remove()
+      this.dropLineElement = null
+      fileLog.debug('🎯 Drop line hidden')
     }
   }
 
@@ -1163,25 +1208,27 @@ export class MouseController {
    */
   private createRowDragPreview(rowId: string): void {
     // Get row info for preview text
-    const rowElement = this.container.querySelector(`[data-row-id="${rowId}"]`);
-    const rowText = rowElement?.textContent?.trim().slice(0, 50) + '...' || `Row ${rowId}`;
+    const rowElement = this.container.querySelector(`[data-row-id="${rowId}"]`)
+    const rowText = rowElement?.textContent?.trim().slice(0, 50) + '...' || `Row ${rowId}`
 
     // Create floating preview element
-    this.dragPreviewElement = document.createElement('div');
-    this.dragPreviewElement.className = 'vibegridx-row-drag-preview';
+    this.dragPreviewElement = document.createElement('div')
+    this.dragPreviewElement.className = 'vibegridx-row-drag-preview'
     // Clone visible cells to create cell-styled preview
-    const cells = rowElement!.querySelectorAll('.vibegridx-cell');
-    const visibleCells = Array.from(cells).slice(0, 4); // First 4 cells
+    const cells = rowElement!.querySelectorAll('.vibegridx-cell')
+    const visibleCells = Array.from(cells).slice(0, 4) // First 4 cells
 
     if (visibleCells.length > 0) {
-      const cellTexts = visibleCells.map(cell => {
-        const text = cell.textContent?.trim() || '';
-        return text.length > 15 ? text.substring(0, 15) + '...' : text;
-      }).filter(text => text.length > 0);
+      const cellTexts = visibleCells
+        .map((cell) => {
+          const text = cell.textContent?.trim() || ''
+          return text.length > 15 ? text.substring(0, 15) + '...' : text
+        })
+        .filter((text) => text.length > 0)
 
-      this.dragPreviewElement.textContent = cellTexts.join(' • ');
+      this.dragPreviewElement.textContent = cellTexts.join(' • ')
     } else {
-      this.dragPreviewElement.textContent = rowText;
+      this.dragPreviewElement.textContent = rowText
     }
 
     // Style the preview (similar to column drag preview)
@@ -1201,11 +1248,11 @@ export class MouseController {
       pointerEvents: 'none',
       opacity: '0.9',
       transform: 'translateY(-100%)', // Position above cursor, left-aligned
-      transition: 'none' // No transitions during drag
-    });
+      transition: 'none', // No transitions during drag
+    })
 
-    document.body.appendChild(this.dragPreviewElement);
-    fileLog.debug('🚀 Row drag preview created', { rowId, text: rowText });
+    document.body.appendChild(this.dragPreviewElement)
+    fileLog.debug('🚀 Row drag preview created', { rowId, text: rowText })
   }
 
   /**
@@ -1213,9 +1260,9 @@ export class MouseController {
    */
   private removeRowDragPreview(): void {
     if (this.dragPreviewElement) {
-      this.dragPreviewElement.remove();
-      this.dragPreviewElement = null;
-      fileLog.debug('🚀 Row drag preview removed');
+      this.dragPreviewElement.remove()
+      this.dragPreviewElement = null
+      fileLog.debug('🚀 Row drag preview removed')
     }
   }
 
@@ -1224,27 +1271,27 @@ export class MouseController {
    */
   private showRowDropIndicator(targetRowElement: HTMLElement, mouseY: number): void {
     // Calculate if inserting before or after based on mouse position
-    const rect = targetRowElement.getBoundingClientRect();
-    const rowCenterY = rect.top + rect.height / 2;
-    const insertBefore = mouseY < rowCenterY;
+    const rect = targetRowElement.getBoundingClientRect()
+    const rowCenterY = rect.top + rect.height / 2
+    const insertBefore = mouseY < rowCenterY
 
     // Get the container
-    const container = targetRowElement.closest('.vibegridx-container');
-    if (!container) return;
+    const container = targetRowElement.closest('.vibegridx-container')
+    if (!container) return
 
     // Remove existing drop indicator
-    this.hideRowDropIndicator();
+    this.hideRowDropIndicator()
 
     // Create new drop indicator
-    this.dropLineElement = document.createElement('div');
-    this.dropLineElement.className = 'vibegrid-row-drop-indicator';
+    this.dropLineElement = document.createElement('div')
+    this.dropLineElement.className = 'vibegrid-row-drop-indicator'
 
     // Calculate position relative to the container
-    const containerRect = container.getBoundingClientRect();
-    const rowRect = targetRowElement.getBoundingClientRect();
-    const linePosition = insertBefore ?
-      rowRect.top - containerRect.top :
-      rowRect.bottom - containerRect.top;
+    const containerRect = container.getBoundingClientRect()
+    const rowRect = targetRowElement.getBoundingClientRect()
+    const linePosition = insertBefore
+      ? rowRect.top - containerRect.top
+      : rowRect.bottom - containerRect.top
 
     // Style the drop indicator
     Object.assign(this.dropLineElement.style, {
@@ -1257,14 +1304,14 @@ export class MouseController {
       borderRadius: '1.5px',
       zIndex: '1000',
       boxShadow: '0 0 6px rgba(59, 130, 246, 0.4)',
-      pointerEvents: 'none'
-    });
+      pointerEvents: 'none',
+    })
 
     // Ensure container has relative positioning
-    (container as HTMLElement).style.position = 'relative';
-    container.appendChild(this.dropLineElement);
+    ;(container as HTMLElement).style.position = 'relative'
+    container.appendChild(this.dropLineElement)
 
-    fileLog.debug('🎯 Row drop indicator shown', { insertBefore, linePosition });
+    fileLog.debug('🎯 Row drop indicator shown', { insertBefore, linePosition })
   }
 
   /**
@@ -1272,9 +1319,9 @@ export class MouseController {
    */
   private hideRowDropIndicator(): void {
     if (this.dropLineElement) {
-      this.dropLineElement.remove();
-      this.dropLineElement = null;
-      fileLog.debug('🎯 Row drop indicator hidden');
+      this.dropLineElement.remove()
+      this.dropLineElement = null
+      fileLog.debug('🎯 Row drop indicator hidden')
     }
   }
 
@@ -1282,21 +1329,25 @@ export class MouseController {
    * Handle row drop completion - call DragDropManager
    */
   private handleRowDrop(targetRowId: string, mouseY: number): void {
-    if (!this.dragRowId) return;
+    if (!this.dragRowId) return
 
     // Calculate drop position
-    const targetRowElement = this.container.querySelector(`[data-row-id="${targetRowId}"]`);
-    if (!targetRowElement) return;
+    const targetRowElement = this.container.querySelector(`[data-row-id="${targetRowId}"]`)
+    if (!targetRowElement) return
 
-    const rect = targetRowElement.getBoundingClientRect();
-    const insertBefore = mouseY < rect.top + rect.height / 2;
+    const rect = targetRowElement.getBoundingClientRect()
+    const insertBefore = mouseY < rect.top + rect.height / 2
 
     // Get target group for grouped mode
-    const targetGroupElement = targetRowElement.closest('[data-group-id]');
-    const targetGroupId = targetGroupElement?.getAttribute('data-group-id') || null;
+    const targetGroupElement = targetRowElement.closest('[data-group-id]')
+    const targetGroupId = targetGroupElement?.getAttribute('data-group-id') || null
 
     // Calculate target index
-    const targetIndex = this.calculateRowDropIndex(targetRowElement as HTMLElement, targetGroupId, insertBefore);
+    const targetIndex = this.calculateRowDropIndex(
+      targetRowElement as HTMLElement,
+      targetGroupId,
+      insertBefore,
+    )
 
     fileLog.debug('🎯 Row dropped for reordering', {
       sourceRowId: this.dragRowId,
@@ -1307,58 +1358,70 @@ export class MouseController {
       insertBefore,
       mouseY,
       isGroupedMode: !!(this.dragRowGroupId || targetGroupId),
-      isFlatMode: !(this.dragRowGroupId || targetGroupId)
-    });
+      isFlatMode: !(this.dragRowGroupId || targetGroupId),
+    })
 
     // Call the appropriate DragDropManager method
     if (this.dragRowGroupId || targetGroupId) {
       // Grouped mode - call onRowMove
-      fileLog.info('🔀 Using GROUPED mode row reorder');
-      const finalTargetGroupId = targetGroupId || this.dragRowGroupId || '';
-      this.callRowMoveHandler(this.dragRowId, finalTargetGroupId, targetIndex);
+      fileLog.info('🔀 Using GROUPED mode row reorder')
+      const finalTargetGroupId = targetGroupId || this.dragRowGroupId || ''
+      this.callRowMoveHandler(this.dragRowId, finalTargetGroupId, targetIndex)
     } else {
       // Flat mode - call onFlatRowMove
-      fileLog.info('🔀 Using FLAT mode row reorder');
-      const sourceIndex = this.calculateRowIndex(this.dragRowId);
-      fileLog.debug('📊 Flat mode indices', { sourceIndex, targetIndex });
-      this.callFlatRowMoveHandler(sourceIndex, targetIndex);
+      fileLog.info('🔀 Using FLAT mode row reorder')
+      const sourceIndex = this.calculateRowIndex(this.dragRowId)
+      fileLog.debug('📊 Flat mode indices', { sourceIndex, targetIndex })
+      this.callFlatRowMoveHandler(sourceIndex, targetIndex)
     }
   }
 
   /**
    * Calculate target index for row drop
    */
-  private calculateRowDropIndex(targetRowElement: HTMLElement, groupId: string | null, insertBefore: boolean): number {
+  private calculateRowDropIndex(
+    targetRowElement: HTMLElement,
+    groupId: string | null,
+    insertBefore: boolean,
+  ): number {
     if (groupId) {
       // Check if target is a group header
-      const isGroupHeader = targetRowElement.classList.contains('vibegridx-group-header');
+      const isGroupHeader = targetRowElement.classList.contains('vibegridx-group-header')
 
       if (isGroupHeader) {
         // Dropping on a group header - insert at beginning or end of group
-        const groupContainer = targetRowElement.parentElement;
-        if (!groupContainer) return 0;
+        const groupContainer = targetRowElement.parentElement
+        if (!groupContainer) return 0
 
-        const dataRows = Array.from(groupContainer.querySelectorAll(`.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`));
-        const calculatedIndex = insertBefore ? 0 : dataRows.length;
+        const dataRows = Array.from(
+          groupContainer.querySelectorAll(
+            `.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`,
+          ),
+        )
+        const calculatedIndex = insertBefore ? 0 : dataRows.length
 
         fileLog.debug('🎯 calculateRowDropIndex for group header drop', {
           groupId,
           insertBefore,
           calculatedIndex,
           dataRowsInGroup: dataRows.length,
-          interpretation: insertBefore ? 'Insert at beginning of group' : 'Insert at end of group'
-        });
+          interpretation: insertBefore ? 'Insert at beginning of group' : 'Insert at end of group',
+        })
 
-        return calculatedIndex;
+        return calculatedIndex
       }
 
       // Target is a data row - find position within the specific group
-      const groupContainer = targetRowElement.closest(`[data-group-id="${groupId}"]`)?.parentElement;
-      if (!groupContainer) return 0;
+      const groupContainer = targetRowElement.closest(`[data-group-id="${groupId}"]`)?.parentElement
+      if (!groupContainer) return 0
 
       // Only get rows that belong to the specific group
-      const dataRows = Array.from(groupContainer.querySelectorAll(`.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`));
-      const targetIndex = dataRows.indexOf(targetRowElement);
+      const dataRows = Array.from(
+        groupContainer.querySelectorAll(
+          `.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`,
+        ),
+      )
+      const targetIndex = dataRows.indexOf(targetRowElement)
 
       if (targetIndex === -1) {
         fileLog.error('❌ Target row not found in group data rows', {
@@ -1370,32 +1433,34 @@ export class MouseController {
           targetClasses: targetRowElement.className,
           groupContainerTag: groupContainer.tagName,
           groupContainerClass: groupContainer.className,
-          dataRowIds: dataRows.map(r => (r as HTMLElement).dataset.rowId),
+          dataRowIds: dataRows.map((r) => (r as HTMLElement).dataset.rowId),
           targetIsInDOM: document.body.contains(targetRowElement),
-          closestResult: targetRowElement.closest(`[data-group-id="${groupId}"]`)?.tagName
-        });
-        return 0;
+          closestResult: targetRowElement.closest(`[data-group-id="${groupId}"]`)?.tagName,
+        })
+        return 0
       }
 
-      const calculatedIndex = insertBefore ? targetIndex : targetIndex + 1;
+      const calculatedIndex = insertBefore ? targetIndex : targetIndex + 1
       fileLog.debug('🎯 calculateRowDropIndex for grouped mode', {
         targetRowId: targetRowElement.dataset.rowId,
         groupId,
         targetIndex,
         insertBefore,
         calculatedIndex,
-        dataRowsInGroup: dataRows.length
-      });
+        dataRowsInGroup: dataRows.length,
+      })
 
-      return calculatedIndex;
+      return calculatedIndex
     } else {
       // Flat mode - find position in all rows
-      const container = targetRowElement.closest('.vibegridx-container');
-      if (!container) return 0;
+      const container = targetRowElement.closest('.vibegridx-container')
+      if (!container) return 0
 
-      const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'));
-      const targetIndex = dataRows.indexOf(targetRowElement);
-      return insertBefore ? targetIndex : targetIndex + 1;
+      const dataRows = Array.from(
+        container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+      )
+      const targetIndex = dataRows.indexOf(targetRowElement)
+      return insertBefore ? targetIndex : targetIndex + 1
     }
   }
 
@@ -1403,14 +1468,16 @@ export class MouseController {
    * Calculate current index of a row
    */
   private calculateRowIndex(rowId: string): number {
-    const rowElement = this.container.querySelector(`[data-row-id="${rowId}"]`);
-    if (!rowElement) return 0;
+    const rowElement = this.container.querySelector(`[data-row-id="${rowId}"]`)
+    if (!rowElement) return 0
 
-    const container = rowElement.closest('.vibegridx-container');
-    if (!container) return 0;
+    const container = rowElement.closest('.vibegridx-container')
+    if (!container) return 0
 
-    const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'));
-    return dataRows.indexOf(rowElement);
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
+    return dataRows.indexOf(rowElement)
   }
 
   /**
@@ -1419,20 +1486,24 @@ export class MouseController {
   private callRowMoveHandler(draggedRowId: string, targetGroupId: string, newIndex: number): void {
     // Access DragDropManager through BodyRenderer
     if (this.bodyRenderer?.dragDropManager?.callbacks?.onRowMove) {
-      const success = this.bodyRenderer.dragDropManager.callbacks.onRowMove(draggedRowId, targetGroupId, newIndex);
+      const success = this.bodyRenderer.dragDropManager.callbacks.onRowMove(
+        draggedRowId,
+        targetGroupId,
+        newIndex,
+      )
       fileLog.debug(success ? '🎯 Same-group row move' : '❌ Row move failed', {
         draggedRowId,
         targetGroupId,
         newIndex,
-        success
-      });
+        success,
+      })
     } else {
       fileLog.error('❌ DragDropManager onRowMove not available', {
         hasBodyRenderer: !!this.bodyRenderer,
         hasDragDropManager: !!this.bodyRenderer?.dragDropManager,
         hasCallbacks: !!this.bodyRenderer?.dragDropManager?.callbacks,
-        hasOnRowMove: !!this.bodyRenderer?.dragDropManager?.callbacks?.onRowMove
-      });
+        hasOnRowMove: !!this.bodyRenderer?.dragDropManager?.callbacks?.onRowMove,
+      })
     }
   }
 
@@ -1442,19 +1513,19 @@ export class MouseController {
   private callFlatRowMoveHandler(fromIndex: number, toIndex: number): void {
     // Access DragDropManager through BodyRenderer
     if (this.bodyRenderer?.dragDropManager?.callbacks?.onFlatRowMove) {
-      const success = this.bodyRenderer.dragDropManager.callbacks.onFlatRowMove(fromIndex, toIndex);
+      const success = this.bodyRenderer.dragDropManager.callbacks.onFlatRowMove(fromIndex, toIndex)
       fileLog.debug(success ? '🎯 Flat row move' : '❌ Flat row move failed', {
         fromIndex,
         toIndex,
-        success
-      });
+        success,
+      })
     } else {
       fileLog.error('❌ DragDropManager onFlatRowMove not available', {
         hasBodyRenderer: !!this.bodyRenderer,
         hasDragDropManager: !!this.bodyRenderer?.dragDropManager,
         hasCallbacks: !!this.bodyRenderer?.dragDropManager?.callbacks,
-        hasOnFlatRowMove: !!this.bodyRenderer?.dragDropManager?.callbacks?.onFlatRowMove
-      });
+        hasOnFlatRowMove: !!this.bodyRenderer?.dragDropManager?.callbacks?.onFlatRowMove,
+      })
     }
   }
 
@@ -1463,27 +1534,31 @@ export class MouseController {
    */
   private handleColumnResize(e: MouseEvent): void {
     // Delegate to interaction state following the proper pattern
-    const result = this.interactionStore.updateColumnResize(e.clientX);
+    const result = this.interactionStore.updateColumnResize(e.clientX)
 
     if (result) {
       fileLog.debug('[RESIZE] 📏 Column resize move - interaction state updated', {
         columnId: result.columnId,
         newWidth: result.newWidth,
         mouseX: e.clientX,
-        deltaFromStart: e.clientX - this.startPosition.x
-      });
+        deltaFromStart: e.clientX - this.startPosition.x,
+      })
 
       // CRITICAL: Update visual state LIVE during resize for immediate header updates
       // This allows the header cells to update their width as the user drags
       // THROTTLED to avoid excessive re-renders (~60fps)
-      if (result.columnId && result.newWidth && this.visualState?.visualOperations?.setColumnWidth) {
-        const now = Date.now();
-        const timeSinceLastUpdate = now - this.lastResizeUpdate;
+      if (
+        result.columnId &&
+        result.newWidth &&
+        this.visualState?.visualOperations?.setColumnWidth
+      ) {
+        const now = Date.now()
+        const timeSinceLastUpdate = now - this.lastResizeUpdate
 
         // Clear any pending throttled update
         if (this.resizeThrottleTimeout) {
-          window.clearTimeout(this.resizeThrottleTimeout);
-          this.resizeThrottleTimeout = null;
+          window.clearTimeout(this.resizeThrottleTimeout)
+          this.resizeThrottleTimeout = null
         }
 
         if (timeSinceLastUpdate >= this.RESIZE_THROTTLE_MS) {
@@ -1491,29 +1566,29 @@ export class MouseController {
           fileLog.debug('[RESIZE] 🎨 Updating visual state LIVE (immediate)', {
             columnId: result.columnId,
             newWidth: result.newWidth,
-            timeSinceLastUpdate
-          });
-          this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth);
-          this.lastResizeUpdate = now;
+            timeSinceLastUpdate,
+          })
+          this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth)
+          this.lastResizeUpdate = now
         } else {
           // Too soon, schedule an update
-          const delay = this.RESIZE_THROTTLE_MS - timeSinceLastUpdate;
+          const delay = this.RESIZE_THROTTLE_MS - timeSinceLastUpdate
           this.resizeThrottleTimeout = window.setTimeout(() => {
             fileLog.debug('[RESIZE] 🎨 Updating visual state LIVE (throttled)', {
               columnId: result.columnId,
               newWidth: result.newWidth,
-              delay
-            });
-            this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth);
-            this.lastResizeUpdate = Date.now();
-            this.resizeThrottleTimeout = null;
-          }, delay);
+              delay,
+            })
+            this.visualStateStore.updateColumnWidth(result.columnId, result.newWidth)
+            this.lastResizeUpdate = Date.now()
+            this.resizeThrottleTimeout = null
+          }, delay)
         }
       }
     }
 
     // Prevent text selection during resize
-    e.preventDefault();
+    e.preventDefault()
   }
 
   /**
@@ -1523,27 +1598,27 @@ export class MouseController {
     // Clean up all tracked event listeners
     this.eventListeners.forEach(({ element, event, handler }) => {
       try {
-        element.removeEventListener(event, handler);
+        element.removeEventListener(event, handler)
       } catch (error) {
-        fileLog.error('❌ Error removing mouse event listener', { event, error });
+        fileLog.error('❌ Error removing mouse event listener', { event, error })
       }
-    });
-    this.eventListeners = [];
+    })
+    this.eventListeners = []
 
     // Clean up drag preview and drop line
-    this.removeDragPreview();
-    this.hideDropLine();
+    this.removeDragPreview()
+    this.hideDropLine()
 
     // Clean up any pending resize throttle timeout
     if (this.resizeThrottleTimeout) {
-      window.clearTimeout(this.resizeThrottleTimeout);
-      this.resizeThrottleTimeout = null;
+      window.clearTimeout(this.resizeThrottleTimeout)
+      this.resizeThrottleTimeout = null
     }
 
     // Restore text selection
-    this.container.style.userSelect = '';
-    this.container.style.webkitUserSelect = '';
+    this.container.style.userSelect = ''
+    this.container.style.webkitUserSelect = ''
 
-    fileLog.debug('🧹 MouseController destroyed');
+    fileLog.debug('🧹 MouseController destroyed')
   }
 }

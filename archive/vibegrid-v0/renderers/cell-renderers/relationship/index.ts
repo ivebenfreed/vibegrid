@@ -1,9 +1,14 @@
 // Enhanced relationship renderer supporting all DataForge relationship types
-import { renderRelationshipField, type RelationshipData, type RelationshipMetadata } from './relationship-handler';
-import type { Column } from '../../../column-types';
+
+import type { Column } from '../../../column-types'
+import {
+  type RelationshipData,
+  type RelationshipMetadata,
+  renderRelationshipField,
+} from './relationship-handler'
 
 // Re-export types for compatibility
-export type { RelationshipData, RelationshipMetadata };
+export type { RelationshipData, RelationshipMetadata }
 
 /**
  * Main relationship renderer function
@@ -19,7 +24,7 @@ export function relationship(
   column: Column,
   relationshipData?: RelationshipData,
   rowData?: any,
-  relationshipMetadata?: RelationshipMetadata
+  relationshipMetadata?: RelationshipMetadata,
 ): string {
-  return renderRelationshipField(value, column, relationshipData, rowData, relationshipMetadata);
+  return renderRelationshipField(value, column, relationshipData, rowData, relationshipMetadata)
 }

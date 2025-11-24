@@ -4,26 +4,26 @@
  * Handles rollup_sum field types with frontend calculation of numeric sums.
  */
 
+import { RollupSumCalculator } from '../../../managers/RollupCalculationManager'
 import type {
-  VibeGridFieldType,
-  CellRenderer,
   CellEditor,
   CellFormatter,
-  EnhancedColumn
-} from '../../FieldTypeRegistry';
-import { RollupSumCalculator } from '../../../managers/RollupCalculationManager';
+  CellRenderer,
+  EnhancedColumn,
+  VibeGridFieldType,
+} from '../../FieldTypeRegistry'
 
 export class RollupSumRenderer implements CellRenderer {
-  private calculator = new RollupSumCalculator();
+  private calculator = new RollupSumCalculator()
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'vibegridx-rollup-sum';
+    const container = document.createElement('div')
+    container.className = 'vibegridx-rollup-sum'
 
-    let displayValue = value;
+    let displayValue = value
     if (column.rollupConfig) {
-      const sourceData = this.getMockSourceData();
-      displayValue = this.calculator.calculate(column.rollupConfig, sourceData, rowData.id);
+      const sourceData = this.getMockSourceData()
+      displayValue = this.calculator.calculate(column.rollupConfig, sourceData, rowData.id)
     }
 
     container.style.cssText = `
@@ -32,55 +32,55 @@ export class RollupSumRenderer implements CellRenderer {
       gap: 6px;
       font-variant-numeric: tabular-nums;
       color: #374151;
-    `;
+    `
 
-    const valueSpan = document.createElement('span');
-    valueSpan.className = 'vibegridx-rollup-value';
+    const valueSpan = document.createElement('span')
+    valueSpan.className = 'vibegridx-rollup-value'
 
     // Format as currency if source field suggests it
-    const formatted = this.formatSumValue(displayValue, column);
-    valueSpan.textContent = formatted;
-    valueSpan.style.cssText = `font-weight: 500; text-align: right;`;
+    const formatted = this.formatSumValue(displayValue, column)
+    valueSpan.textContent = formatted
+    valueSpan.style.cssText = `font-weight: 500; text-align: right;`
 
-    const indicator = document.createElement('span');
-    indicator.textContent = '∑';
-    indicator.title = 'Calculated sum field';
-    indicator.style.cssText = `font-size: 12px; opacity: 0.7; font-weight: bold;`;
+    const indicator = document.createElement('span')
+    indicator.textContent = '∑'
+    indicator.title = 'Calculated sum field'
+    indicator.style.cssText = `font-size: 12px; opacity: 0.7; font-weight: bold;`
 
-    container.appendChild(valueSpan);
-    container.appendChild(indicator);
-    return container;
+    container.appendChild(valueSpan)
+    container.appendChild(indicator)
+    return container
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    const valueSpan = element.querySelector('.vibegridx-rollup-value');
+    const valueSpan = element.querySelector('.vibegridx-rollup-value')
     if (valueSpan && column.rollupConfig) {
-      const sourceData = this.getMockSourceData();
-      const calculatedValue = this.calculator.calculate(column.rollupConfig, sourceData, 'unknown');
-      valueSpan.textContent = this.formatSumValue(calculatedValue, column);
+      const sourceData = this.getMockSourceData()
+      const calculatedValue = this.calculator.calculate(column.rollupConfig, sourceData, 'unknown')
+      valueSpan.textContent = this.formatSumValue(calculatedValue, column)
     }
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return (column.cellType || column.type) === 'rollup_sum';
+    return (column.cellType || column.type) === 'rollup_sum'
   }
 
   private formatSumValue(value: number, column: EnhancedColumn): string {
-    if (value == null || isNaN(value)) return '0';
+    if (value == null || isNaN(value)) return '0'
 
-    const precision = column.rollupConfig?.precision || 2;
+    const precision = column.rollupConfig?.precision || 2
     return value.toLocaleString(undefined, {
       minimumFractionDigits: precision,
-      maximumFractionDigits: precision
-    });
+      maximumFractionDigits: precision,
+    })
   }
 
   private getMockSourceData(): any[] {
-    return Array.from({length: Math.floor(Math.random() * 10)}, (_, i) => ({
+    return Array.from({ length: Math.floor(Math.random() * 10) }, (_, i) => ({
       id: `mock-${i}`,
       amount: Math.random() * 1000,
-      budget_amount: Math.random() * 500
-    }));
+      budget_amount: Math.random() * 500,
+    }))
   }
 }
 
@@ -90,19 +90,27 @@ export const RollupSumFieldType: VibeGridFieldType = {
   renderer: new RollupSumRenderer(),
   editor: new (class implements CellEditor {
     create(): HTMLElement {
-      const div = document.createElement('div');
-      div.textContent = 'Sum field (read-only)';
-      div.style.cssText = 'padding: 8px; background: #f9fafb; border-radius: 4px; font-size: 12px;';
-      return div;
+      const div = document.createElement('div')
+      div.textContent = 'Sum field (read-only)'
+      div.style.cssText = 'padding: 8px; background: #f9fafb; border-radius: 4px; font-size: 12px;'
+      return div
     }
-    getValue(): any { return null; }
+    getValue(): any {
+      return null
+    }
     setValue(): void {}
-    validate(): any { return { valid: true, errors: [] }; }
+    validate(): any {
+      return { valid: true, errors: [] }
+    }
     destroy(): void {}
   })(),
   formatter: new (class implements CellFormatter {
-    format(value: any): string { return String(value || 0); }
-    parse(): any { return null; }
+    format(value: any): string {
+      return String(value || 0)
+    }
+    parse(): any {
+      return null
+    }
   })(),
   rollupCalculator: new RollupSumCalculator(),
   metadata: {
@@ -113,9 +121,10 @@ export const RollupSumFieldType: VibeGridFieldType = {
     requiresSpecialEditor: false,
     hasRichDisplay: true,
     isCalculatedField: true,
-    isReadOnly: true
-  }
-};
+    isReadOnly: true,
+  },
+}
 
-import { fieldTypeRegistry } from '../../FieldTypeRegistry';
-fieldTypeRegistry.register('rollup_sum', RollupSumFieldType);
+import { fieldTypeRegistry } from '../../FieldTypeRegistry'
+
+fieldTypeRegistry.register('rollup_sum', RollupSumFieldType)

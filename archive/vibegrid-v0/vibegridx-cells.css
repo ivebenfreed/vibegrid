@@ -424,99 +424,99 @@
   .vibegridx-cell-content {
     color: var(--foreground, #f9fafb);
   }
-  
+
   /* .vibegridx-cell:hover .vibegridx-cell-content {
     background-color: var(--accent, #1f2937);
   } */
-  
+
   .vibegridx-enum-tag {
     background-color: var(--muted, #374151);
   }
-  
+
   .vibegridx-boolean-badge-null {
     background-color: var(--muted, #374151);
   }
-  
+
   /* Dark mode enum badge colors */
   .vibegridx-enum-badge-open {
     background-color: #1e3a8a;
     color: #dbeafe;
     border: 1px solid #3b82f6;
   }
-  
+
   .vibegridx-enum-badge-in-progress {
     background-color: #78350f;
     color: #fef3c7;
     border: 1px solid #f59e0b;
   }
-  
+
   .vibegridx-enum-badge-completed {
     background-color: #064e3b;
     color: #d1fae5;
     border: 1px solid #10b981;
   }
-  
+
   .vibegridx-enum-badge-low {
     background-color: #374151;
     color: #e5e7eb;
     border: 1px solid #6b7280;
   }
-  
+
   .vibegridx-enum-badge-medium {
     background-color: #78350f;
     color: #fef3c7;
     border: 1px solid #f59e0b;
   }
-  
+
   .vibegridx-enum-badge-high {
     background-color: #7f1d1d;
     color: #fee2e2;
     border: 1px solid #ef4444;
   }
-  
+
   .vibegridx-enum-badge-active {
     background-color: #064e3b;
     color: #d1fae5;
     border: 1px solid #10b981;
   }
-  
+
   .vibegridx-enum-badge-inactive {
     background-color: #374151;
     color: #e5e7eb;
     border: 1px solid #6b7280;
   }
-  
+
   .vibegridx-enum-badge-pending {
     background-color: #78350f;
     color: #fef3c7;
     border: 1px solid #f59e0b;
   }
-  
+
   .vibegridx-enum-badge-approved {
     background-color: #064e3b;
     color: #d1fae5;
     border: 1px solid #10b981;
   }
-  
+
   .vibegridx-enum-badge-rejected {
     background-color: #7f1d1d;
     color: #fee2e2;
     border: 1px solid #ef4444;
   }
-  
+
   .vibegridx-enum-badge-unknown {
     background-color: #374151;
     color: #d1d5db;
     border: 1px solid #6b7280;
   }
-  
+
   /* Dark mode relationship badge colors */
   .vibegridx-badge--primary {
     background-color: hsl(var(--primary) / 0.2);
     color: hsl(var(--primary));
     border-color: hsl(var(--primary) / 0.3);
   }
-  
+
   .vibegridx-badge--muted {
     background-color: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
