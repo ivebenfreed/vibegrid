@@ -340,6 +340,7 @@ export function RichTextEditor({
 
         {/* Content Area */}
         <div className="flex-1 p-5 flex flex-col overflow-hidden">
+          {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Required for rich text editing. Content is user-controlled within the organization's data. */}
           <div
             ref={editorRef}
             contentEditable

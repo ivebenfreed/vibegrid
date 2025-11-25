@@ -78,6 +78,7 @@ export class ComputedRenderer implements CellRenderer {
       })
 
       // Basic math evaluation (unsafe - for demo only)
+      // biome-ignore lint/security/noGlobalEval: This is a demo implementation for computed fields. Expression is sanitized before eval. Production code should use a proper expression parser.
       const result = eval(expr.replace(/[^0-9+\-*/.() ]/g, ''))
       return Number(result) || 0
     } catch {
