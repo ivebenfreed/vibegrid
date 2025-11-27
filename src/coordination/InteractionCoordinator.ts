@@ -12,6 +12,7 @@
  * - Coordinate between selection, editing, and navigation
  */
 
+import { untracked } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import type { CellActionRouter } from '../routing/CellActionRouter'
 import type { EditSessionManager } from '../services/EditSessionManager'
@@ -241,13 +242,18 @@ export class InteractionCoordinator {
    *
    * This ensures we never use stale render snapshot values.
    * The TableCoreStore.processedRows getter always returns current data.
+   *
+   * NOTE: Wrapped in untracked() because this is called from event handlers
+   * (non-reactive context). Without untracked(), MobX warns and forces recompute.
    */
   private getCellData(rowId: string, columnId: string): CellData {
-    const processedRows = this.tableCoreStore.processedRows || []
-    const row = processedRows.find((r: any) => r.id === rowId)
-    const value = row ? row[columnId] : null
+    return untracked(() => {
+      const processedRows = this.tableCoreStore.processedRows || []
+      const row = processedRows.find((r: any) => r.id === rowId)
+      const value = row ? row[columnId] : null
 
-    return { row, value }
+      return { row, value }
+    })
   }
 
   /**

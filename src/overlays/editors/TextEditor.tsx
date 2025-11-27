@@ -28,7 +28,6 @@ function TextEditorComponent({
   const [value, setValue] = React.useState(initialValue || '')
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null)
   const hasUserInteracted = React.useRef(false)
-  const blurTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   React.useEffect(() => {
     // Select text immediately on mount with a small delay to ensure proper focus
@@ -50,35 +49,20 @@ function TextEditorComponent({
       case 'Enter':
         if (!multiline || !e.shiftKey) {
           e.preventDefault()
-          e.stopPropagation() // Stop event from bubbling to KeyboardNavigationController
-          // Clear any pending blur commit
-          if (blurTimeoutRef.current) {
-            clearTimeout(blurTimeoutRef.current)
-            blurTimeoutRef.current = null
-          }
+          e.stopPropagation()
           fileLog.debug('TextEditor: Commit via Enter key')
           onCommit(value)
         }
         break
       case 'Escape':
         e.preventDefault()
-        e.stopPropagation() // Stop the event from reaching KeyboardNavigationController
-        // Clear any pending blur commit
-        if (blurTimeoutRef.current) {
-          clearTimeout(blurTimeoutRef.current)
-          blurTimeoutRef.current = null
-        }
+        e.stopPropagation()
         fileLog.debug('TextEditor: Cancel via Escape key')
         onCancel()
         break
       case 'Tab':
         e.preventDefault()
-        e.stopPropagation() // Stop event from bubbling to KeyboardNavigationController
-        // Clear any pending blur commit
-        if (blurTimeoutRef.current) {
-          clearTimeout(blurTimeoutRef.current)
-          blurTimeoutRef.current = null
-        }
+        e.stopPropagation()
         fileLog.debug('TextEditor: Commit via Tab key')
         onCommit(value)
         break
@@ -86,43 +70,38 @@ function TextEditorComponent({
   }
 
   const handleBlur = () => {
+    const currentCellId = `${cell.rowId}:${cell.columnId}`
     fileLog.debug('TextEditor: Blur event triggered', {
       hasUserInteracted: hasUserInteracted.current,
       value,
-      cellId: `${cell.rowId}:${cell.columnId}`,
+      cellId: currentCellId,
     })
 
     // If user has interacted, commit the changes
     if (hasUserInteracted.current && onCommit) {
-      // Add a small delay to distinguish between accidental blur and intentional blur
-      blurTimeoutRef.current = setTimeout(() => {
-        fileLog.debug('TextEditor: Committing value on blur after delay')
-        onCommit(value)
-      }, 100)
+      // Commit immediately - no delay needed
+      // The service layer will handle any transitions to new edits
+      fileLog.debug('TextEditor: Committing value on blur immediately')
+      onCommit(value)
     } else {
-      // If no user interaction, don't commit - let outside click handler decide
-      fileLog.debug(
-        'TextEditor: Blur without user interaction - not committing, leaving edit active',
-      )
+      // If no user interaction, cancel instead of leaving in limbo
+      fileLog.debug('TextEditor: Blur without user interaction - cancelling')
+      onCancel()
     }
   }
 
   const handleFocus = () => {
-    // Cancel any pending blur commit when regaining focus
-    if (blurTimeoutRef.current) {
-      clearTimeout(blurTimeoutRef.current)
-      blurTimeoutRef.current = null
-      fileLog.debug('TextEditor: Cancelled blur commit due to refocus')
-    }
+    // Focus handler - can be used for future focus-related logic
+    fileLog.debug('TextEditor: Focus received')
   }
 
-  // Container style to match cell layout
+  // Container style to match cell layout exactly
   const containerStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
     display: 'flex',
     alignItems: 'center',
-    fontSize: '13px',
+    fontSize: '14px', // Match CellFactory view mode
     boxSizing: 'border-box',
   }
 

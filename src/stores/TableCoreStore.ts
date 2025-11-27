@@ -15,14 +15,23 @@
  * - Updates entity data via TanStack DB mutations
  */
 
-import { action, computed, makeObservable, type ObservableMap, observable, runInAction } from 'mobx'
+import {
+  action,
+  autorun,
+  computed,
+  makeObservable,
+  type ObservableMap,
+  observable,
+  runInAction,
+  untracked,
+} from 'mobx'
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
 import { getOrCreateEntityCollection } from '@/shared/data/db/collections/registry'
 import { createLogger } from '@/shared/lib/logging'
-import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
@@ -263,7 +272,7 @@ export class TableCoreStore implements IStore {
   private schemaRegistry:
     | import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore
     | null = null
-  private coordinateManager: VibeGridXCoordinateManager | null = null
+  private coordinateManager: ObservableCoordinateManager | null = null
   private interactionStore: import('./InteractionStore').InteractionStore | null = null
   private disposers = new DisposerManager()
 
@@ -331,9 +340,9 @@ export class TableCoreStore implements IStore {
    * Called by parent component after store creation
    */
   @action
-  setCoordinateManager(manager: VibeGridXCoordinateManager): void {
+  setCoordinateManager(manager: ObservableCoordinateManager): void {
     this.coordinateManager = manager
-    log.info('Coordinate manager set on TableCoreStore')
+    log.info('ObservableCoordinateManager set on TableCoreStore')
   }
 
   /**
@@ -752,24 +761,16 @@ export class TableCoreStore implements IStore {
   }
 
   // ====================================
-  // COMPUTED VALUES
+  // COMPUTED VALUES - DATA PROCESSING PIPELINE
   // ====================================
 
   /**
-   * Processed rows with filtering, sorting, and grouping applied
-   * This is the main data processing pipeline
+   * Stage 1: Filtered rows
+   * Applies filter configuration to raw rows
    */
   @computed
-  get processedRows(): any[] {
-    if (!this.isSchemaLoaded) {
-      log.debug('⏳ Schema not ready for processedRows', { entityType: this.entityType })
-      return []
-    }
-
-    if (!this.hasLoadedRows) {
-      log.debug('⏳ Entity data not yet loaded for processedRows', {
-        entityType: this.entityType,
-      })
+  get filteredRows(): any[] {
+    if (!this.isSchemaLoaded || !this.hasLoadedRows) {
       return []
     }
 
@@ -777,150 +778,103 @@ export class TableCoreStore implements IStore {
     let rows: any[]
     if (this.rawRows.length > 0) {
       rows = this.rawRows
-      // DEBUG: Log first row structure to understand the data format
-      if (rows.length > 0) {
-        const firstRow = rows[0]
-        log.info('🔍 [PROCESSEDROWS-DEBUG] First raw row structure', {
-          hasId: !!firstRow?.id,
-          hasData: !!firstRow?.data,
-          keys: Object.keys(firstRow || {}),
-          keyValues: Object.keys(firstRow || {}).reduce(
-            (acc, key) => {
-              acc[key] = typeof firstRow[key]
-              return acc
-            },
-            {} as Record<string, string>,
-          ),
-          pathValue: firstRow?.path,
-          typeValue: firstRow?.type,
-          rawRowsLength: rows.length,
-        })
-      }
     } else if (this.entityDataProvider) {
       // Fallback to entity data provider (future full implementation)
       const data = this.entityDataProvider.getEntityData() || {}
       rows = Object.values(data)
     } else {
-      log.debug('ℹ️ No entity data available from provider', { entityType: this.entityType })
       return []
     }
 
-    log.debug('📊 Got entity data', {
-      entityType: this.entityType,
-      recordCount: rows.length,
-    })
-
-    // Get visual state (filters, sorting, grouping)
-    // CRITICAL: Use visualStateStore (not visualStateInputs) for reactive MobX properties
-    const sortBy = this.visualStateStore?.sortBy || []
     const filters = this.visualStateStore?.filters || []
-    const groupConfig = this.visualStateStore?.groupConfig || null
-
-    log.info('🔍 [SORT-DEBUG] Reading sortBy from visualStateStore', {
-      hasVisualStateStore: !!this.visualStateStore,
-      sortByLength: sortBy.length,
-      sortByValue: JSON.stringify(sortBy),
-      visualStateStoreSortBy: this.visualStateStore?.sortBy,
-      visualStateStoreSortByLength: this.visualStateStore?.sortBy?.length,
-    })
-
-    // DEBUG: Log first row's actual field values for sorting
-    if (rows.length > 0 && sortBy.length > 0) {
-      const firstRow = rows[0]
-      const sortField = sortBy[0].field
-      log.info('🔍 [SORT-DEBUG] First row field access', {
-        sortField,
-        hasDataProperty: !!firstRow.data,
-        directFieldValue: firstRow[sortField],
-        dataFieldValue: firstRow.data?.[sortField],
-        sampleKeys: Object.keys(firstRow).slice(0, 10),
-        rowStructure: {
-          id: firstRow.id,
-          title: firstRow.title,
-          name: firstRow.name,
-        },
-      })
+    if (filters.length === 0) {
+      return rows
     }
 
-    // Apply filters and sorting first
-    rows = applyFilters(rows, filters)
-    rows = applySorting(rows, sortBy)
+    return applyFilters(rows, filters)
+  }
+
+  /**
+   * Stage 2: Sorted rows
+   * Applies sorting configuration to filtered rows
+   */
+  @computed
+  get sortedRows(): any[] {
+    const sortBy = this.visualStateStore?.sortBy || []
+    if (sortBy.length === 0) {
+      return this.filteredRows
+    }
+
+    return applySorting(this.filteredRows, sortBy)
+  }
+
+  /**
+   * Stage 3: Grouped or ordered rows
+   * Applies grouping or flat row ordering to sorted rows
+   */
+  @computed
+  get groupedOrOrderedRows(): any[] {
+    const groupConfig = this.visualStateStore?.groupConfig || null
 
     // Apply grouping if configured
     if (groupConfig && groupConfig.fields && groupConfig.fields.length > 0) {
-      log.info('🔄 processedRows: Applying grouping', {
-        groupFields: groupConfig.fields.map((f) => f.field),
-        groupRowOrdersCount: Object.keys(this.groupRowOrders).length,
-      })
-
       const groupResult = GroupProcessor.processData(
-        rows,
+        this.sortedRows,
         this.columns,
         groupConfig,
         this.groupRowOrders,
       )
-
-      log.info('✅ Processed rows with grouping', {
-        inputCount: rows.length,
-        filteredAndSortedRows: rows.length,
-        virtualRowsAfterGrouping: groupResult.virtualRows.length,
-        groupCount: groupResult.groupCount,
-        hasFilters: filters.length > 0,
-        hasSorting: sortBy.length > 0,
-      })
-
       return groupResult.virtualRows
     }
 
-    log.info('✅ Processed rows (no grouping)', {
-      inputCount: rows.length,
-      outputCount: rows.length,
-      hasFilters: filters.length > 0,
-      hasSorting: sortBy.length > 0,
-    })
-
     // Apply flat row ordering if no grouping and no sorting
-    const hasSorting = sortBy.length > 0
+    const hasSorting = (this.visualStateStore?.sortBy || []).length > 0
     if (!hasSorting && this.flatRowOrder.length > 0) {
-      rows = applyFlatRowOrdering(rows, this.flatRowOrder)
-      log.debug('✅ Applied flat row ordering', {
-        flatOrderCount: this.flatRowOrder.length,
-        totalRows: rows.length,
-      })
+      return applyFlatRowOrdering(this.sortedRows, this.flatRowOrder)
     }
 
-    // CRITICAL FIX: Wrap flat rows in VirtualRow structure for consistency with grouped rows
-    // BodyRenderer.createCellElement expects rows with { type, id, data } structure
-    const virtualRows = rows.map((row, index) => ({
+    return this.sortedRows
+  }
+
+  /**
+   * Stage 4: Processed rows (final output)
+   * Wraps rows in VirtualRow structure for renderer consumption
+   * This is the main data processing pipeline output
+   *
+   * keepAlive: true ensures this computed stays cached even when not observed by reactions.
+   * This prevents suspension and recomputation on every access from other computeds (e.g., rowOffsets).
+   */
+  @computed({ keepAlive: true })
+  get processedRows(): any[] {
+    if (!this.isSchemaLoaded) {
+      return []
+    }
+
+    if (!this.hasLoadedRows) {
+      return []
+    }
+
+    const rows = this.groupedOrOrderedRows
+
+    // If rows are already VirtualRows (from grouping), return as-is
+    if (rows.length > 0 && 'type' in rows[0]) {
+      return rows
+    }
+
+    // Wrap flat rows in VirtualRow structure for consistency
+    // BodyRenderer.createCellElement expects rows with { type, id, index, height, data } structure
+    return rows.map((row, index) => ({
       type: 'data' as const,
       id: row.id,
       index,
-      height: 40, // DATA_ROW_HEIGHT constant from GroupProcessor
+      height: row.height || 40, // Preserve variable row heights, default to 40
       data: row,
     }))
-
-    log.debug('✅ Wrapped flat rows in VirtualRow structure', {
-      inputRows: rows.length,
-      virtualRows: virtualRows.length,
-    })
-
-    return virtualRows
   }
 
   // ====================================
-  // GROUP ROW ORDERING ACTIONS
+  // COMPUTED HELPERS
   // ====================================
-
-  /**
-   * Set custom row order for a specific group
-   */
-  /**
-   * Sorted rows (alias for processedRows for compatibility)
-   */
-  @computed
-  get sortedRows(): any[] {
-    return this.processedRows
-  }
 
   /**
    * Get fields used in sorting
@@ -971,8 +925,11 @@ export class TableCoreStore implements IStore {
   /**
    * Row offset map for variable-height virtual scrolling
    * Returns array where index i = cumulative Y offset of row i
+   *
+   * keepAlive: true ensures this computed stays cached for efficient virtual scrolling.
+   * Prevents recomputation on every scroll frame.
    */
-  @computed
+  @computed({ keepAlive: true })
   get rowOffsets(): number[] {
     const rows = this.processedRows
     const offsets: number[] = [0]
@@ -988,9 +945,19 @@ export class TableCoreStore implements IStore {
 
   /**
    * Find row index at given scroll position using binary search
+   *
+   * NOTE: Uses untracked() to prevent MobX from tracking rowOffsets access.
+   * Without this, visibleRowRange → findRowAtScrollPosition → rowOffsets → processedRows
+   * creates a dependency chain that causes processedRows to recompute on every scroll.
+   *
+   * The trade-off: If row heights change, visibleRowRange won't automatically update.
+   * This is acceptable because:
+   * 1. Row height changes trigger the data observer which calls renderBody()
+   * 2. renderBody() directly accesses visibleRowRange, ensuring correct rendering
    */
   findRowAtScrollPosition(scrollTop: number): number {
-    const offsets = this.rowOffsets
+    // Use untracked to prevent cascade recomputation of processedRows on scroll
+    const offsets = untracked(() => this.rowOffsets)
     if (offsets.length === 0) return 0
 
     let left = 0
@@ -1023,9 +990,13 @@ export class TableCoreStore implements IStore {
       lastModified: new Date().toISOString(),
     }
 
+    // Increment config version to trigger renderer update
+    this.configVersion++
+
     log.info('🔄 Group row order set', {
       groupId,
       rowCount: rowIds.length,
+      configVersion: this.configVersion,
     })
   }
 
@@ -1051,11 +1022,15 @@ export class TableCoreStore implements IStore {
       lastModified: new Date().toISOString(),
     }
 
+    // Increment config version to trigger renderer update
+    this.configVersion++
+
     log.info('🔄 Row moved within group', {
       groupId,
       fromIndex,
       toIndex,
       movedRowId,
+      configVersion: this.configVersion,
     })
 
     return true
@@ -1194,6 +1169,9 @@ export class TableCoreStore implements IStore {
         lastModified: new Date().toISOString(),
       }
 
+      // Increment config version to trigger renderer update
+      this.configVersion++
+
       // Update coordinator with new row order
       this.updateCoordinatorWithCurrentRows()
 
@@ -1203,6 +1181,7 @@ export class TableCoreStore implements IStore {
         from: currentIndex,
         to: newIndex,
         newOrderLength: newRowIds.length,
+        configVersion: this.configVersion,
       })
 
       return true
@@ -1306,11 +1285,15 @@ export class TableCoreStore implements IStore {
   setFlatRowOrder(rowIds: string[]): void {
     this.flatRowOrder = [...rowIds]
 
+    // Increment config version to trigger renderer update
+    this.configVersion++
+
     // Update coordinator with new row order
     this.updateCoordinatorWithCurrentRows()
 
     log.info('🔄 Flat row order set', {
       rowCount: rowIds.length,
+      configVersion: this.configVersion,
     })
   }
 
@@ -1374,6 +1357,9 @@ export class TableCoreStore implements IStore {
     // Update the flat row order
     this.flatRowOrder = newRowIds
 
+    // Increment config version to trigger renderer update
+    this.configVersion++
+
     // Update coordinator with new row order
     this.updateCoordinatorWithCurrentRows()
 
@@ -1382,6 +1368,7 @@ export class TableCoreStore implements IStore {
       to: toIndex,
       movedRowId,
       newOrderLength: newRowIds.length,
+      configVersion: this.configVersion,
       flatRowOrder: this.flatRowOrder,
     })
 
@@ -1507,6 +1494,10 @@ export class TableCoreStore implements IStore {
           (col) => col.type === 'custom_option_reference',
         ),
       })
+
+      // Phase 3: Removed manual keepAlive autoruns
+      // processedRows and rowOffsets now use @computed({ keepAlive: true })
+      // This is a cleaner, declarative approach that prevents suspension without manual observers
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 

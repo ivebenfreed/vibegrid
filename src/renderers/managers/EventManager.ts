@@ -9,16 +9,14 @@ import { toast } from 'sonner'
 import { createLogger } from '@/shared/lib/logging'
 import { ClipboardManager } from '../../managers/ClipboardManager'
 import type { InteractionStore } from '../../stores/InteractionStore'
-import type { TableViewport$ } from '../../stores/pure-observables'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { OverlayManager } from '../modules/OverlayManager'
 
 const fileLog = createLogger('components/custom/vibegrid/renderers/managers/EventManager.ts')
 
 export interface EventManagerOptions {
-  tableCore$: TableCoreStore
-  tableInteraction$: InteractionStore
-  tableViewport$: TableViewport$
+  tableCoreStore: TableCoreStore
+  interactionStore: InteractionStore
   overlayManager?: OverlayManager
   container: HTMLElement
 
@@ -27,9 +25,8 @@ export interface EventManagerOptions {
 }
 
 export class EventManager {
-  private tableCore$: TableCoreStore
-  private tableInteraction$: InteractionStore
-  private tableViewport$: TableViewport$
+  private tableCoreStore: TableCoreStore
+  private interactionStore: InteractionStore
   private overlayManager?: OverlayManager
   private container: HTMLElement
   private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
@@ -43,17 +40,16 @@ export class EventManager {
   }> = []
 
   constructor(options: EventManagerOptions) {
-    this.tableCore$ = options.tableCore$
-    this.tableInteraction$ = options.tableInteraction$
-    this.tableViewport$ = options.tableViewport$
+    this.tableCoreStore = options.tableCoreStore
+    this.interactionStore = options.interactionStore
     this.overlayManager = options.overlayManager
     this.container = options.container
     this.onEntityUpdate = options.onEntityUpdate
 
     // Initialize clipboard manager
     this.clipboardManager = new ClipboardManager({
-      tableCore$: this.tableCore$,
-      tableInteraction$: this.tableInteraction$,
+      tableCore$: this.tableCoreStore,
+      tableInteraction$: this.interactionStore,
       onEntityUpdate: this.onEntityUpdate,
     })
   }
@@ -155,7 +151,7 @@ export class EventManager {
   async handleCutAction(): Promise<void> {
     fileLog.debug('✂️ Cut action triggered')
 
-    const selectedCells = this.tableInteraction$.selectedCells
+    const selectedCells = this.interactionStore.selectedCells
     if (selectedCells.size === 0) {
       toast.warning('No cells selected', {
         description: 'Select cells to cut first',
@@ -170,9 +166,9 @@ export class EventManager {
 
       if (copySuccess) {
         // Mark as cut operation
-        const clipboard = this.tableInteraction$.clipboard
+        const clipboard = this.interactionStore.clipboard
         if (clipboard && clipboard.data) {
-          this.tableInteraction$.setClipboard({
+          this.interactionStore.setClipboard({
             data: clipboard.data,
             operation: 'cut',
           })
@@ -206,14 +202,14 @@ export class EventManager {
     fileLog.debug('➕ Insert row action triggered')
 
     // Get the current selection to determine insertion point
-    const selectedCells = this.tableInteraction$.selectedCells
+    const selectedCells = this.interactionStore.selectedCells
     let insertionIndex = 0
 
     if (selectedCells.size > 0) {
       // Find the minimum row index from selected cells
       const rowIds = Array.from(selectedCells).map((cellId) => cellId.split(':')[0])
       const uniqueRowIds = [...new Set(rowIds)]
-      const rows = this.tableCore$.processedRows
+      const rows = this.tableCoreStore.processedRows
 
       const rowIndices = uniqueRowIds
         .map((rowId) => rows.findIndex((row: any) => row.id === rowId))
@@ -224,8 +220,8 @@ export class EventManager {
       }
     }
 
-    // Trigger row insertion via tableCore$
-    this.tableCore$.insertRow()
+    // Trigger row insertion via tableCoreStore
+    this.tableCoreStore.insertRow()
 
     this.overlayManager?.hideContextMenu()
   }
@@ -236,7 +232,7 @@ export class EventManager {
   private handleDeleteRowAction(): void {
     fileLog.debug('➖ Delete row action triggered')
 
-    const selectedCells = this.tableInteraction$.selectedCells
+    const selectedCells = this.interactionStore.selectedCells
     if (selectedCells.size === 0) {
       fileLog.debug('➖ No cells selected for row deletion')
       return
@@ -246,9 +242,9 @@ export class EventManager {
     const rowIds = Array.from(selectedCells).map((cellId) => cellId.split(':')[0])
     const uniqueRowIds = [...new Set(rowIds)]
 
-    // Trigger row deletion via tableCore$
+    // Trigger row deletion via tableCoreStore
     uniqueRowIds.forEach((rowId) => {
-      this.tableCore$.deleteRow()
+      this.tableCoreStore.deleteRow()
     })
 
     fileLog.debug('➖ Delete rows completed', { rowCount: uniqueRowIds.length })
@@ -261,9 +257,9 @@ export class EventManager {
   handleUndoAction(): void {
     fileLog.debug('↶ Undo action triggered')
 
-    // Implement undo via tableCore$ if available
-    if (this.tableCore$.undo) {
-      this.tableCore$.undo()
+    // Implement undo via tableCoreStore if available
+    if (this.tableCoreStore.undo) {
+      this.tableCoreStore.undo()
     } else {
       fileLog.debug('↶ Undo not available')
     }
@@ -275,9 +271,9 @@ export class EventManager {
   handleRedoAction(): void {
     fileLog.debug('↷ Redo action triggered')
 
-    // Implement redo via tableCore$ if available
-    if (this.tableCore$.redo) {
-      this.tableCore$.redo()
+    // Implement redo via tableCoreStore if available
+    if (this.tableCoreStore.redo) {
+      this.tableCoreStore.redo()
     } else {
       fileLog.debug('↷ Redo not available')
     }

@@ -904,6 +904,17 @@ export class MouseController {
             return
           }
 
+          // Don't sort if column resize just ended (within 150ms)
+          // This prevents sort trigger when mouseup happens after dragging resize handle
+          const timeSinceResize = Date.now() - this.interactionStore.lastResizeEndTime
+          if (timeSinceResize < 150) {
+            fileLog.debug('🚫 Ignoring column header click - resize just ended', {
+              timeSinceResize,
+              threshold: 150,
+            })
+            return
+          }
+
           const columnId = columnHeaderElement.getAttribute('data-column-id')
           const field = columnHeaderElement.getAttribute('data-field')
 

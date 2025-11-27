@@ -71,6 +71,12 @@ class DOMPositionStore {
   /**
    * Computed cell positions derived from coordinate mapping
    * This eliminates expensive DOM scanning by calculating positions mathematically
+   *
+   * ⚠️ TODO (Phase 6.4): This duplicates ObservableCoordinateManager.getCellPosition()
+   * Should be refactored to use coordinateManager directly instead of re-computing
+   * Kept for now to avoid breaking positionTracker consumers
+   *
+   * @deprecated Use ObservableCoordinateManager.getCellPosition() instead
    */
   @computed
   get computedCellPositions(): CellPositionMap {

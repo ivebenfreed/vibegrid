@@ -13,7 +13,7 @@
 
 import { runInAction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
-import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -29,9 +29,9 @@ export class SelectionService {
     private interactionStore: InteractionStore,
     private tableCoreStore: TableCoreStore,
     private visualStateStore: VisualStateStore,
-    private coordinateManager: VibeGridXCoordinateManager,
+    private coordinateManager: ObservableCoordinateManager,
   ) {
-    fileLog.info('SelectionService initialized with coordinate manager')
+    fileLog.info('SelectionService initialized with ObservableCoordinateManager')
   }
 
   /**
@@ -73,10 +73,8 @@ export class SelectionService {
   selectCell(cellId: string): void {
     fileLog.debug('selectCell', { cellId })
 
-    runInAction(() => {
-      this.interactionStore.selectedCells = new Set([cellId])
-      this.interactionStore.anchorCell = cellId
-    })
+    // Use InteractionStore's method to ensure version tracking
+    this.interactionStore.selectCell(cellId, false)
   }
 
   /**
@@ -95,10 +93,13 @@ export class SelectionService {
       cells: cells.slice(0, 5), // Log first 5 for debugging
     })
 
-    runInAction(() => {
-      this.interactionStore.selectedCells = new Set(cells)
-      // Keep anchor unchanged for subsequent range selections
-    })
+    // Use InteractionStore's method with data context for proper version tracking
+    const dataContext = {
+      rows: this.tableCoreStore.processedRows,
+      columns: this.visualStateStore.columns,
+      columnVisibility: this.visualStateStore.columnVisibility,
+    }
+    this.interactionStore.selectRange(fromCellId, toCellId, dataContext)
   }
 
   /**
@@ -118,6 +119,9 @@ export class SelectionService {
       }
       this.interactionStore.selectedCells = selected
       this.interactionStore.anchorCell = cellId
+
+      // Increment version to trigger overlay updates
+      this.interactionStore.selectionVersion++
     })
   }
 
@@ -155,6 +159,9 @@ export class SelectionService {
       }
 
       this.interactionStore.selectedCells = selected
+
+      // Increment version to trigger overlay updates
+      this.interactionStore.selectionVersion++
     })
   }
 
@@ -164,10 +171,8 @@ export class SelectionService {
   clearSelection(): void {
     fileLog.debug('clearSelection')
 
-    runInAction(() => {
-      this.interactionStore.selectedCells = new Set()
-      this.interactionStore.anchorCell = null
-    })
+    // Use InteractionStore's method to ensure version tracking
+    this.interactionStore.clearSelection()
   }
 
   /**

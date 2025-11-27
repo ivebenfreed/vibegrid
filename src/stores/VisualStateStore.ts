@@ -17,9 +17,10 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { createLogger } from '@/shared/lib/logging'
-import type { VibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
+import { assertInvariant } from '../utils/invariants'
 
 const log = createLogger('components/vibegrid/stores/VisualStateStore')
 
@@ -114,7 +115,7 @@ export class VisualStateStore implements IStore {
   // DEPENDENCIES
   // ====================================
 
-  private coordinateManager?: VibeGridXCoordinateManager
+  private coordinateManager?: ObservableCoordinateManager
   private interactionStore?: import('./InteractionStore').InteractionStore
 
   // ====================================
@@ -141,9 +142,9 @@ export class VisualStateStore implements IStore {
    * Set coordinate manager (dependency injection)
    */
   @action
-  setCoordinateManager(manager: VibeGridXCoordinateManager): void {
+  setCoordinateManager(manager: ObservableCoordinateManager): void {
     this.coordinateManager = manager
-    log.info('Coordinate manager set on VisualStateStore')
+    log.info('ObservableCoordinateManager set on VisualStateStore')
   }
 
   /**
@@ -584,6 +585,12 @@ export class VisualStateStore implements IStore {
     })
 
     this.coordinateManager.updateColumns(layoutColumns, BASE_OFFSET)
+
+    // Verify coordinator sync with visible columns
+    assertInvariant(
+      this.coordinateManager.getColumnCount() === layoutColumns.length,
+      `Coordinator columns (${this.coordinateManager.getColumnCount()}) must match visible columns (${layoutColumns.length})`,
+    )
   }
 
   /**

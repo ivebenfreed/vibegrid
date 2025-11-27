@@ -23,6 +23,7 @@ export function NumberEditor({
     switch (e.key) {
       case 'Enter':
         e.preventDefault()
+        e.stopPropagation() // Stop the event from bubbling up
         commitValue()
         break
       case 'Escape':
@@ -32,6 +33,7 @@ export function NumberEditor({
         break
       case 'Tab':
         e.preventDefault()
+        e.stopPropagation() // Stop the event from bubbling up
         commitValue()
         break
     }

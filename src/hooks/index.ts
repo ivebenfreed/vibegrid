@@ -22,21 +22,7 @@ export type {
 } from '../types/coordinate-types'
 // Re-export utility functions
 export { CoordinateTypeGuards, CoordinateUtils } from '../types/coordinate-types'
-// Core position hooks
-export {
-  useCellBounds$,
-  useCellInVirtualRange$,
-  useCellPosition$,
-  useCellPositionByIds$,
-  useCellPositionByIndices$,
-  useCellPositionThrottled$,
-  useCellPositionWithFallback$,
-  useCellVisibility$,
-  useMultipleCellPositions$,
-  useOverlayCellPosition$,
-  usePositionComparison$,
-  useVisibleCellKeys$,
-} from './use-cell-position'
+
 // Position tracking and lifecycle hooks
 export {
   useManualPositionUpdate,
@@ -46,17 +32,8 @@ export {
   useResizeTracking,
   useScrollTracking,
 } from './use-position-tracking'
-// Position utility hooks
-export {
-  useAreAdjacent$,
-  useCellCenter$,
-  useCellPositionHistory$,
-  useCellPositionInViewport$,
-  useCellPositionSmooth$,
-  useCellPositionStyle$,
-  useClosestCell$,
-  useOverlappingCells$,
-  usePositionInCell$,
-  useRelativePosition$,
-  useSelectionBounds$,
-} from './use-position-utils'
+
+// Note: Core position hooks (useCellPosition, etc.) removed in Phase 6
+// Controllers use coordinateManager directly via MobX reactions
+// React components use observer() + coordinateManager for reactivity
+// No special hooks needed with proper MobX integration

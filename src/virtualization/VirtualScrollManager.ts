@@ -1,10 +1,23 @@
 /**
- * Virtual Scroll Manager - Minimal coordinate calculations for virtualization only
+ * Virtual Scroll Manager - Legacy global state (DEPRECATED)
  *
- * ⚠️ PARTIAL MIGRATION - See notes below
+ * ⚠️ DEPRECATED IN PHASE 6 ⚠️
  *
- * This file exports functions that are called by SimplePassiveRenderer and OverlayManager.
- * The observable/computed parts are temporarily disabled pending full MobX migration.
+ * This file's global state has been replaced by VirtualViewportStore (MobX).
+ * Functions are kept for backward compatibility but should not be used in new code.
+ *
+ * Migration:
+ * - Old: updateVirtualViewport({ scrollTop, scrollLeft })
+ * - New: virtualViewportStore.updateScroll(scrollTop, scrollLeft)
+ *
+ * Benefits of VirtualViewportStore:
+ * - No global state (supports multiple grids)
+ * - MobX reactivity (automatic updates)
+ * - Computed visible ranges
+ * - Better testing
+ *
+ * @deprecated Use VirtualViewportStore instead
+ * @see src/systems/vibegrid/stores/VirtualViewportStore.ts
  */
 
 import { createLogger } from '@/shared/lib/logging'
@@ -21,8 +34,10 @@ import { CoordinateUtils } from '../types/coordinate-types'
 const fileLog = createLogger('components/custom/vibegrid/virtualization/VirtualScrollManager.ts')
 
 // ====================================
-// SIMPLE STATE (Not observable - TODO: migrate to MobX)
+// DEPRECATED: GLOBAL STATE
 // ====================================
+// ⚠️ These globals are deprecated - use VirtualViewportStore instead
+// Kept for backward compatibility with existing code
 
 let virtualBounds: VirtualBounds = {
   rowHeight: GRID_DIMENSIONS.ROW_HEIGHT,

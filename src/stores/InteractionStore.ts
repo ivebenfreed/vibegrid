@@ -20,8 +20,24 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { createLogger } from '@/shared/lib/logging'
+import type { TableCoreStore } from './TableCoreStore'
+import type { VisualStateStore } from './VisualStateStore'
 
 const log = createLogger('components/vibegrid/stores/InteractionStore')
+
+// ====================================
+// ASSERTION HELPERS
+// ====================================
+
+/**
+ * Assert that a store dependency is present
+ * Throws a clear error if the store was not initialized
+ */
+function assertStorePresent<T>(store: T | null, name: string): asserts store is T {
+  if (!store) {
+    throw new Error(`InteractionStore: ${name} not initialized. Call set${name}() before use.`)
+  }
+}
 
 // ====================================
 // TYPES
@@ -115,6 +131,9 @@ export class InteractionStore implements IStore {
   @observable isSelecting: boolean = false
   @observable lastBulkSelectionTime: number = 0
 
+  // Version tracking for selection state changes (used by OverlayManager for efficient change detection)
+  @observable selectionVersion: number = 0
+
   // ====================================
   // EDITING STATE
   // ====================================
@@ -160,6 +179,12 @@ export class InteractionStore implements IStore {
   @observable resizeStartWidth: number = 0
   @observable columnResize: ColumnResizeState | null = null
 
+  // Version tracking for resize state changes
+  @observable columnResizeVersion: number = 0
+
+  // Track last resize end time to prevent sort on resize mouseup
+  @observable lastResizeEndTime: number = 0
+
   // ====================================
   // MENU STATES
   // ====================================
@@ -192,13 +217,16 @@ export class InteractionStore implements IStore {
 
   @observable clipboard: ClipboardState | null = null
 
+  // Version tracking for clipboard state changes
+  @observable clipboardVersion: number = 0
+
   // ====================================
   // DEPENDENCIES (Injected)
   // ====================================
 
-  private tableCore$: any = null
-  private tableCoreStore: any = null
-  private visualStateStore: any = null
+  private tableCore$: unknown = null // Legacy tableCore reference
+  private tableCoreStore: TableCoreStore | null = null
+  private visualStateStore: VisualStateStore | null = null
   private collection: any = null // TanStack DB collection for entity mutations
   private disposers = new DisposerManager()
 
@@ -210,14 +238,14 @@ export class InteractionStore implements IStore {
   /**
    * Set TableCoreStore reference (for MobX architecture)
    */
-  setTableCoreStore(store: any): void {
+  setTableCoreStore(store: TableCoreStore): void {
     this.tableCoreStore = store
   }
 
   /**
    * Set VisualStateStore reference (for MobX architecture)
    */
-  setVisualStateStore(store: any): void {
+  setVisualStateStore(store: VisualStateStore): void {
     this.visualStateStore = store
   }
 
@@ -377,6 +405,14 @@ export class InteractionStore implements IStore {
       this.anchorCell = cellId
     }
 
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+    log.debug('📊 Selection version incremented', {
+      newVersion: this.selectionVersion,
+      cellId,
+      isMulti
+    })
+
     log.info('Cell selected', { cellId, isMulti, selectionCount: this.selectedCells.size })
   }
 
@@ -390,6 +426,10 @@ export class InteractionStore implements IStore {
    */
   @action
   handleCellClick(cellId: string, isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
+    // Assert stores are initialized
+    assertStorePresent(this.tableCoreStore, 'TableCoreStore')
+    assertStorePresent(this.visualStateStore, 'VisualStateStore')
+
     // CONFLICT PREVENTION: Skip if row/column selection just happened
     const now = Date.now()
     if (now - this.lastBulkSelectionTime < 50) {
@@ -441,10 +481,9 @@ export class InteractionStore implements IStore {
   private getDataContext():
     | { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> }
     | undefined {
-    if (!this.tableCoreStore || !this.visualStateStore) {
-      log.warn('Cannot get data context - stores not set')
-      return undefined
-    }
+    // Assert stores are initialized before accessing
+    assertStorePresent(this.tableCoreStore, 'TableCoreStore')
+    assertStorePresent(this.visualStateStore, 'VisualStateStore')
 
     try {
       const rows = this.tableCoreStore.processedRows || []
@@ -485,6 +524,9 @@ export class InteractionStore implements IStore {
       this.selectedRows = currentSelected
     }
 
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+
     log.info('Row selected', { rowId, isMulti, selectionCount: this.selectedRows.size })
   }
 
@@ -514,6 +556,9 @@ export class InteractionStore implements IStore {
 
     this.selectedCells = allCells
 
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+
     log.info('All cells selected with data context', {
       totalCells: this.selectedCells.size,
     })
@@ -531,6 +576,10 @@ export class InteractionStore implements IStore {
     this.focusedCell = null
     this.hoveredCell = null
     this.hoveredRow = null
+
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+
     log.info('Selection and focus cleared')
   }
 
@@ -582,6 +631,9 @@ export class InteractionStore implements IStore {
       this.selectedCells = cellsToSelect
       this.anchorCell = startCellId
 
+      // Increment version to trigger overlay updates
+      this.selectionVersion++
+
       log.info('Simple range selection (no data context)', {
         count: cellsToSelect.size,
         from: startCellId,
@@ -594,8 +646,12 @@ export class InteractionStore implements IStore {
     const [startRowId, startColId] = startCellId.split(':')
     const [endRowId, endColId] = endCellId.split(':')
 
-    const { rows, columns, columnVisibility } = dataContext
-    const visibleColumns = columns.filter((col: any) => columnVisibility[col.id] !== false)
+    const { rows } = dataContext
+
+    // FIX: Use visual column order from VisualStateStore instead of dataContext columns
+    // This ensures range selection respects column reordering
+    assertStorePresent(this.visualStateStore, 'VisualStateStore')
+    const visibleColumns = this.visualStateStore.visibleOrderedColumns
 
     // Get row and column indices
     const startRowIndex = rows.findIndex((row: any) => row.id === startRowId)
@@ -618,6 +674,9 @@ export class InteractionStore implements IStore {
 
       this.selectedCells = cellsToSelect
       this.anchorCell = startCellId
+
+      // Increment version to trigger overlay updates
+      this.selectionVersion++
 
       log.info('Fallback range selection (index lookup failed)', {
         count: cellsToSelect.size,
@@ -667,6 +726,9 @@ export class InteractionStore implements IStore {
     this.selectedCells = newSelection
     this.anchorCell = startCellId
 
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+
     log.info('Full range selection with data context', {
       start: startCellId,
       end: endCellId,
@@ -695,6 +757,9 @@ export class InteractionStore implements IStore {
     this.anchorCell = `${rowId}:${visibleColumns[0]?.id}`
     this.lastBulkSelectionTime = Date.now()
 
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
+
     log.info('Row cells selected', {
       rowId,
       cellCount: selectedCells.size,
@@ -718,6 +783,9 @@ export class InteractionStore implements IStore {
     this.selectedCells = selectedCells
     this.anchorCell = `${processedRows[0]?.id}:${columnId}`
     this.lastBulkSelectionTime = Date.now()
+
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
 
     log.info('Column cells selected', {
       columnId,
@@ -751,6 +819,9 @@ export class InteractionStore implements IStore {
       this.selectedCells = new Set(rowCells)
       log.info('Row cells selected (previous selection cleared)', { rowId })
     }
+
+    // Increment version to trigger overlay updates
+    this.selectionVersion++
   }
 
   /**
@@ -769,6 +840,7 @@ export class InteractionStore implements IStore {
     if (isShiftKey && this.anchorCell) {
       // Shift+click for range selection
       this.selectRange(this.anchorCell, cellId)
+      // Note: selectRange already increments selectionVersion
     } else if (isCtrlKey) {
       // Ctrl/Cmd+click for multi-selection toggle
       if (cells.has(cellId)) {
@@ -777,10 +849,16 @@ export class InteractionStore implements IStore {
         cells.add(cellId)
       }
       this.selectedCells = cells
+
+      // Increment version to trigger overlay updates
+      this.selectionVersion++
     } else {
       // Regular click - clear selection and select only this cell
       this.selectedCells = new Set([cellId])
       this.anchorCell = cellId
+
+      // Increment version to trigger overlay updates
+      this.selectionVersion++
     }
 
     log.info('Cell selection toggled', { rowId, columnId, isCtrlKey, isShiftKey })
@@ -812,9 +890,15 @@ export class InteractionStore implements IStore {
 
   /**
    * Start editing a cell
+   *
+   * Always updates selection to the editing cell.
    */
   @action
   startEdit(cellId: string, initialValue?: any): void {
+    // Always update selection to the editing cell
+    this.selectedCells = new Set([cellId])
+    this.anchorCell = cellId
+
     this.editingCell = cellId
     this.editValue = initialValue ?? null
     this.isEditing = true
@@ -1117,6 +1201,9 @@ export class InteractionStore implements IStore {
       newWidth: startWidth,
     }
 
+    // Increment version to trigger overlay updates
+    this.columnResizeVersion++
+
     log.info('Column resize started, selections cleared', { columnId, startX, startWidth })
   }
 
@@ -1138,6 +1225,9 @@ export class InteractionStore implements IStore {
         ...this.columnResize,
         newWidth,
       }
+
+      // Increment version to trigger overlay updates
+      this.columnResizeVersion++
     }
 
     return { columnId: this.resizingColumn, newWidth }
@@ -1152,6 +1242,12 @@ export class InteractionStore implements IStore {
     this.resizeStartX = 0
     this.resizeStartWidth = 0
     this.columnResize = null
+
+    // Track resize end time to prevent sort trigger
+    this.lastResizeEndTime = Date.now()
+
+    // Increment version to trigger overlay updates
+    this.columnResizeVersion++
 
     log.info('Column resize ended', { columnId: resizingColumn, newWidth })
 
@@ -1303,6 +1399,9 @@ export class InteractionStore implements IStore {
       richData: clipboardData.richData,
     }
 
+    // Increment version to trigger overlay updates
+    this.clipboardVersion++
+
     log.info('Clipboard set', {
       operation: clipboardData.operation,
       cellCount: this.selectedCells.size,
@@ -1313,6 +1412,10 @@ export class InteractionStore implements IStore {
   @action
   clearClipboard(): void {
     this.clipboard = null
+
+    // Increment version to trigger overlay updates
+    this.clipboardVersion++
+
     log.info('Clipboard cleared')
   }
 

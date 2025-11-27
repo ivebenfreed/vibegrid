@@ -476,9 +476,13 @@ export class HeaderRenderer {
         }
       }
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (e: MouseEvent) => {
         if (!isResizing) return
         isResizing = false
+
+        // FIX: Stop propagation to prevent sort trigger after resize
+        e.stopPropagation()
+        e.preventDefault()
 
         // Cancel any pending resize RAF
         if (resizeRAF) {
@@ -498,12 +502,13 @@ export class HeaderRenderer {
           })
         }
 
-        // Clear resize state (MobX)
+        // Clear resize state and track end time to prevent sort trigger (MobX)
         fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing columnResize state (mouseup)')
         runInAction(() => {
           this.interactionStore.columnResize = null
+          this.interactionStore.lastResizeEndTime = Date.now()
         })
-        fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize set to null')
+        fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize set to null, lastResizeEndTime set')
 
         // Clean up listeners
         document.removeEventListener('mousemove', handleMouseMove)

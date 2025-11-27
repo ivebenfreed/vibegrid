@@ -9,14 +9,13 @@ import type React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useSchemaRegistry } from '@/app/stores'
 import { createLogger } from '@/shared/lib/logging'
-import {
-  createVibeGridXCoordinateManager,
-  type VibeGridXCoordinateManager,
-} from '../coordinates/VibeGridXCoordinateManager'
+import { createVibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
+import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
+import { VirtualViewportStore } from './VirtualViewportStore'
 import { VisualStateStore } from './VisualStateStore'
 
 const log = createLogger('components/vibegrid/stores/context')
@@ -31,7 +30,8 @@ export interface VibeGridStores {
   interactionStore: InteractionStore
   persistenceStore: PersistenceStore
   initStore: InitStore
-  coordinateManager: VibeGridXCoordinateManager
+  virtualViewportStore: VirtualViewportStore
+  coordinateManager: ObservableCoordinateManager
 }
 
 export interface VibeGridStoreProviderProps {
@@ -80,7 +80,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     })
 
     // Create coordinate manager (shared single source of truth)
-    const coordinateManager = createVibeGridXCoordinateManager()
+    // Wrap in ObservableCoordinateManager for MobX reactivity
+    const baseCoordinator = createVibeGridXCoordinateManager()
+    const coordinateManager = new ObservableCoordinateManager(baseCoordinator)
 
     // Create all stores
     const tableCoreStore = new TableCoreStore(entityType)
@@ -88,6 +90,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const interactionStore = new InteractionStore()
     const persistenceStore = new PersistenceStore(entityType, orgId)
     const initStore = new InitStore(tableId, entityType)
+    const virtualViewportStore = new VirtualViewportStore()
 
     // Set up dependency injection between stores
     // VisualStateStore needs CoordinateManager for layout tracking
@@ -148,6 +151,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       interactionStore,
       persistenceStore,
       initStore,
+      virtualViewportStore,
       coordinateManager,
     }
   }, [entityType, orgId, tableId])
@@ -226,6 +230,6 @@ export function useInitStore(): InitStore {
   return useVibeGridStores().initStore
 }
 
-export function useCoordinateManager(): VibeGridXCoordinateManager {
+export function useCoordinateManager(): ObservableCoordinateManager {
   return useVibeGridStores().coordinateManager
 }

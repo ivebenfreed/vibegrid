@@ -371,9 +371,8 @@ export class SimplePassiveRenderer {
 
     // Initialize EventManager with MobX stores
     this.eventManager = new EventManager({
-      tableCore$: this.tableCoreStore as any,
-      tableInteraction$: this.interactionStore as any,
-      tableViewport$: null as any, // Legacy parameter, not used
+      tableCoreStore: this.tableCoreStore,
+      interactionStore: this.interactionStore,
       container: this.container,
       onEntityUpdate: this.options.onEntityUpdate,
     })
@@ -702,200 +701,9 @@ export class SimplePassiveRenderer {
       observersEnabled: this.observersEnabled,
     })
 
-    // TODO: Visual observer needs complete rebuild for MobX (Day 6-8 after BodyRenderer migration)
-    // this.visualObserverDisposer = reaction(() => {
-    //       fileLog.debug('🔍 VISUAL OBSERVER CALLBACK ENTERED', {
-    //         observersEnabled: this.observersEnabled,
-    //         timestamp: Date.now()
-    //       });
-    //
-    //       // GUARD: Skip if observers are not enabled yet
-    //       if (!this.observersEnabled) {
-    //         fileLog.debug('⏸️ VISUAL: Observers not enabled yet');
-    //         return;
-    //       }
-    //
-    //       // GUARD: Only render if grid is fully initialized
-    //       const isFullyInitialized = this.initStore.isFullyHydrated;
-    //       if (!isFullyInitialized) {
-    //         fileLog.debug('⏸️ VISUAL: Skipping render during initialization');
-    //         return;
-    //       }
-    //
-    //       // MobX: Direct access to visual state store (automatic dependency tracking)
-    //       // Reading ONLY layout-related properties to avoid scroll position changes
-    //       const columnOrder = this.visualStateStore.columnOrder;
-    //       const columnVisibility = this.visualStateStore.columnVisibility;
-    //       const columnWidths = this.visualStateStore.columnWidths;
-    //
-    //       // Don't read scroll position here - it causes unnecessary re-renders on scroll
-    //       // const scrollLeft = this.visualState.visualInputs$.scrollLeft.get();
-    //       // const scrollTop = this.visualState.visualInputs$.scrollTop.get();
-    //
-    //       fileLog.debug('[RESIZE] 🔍 VISUAL OBSERVER TRIGGERED - layout change detected', {
-    //         columnWidths,
-    //         columnOrderLength: columnOrder.length,
-    //         timestamp: Date.now(),
-    //         visualInputsId: this.visualState.visualInputs$._id || 'no-id' // Debug: check instance
-    //       });
-    //
-    //       // Create a signature of layout-only changes (exclude scroll position)
-    //       // Include column order, visibility, AND widths in signature to detect changes
-    //       const columnOrderSignature = columnOrder?.join(',') || '';
-    //       const columnVisibilitySignature = Object.entries(columnVisibility || {})
-    //         .filter(([_, visible]) => visible === false)  // Only track hidden columns
-    //         .map(([id]) => id)
-    //         .sort()
-    //         .join(',');
-    //       const columnWidthsSignature = Object.entries(columnWidths || {})
-    //         .sort(([a], [b]) => a.localeCompare(b))
-    //         .map(([id, width]) => `${id}:${width}`)
-    //         .join(',');
-    //       const layoutSignature = `${visualState.columnLayouts.length}-${visualState.geometry.totalWidth}-${visualState.geometry.viewportWidth}x${visualState.geometry.viewportHeight}-${columnOrderSignature}-hidden:${columnVisibilitySignature}-widths:${columnWidthsSignature}`;
-    //
-    //       fileLog.debug('🔍 VISUAL OBSERVER TRIGGERED', {
-    //         columnOrderSignature,
-    //         columnOrder: columnOrder,
-    //         columnVisibilitySignature,
-    //         columnWidthsSignature,
-    //         hiddenColumnCount: columnVisibilitySignature.split(',').filter(Boolean).length,
-    //         currentLayoutSignature: layoutSignature,
-    //         previousLayoutSignature: lastVisualLayout,
-    //         columnOrderLength: visualState.columnState.columnOrder?.length || 0,
-    //         willTriggerRender: layoutSignature !== lastVisualLayout,
-    //         visualStateColumnOrder: visualState.columnState.columnOrder,
-    //         columnWidths: columnWidths
-    //       });
-    //
-    //       // Only render if actual layout changed, not just scroll position
-    //       if (layoutSignature !== lastVisualLayout) {
-    //         lastVisualLayout = layoutSignature;
-    //
-    //         fileLog.debug('🎨 Visual layout changed - updating layout only', {
-    //           columnCount: visualState.columnLayouts.length,
-    //           totalWidth: visualState.geometry.totalWidth,
-    //           viewportSize: `${visualState.geometry.viewportWidth}x${visualState.geometry.viewportHeight}`,
-    //           columnOrder: columnOrderSignature || 'default',
-    //           columnWidths: columnWidthsSignature || 'default',
-    //           previousLayoutSignature: lastVisualLayout,
-    //           currentLayoutSignature: layoutSignature
-    //         });
-    //
-    //         // Batch the render operations to prevent cascade
-    //         runInAction(() => {
-    //           // Only update layout, no data processing
-    //           this.renderHeader();
-    //           this.renderBody(); // Body needs re-render for column changes
-    //         });
-    //       }
-    //     });
-
-    // TODO: Interaction observer needs complete rebuild for MobX (Day 3-4 after SelectionController migration)
-    // this.interactionObserverDisposer = reaction(() => {
-    //       // CRITICAL: Use .get(true) to avoid creating dependency when just checking state
-    //       // We only want to track actual selection, editing, and drag state changes
-    //       const columnResize = this.tableInteraction$.columnResize.get(true);
-    //
-    //       // Only log resize-specific info when actually resizing
-    //       if (columnResize?.isResizing) {
-    //         fileLog.debug('[RESIZE] 🔍 Column resize active in interaction observer', {
-    //           observersEnabled: this.observersEnabled,
-    //           timestamp: Date.now(),
-    //           columnResizeState: columnResize
-    //         });
-    //       }
-    //
-    //       // GUARD: Skip if observers are not enabled yet
-    //       if (!this.observersEnabled) {
-    //         fileLog.debug('⏸️ INTERACTION: Observers not enabled yet');
-    //         return;
-    //       }
-    //       const selectedCells = this.interactionStore.selectedCells;
-    //       const editingCell = this.interactionStore.editingCell;
-    //       const editValue = this.interactionStore.editValue;
-    //       const selectAllState = this.interactionStore.selectAllCheckboxState;
-    //       const isDragging = this.interactionStore.isDragging;
-    //       const dragSource = this.interactionStore.dragSource;
-    //       const dragTarget = this.interactionStore.dragTarget;
-    //       const isDragSelecting = this.interactionStore.isDragSelecting;
-    //       const dragSelectStart = this.interactionStore.dragSelectStart;
-    //       const dragSelectCurrent = this.interactionStore.dragSelectCurrent;
-    //
-    //       // Only log detailed state when something interesting is happening
-    //       if (isDragging || editingCell || isDragSelecting || columnResize?.isResizing) {
-    //         fileLog.debug('🖱️ INTERACTION OBSERVER TRIGGERED', {
-    //           selectedCount: selectedCells.size,
-    //           isEditing: !!editingCell,
-    //           isDragging,
-    //           isDragSelecting,
-    //           isResizing: !!columnResize?.isResizing,
-    //           columnResizeDetails: columnResize?.isResizing ? {
-    //             columnId: columnResize.columnId,
-    //             newWidth: columnResize.newWidth,
-    //             isResizing: columnResize.isResizing
-    //           } : null
-    //         });
-    //       }
-    //
-    //       // ✅ PERFORMANCE: Only update when selection actually changes
-    //       // Check if values have actually changed before updating DOM
-    //       const currentSelectedCount = selectedCells.size;
-    //       const lastSelectedCount = this.lastSelectedCount || 0;
-    //
-    //       if (currentSelectedCount !== lastSelectedCount) {
-    //         this.updateDOMSelectionClasses(selectedCells);
-    //         this.lastSelectedCount = currentSelectedCount;
-    //         fileLog.debug('✅ DOM selection classes updated', { selectedCount: currentSelectedCount });
-    //       }
-    //
-    //       // Only update checkbox if state actually changed
-    //       const currentSelectAllChecked = selectAllState.checked;
-    //       const currentSelectAllIndeterminate = selectAllState.indeterminate;
-    //       if (currentSelectAllChecked !== this.lastSelectAllChecked ||
-    //           currentSelectAllIndeterminate !== this.lastSelectAllIndeterminate) {
-    //         this.updateSelectAllCheckboxVisual(selectAllState);
-    //         this.lastSelectAllChecked = currentSelectAllChecked;
-    //         this.lastSelectAllIndeterminate = currentSelectAllIndeterminate;
-    //       }
-    //
-    //       if (this.overlayManager) {
-    //         // Selection overlay is now handled reactively by OverlayManager via interactions observable
-    //         // No need to manually update selection here
-    //
-    //         // DISABLED: Update editing overlay (now handled by reactive observer in OverlayManager)
-    //         // this.overlayManager.updateEditingOverlay(editingCell, editValue);
-    //
-    //         // Update drag preview overlay
-    //         if (isDragging && dragSource) {
-    //           const dragState = {
-    //             isDragging: true,
-    //             startCell: dragSource,
-    //             currentCell: dragTarget || dragSource
-    //           };
-    //           this.overlayManager.updateColumnDragPreview(dragState);
-    //         } else {
-    //           this.overlayManager.updateColumnDragPreview(null);
-    //         }
-    //
-    //         // Update column resize preview
-    //         this.overlayManager.updateColumnResizePreview(columnResize);
-    //       }
-    //
-    //       // Handle column resize with direct DOM updates (no re-render)
-    //       // CRITICAL FIX: Access columnResize state right here so Legend State tracks dependency
-    //       const currentColumnResize = this.tableInteraction$.columnResize.get(true);
-    //       if (currentColumnResize?.isResizing && currentColumnResize.columnId && currentColumnResize.newWidth) {
-    //         fileLog.debug('[RESIZE] 📏 SimplePassiveRenderer handling column resize', {
-    //           columnId: currentColumnResize.columnId,
-    //           newWidth: currentColumnResize.newWidth,
-    //           isResizing: currentColumnResize.isResizing,
-    //           hasColumnWidthManager: !!this.columnWidthManager
-    //         });
-    //
-    //         this.columnWidthManager?.updateHeaderCellWidth(currentColumnResize.columnId, currentColumnResize.newWidth);
-    //         this.columnWidthManager?.updateBodyCellWidths(currentColumnResize.columnId, currentColumnResize.newWidth);
-    //       }
-    //     });
+    // ✅ Phase 5: Visual and interaction observers removed
+    // Visual observer: Replaced by dedicated observers for columnVisibility, columnOrder, columnWidths
+    // Interaction observer: Replaced by OverlayManager controllers (Selection, Editing, Clipboard, Resize)
 
     // TODO: Scroll observer needs complete rebuild for MobX (Day 5-6)
     // this.scrollObserverDisposer = reaction(() => {
@@ -1122,6 +930,7 @@ export class SimplePassiveRenderer {
         viewport: this.viewport,
         headerViewport: this.headerViewport || undefined,
         container: this.container,
+        virtualViewportStore: this.stores.virtualViewportStore,
         onClickOutside: (e: MouseEvent) => {
           // ✅ Route through InteractionCoordinator for proper service layer handling
           if (this.interactionCoordinator) {

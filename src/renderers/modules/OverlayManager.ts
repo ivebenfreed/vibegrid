@@ -7,10 +7,8 @@ import { reaction, runInAction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import { ContextMenuManager } from '../../components/ContextMenu'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
-import type {
-  CoordinateMapping,
-  VibeGridXCoordinateManager,
-} from '../../coordinates/VibeGridXCoordinateManager'
+import type { CoordinateMapping } from '../../coordinates/VibeGridXCoordinateManager'
+import type { ObservableCoordinateManager } from '../../coordinates/ObservableCoordinateManager'
 import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM'
 import { ColumnDragOverlayDOM } from '../../overlays/ColumnDragOverlayDOM'
 import { EditingOverlay } from '../../overlays/EditingOverlay'
@@ -23,6 +21,11 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { ViewportInfo } from '../../types'
 import { virtualCellPosition$ } from '../../virtualization/VirtualScrollManager'
+// Phase 2.6: New overlay controllers
+import { SelectionOverlayController } from './controllers/SelectionOverlayController'
+import { EditingOverlayController } from './controllers/EditingOverlayController'
+import { ClipboardOverlayController } from './controllers/ClipboardOverlayController'
+import { ResizePreviewController } from './controllers/ResizePreviewController'
 
 // Re-export CoordinateMapping for consumers
 export type { CoordinateMapping }
@@ -37,7 +40,7 @@ export interface OverlayManagerOptions {
   container: HTMLElement
   tableCoreStore: TableCoreStore
   interactionStore: InteractionStore
-  coordinateManager: VibeGridXCoordinateManager
+  coordinateManager: ObservableCoordinateManager
   enableSelectionColumn?: boolean
   headerContainer?: HTMLElement | null
   bodyContainer?: HTMLElement | null
@@ -49,7 +52,7 @@ export class OverlayManager {
   private container: HTMLElement
   private tableCoreStore: TableCoreStore
   private interactionStore: InteractionStore
-  private coordinateManager: VibeGridXCoordinateManager
+  private coordinateManager: ObservableCoordinateManager
   private enableSelectionColumn: boolean
   private headerContainer: HTMLElement | null
   private bodyContainer: HTMLElement | null
@@ -67,9 +70,15 @@ export class OverlayManager {
   // Service layer
   private editSessionManager: EditSessionManager
 
+  // Phase 2.6: Overlay controllers
+  private selectionController: SelectionOverlayController | null = null
+  private editingController: EditingOverlayController | null = null
+  private clipboardController: ClipboardOverlayController | null = null
+  private resizePreviewController: ResizePreviewController | null = null
+
   // Performance optimization caches
-  private lastSelectionString: string = '' // More reliable deduplication
-  private lastClipboardString: string = '' // Clipboard state deduplication
+  private lastSelectionVersion: number = -1 // Version-based deduplication (O(1) comparison)
+  private lastClipboardVersion: number = -1 // Version-based clipboard deduplication (O(1) comparison)
   private updateSelectionRAF: number | null = null
   private lastCoordinateMappingVersion: number = -1
   private coordinateMapping: CoordinateMapping | null = null
@@ -210,6 +219,9 @@ export class OverlayManager {
 
     // Note: FillHandleLayer and ColumnResizeOverlay are lazily created by CanvasOverlayDOM
 
+    // Phase 2.6: Initialize overlay controllers
+    this.initControllers()
+
     // Link to existing interactions observable instead of setting up separate observer
     this.linkToInteractionsObservable()
 
@@ -219,16 +231,78 @@ export class OverlayManager {
   }
 
   /**
+   * Phase 2.6: Initialize overlay controllers
+   * Creates and initializes specialized controllers for each overlay type
+   */
+  private initControllers(): void {
+    // SelectionOverlayController - manages selection overlay and fill handle
+    if (this.canvasOverlay) {
+      this.selectionController = new SelectionOverlayController({
+        container: this.container,
+        interactionStore: this.interactionStore,
+        canvasOverlay: this.canvasOverlay,
+        coordinateManager: this.coordinateManager,
+        getViewportInfo: () => this.getViewportInfo(),
+      })
+      this.selectionController.init()
+      fileLog.info('✅ SelectionOverlayController initialized and active')
+    }
+
+    // EditingOverlayController - manages editing overlay
+    if (this.editingOverlay) {
+      this.editingController = new EditingOverlayController({
+        container: this.container,
+        interactionStore: this.interactionStore,
+        editingOverlay: this.editingOverlay,
+        tableCoreStore: this.tableCoreStore,
+      })
+      this.editingController.init()
+      fileLog.info('✅ EditingOverlayController initialized and active')
+    }
+
+    // ClipboardOverlayController - manages clipboard indicators
+    if (this.canvasOverlay) {
+      this.clipboardController = new ClipboardOverlayController({
+        container: this.container,
+        interactionStore: this.interactionStore,
+        canvasOverlay: this.canvasOverlay,
+        coordinateManager: this.coordinateManager,
+      })
+      this.clipboardController.init()
+      fileLog.info('✅ ClipboardOverlayController initialized and active')
+    }
+
+    // ResizePreviewController - manages column resize preview
+    if (this.canvasOverlay) {
+      this.resizePreviewController = new ResizePreviewController({
+        container: this.container,
+        interactionStore: this.interactionStore,
+        canvasOverlay: this.canvasOverlay,
+      })
+      this.resizePreviewController.init()
+      fileLog.info('✅ ResizePreviewController initialized and active')
+    }
+  }
+
+  /**
    * CONSOLIDATED: Single reactive observer for all overlay updates
    * Replaces 3 separate observers to eliminate cascading reactive chain
    */
   private linkToInteractionsObservable(): void {
     // State tracking for deduplication
-    let lastSelectionString = ''
     let lastEditingCell: string | null = null
     let lastResizeState: string = '' // Track full resize state as string
     let wasColumnResizing = false
     let pendingUpdate: number | null = null
+
+    // BUGFIX: Pending update flags that ACCUMULATE across RAF cancellations
+    // This fixes the "poisoned cell" bug where rapid reactions (blur + selection)
+    // would cancel each other's RAF callbacks and lose the selection update.
+    // See: sessions/2025-11-25/session-5/plan.md for full root cause analysis
+    let pendingSelectionUpdate = false
+    let pendingEditingUpdate = false
+    let pendingClipboardUpdate = false
+    let pendingResizeUpdate = false
 
     // SINGLE OBSERVER: Watches all relevant state in one place using MobX reaction
     this.disposers.push(
@@ -249,6 +323,7 @@ export class OverlayManager {
               selectedCells: this.interactionStore.selectedCells,
               focusedCell: this.interactionStore.focusedCell,
               hoveredCell: this.interactionStore.hoveredCell,
+              selectionVersion: this.interactionStore.selectionVersion,
 
               // Editing state
               editingCell: this.interactionStore.editingCell,
@@ -257,9 +332,11 @@ export class OverlayManager {
 
               // Clipboard state
               clipboard: this.interactionStore.clipboard,
+              clipboardVersion: this.interactionStore.clipboardVersion,
 
               // Column resize state
               columnResize: this.interactionStore.columnResize,
+              columnResizeVersion: this.interactionStore.columnResizeVersion,
             }
 
             // Debug clipboard state
@@ -289,13 +366,18 @@ export class OverlayManager {
           })
 
           // DEDUPLICATION: Skip if nothing meaningful changed
-          const selectionString = Array.from(state.selectedCells).sort().join(',')
-          const selectionChanged = lastSelectionString !== selectionString
+          // Version-based comparison (O(1)) replaces string building (O(n log n))
+          const selectionChanged = this.lastSelectionVersion !== state.selectionVersion
           const editingChanged = lastEditingCell !== state.editingCell
-          const clipboardString = state.clipboard
-            ? `${state.clipboard.operation}:${Array.from(state.clipboard.copiedCells).sort().join(',')}`
-            : ''
-          const clipboardChanged = this.lastClipboardString !== clipboardString
+          const clipboardChanged = this.lastClipboardVersion !== state.clipboardVersion
+
+          // DEBUG: Log version comparison
+          fileLog.debug('🔍 VERSION COMPARISON', {
+            lastSelectionVersion: this.lastSelectionVersion,
+            currentSelectionVersion: state.selectionVersion,
+            selectionChanged,
+            selectedCellsSize: state.selectedCells.size,
+          })
           const resizeStateString = state.columnResize
             ? `${state.columnResize.columnId}:${state.columnResize.newWidth}`
             : ''
@@ -309,15 +391,27 @@ export class OverlayManager {
           }
 
           // Update deduplication tracking
-          lastSelectionString = selectionString
+          this.lastSelectionVersion = state.selectionVersion
           lastEditingCell = state.editingCell
           lastResizeState = resizeStateString
-          this.lastClipboardString = clipboardString
+          this.lastClipboardVersion = state.clipboardVersion
+
+          // BUGFIX: Accumulate change flags instead of overwriting
+          // This ensures that when RAF is cancelled, previous changes aren't lost
+          if (selectionChanged) pendingSelectionUpdate = true
+          if (editingChanged) pendingEditingUpdate = true
+          if (clipboardChanged) pendingClipboardUpdate = true
+          if (resizeChanged) pendingResizeUpdate = true
 
           fileLog.debug('🔍 REACTIVE: Consolidated state changed', {
             selectionChanged,
             editingChanged,
             clipboardChanged,
+            resizeChanged,
+            pendingSelectionUpdate,
+            pendingEditingUpdate,
+            pendingClipboardUpdate,
+            pendingResizeUpdate,
             selectedCount: state.selectedCells.size,
             editingCell: state.editingCell,
             isEditing: state.isEditing,
@@ -334,172 +428,19 @@ export class OverlayManager {
           pendingUpdate = requestAnimationFrame(() => {
             pendingUpdate = null
 
+            // BUGFIX: Capture and reset pending flags at RAF execution time
+            // This ensures all accumulated changes are processed even if RAF was rescheduled
+            const doSelectionUpdate = pendingSelectionUpdate
+            const doEditingUpdate = pendingEditingUpdate
+            const doClipboardUpdate = pendingClipboardUpdate
+            const doResizeUpdate = pendingResizeUpdate
+            pendingSelectionUpdate = false
+            pendingEditingUpdate = false
+            pendingClipboardUpdate = false
+            pendingResizeUpdate = false
+
             // BATCHED: All DOM updates happen together in a single frame
-            if (isColumnResizing && this.canvasOverlay) {
-              if (!wasColumnResizing) {
-                fileLog.debug('[RESIZE] Selection overlay hidden for column resize')
-                const selectionOverlay = this.canvasOverlay.getSelectionOverlayInstance()
-                if (selectionOverlay) {
-                  selectionOverlay.hide() // Just hide, don't destroy
-                }
-                this.canvasOverlay.hideFillHandle()
-              }
-            } else if (wasColumnResizing && !isColumnResizing) {
-              fileLog.debug('[RESIZE] Column resize ended, restoring selection overlay', {
-                selectedCount: state.selectedCells.size,
-              })
-
-              // Show selection container again
-              if (this.canvasOverlay) {
-                const selectionOverlay = this.canvasOverlay.getSelectionOverlayInstance()
-                if (selectionOverlay) {
-                  selectionOverlay.show() // Restore visibility
-                }
-              }
-
-              if (state.selectedCells.size > 0) {
-                this.performCanvasSelectionUpdate(state.selectedCells)
-              } else if (this.canvasOverlay) {
-                this.canvasOverlay.updateSelectionWithVisualPositions([])
-                this.canvasOverlay.hideFillHandle()
-              }
-            }
-
-            // Handle selection updates
-            if (selectionChanged) {
-              if (isColumnResizing) {
-                fileLog.debug('[RESIZE] Skipping selection overlay update during column resize')
-              } else if (state.selectedCells.size > 0) {
-                this.performCanvasSelectionUpdate(state.selectedCells)
-              } else if (this.canvasOverlay) {
-                // Clear selection overlay when no cells selected
-                this.canvasOverlay.updateSelectionWithVisualPositions([])
-                this.canvasOverlay.hideFillHandle()
-              }
-            }
-
-            // Handle editing overlay updates
-            if (editingChanged) {
-              if (state.isEditing && state.editingCell && this.editingOverlay) {
-                // Show editing overlay
-                const [rowId, columnId] = state.editingCell.split(':')
-                const columns = this.tableCoreStore.columns // Direct access, no peek() needed
-                const column = columns.find((c: any) => c.id === columnId)
-
-                if (column) {
-                  const position = this.getCellPosition(rowId, columnId)
-                  if (position) {
-                    const cell = { rowId, columnId }
-                    const actualValue =
-                      state.editValue !== undefined
-                        ? state.editValue
-                        : this.getCellValue(rowId, columnId)
-
-                    fileLog.debug('🔍 REACTIVE: Showing editing overlay (consolidated)', {
-                      cellId: state.editingCell,
-                      position,
-                      value: actualValue,
-                    })
-
-                    const positionWithKey = { ...position, cellKey: state.editingCell }
-                    this.editingOverlay.showAt(positionWithKey, cell, column, actualValue)
-
-                    // Mark the cell as being edited to hide its content via CSS
-                    const cellElement = this.container.querySelector(
-                      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
-                    ) as HTMLElement
-                    if (cellElement) {
-                      cellElement.dataset.editing = 'true'
-                    }
-                  }
-                }
-              } else if (!state.isEditing && this.editingOverlay) {
-                // Hide editing overlay
-                fileLog.debug('🔍 REACTIVE: Hiding editing overlay (consolidated)')
-                this.editingOverlay.hide()
-
-                // Remove editing marker from all cells
-                const editingCells = this.container.querySelectorAll('[data-editing="true"]')
-                editingCells.forEach((cell) => {
-                  ;(cell as HTMLElement).removeAttribute('data-editing')
-                })
-              }
-            }
-
-            // Handle clipboard overlay updates (independent of selection)
-            if (clipboardChanged) {
-              if (state.clipboard && state.clipboard.copiedCells.size > 0 && this.canvasOverlay) {
-                const clipboardState = {
-                  copiedCells: state.clipboard.copiedCells,
-                  isCut: state.clipboard.operation === 'cut',
-                }
-                fileLog.debug('📋 REACTIVE: Updating clipboard overlay', {
-                  operation: state.clipboard.operation,
-                  cellCount: state.clipboard.copiedCells.size,
-                  copiedCells: Array.from(state.clipboard.copiedCells),
-                })
-
-                // Get visual positions for clipboard cells (same approach as selection)
-                const clipboardVisualCells = this.getVisualCellPositions(
-                  state.clipboard.copiedCells,
-                )
-                this.canvasOverlay.updateClipboardWithVisualPositions(
-                  clipboardVisualCells,
-                  clipboardState.isCut,
-                )
-              } else if (this.canvasOverlay) {
-                // Clear clipboard overlay only when clipboard is explicitly null
-                fileLog.debug('📋 REACTIVE: Clearing clipboard overlay')
-                this.canvasOverlay.clearClipboardIndicators()
-              }
-            }
-
-            // IMPORTANT: Always update clipboard overlay if clipboard exists (even without changes)
-            // This ensures visual feedback persists even when selection changes
-            if (
-              state.clipboard &&
-              state.clipboard.copiedCells.size > 0 &&
-              this.canvasOverlay &&
-              !clipboardChanged
-            ) {
-              const clipboardState = {
-                copiedCells: state.clipboard.copiedCells,
-                isCut: state.clipboard.operation === 'cut',
-              }
-              fileLog.debug('📋 REACTIVE: Maintaining clipboard overlay (selection independent)', {
-                operation: state.clipboard.operation,
-                cellCount: state.clipboard.copiedCells.size,
-              })
-
-              // Get visual positions for clipboard cells (same approach as selection)
-              const clipboardVisualCells = this.getVisualCellPositions(state.clipboard.copiedCells)
-              this.canvasOverlay.updateClipboardWithVisualPositions(
-                clipboardVisualCells,
-                clipboardState.isCut,
-              )
-            }
-
-            // Handle column resize preview
-            if (state.columnResize) {
-              fileLog.debug('[RESIZE-PREVIEW] 📏 REACTIVE: Column resize detected', {
-                hasCanvasOverlay: !!this.canvasOverlay,
-                isInitialized: this.canvasOverlay?.isInitialized,
-                columnId: state.columnResize.columnId,
-                newWidth: state.columnResize.newWidth,
-                isResizing: state.columnResize.isResizing,
-              })
-
-              if (this.canvasOverlay) {
-                this.canvasOverlay.updateColumnResizePreview(state.columnResize)
-                fileLog.debug('[RESIZE-PREVIEW] ✅ Called canvasOverlay.updateColumnResizePreview')
-              } else {
-                fileLog.warn('[RESIZE-PREVIEW] ⚠️ No canvasOverlay available!')
-              }
-            } else if (this.canvasOverlay) {
-              // Clear resize preview
-              fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing resize preview')
-              this.canvasOverlay.updateColumnResizePreview(null)
-            }
+            // Phase 2.6: All overlay updates now handled by dedicated controllers
 
             wasColumnResizing = isColumnResizing
           })
@@ -1150,6 +1091,24 @@ export class OverlayManager {
   destroy(): void {
     fileLog.info('🧹 Destroying overlay system') // Keep: lifecycle
 
+    // Phase 2.6: Dispose overlay controllers
+    if (this.selectionController) {
+      this.selectionController.dispose()
+      this.selectionController = null
+    }
+    if (this.editingController) {
+      this.editingController.dispose()
+      this.editingController = null
+    }
+    if (this.clipboardController) {
+      this.clipboardController.dispose()
+      this.clipboardController = null
+    }
+    if (this.resizePreviewController) {
+      this.resizePreviewController.dispose()
+      this.resizePreviewController = null
+    }
+
     // Dispose of MobX reactions
     this.disposers.forEach((dispose) => dispose())
     this.disposers = []
@@ -1161,7 +1120,8 @@ export class OverlayManager {
     }
 
     // Clear caches
-    this.lastSelectionString = ''
+    this.lastSelectionVersion = -1
+    this.lastClipboardVersion = -1
     this.lastCoordinateMappingVersion = -1
 
     // Clear selections using interaction-state

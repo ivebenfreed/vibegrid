@@ -729,11 +729,11 @@ html.dark .vibegridx-entity-name-text.vibegridx-text-editable:hover {
   opacity: 0.6 !important;
 }
 
-/* Subtle background on entire container hover for better feedback */
-.vibegridx-cell-entity-name:hover {
+/* Issue #5: Background hover removed - keep underline and pencil icon only */
+/* .vibegridx-cell-entity-name:hover {
   background-color: rgba(0, 0, 0, 0.02);
 }
 
 .dark .vibegridx-cell-entity-name:hover {
   background-color: rgba(255, 255, 255, 0.05);
-}
+} */

@@ -167,10 +167,11 @@ export class CellActionRouter {
     if (fieldPolicy) {
       // For content-click trigger: Check if click is on content element (spatial pattern)
       if (fieldPolicy.editTrigger === 'content-click') {
-        // Check if target is content element (span/first child) vs cell padding
+        // Check if target is content element (first child of cell) vs cell padding
         const cellContainer = (target as HTMLElement).closest('[data-row-id][data-column-id]')
-        const contentElement =
-          cellContainer?.querySelector('span') || cellContainer?.firstElementChild
+        // Use firstElementChild to get the direct child - the actual content element
+        // Don't use querySelector('span') as it may find nested spans in complex structures
+        const contentElement = cellContainer?.firstElementChild
 
         // If clicking content element (or its children), start edit
         if (

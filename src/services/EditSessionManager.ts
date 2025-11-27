@@ -13,7 +13,7 @@
  * - Prevent race conditions between commit/cancel
  */
 
-import { runInAction } from 'mobx'
+import { runInAction, untracked } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -72,17 +72,23 @@ export class EditSessionManager {
    *
    * This is critical: we never use stale render snapshot values.
    * Always fetch current value from TableCoreStore.processedRows.
+   *
+   * NOTE: Wrapped in untracked() because this is called from event handlers
+   * (non-reactive context). Without untracked(), MobX warns and forces recompute.
    */
   start(cellId: string, column: any): void {
     // 1. Fetch CURRENT value from TableCore (not stale render snapshot!)
     const [rowId, columnId] = cellId.split(':')
-    const processedRows = this.tableCoreStore.processedRows || []
-    const row = processedRows.find((r: any) => r.id === rowId)
-    // ✅ Use column.field for data lookup (may differ from columnId)
-    const dataField = column.field || columnId
-    // ✅ Access row.data (TanStack table row structure)
-    const rowData = row?.data || row
-    const currentValue = rowData ? rowData[dataField] : ''
+
+    // Use untracked to avoid MobX warning about reading outside reactive context
+    const { row, rowData, currentValue, dataField } = untracked(() => {
+      const processedRows = this.tableCoreStore.processedRows || []
+      const foundRow = processedRows.find((r: any) => r.id === rowId)
+      const field = column.field || columnId
+      const data = foundRow?.data || foundRow
+      const value = data ? data[field] : ''
+      return { row: foundRow, rowData: data, currentValue: value, dataField: field }
+    })
 
     fileLog.info('Starting edit session', {
       cellId,
@@ -93,7 +99,6 @@ export class EditSessionManager {
       valueType: typeof currentValue,
       valueSource: 'TableCore (fresh)',
       fieldType: column.fieldType?.id,
-      // 🔍 DEBUG: Show what fields the rowData actually has
       rowDataFields: rowData ? Object.keys(rowData).slice(0, 20) : [],
       hasDataField: rowData ? dataField in rowData : false,
     })
