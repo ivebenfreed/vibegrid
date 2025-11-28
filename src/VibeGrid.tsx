@@ -101,7 +101,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // ====================================
 
   const stores = useVibeGridStores()
-  const { tableCoreStore, visualStateStore, interactionStore, initStore } = stores
+  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore } = stores
 
   // ====================================
   // TANSTACK DB INTEGRATION
@@ -215,6 +215,16 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     })
     tableCoreStore.setCollection(collection)
   }, [collection, tableCoreStore, entityType])
+
+  // Set TanStack DB collection on EditingStore for edit persistence
+  useEffect(() => {
+    if (!editingStore || !collection) return
+    log.info('Setting TanStack DB collection on EditingStore', {
+      hasCollection: !!collection,
+      entityType,
+    })
+    editingStore.setCollection(collection)
+  }, [collection, editingStore, entityType])
 
   // ====================================
   // INITIALIZATION

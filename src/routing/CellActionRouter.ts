@@ -14,7 +14,7 @@
 import { createLogger } from '@/shared/lib/logging'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { FieldInteractionPolicy } from '../field-types/FieldTypeRegistry'
-import type { EditSessionManager } from '../services/EditSessionManager'
+import type { EditingStore } from '../stores/EditingStore'
 
 const fileLog = createLogger('components/vibegrid/routing/CellActionRouter')
 
@@ -53,7 +53,7 @@ export type OnCellClickCallback = (rowId: string, columnId: string) => void | 'h
  */
 export class CellActionRouter {
   constructor(
-    private editSessionManager: EditSessionManager,
+    private editingStore: EditingStore,
     private onCellClick?: OnCellClickCallback,
   ) {
     fileLog.info('CellActionRouter initialized', {
@@ -236,7 +236,7 @@ export class CellActionRouter {
           cellId,
           fieldType: column.fieldType?.id,
         })
-        this.editSessionManager.start(cellId, column)
+        this.editingStore.startEdit(cellId, column)
         break
 
       case 'custom':

@@ -15,7 +15,7 @@
 import { untracked } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import type { CellActionRouter } from '../routing/CellActionRouter'
-import type { EditSessionManager } from '../services/EditSessionManager'
+import type { EditingStore } from '../stores/EditingStore'
 import type { SelectionService } from '../services/SelectionService'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -76,7 +76,7 @@ export class InteractionCoordinator {
     private interactionStore: InteractionStore,
     private selectionService: SelectionService,
     private cellActionRouter: CellActionRouter,
-    private editSessionManager: EditSessionManager,
+    private editingStore: EditingStore,
     private tableCoreStore: TableCoreStore,
     private visualStateStore: VisualStateStore,
   ) {
@@ -193,7 +193,7 @@ export class InteractionCoordinator {
         cellId,
         fieldType: column.fieldType?.id,
       })
-      this.editSessionManager.start(cellId, column)
+      this.editingStore.startEdit(cellId, column)
     }
   }
 
@@ -204,13 +204,13 @@ export class InteractionCoordinator {
    */
   handleOutsidePointer(event: PointerEvent): void {
     fileLog.debug('handleOutsidePointer', {
-      isEditing: this.editSessionManager.isEditing(),
+      isEditing: this.editingStore.isEditing,
       target: (event.target as HTMLElement)?.tagName,
     })
 
-    if (this.editSessionManager.isEditing()) {
+    if (this.editingStore.isEditing) {
       fileLog.info('Outside pointer while editing - triggering blur handler')
-      this.editSessionManager.handleBlur('outside-pointer')
+      this.editingStore.handleBlur('outside-pointer')
     } else {
       fileLog.info('Outside pointer - clearing selection')
       this.selectionService.clearSelection()
@@ -225,10 +225,10 @@ export class InteractionCoordinator {
   handleKeyboardNavigation(key: string, modifiers: ModifierKeys): void {
     fileLog.debug('handleKeyboardNavigation', { key, modifiers })
 
-    // If editing, let EditSessionManager handle it
-    if (this.editSessionManager.isEditing()) {
-      fileLog.debug('Keyboard event during edit - delegating to EditSessionManager')
-      // EditSessionManager should handle Enter (commit), Escape (cancel), Tab (commit + move)
+    // If editing, let EditingStore handle it
+    if (this.editingStore.isEditing) {
+      fileLog.debug('Keyboard event during edit - delegating to EditingStore')
+      // EditingStore should handle Enter (commit), Escape (cancel), Tab (commit + move)
       return
     }
 

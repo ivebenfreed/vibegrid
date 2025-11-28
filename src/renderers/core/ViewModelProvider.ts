@@ -13,6 +13,7 @@
  */
 
 import { computed, makeObservable } from 'mobx'
+import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { VisualStateStore } from '../../stores/VisualStateStore'
@@ -22,6 +23,7 @@ export class ViewModelProvider {
     private tableCoreStore: TableCoreStore,
     private visualStateStore: VisualStateStore,
     private interactionStore: InteractionStore,
+    private editingStore: EditingStore,
   ) {
     makeObservable(this)
   }
@@ -118,7 +120,7 @@ export class ViewModelProvider {
    */
   @computed
   get isEditing(): boolean {
-    return this.interactionStore.isEditing
+    return this.editingStore.isEditing
   }
 
   /**
@@ -127,7 +129,7 @@ export class ViewModelProvider {
    */
   @computed
   get editingCell(): string | null {
-    return this.interactionStore.editingCell
+    return this.editingStore.editingCell
   }
 
   /**
@@ -136,7 +138,7 @@ export class ViewModelProvider {
    */
   @computed
   get editValue(): any {
-    return this.interactionStore.editValue
+    return this.editingStore.editValue
   }
 
   /**

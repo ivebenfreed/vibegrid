@@ -13,9 +13,10 @@ import { CanvasOverlayDOM } from '../../overlays/CanvasOverlayDOM'
 import { ColumnDragOverlayDOM } from '../../overlays/ColumnDragOverlayDOM'
 import { EditingOverlay } from '../../overlays/EditingOverlay'
 import type { VisualCellPosition } from '../../overlays/OverlayTypes'
-import { EditSessionManager } from '../../services/EditSessionManager'
+// EditSessionManager removed - using EditingStore directly
 // New hybrid coordinate system imports
 import { domPositions$, PositionEvents, positionTracker } from '../../stores/dom-position-state'
+import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 // SelectionManager functionality consolidated into interaction-state
 import type { TableCoreStore } from '../../stores/TableCoreStore'
@@ -40,6 +41,7 @@ export interface OverlayManagerOptions {
   container: HTMLElement
   tableCoreStore: TableCoreStore
   interactionStore: InteractionStore
+  editingStore: EditingStore
   coordinateManager: ObservableCoordinateManager
   enableSelectionColumn?: boolean
   headerContainer?: HTMLElement | null
@@ -52,6 +54,7 @@ export class OverlayManager {
   private container: HTMLElement
   private tableCoreStore: TableCoreStore
   private interactionStore: InteractionStore
+  private editingStore: EditingStore
   private coordinateManager: ObservableCoordinateManager
   private enableSelectionColumn: boolean
   private headerContainer: HTMLElement | null
@@ -67,8 +70,7 @@ export class OverlayManager {
   private columnDragOverlay: ColumnDragOverlayDOM | null = null
   // Note: FillHandleLayer is managed by CanvasOverlayDOM, not created here
 
-  // Service layer
-  private editSessionManager: EditSessionManager
+  // Service layer - EditSessionManager removed (replaced by EditingStore)
 
   // Phase 2.6: Overlay controllers
   private selectionController: SelectionOverlayController | null = null
@@ -90,6 +92,7 @@ export class OverlayManager {
     this.container = options.container
     this.tableCoreStore = options.tableCoreStore
     this.interactionStore = options.interactionStore
+    this.editingStore = options.editingStore
     this.coordinateManager = options.coordinateManager
     this.enableSelectionColumn = options.enableSelectionColumn ?? false
     this.headerContainer = options.headerContainer || null
@@ -97,8 +100,7 @@ export class OverlayManager {
     this.getProcessedRows = options.getProcessedRows
     this.onEntityUpdate = options.onEntityUpdate
 
-    // Create EditSessionManager (service layer)
-    this.editSessionManager = new EditSessionManager(this.interactionStore, this.tableCoreStore)
+    // EditSessionManager removed - using EditingStore directly
 
     this.initOverlays()
 
@@ -188,16 +190,16 @@ export class OverlayManager {
     this.editingOverlay = new EditingOverlay(this.container, {
       interactionStore: this.interactionStore,
       onUpdate: (value) => {
-        // ✅ Delegate to EditSessionManager for session tracking
-        this.editSessionManager.updateValue(value)
+        // ✅ Delegate to EditingStore for session tracking
+        this.editingStore.updatePendingValue(value)
       },
       onCommit: async (value) => {
-        // ✅ Delegate to EditSessionManager for proper commit handling
-        await this.editSessionManager.commit('user-action', value)
+        // ✅ Delegate to EditingStore for proper commit handling
+        await this.editingStore.commitEdit('user-action', value)
       },
       onCancel: () => {
-        // ✅ Delegate to EditSessionManager for proper cancel handling
-        this.editSessionManager.cancel('user-action')
+        // ✅ Delegate to EditingStore for proper cancel handling
+        this.editingStore.cancelEdit('user-action')
       },
       relationshipContext: {
         relationshipResolvers: {},
@@ -253,6 +255,7 @@ export class OverlayManager {
       this.editingController = new EditingOverlayController({
         container: this.container,
         interactionStore: this.interactionStore,
+        editingStore: this.editingStore,
         editingOverlay: this.editingOverlay,
         tableCoreStore: this.tableCoreStore,
       })
@@ -325,10 +328,10 @@ export class OverlayManager {
               hoveredCell: this.interactionStore.hoveredCell,
               selectionVersion: this.interactionStore.selectionVersion,
 
-              // Editing state
-              editingCell: this.interactionStore.editingCell,
-              editValue: this.interactionStore.editValue,
-              isEditing: this.interactionStore.isEditing,
+              // Editing state (from EditingStore)
+              editingCell: this.editingStore.editingCell,
+              editValue: this.editingStore.editValue,
+              isEditing: this.editingStore.isEditing,
 
               // Clipboard state
               clipboard: this.interactionStore.clipboard,
@@ -919,11 +922,10 @@ export class OverlayManager {
   }
 
   /**
-   * Get EditSessionManager for use by InteractionCoordinator
+   * Get EditSessionManager - DEPRECATED - removed in Phase 2
+   * Use editingStore directly instead
    */
-  getEditSessionManager(): EditSessionManager {
-    return this.editSessionManager
-  }
+  // getEditSessionManager() method removed - EditSessionManager deleted
 
   /**
    * Handle fill complete - copy values from selected cells to fill target cells

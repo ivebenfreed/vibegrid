@@ -7,6 +7,7 @@
 
 import { runInAction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
+import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { SelectionController } from './SelectionController'
 
@@ -16,6 +17,7 @@ const fileLog = createLogger(
 
 export interface KeyboardNavigationOptions {
   interactionStore: InteractionStore
+  editingStore: EditingStore
   selectionController: SelectionController
   getProcessedRows: () => any[]
   getVisibleColumns: () => any[]
@@ -24,6 +26,7 @@ export interface KeyboardNavigationOptions {
 
 export class KeyboardNavigationController {
   private interactionStore: InteractionStore
+  private editingStore: EditingStore
   private selectionController: SelectionController
   private getProcessedRows: () => any[]
   private getVisibleColumns: () => any[]
@@ -31,6 +34,7 @@ export class KeyboardNavigationController {
 
   constructor(options: KeyboardNavigationOptions) {
     this.interactionStore = options.interactionStore
+    this.editingStore = options.editingStore
     this.selectionController = options.selectionController
     this.getProcessedRows = options.getProcessedRows
     this.getVisibleColumns = options.getVisibleColumns
@@ -153,10 +157,10 @@ export class KeyboardNavigationController {
 
     // CRITICAL: During editing, only handle Escape (to cancel)
     // All other keys (including Ctrl+A) should work normally in the editor
-    if (this.interactionStore.isEditing && event.key !== 'Escape') {
+    if (this.editingStore.isEditing && event.key !== 'Escape') {
       fileLog.debug('Key pressed during editing - letting editor handle it', {
         key: event.key,
-        editingCell: this.interactionStore.editingCell,
+        editingCell: this.editingStore.editingCell,
       })
       return false // Let the editor handle all keys except Escape
     }
@@ -213,13 +217,15 @@ export class KeyboardNavigationController {
             return true // Consume the event but don't start editing
           }
 
-          // Get current value
-          const processedRows = this.getProcessedRows()
-          const row = processedRows.find((r) => r.id === rowId)
-          const value = row ? row[columnId] : ''
+          if (!column) {
+            fileLog.warn('Column not found for editing', { columnId })
+            return true
+          }
 
-          // Start editing
-          this.interactionStore.startEdit(cellId, value ? String(value) : '')
+          // FIXED: Now uses EditingStore with full column object
+          // This ensures consistent value lookup (column.field + row.data[field])
+          // Fixes Issue #3 from detailed-issues.md (keyboard vs click desync)
+          this.editingStore.startEdit(cellId, column)
           return true
         }
         break
@@ -227,8 +233,8 @@ export class KeyboardNavigationController {
 
       case 'Escape':
         // If currently editing, just cancel the edit and keep selection
-        if (this.interactionStore.isEditing) {
-          this.interactionStore.cancelEdit()
+        if (this.editingStore.isEditing) {
+          this.editingStore.cancelEdit('escape')
           // Keep the cell selected after canceling edit and focus container for keyboard events
           this.container.focus()
           return true

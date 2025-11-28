@@ -135,14 +135,10 @@ export class InteractionStore implements IStore {
   @observable selectionVersion: number = 0
 
   // ====================================
-  // EDITING STATE
+  // EDITING STATE - MOVED TO EditingStore
   // ====================================
-
-  @observable editingCell: string | null = null
-  @observable editValue: any = null
-  @observable isEditing: boolean = false
-  @observable isCancelling: boolean = false
-  @observable editValidation: EditValidation | null = null
+  // All editing state moved to src/systems/vibegrid/stores/EditingStore.ts
+  // Use editingStore.isEditing, editingStore.editingCell, etc. instead
 
   // ====================================
   // FOCUS STATE
@@ -289,11 +285,7 @@ export class InteractionStore implements IStore {
     this.selectionMode = 'cell'
     this.isSelecting = false
     this.lastBulkSelectionTime = 0
-    this.editingCell = null
-    this.editValue = null
-    this.isEditing = false
-    this.isCancelling = false
-    this.editValidation = null
+    // Editing state moved to EditingStore
     this.focusedCell = null
     this.hoveredCell = null
     this.hoveredRow = null
@@ -585,17 +577,13 @@ export class InteractionStore implements IStore {
 
   /**
    * Handle outside click
+   *
+   * Note: Editing outside click handling moved to EditingStore.handleOutsideClick()
    */
   @action
-  async handleOutsideClick(): Promise<void> {
-    if (this.isEditing) {
-      log.info('Outside click while editing - saving edit and preserving selection')
-      // ✅ Pass editValue to ensure latest typed value is saved (fix stale value bug)
-      await this.saveEdit(this.editValue)
-    } else {
-      log.info('Outside click - clearing selection')
-      this.clearSelection()
-    }
+  handleOutsideClick(): void {
+    log.info('Outside click - clearing selection')
+    this.clearSelection()
   }
 
   /**
@@ -885,198 +873,13 @@ export class InteractionStore implements IStore {
   }
 
   // ====================================
-  // EDITING ACTIONS
+  // EDITING ACTIONS - MOVED TO EditingStore
   // ====================================
-
-  /**
-   * Start editing a cell
-   *
-   * Always updates selection to the editing cell.
-   */
-  @action
-  startEdit(cellId: string, initialValue?: any): void {
-    // Always update selection to the editing cell
-    this.selectedCells = new Set([cellId])
-    this.anchorCell = cellId
-
-    this.editingCell = cellId
-    this.editValue = initialValue ?? null
-    this.isEditing = true
-    this.editValidation = null
-
-    log.info('Edit started', { cellId, initialValue })
-  }
-
-  /**
-   * Update edit value
-   */
-  @action
-  updateEditValue(value: any): void {
-    this.editValue = value
-    // Clear validation on value change
-    this.editValidation = null
-  }
-
-  /**
-   * Save edit using TanStack DB collection mutation
-   *
-   * This implements optimistic updates with:
-   * - Immediate UI feedback (clear editing state)
-   * - Automatic rollback on error
-   * - Performance timing metrics
-   * - Real-time sync via WebSocket
-   */
-  @action
-  async saveEdit(finalValue?: any): Promise<void> {
-    const editingCell = this.editingCell
-    const editValue = finalValue !== undefined ? finalValue : this.editValue
-
-    // Prevent saveEdit during cancellation
-    if (this.isCancelling) {
-      log.warn('saveEdit blocked - edit operation is being cancelled')
-      return
-    }
-
-    if (!editingCell) {
-      log.warn('saveEdit called but no cell is being edited')
-      return
-    }
-
-    // Parse cell ID
-    const cellParts = editingCell.split(':')
-    if (cellParts.length !== 2) {
-      log.warn('Invalid cell ID format for entity update', {
-        editingCell,
-        expectedFormat: 'rowId:columnId',
-      })
-      return
-    }
-
-    const rowId = cellParts[0]
-    const fieldName = cellParts[1]
-
-    // Check if TanStack DB collection is available
-    if (!this.collection) {
-      log.error('Cannot save: TanStack DB collection not set', {
-        editingCell,
-        rowId,
-        fieldName,
-        hint: 'Call setCollection() before editing',
-      })
-
-      this.editValidation = {
-        isValid: false,
-        message: 'Save failed: Database collection not available',
-      }
-      return
-    }
-
-    // Get current data to check for changes
-    const currentData = this.collection.get(String(rowId))
-    const currentValue = currentData?.[fieldName]
-
-    // OPTIMIZATION: Skip update if value hasn't changed
-    if (currentValue === editValue) {
-      log.info('Skipping save - value unchanged', {
-        rowId,
-        fieldName,
-        value: editValue,
-      })
-
-      // Clear editing state without saving
-      this.editingCell = null
-      this.editValue = null
-      this.isEditing = false
-      this.isCancelling = false
-      this.editValidation = null
-
-      return
-    }
-
-    // Start performance timing
-    const startTime = performance.now()
-
-    // Optimistic update using TanStack DB collection
-    // The collection handles the optimistic state update immediately
-    const tx = this.collection.update(String(rowId), (draft: any) => {
-      draft[fieldName] = editValue
-      draft.updatedAt = new Date().toISOString()
-    })
-
-    const localDuration = performance.now() - startTime
-    log.info('Optimistic edit applied to collection', {
-      rowId,
-      fieldName,
-      editValue,
-      localDuration: `${localDuration.toFixed(1)}ms`,
-      cellId: editingCell,
-      note: 'Table will react automatically via useVibeGridData hook',
-    })
-
-    // Clear editing state immediately (optimistic UX)
-    // The table will re-render automatically when the collection updates
-    this.editingCell = null
-    this.editValue = null
-    this.isEditing = false
-    this.isCancelling = false
-    this.editValidation = null
-
-    // Monitor persistence status
-    // TanStack DB automatically rolls back on error - we just log it
-    tx.isPersisted.promise
-      .then(() => {
-        const totalDuration = performance.now() - startTime
-        log.info('Edit persisted to server', {
-          rowId,
-          fieldName,
-          editValue,
-          localDuration: `${localDuration.toFixed(1)}ms`,
-          totalDuration: `${totalDuration.toFixed(1)}ms`,
-          networkDuration: `${(totalDuration - localDuration).toFixed(1)}ms`,
-          note: 'Optimistic update confirmed',
-        })
-      })
-      .catch((error: any) => {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-
-        log.error('Edit persistence failed - TanStack DB auto-rollback', {
-          rowId,
-          fieldName,
-          editValue,
-          error: errorMessage,
-          note: 'Collection automatically rolled back, table will react via hook',
-        })
-
-        // TanStack DB automatically rolls back the collection state
-        // The table will re-render with the original value via useVibeGridData
-        // No manual rollback needed!
-      })
-  }
-
-  /**
-   * Cancel edit
-   */
-  @action
-  cancelEdit(): void {
-    const editingCell = this.editingCell
-
-    // ✅ Set flag to block any pending saveEdit calls
-    this.isCancelling = true
-
-    this.editingCell = null
-    this.editValue = null
-    this.isEditing = false
-    this.editValidation = null
-
-    log.info('Edit cancelled', { cellId: editingCell })
-
-    // ✅ Clear flag after microtask (allows current event loop to complete)
-    queueMicrotask(() => {
-      runInAction(() => {
-        this.isCancelling = false
-      })
-    })
-  }
+  // All editing actions have been moved to src/systems/vibegrid/stores/EditingStore.ts
+  // Use editingStore.startEdit(), editingStore.commitEdit(), etc. instead
+  //
+  // This removes ~190 lines of duplicate state management
+  // Fixes Issues #3, #6, #7 from planning/active/keyboard-editing-vibegrid-refactor/
 
   // ====================================
   // HOVER ACTIONS
@@ -1187,8 +990,7 @@ export class InteractionStore implements IStore {
   startColumnResize(columnId: string, startX: number, startWidth: number): void {
     // Clear selections when starting column resize
     this.selectedCells = new Set()
-    this.editingCell = null
-    this.editValue = ''
+    // Editing state moved to EditingStore (edit session will be cancelled separately if needed)
 
     // Set column resize state
     this.resizingColumn = columnId

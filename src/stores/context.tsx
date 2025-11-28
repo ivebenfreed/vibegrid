@@ -11,6 +11,7 @@ import { useSchemaRegistry } from '@/app/stores'
 import { createLogger } from '@/shared/lib/logging'
 import { createVibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
+import { EditingStore } from './EditingStore'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
@@ -28,6 +29,7 @@ export interface VibeGridStores {
   tableCoreStore: TableCoreStore
   visualStateStore: VisualStateStore
   interactionStore: InteractionStore
+  editingStore: EditingStore
   persistenceStore: PersistenceStore
   initStore: InitStore
   virtualViewportStore: VirtualViewportStore
@@ -88,6 +90,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const tableCoreStore = new TableCoreStore(entityType)
     const visualStateStore = new VisualStateStore()
     const interactionStore = new InteractionStore()
+    const editingStore = new EditingStore(tableCoreStore, visualStateStore)
     const persistenceStore = new PersistenceStore(entityType, orgId)
     const initStore = new InitStore(tableId, entityType)
     const virtualViewportStore = new VirtualViewportStore()
@@ -117,6 +120,10 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     // InteractionStore needs TableCoreStore and VisualStateStore for data context
     interactionStore.setTableCoreStore(tableCoreStore)
     interactionStore.setVisualStateStore(visualStateStore)
+
+    // EditingStore initialized with dependencies in constructor
+    // Call init() to set up any reactions
+    editingStore.init()
 
     // PersistenceStore needs all stores to save/load preferences
     persistenceStore.setTableCoreStore(tableCoreStore)
@@ -149,6 +156,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       tableCoreStore,
       visualStateStore,
       interactionStore,
+      editingStore,
       persistenceStore,
       initStore,
       virtualViewportStore,
@@ -168,6 +176,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.tableCoreStore.dispose()
       stores.visualStateStore.dispose()
       stores.interactionStore.dispose()
+      stores.editingStore.dispose()
       stores.persistenceStore.dispose()
       stores.initStore.dispose()
     }
@@ -220,6 +229,10 @@ export function useVisualStateStore(): VisualStateStore {
 
 export function useInteractionStore(): InteractionStore {
   return useVibeGridStores().interactionStore
+}
+
+export function useEditingStore(): EditingStore {
+  return useVibeGridStores().editingStore
 }
 
 export function usePersistenceStore(): PersistenceStore {

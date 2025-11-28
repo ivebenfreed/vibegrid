@@ -17,6 +17,7 @@ import { reaction } from 'mobx'
 import { createLogger } from '@/shared/lib/logging'
 import { domPositions$, PositionEvents } from '../../../stores/dom-position-state'
 import type { EditingOverlay } from '../../../overlays/EditingOverlay'
+import type { EditingStore } from '../../../stores/EditingStore'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
 import { OverlayController, type OverlayControllerOptions } from './OverlayController'
 
@@ -29,6 +30,8 @@ const fileLog = createLogger('components/vibegrid/renderers/EditingOverlayContro
 export interface EditingOverlayControllerOptions extends OverlayControllerOptions {
   /** Editing overlay instance for showing/hiding editor */
   editingOverlay: EditingOverlay
+  /** EditingStore for accessing editing state */
+  editingStore: EditingStore
   /** TableCoreStore for accessing columns and row data */
   tableCoreStore: TableCoreStore
 }
@@ -49,6 +52,7 @@ export interface EditingOverlayControllerOptions extends OverlayControllerOption
  */
 export class EditingOverlayController extends OverlayController {
   private editingOverlay: EditingOverlay
+  private editingStore: EditingStore
   private tableCoreStore: TableCoreStore
 
   // State tracking for deduplication
@@ -57,6 +61,7 @@ export class EditingOverlayController extends OverlayController {
   constructor(options: EditingOverlayControllerOptions) {
     super(options)
     this.editingOverlay = options.editingOverlay
+    this.editingStore = options.editingStore
     this.tableCoreStore = options.tableCoreStore
   }
 
@@ -73,9 +78,9 @@ export class EditingOverlayController extends OverlayController {
       () => {
         // Track dependencies by accessing observable properties
         return {
-          editingCell: this.interactionStore.editingCell,
-          isEditing: this.interactionStore.isEditing,
-          editValue: this.interactionStore.editValue,
+          editingCell: this.editingStore.editingCell,
+          isEditing: this.editingStore.isEditing,
+          editValue: this.editingStore.editValue,
         }
       },
       (state) => {

@@ -74,6 +74,7 @@ interface VisualState {
 
 // Import MobX store types
 import type { VibeGridStores } from '../../stores/context'
+import type { EditingStore } from '../../stores/EditingStore'
 import type { InitStore } from '../../stores/InitStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
@@ -105,6 +106,7 @@ export class SimplePassiveRenderer {
   private tableCoreStore: TableCoreStore
   private visualStateStore: VisualStateStore
   private interactionStore: InteractionStore
+  private editingStore: EditingStore
   private initStore: InitStore
   private entityType: string
 
@@ -210,6 +212,7 @@ export class SimplePassiveRenderer {
     this.tableCoreStore = options.stores.tableCoreStore
     this.visualStateStore = options.stores.visualStateStore
     this.interactionStore = options.stores.interactionStore
+    this.editingStore = options.stores.editingStore
     this.initStore = options.stores.initStore
     this.entityType = options.entityType
 
@@ -286,6 +289,7 @@ export class SimplePassiveRenderer {
     // Initialize keyboard navigation controller (MobX version)
     this.keyboardNavController = new KeyboardNavigationController({
       interactionStore: this.interactionStore,
+      editingStore: this.editingStore,
       selectionController: this.selectionController,
       getProcessedRows: () => this.tableCoreStore.processedRows,
       getVisibleColumns: () => {
@@ -405,6 +409,7 @@ export class SimplePassiveRenderer {
       container: this.container,
       tableCoreStore: this.tableCoreStore,
       interactionStore: this.interactionStore,
+      editingStore: this.editingStore,
       coordinateManager: this.stores.coordinateManager,
       enableSelectionColumn: this.options.enableSelectionColumn,
       headerContainer: this.headerContainer,
@@ -992,17 +997,6 @@ export class SimplePassiveRenderer {
 
       // Create service layer before MouseController
       // Note: EditSessionManager is created in OverlayManager and accessed via its getter
-      const editSessionManager = this.overlayManager?.getEditSessionManager()
-
-      if (!editSessionManager) {
-        const error = new Error(
-          'EditSessionManager not available from OverlayManager. ' +
-            'Ensure initOverlayManager() is called before initPhase2Managers().',
-        )
-        fileLog.error('FATAL: EditSessionManager not available', { error })
-        throw error
-      }
-
       // Create SelectionService with coordinate manager
       this.selectionService = new SelectionService(
         this.interactionStore,
@@ -1011,16 +1005,16 @@ export class SimplePassiveRenderer {
         this.stores.coordinateManager,
       )
 
-      // Create CellActionRouter
-      this.cellActionRouter = new CellActionRouter(editSessionManager, this.options.onCellClick)
+      // Create CellActionRouter (using EditingStore directly)
+      this.cellActionRouter = new CellActionRouter(this.editingStore, this.options.onCellClick)
 
-      // Create InteractionCoordinator
+      // Create InteractionCoordinator (using EditingStore directly)
       this.interactionCoordinator = new InteractionCoordinator(
         this.container,
         this.interactionStore,
         this.selectionService,
         this.cellActionRouter,
-        editSessionManager,
+        this.editingStore,
         this.tableCoreStore,
         this.visualStateStore,
       )
