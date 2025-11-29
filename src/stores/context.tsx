@@ -8,7 +8,7 @@ import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useSchemaRegistry } from '@/app/stores'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { createVibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { EditingStore } from './EditingStore'
@@ -19,7 +19,7 @@ import { TableCoreStore } from './TableCoreStore'
 import { VirtualViewportStore } from './VirtualViewportStore'
 import { VisualStateStore } from './VisualStateStore'
 
-const log = createLogger('components/vibegrid/stores/context')
+const logger = getLogger(['vibegrid', 'stores', 'context'])
 
 // ====================================
 // TYPES
@@ -75,7 +75,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
 
   // Create and initialize stores once using useMemo
   const stores = useMemo(() => {
-    log.info('🏗️ Creating and initializing VibeGrid stores', {
+    logger.info('🏗️ Creating and initializing VibeGrid stores', {
       entityType,
       orgId,
       tableId,
@@ -140,14 +140,14 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     initStore.init().catch((error) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setInitError(errorMessage)
-      log.error('❌ VibeGrid store initialization failed', {
+      logger.error('❌ VibeGrid store initialization failed', {
         entityType,
         tableId,
         error: errorMessage,
       })
     })
 
-    log.info('✅ VibeGrid stores created, wired, and initialized', {
+    logger.info('✅ VibeGrid stores created, wired, and initialized', {
       entityType,
       tableId,
     })
@@ -167,7 +167,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      log.info('🧹 Cleaning up VibeGrid stores...', {
+      logger.info('🧹 Cleaning up VibeGrid stores...', {
         entityType,
         tableId,
       })

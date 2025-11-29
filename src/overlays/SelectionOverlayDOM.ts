@@ -1,8 +1,8 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { VisualCellPosition } from './OverlayTypes'
 
-const myLog = createLogger('components/custom/vibegrid/overlays/SelectionOverlayDOM.ts')
+const myLog = getLogger(['custom', 'vibegrid', 'overlays', 'SelectionOverlayDOM.ts'])
 
 // ====================================
 // DOM SELECTION OVERLAY

@@ -4,12 +4,12 @@
 
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 // TODO: Replace with TanStack DB query for reference options
 // import { useReferenceOptions } from '@/legend-state/reference-system/hooks';
 import type { EditorProps } from './index'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/ReferenceSelectEditor')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'ReferenceSelectEditor'])
 
 /**
  * Infer entity type from field name for entity references

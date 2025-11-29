@@ -3,10 +3,10 @@
 // ====================================
 // Event handling and interaction utilities for unified renderer
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { Column } from '../../types'
 
-const fileLog = createLogger('components/vibegrid/renderers/utils/interaction-handlers')
+const fileLog = getLogger(['vibegrid', 'renderers', 'utils', 'interaction-handlers'])
 
 /**
  * Setup drag handlers for column reordering

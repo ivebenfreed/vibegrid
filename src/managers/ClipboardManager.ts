@@ -10,7 +10,7 @@
  */
 
 import { toast } from 'sonner'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type {
@@ -19,7 +19,7 @@ import type {
   VibeGridClipboardData,
 } from '../types/clipboard-types'
 
-const fileLog = createLogger('components/custom/vibegrid/managers/ClipboardManager.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'ClipboardManager.ts'])
 
 export interface ClipboardManagerOptions {
   tableCore$: TableCoreStore
@@ -136,7 +136,7 @@ export class ClipboardManager {
       fileLog.debug('📋 Copy completed with metadata', { cellCount: selectedCells.size })
       return true
     } catch (error) {
-      fileLog.error('📋 Copy failed', error)
+      fileLog.error('📋 Copy failed', { error })
       toast.error('Copy failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
         duration: 4000,
@@ -1377,7 +1377,7 @@ export class ClipboardManager {
         document.body.removeChild(textArea)
       }
     } catch (error) {
-      fileLog.error('📋 Failed to copy to system clipboard', error)
+      fileLog.error('📋 Failed to copy to system clipboard', { error })
       throw error
     }
   }

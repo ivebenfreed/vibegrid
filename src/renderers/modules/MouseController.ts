@@ -6,11 +6,11 @@
  */
 
 import { runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
 import type { VisualStateStore } from '../../stores/VisualStateStore'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/MouseController.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'MouseController.ts'])
 
 export interface MouseControllerOptions {
   container: HTMLElement

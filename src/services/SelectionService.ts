@@ -12,14 +12,14 @@
  */
 
 import { runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 
-const fileLog = createLogger('components/vibegrid/services/SelectionService')
+const fileLog = getLogger(['vibegrid', 'services', 'SelectionService'])
 
 /**
  * SelectionService - Manages all selection operations

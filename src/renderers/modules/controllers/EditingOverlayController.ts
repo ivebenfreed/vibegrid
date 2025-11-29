@@ -14,14 +14,14 @@
  */
 
 import { reaction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { domPositions$, PositionEvents } from '../../../stores/dom-position-state'
 import type { EditingOverlay } from '../../../overlays/EditingOverlay'
 import type { EditingStore } from '../../../stores/EditingStore'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
 import { OverlayController, type OverlayControllerOptions } from './OverlayController'
 
-const fileLog = createLogger('components/vibegrid/renderers/EditingOverlayController')
+const fileLog = getLogger(['vibegrid', 'renderers', 'EditingOverlayController'])
 
 /**
  * Options for EditingOverlayController

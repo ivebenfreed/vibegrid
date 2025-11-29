@@ -6,10 +6,10 @@
  */
 
 import { runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../../stores/InteractionStore'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/SelectionController.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'SelectionController.ts'])
 
 export interface SelectionControllerOptions {
   interactionStore: InteractionStore

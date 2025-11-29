@@ -32,10 +32,10 @@ import {
 } from '@/shared/components/ui/select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 
-const fileLog = createLogger('components/vibegrid/components/VibeGridEntityAdd')
+const fileLog = getLogger(['vibegrid', 'components', 'VibeGridEntityAdd'])
 
 interface VibeGridEntityAddProps {
   stores: VibeGridStores

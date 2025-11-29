@@ -8,7 +8,7 @@
  */
 
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type {
   CellCoordinates,
@@ -19,7 +19,7 @@ import type {
 } from '../types/coordinate-types'
 import { CoordinateUtils } from '../types/coordinate-types'
 
-const fileLog = createLogger('components/custom/vibegrid/stores/dom-position-state.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'dom-position-state.ts'])
 
 interface ViewportCache {
   scrollLeft: number
@@ -530,7 +530,7 @@ class ReactivePositionTracker {
       try {
         handler(event)
       } catch (error) {
-        fileLog.error('❌ Error in position change handler', error)
+        fileLog.error('❌ Error in position change handler', { error })
       }
     })
   }

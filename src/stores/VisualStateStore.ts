@@ -16,13 +16,13 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
 import { assertInvariant } from '../utils/invariants'
 
-const log = createLogger('components/vibegrid/stores/VisualStateStore')
+const logger = getLogger(['vibegrid', 'stores', 'VisualStateStore'])
 
 // ====================================
 // TYPES
@@ -135,7 +135,7 @@ export class VisualStateStore implements IStore {
   @action
   setTableCoreStore(store: any): void {
     this.tableCoreStore = store
-    log.info('TableCoreStore set on VisualStateStore')
+    logger.info('TableCoreStore set on VisualStateStore')
   }
 
   /**
@@ -144,7 +144,7 @@ export class VisualStateStore implements IStore {
   @action
   setCoordinateManager(manager: ObservableCoordinateManager): void {
     this.coordinateManager = manager
-    log.info('ObservableCoordinateManager set on VisualStateStore')
+    logger.info('ObservableCoordinateManager set on VisualStateStore')
   }
 
   /**
@@ -153,7 +153,7 @@ export class VisualStateStore implements IStore {
   @action
   setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
     this.interactionStore = store
-    log.info('Interaction store set on VisualStateStore')
+    logger.info('Interaction store set on VisualStateStore')
   }
 
   /**
@@ -161,7 +161,7 @@ export class VisualStateStore implements IStore {
    */
   @action
   async init(): Promise<void> {
-    log.info('Initializing VisualStateStore')
+    logger.info('Initializing VisualStateStore')
     // Initialization logic will be added when integrating with parent component
   }
 
@@ -170,7 +170,7 @@ export class VisualStateStore implements IStore {
    */
   dispose(): void {
     this.disposers.dispose()
-    log.info('VisualStateStore disposed')
+    logger.info('VisualStateStore disposed')
   }
 
   /**
@@ -194,7 +194,7 @@ export class VisualStateStore implements IStore {
     this.entityType = ''
     this.orgId = ''
     this.userId = ''
-    log.info('VisualStateStore reset to defaults')
+    logger.info('VisualStateStore reset to defaults')
   }
 
   // ====================================
@@ -374,7 +374,7 @@ export class VisualStateStore implements IStore {
     this.orgId = orgId
     this.userId = userId
 
-    log.info('Visual state initialized', { entityType, columnCount: columns.length })
+    logger.info('Visual state initialized', { entityType, columnCount: columns.length })
   }
 
   /**
@@ -423,7 +423,7 @@ export class VisualStateStore implements IStore {
     // 🔧 FIX: Initialize coordinator with visible columns and actual widths
     this.updateCoordinatorWithCurrentLayout()
 
-    log.info('Columns initialized (preserving loaded preferences)', {
+    logger.info('Columns initialized (preserving loaded preferences)', {
       entityType,
       orgId,
       userId,
@@ -455,7 +455,7 @@ export class VisualStateStore implements IStore {
     // 🔧 FIX: Use visibleOrderedColumns with actual widths, not schema defaults
     this.updateCoordinatorWithCurrentLayout()
 
-    log.debug('Column width updated', { columnId, width })
+    logger.debug('Column width updated', { columnId, width })
   }
 
   /**
@@ -503,7 +503,7 @@ export class VisualStateStore implements IStore {
     // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    log.info('Column visibility toggled (selection cleared)', { columnId, visible: newVisibility })
+    logger.info('Column visibility toggled (selection cleared)', { columnId, visible: newVisibility })
   }
 
   /**
@@ -520,7 +520,7 @@ export class VisualStateStore implements IStore {
     const targetIndex = currentOrder.indexOf(targetColumnId)
 
     if (sourceIndex === -1 || targetIndex === -1) {
-      log.warn('Column reorder failed: column not found', {
+      logger.warn('Column reorder failed: column not found', {
         sourceColumnId,
         targetColumnId,
         sourceIndex,
@@ -547,7 +547,7 @@ export class VisualStateStore implements IStore {
     // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    log.info('Column reordered (selection cleared)', {
+    logger.info('Column reordered (selection cleared)', {
       sourceColumnId,
       targetColumnId,
       insertBefore,
@@ -575,7 +575,7 @@ export class VisualStateStore implements IStore {
         width: this.getColumnWidth(col.id),
       }))
 
-    log.info('🔧 Updating coordinator with VISIBLE columns only', {
+    logger.info('🔧 Updating coordinator with VISIBLE columns only', {
       baseOffset: BASE_OFFSET,
       totalColumns: this.orderedColumns.length,
       visibleColumns: layoutColumns.length,
@@ -606,7 +606,7 @@ export class VisualStateStore implements IStore {
     this.columnVisibility = defaultVisibility
     this.columnOrder = defaultOrder
 
-    log.info('Columns reset to defaults', { columnsCount: this.columns.length })
+    logger.info('Columns reset to defaults', { columnsCount: this.columns.length })
   }
 
   /**
@@ -617,7 +617,7 @@ export class VisualStateStore implements IStore {
     const allVisible = Object.fromEntries(this.columns.map((col) => [col.id, true]))
 
     this.columnVisibility = allVisible
-    log.info('All columns shown', { columnCount: this.columns.length })
+    logger.info('All columns shown', { columnCount: this.columns.length })
   }
 
   /**
@@ -630,7 +630,7 @@ export class VisualStateStore implements IStore {
     )
 
     this.columnVisibility = allHidden
-    log.info('All columns hidden (except system)', { columnCount: this.columns.length })
+    logger.info('All columns hidden (except system)', { columnCount: this.columns.length })
   }
 
   // ====================================
@@ -645,7 +645,7 @@ export class VisualStateStore implements IStore {
     this.viewportWidth = width
     this.viewportHeight = height
 
-    log.debug('Viewport size updated', { width, height })
+    logger.debug('Viewport size updated', { width, height })
   }
 
   /**
@@ -664,7 +664,7 @@ export class VisualStateStore implements IStore {
     this.scrollLeft = scrollLeft
     this.scrollTop = scrollTop
 
-    log.debug('Scroll position updated', { scrollLeft, scrollTop })
+    logger.debug('Scroll position updated', { scrollLeft, scrollTop })
   }
 
   /**
@@ -678,7 +678,7 @@ export class VisualStateStore implements IStore {
   ): void {
     // Skip update if values haven't changed
     if (this.scrollLeft === scrollLeft && this.scrollTop === scrollTop) {
-      log.debug('Scroll event with same values - skipping update', {
+      logger.debug('Scroll event with same values - skipping update', {
         scrollLeft,
         scrollTop,
         source,
@@ -689,7 +689,7 @@ export class VisualStateStore implements IStore {
     this.scrollLeft = scrollLeft
     this.scrollTop = scrollTop
 
-    log.debug('Viewport scrolled', { scrollLeft, scrollTop, source, changed: true })
+    logger.debug('Viewport scrolled', { scrollLeft, scrollTop, source, changed: true })
   }
 
   /**
@@ -698,7 +698,7 @@ export class VisualStateStore implements IStore {
   @action
   setRowCount(count: number): void {
     this.rowCount = count
-    log.debug('Row count updated', { count })
+    logger.debug('Row count updated', { count })
   }
 
   /**
@@ -741,7 +741,7 @@ export class VisualStateStore implements IStore {
     }
 
     this.scrollLeft = newScrollLeft
-    log.debug('Scrolled to column', { columnId, newScrollLeft })
+    logger.debug('Scrolled to column', { columnId, newScrollLeft })
   }
 
   /**
@@ -768,7 +768,7 @@ export class VisualStateStore implements IStore {
     }
 
     this.scrollTop = newScrollTop
-    log.debug('Scrolled to row', { rowIndex, newScrollTop })
+    logger.debug('Scrolled to row', { rowIndex, newScrollTop })
   }
 
   // ====================================
@@ -780,7 +780,7 @@ export class VisualStateStore implements IStore {
    */
   @action
   setGroupConfig(config: GroupConfig | null): void {
-    log.info('Setting group config', {
+    logger.info('Setting group config', {
       config,
       hasFields: !!config?.fields,
       fieldsLength: config?.fields?.length,
@@ -796,10 +796,10 @@ export class VisualStateStore implements IStore {
     // This triggers the renderer to re-render with grouped data
     if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
       this.tableCoreStore.incrementConfigVersion()
-      log.info('✅ Notified TableCoreStore of grouping change')
+      logger.info('✅ Notified TableCoreStore of grouping change')
     }
 
-    log.info('Group config updated (selection cleared)', { config })
+    logger.info('Group config updated (selection cleared)', { config })
   }
 
   /**
@@ -808,7 +808,7 @@ export class VisualStateStore implements IStore {
   private clearSelections(): void {
     if (this.interactionStore) {
       this.interactionStore.clearSelection()
-      log.info('🔄 Selections cleared due to column operation')
+      logger.info('🔄 Selections cleared due to column operation')
     }
   }
 
@@ -825,7 +825,7 @@ export class VisualStateStore implements IStore {
   @action
   toggleGroupExpansion(groupId: string): void {
     if (!this.groupConfig) {
-      log.warn('No groupConfig found, cannot toggle expansion')
+      logger.warn('No groupConfig found, cannot toggle expansion')
       return
     }
 
@@ -834,10 +834,10 @@ export class VisualStateStore implements IStore {
 
     if (wasExpanded) {
       expandedGroups.delete(groupId)
-      log.info('Group collapsed', { groupId })
+      logger.info('Group collapsed', { groupId })
     } else {
       expandedGroups.add(groupId)
-      log.info('Group expanded', { groupId })
+      logger.info('Group expanded', { groupId })
     }
 
     this.groupConfig = {
@@ -849,7 +849,7 @@ export class VisualStateStore implements IStore {
     // This triggers the renderer to re-render with updated group expansion state
     if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
       this.tableCoreStore.incrementConfigVersion()
-      log.info('✅ Notified TableCoreStore of group expansion change')
+      logger.info('✅ Notified TableCoreStore of group expansion change')
     }
   }
 
@@ -868,10 +868,10 @@ export class VisualStateStore implements IStore {
     // 🔧 FIX: Notify TableCoreStore to trigger re-render
     if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
       this.tableCoreStore.incrementConfigVersion()
-      log.info('✅ Notified TableCoreStore of expand all')
+      logger.info('✅ Notified TableCoreStore of expand all')
     }
 
-    log.info('All groups expanded', { count: allGroupIds.size })
+    logger.info('All groups expanded', { count: allGroupIds.size })
   }
 
   /**
@@ -889,10 +889,10 @@ export class VisualStateStore implements IStore {
     // 🔧 FIX: Notify TableCoreStore to trigger re-render
     if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
       this.tableCoreStore.incrementConfigVersion()
-      log.info('✅ Notified TableCoreStore of collapse all')
+      logger.info('✅ Notified TableCoreStore of collapse all')
     }
 
-    log.info('All groups collapsed')
+    logger.info('All groups collapsed')
   }
 
   // ====================================
@@ -917,7 +917,7 @@ export class VisualStateStore implements IStore {
       this.filters = [...this.filters, newFilter]
     }
 
-    log.debug('Filter updated', { field, value, operator })
+    logger.debug('Filter updated', { field, value, operator })
   }
 
   /**
@@ -926,7 +926,7 @@ export class VisualStateStore implements IStore {
   @action
   removeFilter(field: string): void {
     this.filters = this.filters.filter((f) => f.field !== field)
-    log.debug('Filter removed', { field })
+    logger.debug('Filter removed', { field })
   }
 
   /**
@@ -935,7 +935,7 @@ export class VisualStateStore implements IStore {
   @action
   clearFilters(): void {
     this.filters = []
-    log.debug('All filters cleared')
+    logger.debug('All filters cleared')
   }
 
   // ====================================
@@ -949,7 +949,7 @@ export class VisualStateStore implements IStore {
   toggleSort(field: string, isMultiSort: boolean = false): void {
     const existingIndex = this.sortBy.findIndex((s) => s.field === field)
 
-    log.info('toggleSort called', {
+    logger.info('toggleSort called', {
       field,
       isMultiSort,
       currentSortBy: this.sortBy,
@@ -983,7 +983,7 @@ export class VisualStateStore implements IStore {
     // Clear selections when row order changes
     this.clearSelections()
 
-    log.info('Sort toggled (selection cleared)', {
+    logger.info('Sort toggled (selection cleared)', {
       field,
       isMultiSort,
       sortBy: this.sortBy,
@@ -996,7 +996,7 @@ export class VisualStateStore implements IStore {
   @action
   setSortBy(sortBy: SortConfig[]): void {
     this.sortBy = sortBy
-    log.debug('Sort configuration set', { sortBy })
+    logger.debug('Sort configuration set', { sortBy })
   }
 
   /**
@@ -1005,7 +1005,7 @@ export class VisualStateStore implements IStore {
   @action
   clearSort(): void {
     this.sortBy = []
-    log.debug('All sorting cleared')
+    logger.debug('All sorting cleared')
   }
 
   // ====================================
@@ -1037,7 +1037,7 @@ export class VisualStateStore implements IStore {
 
         if (firstPart.length === 36 && firstPart.includes('-')) {
           baseEntityType = parts.slice(1).join('_')
-          log.info('Extracted base entity type from prefixed entityType', {
+          logger.info('Extracted base entity type from prefixed entityType', {
             originalEntityType: entityType,
             extractedOrgId: firstPart,
             baseEntityType,
@@ -1059,7 +1059,7 @@ export class VisualStateStore implements IStore {
 
       if (stored) {
         const parsed = JSON.parse(stored)
-        log.info('Loading saved preferences from localStorage', {
+        logger.info('Loading saved preferences from localStorage', {
           storageKey,
           hasColumnVisibility: !!parsed.columnVisibility,
           hasColumnWidths: !!parsed.columnWidths,
@@ -1095,7 +1095,7 @@ export class VisualStateStore implements IStore {
         }
       }
     } catch (error) {
-      log.warn('Failed to load preferences', { error })
+      logger.warn('Failed to load preferences', { error })
     }
 
     return {

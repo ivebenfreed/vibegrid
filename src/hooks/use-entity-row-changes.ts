@@ -23,9 +23,9 @@ throw new Error('This file has not been migrated to MobX - see file header for d
 // import { observe } from '@legendapp/state';
 // import { entities$, universeSchema$, universeLoading$, getEntity$ } from '@/legend-state/observables';
 import React, { useCallback, useRef } from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 
-const fileLog = createLogger('components/custom/vibegrid/hooks/use-entity-row-changes.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'hooks', 'use-entity-row-changes.ts'])
 
 interface RowChange {
   rowId: string

@@ -6,7 +6,7 @@
  */
 
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   CellEditor,
   CellFormatter,
@@ -20,7 +20,7 @@ import type {
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
-const fileLog = createLogger('components/vibegrid/field-types/implementations/basic/DateFieldType')
+const fileLog = getLogger(['vibegrid', 'field-types', 'implementations', 'basic', 'DateFieldType'])
 
 /**
  * Date Cell Renderer

@@ -20,7 +20,7 @@
  * @see src/systems/vibegrid/stores/VirtualViewportStore.ts
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type {
   CellCoordinates,
@@ -31,7 +31,7 @@ import type {
 } from '../types/coordinate-types'
 import { CoordinateUtils } from '../types/coordinate-types'
 
-const fileLog = createLogger('components/custom/vibegrid/virtualization/VirtualScrollManager.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'virtualization', 'VirtualScrollManager.ts'])
 
 // ====================================
 // DEPRECATED: GLOBAL STATE

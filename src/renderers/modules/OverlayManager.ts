@@ -4,7 +4,7 @@
  */
 
 import { reaction, runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { ContextMenuManager } from '../../components/ContextMenu'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 import type { CoordinateMapping } from '../../coordinates/VibeGridXCoordinateManager'
@@ -31,7 +31,7 @@ import { ResizePreviewController } from './controllers/ResizePreviewController'
 // Re-export CoordinateMapping for consumers
 export type { CoordinateMapping }
 
-const fileLog = createLogger('components/vibegrid/renderers/OverlayManager')
+const fileLog = getLogger(['vibegrid', 'renderers', 'OverlayManager'])
 
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
@@ -352,7 +352,7 @@ export class OverlayManager {
 
             return state
           } catch (error) {
-            fileLog.debug('🔍 REACTIVE: Error reading state, likely during unmount', error)
+            fileLog.debug('🔍 REACTIVE: Error reading state, likely during unmount', { error })
             return null
           }
         },
@@ -482,7 +482,7 @@ export class OverlayManager {
       // Initialize DOM position tracking now that overlay is ready
       this.initializeDOMPositionTracking()
     } catch (error) {
-      fileLog.error('❌ Failed to initialize canvas overlay', error)
+      fileLog.error('❌ Failed to initialize canvas overlay', { error })
     }
   }
 
@@ -494,7 +494,7 @@ export class OverlayManager {
       positionTracker.initialize(this.container)
       fileLog.info('✅ DOM position tracking initialized') // Keep: lifecycle
     } catch (error) {
-      fileLog.error('❌ Failed to initialize DOM position tracking', error)
+      fileLog.error('❌ Failed to initialize DOM position tracking', { error })
     }
   }
 
@@ -891,7 +891,7 @@ export class OverlayManager {
       viewportWidth = scrollContainer.clientWidth || 0
       viewportHeight = scrollContainer.clientHeight || 0
     } catch (e) {
-      fileLog.debug('Failed to get viewport measurements from DOM', e)
+      fileLog.debug('Failed to get viewport measurements from DOM', { error: e })
     }
 
     return {

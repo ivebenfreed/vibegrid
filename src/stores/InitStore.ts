@@ -18,13 +18,13 @@
 import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from './InteractionStore'
 import type { PersistenceStore } from './PersistenceStore'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 
-const log = createLogger('components/vibegrid/stores/InitStore')
+const logger = getLogger(['vibegrid', 'stores', 'InitStore'])
 
 // ====================================
 // TYPES
@@ -130,7 +130,7 @@ export class InitStore implements IStore {
 
     makeObservable(this)
 
-    log.info('🚀 InitStore created', {
+    logger.info('🚀 InitStore created', {
       tableId,
       entityType,
       totalDependencies: Object.keys(this.hydrationState).length,
@@ -200,7 +200,7 @@ export class InitStore implements IStore {
   @action
   markReady(dependency: keyof HydrationState): void {
     if (this.hydrationState[dependency]) {
-      log.warn('🔄 Dependency already marked ready', {
+      logger.warn('🔄 Dependency already marked ready', {
         dependency,
         tableId: this.tableId,
       })
@@ -218,7 +218,7 @@ export class InitStore implements IStore {
       this.timeouts.delete(dependency)
     }
 
-    log.info('✅ Dependency ready', {
+    logger.info('✅ Dependency ready', {
       dependency,
       timing: `${timing}ms`,
       tableId: this.tableId,
@@ -240,7 +240,7 @@ export class InitStore implements IStore {
 
     this.errors.push(hydrationError)
 
-    log.error('❌ Dependency failed', {
+    logger.error('❌ Dependency failed', {
       dependency,
       error,
       canRetry,
@@ -253,7 +253,7 @@ export class InitStore implements IStore {
    */
   @action
   async initializeStores(): Promise<void> {
-    log.info('🔄 Initializing all stores...', {
+    logger.info('🔄 Initializing all stores...', {
       tableId: this.tableId,
       entityType: this.entityType,
     })
@@ -284,12 +284,12 @@ export class InitStore implements IStore {
         this.markReady('interactionStoreReady')
       }
 
-      log.info('✅ All stores initialized successfully', {
+      logger.info('✅ All stores initialized successfully', {
         tableId: this.tableId,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Store initialization failed', {
+      logger.error('❌ Store initialization failed', {
         tableId: this.tableId,
         error: errorMessage,
       })
@@ -301,7 +301,7 @@ export class InitStore implements IStore {
    * Dispose all stores
    */
   disposeStores(): void {
-    log.info('🧹 Disposing all stores...', {
+    logger.info('🧹 Disposing all stores...', {
       tableId: this.tableId,
     })
 
@@ -310,7 +310,7 @@ export class InitStore implements IStore {
     this.interactionStore?.dispose()
     this.persistenceStore?.dispose()
 
-    log.info('✅ All stores disposed', {
+    logger.info('✅ All stores disposed', {
       tableId: this.tableId,
     })
   }
@@ -320,7 +320,7 @@ export class InitStore implements IStore {
    */
   @action
   resetStores(): void {
-    log.info('🔄 Resetting all stores...', {
+    logger.info('🔄 Resetting all stores...', {
       tableId: this.tableId,
     })
 
@@ -332,7 +332,7 @@ export class InitStore implements IStore {
     // Reset hydration state
     this.resetHydrationState()
 
-    log.info('✅ All stores reset', {
+    logger.info('✅ All stores reset', {
       tableId: this.tableId,
     })
   }
@@ -395,7 +395,7 @@ export class InitStore implements IStore {
   // ====================================
 
   async init(): Promise<void> {
-    log.info('🔄 Initializing InitStore...', {
+    logger.info('🔄 Initializing InitStore...', {
       tableId: this.tableId,
       entityType: this.entityType,
     })
@@ -406,7 +406,7 @@ export class InitStore implements IStore {
     // Initialize all stores
     await this.initializeStores()
 
-    log.info('✅ InitStore initialized', {
+    logger.info('✅ InitStore initialized', {
       tableId: this.tableId,
     })
   }
@@ -422,7 +422,7 @@ export class InitStore implements IStore {
     // Dispose reactions
     this.disposers.dispose()
 
-    log.info('🧹 InitStore disposed', {
+    logger.info('🧹 InitStore disposed', {
       tableId: this.tableId,
     })
   }
@@ -442,7 +442,7 @@ export class InitStore implements IStore {
     // Restart timeouts
     this.setupTimeouts()
 
-    log.info('🔄 InitStore reset', {
+    logger.info('🔄 InitStore reset', {
       tableId: this.tableId,
     })
   }
@@ -456,7 +456,7 @@ export class InitStore implements IStore {
     this.metrics.endTime = Date.now()
     this.metrics.totalDuration = this.metrics.endTime - this.metrics.startTime
 
-    log.info('🎉 VibeGrid fully hydrated', {
+    logger.info('🎉 VibeGrid fully hydrated', {
       tableId: this.tableId,
       entityType: this.entityType,
       duration: this.metrics.totalDuration,

@@ -5,11 +5,11 @@
  * Bridges the gap between frontend rendering and backend Enhanced Field Handler metadata.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { Column } from '../types'
 
-const fieldLog = createLogger('components/custom/vibegrid/field-types/FieldTypeRegistry.ts')
+const fieldLog = getLogger(['custom', 'vibegrid', 'field-types', 'FieldTypeRegistry.ts'])
 
 // Re-export backend metadata types
 export type {

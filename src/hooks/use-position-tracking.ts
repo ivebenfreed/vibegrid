@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { PositionEvents, positionTracker } from '../stores/dom-position-state'
 import type { ColumnLayout, PositionUpdateHandler } from '../types/coordinate-types'
 import {
@@ -14,7 +14,7 @@ import {
   updateVirtualViewport,
 } from '../virtualization/VirtualScrollManager'
 
-const fileLog = createLogger('components/custom/vibegrid/hooks/use-position-tracking.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'hooks', 'use-position-tracking.ts'])
 
 /**
  * Initialize position tracking for a VibeGrid container

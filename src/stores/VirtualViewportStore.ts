@@ -31,10 +31,10 @@
 import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 
-const log = createLogger('vibegrid/stores/VirtualViewportStore')
+const logger = getLogger(['vibegrid', 'stores', 'VirtualViewportStore'])
 
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
@@ -87,7 +87,7 @@ export class VirtualViewportStore implements IStore {
 
   constructor() {
     makeObservable(this)
-    log.debug('VirtualViewportStore created')
+    logger.debug('VirtualViewportStore created')
   }
 
   // ====================================
@@ -236,7 +236,7 @@ export class VirtualViewportStore implements IStore {
   // ====================================
 
   async init(): Promise<void> {
-    log.info('VirtualViewportStore initialized')
+    logger.info('VirtualViewportStore initialized')
   }
 
   @action
@@ -248,11 +248,11 @@ export class VirtualViewportStore implements IStore {
     this.totalContentHeight = 0
     this.totalContentWidth = 0
     this.rowOffsets = null
-    log.debug('VirtualViewportStore reset')
+    logger.debug('VirtualViewportStore reset')
   }
 
   dispose(): void {
     this.disposers.dispose()
-    log.debug('VirtualViewportStore disposed')
+    logger.debug('VirtualViewportStore disposed')
   }
 }

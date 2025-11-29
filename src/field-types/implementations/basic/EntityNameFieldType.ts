@@ -7,7 +7,7 @@
  * - Aligns with Notion/Linear/Airtable patterns
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   CellEditor,
   CellRenderer,
@@ -17,7 +17,7 @@ import type {
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 import { TextEditor, TextFormatter, TextRenderer, TextValidator } from './TextFieldType'
 
-const fieldLog = createLogger(
+const logger = getLogger(
   'components/vibegrid/field-types/implementations/basic/EntityNameFieldType',
 )
 
@@ -29,7 +29,7 @@ export class EntityNameRenderer implements CellRenderer {
   private textRenderer = new TextRenderer()
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    fieldLog.debug('📝 [FIELD-ENTITY-NAME] Rendering entity name field', {
+    logger.debug('📝 [FIELD-ENTITY-NAME] Rendering entity name field', {
       columnId: column.id,
       value: value,
       rowId: rowData?.id,
@@ -169,4 +169,4 @@ export const EntityNameFieldType: VibeGridFieldType = {
 // Register the field type
 fieldTypeRegistry.register('entity-name', EntityNameFieldType)
 
-fieldLog.info('✅ Entity Name field type registered')
+logger.info('✅ Entity Name field type registered')

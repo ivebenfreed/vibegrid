@@ -1,9 +1,9 @@
 import { ChevronDown, ChevronUp, GripVertical, Plus, Settings2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 
-const fileLog = createLogger('GroupConfigPanel')
+const fileLog = getLogger(['GroupConfigPanel'])
 
 import { Badge } from '@/shared/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'

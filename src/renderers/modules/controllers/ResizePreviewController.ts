@@ -13,11 +13,11 @@
  */
 
 import { reaction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CanvasOverlayDOM } from '../../../overlays/CanvasOverlayDOM'
 import { OverlayController, type OverlayControllerOptions } from './OverlayController'
 
-const fileLog = createLogger('components/vibegrid/renderers/ResizePreviewController')
+const fileLog = getLogger(['vibegrid', 'renderers', 'ResizePreviewController'])
 
 /**
  * Options for ResizePreviewController

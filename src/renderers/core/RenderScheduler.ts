@@ -14,12 +14,12 @@
  */
 
 import { reaction, runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InitStore } from '../../stores/InitStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import { determineUpdateStrategy } from '../../utils/update-router'
 
-const fileLog = createLogger('vibegrid/renderers/RenderScheduler')
+const fileLog = getLogger(['vibegrid', 'renderers', 'RenderScheduler'])
 
 /**
  * Callbacks that RenderScheduler can invoke based on change type

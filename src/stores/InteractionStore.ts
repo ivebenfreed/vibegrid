@@ -19,11 +19,11 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 
-const log = createLogger('components/vibegrid/stores/InteractionStore')
+const logger = getLogger(['vibegrid', 'stores', 'InteractionStore'])
 
 // ====================================
 // ASSERTION HELPERS
@@ -250,7 +250,7 @@ export class InteractionStore implements IStore {
    */
   setCollection(collection: any): void {
     this.collection = collection
-    log.info('TanStack DB collection set', {
+    logger.info('TanStack DB collection set', {
       hasCollection: !!collection,
     })
   }
@@ -260,7 +260,7 @@ export class InteractionStore implements IStore {
    */
   @action
   async init(): Promise<void> {
-    log.info('Initializing InteractionStore')
+    logger.info('Initializing InteractionStore')
   }
 
   /**
@@ -268,7 +268,7 @@ export class InteractionStore implements IStore {
    */
   dispose(): void {
     this.disposers.dispose()
-    log.info('InteractionStore disposed')
+    logger.info('InteractionStore disposed')
   }
 
   /**
@@ -309,7 +309,7 @@ export class InteractionStore implements IStore {
     this.columnVisibilityMenuState = { isOpen: false, searchValue: '' }
     this.groupConfigMenuState = { isOpen: false }
     this.clipboard = null
-    log.info('InteractionStore reset to defaults')
+    logger.info('InteractionStore reset to defaults')
   }
 
   // ====================================
@@ -380,17 +380,17 @@ export class InteractionStore implements IStore {
       // CLEAR SELECTION: Single selection replaces all
       this.selectedCells = new Set([cellId])
       this.anchorCell = cellId
-      log.debug('Single cell selection (cleared others)', { cellId })
+      logger.debug('Single cell selection (cleared others)', { cellId })
     } else {
       // MULTI SELECTION: Toggle cell in existing selection
       const currentSelected = new Set(this.selectedCells)
 
       if (currentSelected.has(cellId)) {
         currentSelected.delete(cellId)
-        log.debug('Removed cell from multi-selection', { cellId })
+        logger.debug('Removed cell from multi-selection', { cellId })
       } else {
         currentSelected.add(cellId)
-        log.debug('Added cell to multi-selection', { cellId })
+        logger.debug('Added cell to multi-selection', { cellId })
       }
 
       this.selectedCells = currentSelected
@@ -399,13 +399,13 @@ export class InteractionStore implements IStore {
 
     // Increment version to trigger overlay updates
     this.selectionVersion++
-    log.debug('📊 Selection version incremented', {
+    logger.debug('📊 Selection version incremented', {
       newVersion: this.selectionVersion,
       cellId,
       isMulti
     })
 
-    log.info('Cell selected', { cellId, isMulti, selectionCount: this.selectedCells.size })
+    logger.info('Cell selected', { cellId, isMulti, selectionCount: this.selectedCells.size })
   }
 
   /**
@@ -425,7 +425,7 @@ export class InteractionStore implements IStore {
     // CONFLICT PREVENTION: Skip if row/column selection just happened
     const now = Date.now()
     if (now - this.lastBulkSelectionTime < 50) {
-      log.info('Skipping cell click - recent bulk selection detected', {
+      logger.info('Skipping cell click - recent bulk selection detected', {
         cellId,
         timeSinceLastBulk: now - this.lastBulkSelectionTime,
       })
@@ -440,7 +440,7 @@ export class InteractionStore implements IStore {
       // SHIFT+CLICK: Range selection from anchor cell
       const dataContext = this.getDataContext()
       this.selectRange(this.anchorCell, cellId, dataContext)
-      log.info('Shift+click range selection', {
+      logger.info('Shift+click range selection', {
         from: this.anchorCell,
         to: cellId,
         hasDataContext: !!dataContext,
@@ -448,18 +448,18 @@ export class InteractionStore implements IStore {
     } else if (ctrlKey) {
       // CTRL+CLICK: Multi-select (toggle cell in selection)
       this.selectCell(cellId, true)
-      log.info('Ctrl+click multi-select', { cellId })
+      logger.info('Ctrl+click multi-select', { cellId })
     } else {
       // NORMAL CLICK: Single selection
       this.selectCell(cellId, false)
-      log.info('Normal click single selection', { cellId })
+      logger.info('Normal click single selection', { cellId })
     }
 
     // ✅ REFACTORED: Auto-edit removed
     // Editing is now handled by CellActionRouter based on interaction policies
     // This method only handles selection, not editing
 
-    log.info('Cell click handled', {
+    logger.info('Cell click handled', {
       cellId,
       ctrlKey,
       shiftKey,
@@ -484,7 +484,7 @@ export class InteractionStore implements IStore {
 
       return { rows, columns, columnVisibility }
     } catch (error) {
-      log.error('Error getting data context', error)
+      logger.error('Error getting data context', { error })
       return undefined
     }
   }
@@ -500,17 +500,17 @@ export class InteractionStore implements IStore {
     if (!isMulti) {
       // CLEAR SELECTION: Single row selection replaces all
       this.selectedRows = new Set([rowId])
-      log.debug('Single row selection (cleared others)', { rowId })
+      logger.debug('Single row selection (cleared others)', { rowId })
     } else {
       // MULTI SELECTION: Toggle row in existing selection
       const currentSelected = new Set(this.selectedRows)
 
       if (currentSelected.has(rowId)) {
         currentSelected.delete(rowId)
-        log.debug('Removed row from multi-selection', { rowId })
+        logger.debug('Removed row from multi-selection', { rowId })
       } else {
         currentSelected.add(rowId)
-        log.debug('Added row to multi-selection', { rowId })
+        logger.debug('Added row to multi-selection', { rowId })
       }
 
       this.selectedRows = currentSelected
@@ -519,7 +519,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('Row selected', { rowId, isMulti, selectionCount: this.selectedRows.size })
+    logger.info('Row selected', { rowId, isMulti, selectionCount: this.selectedRows.size })
   }
 
   /**
@@ -532,7 +532,7 @@ export class InteractionStore implements IStore {
     columnVisibility: Record<string, boolean>
   }): void {
     if (!dataContext) {
-      log.warn('selectAll called without data context - ignoring')
+      logger.warn('selectAll called without data context - ignoring')
       return
     }
 
@@ -551,7 +551,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('All cells selected with data context', {
+    logger.info('All cells selected with data context', {
       totalCells: this.selectedCells.size,
     })
   }
@@ -572,7 +572,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('Selection and focus cleared')
+    logger.info('Selection and focus cleared')
   }
 
   /**
@@ -582,7 +582,7 @@ export class InteractionStore implements IStore {
    */
   @action
   handleOutsideClick(): void {
-    log.info('Outside click - clearing selection')
+    logger.info('Outside click - clearing selection')
     this.clearSelection()
   }
 
@@ -598,7 +598,7 @@ export class InteractionStore implements IStore {
       this.anchorCell = cellId
     }
 
-    log.info('Focused cell changed', { cellId })
+    logger.info('Focused cell changed', { cellId })
   }
 
   /**
@@ -622,7 +622,7 @@ export class InteractionStore implements IStore {
       // Increment version to trigger overlay updates
       this.selectionVersion++
 
-      log.info('Simple range selection (no data context)', {
+      logger.info('Simple range selection (no data context)', {
         count: cellsToSelect.size,
         from: startCellId,
         to: endCellId,
@@ -648,7 +648,7 @@ export class InteractionStore implements IStore {
     const endColIndex = visibleColumns.findIndex((col: any) => col.id === endColId)
 
     if (startRowIndex === -1 || endRowIndex === -1 || startColIndex === -1 || endColIndex === -1) {
-      log.warn('Range selection failed - could not find indices', {
+      logger.warn('Range selection failed - could not find indices', {
         startRowIndex,
         endRowIndex,
         startColIndex,
@@ -666,7 +666,7 @@ export class InteractionStore implements IStore {
       // Increment version to trigger overlay updates
       this.selectionVersion++
 
-      log.info('Fallback range selection (index lookup failed)', {
+      logger.info('Fallback range selection (index lookup failed)', {
         count: cellsToSelect.size,
       })
       return
@@ -691,7 +691,7 @@ export class InteractionStore implements IStore {
         // Stop if we hit a different group or a group header
         if (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId) {
           maxRowIndex = rowIndex - 1
-          log.info('Selection constrained to group boundary', {
+          logger.info('Selection constrained to group boundary', {
             originalMaxRow: Math.max(startRowIndex, endRowIndex),
             constrainedMaxRow: maxRowIndex,
             groupId: startGroupId,
@@ -717,7 +717,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('Full range selection with data context', {
+    logger.info('Full range selection with data context', {
       start: startCellId,
       end: endCellId,
       totalCells: newSelection.size,
@@ -748,7 +748,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('Row cells selected', {
+    logger.info('Row cells selected', {
       rowId,
       cellCount: selectedCells.size,
     })
@@ -775,7 +775,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
-    log.info('Column cells selected', {
+    logger.info('Column cells selected', {
       columnId,
       cellCount: selectedCells.size,
     })
@@ -801,11 +801,11 @@ export class InteractionStore implements IStore {
         newSelection.delete(cellId)
       }
       this.selectedCells = newSelection
-      log.info('Row cells deselected', { rowId })
+      logger.info('Row cells deselected', { rowId })
     } else {
       // Select row - clear all previous selections and select only this row
       this.selectedCells = new Set(rowCells)
-      log.info('Row cells selected (previous selection cleared)', { rowId })
+      logger.info('Row cells selected (previous selection cleared)', { rowId })
     }
 
     // Increment version to trigger overlay updates
@@ -849,7 +849,7 @@ export class InteractionStore implements IStore {
       this.selectionVersion++
     }
 
-    log.info('Cell selection toggled', { rowId, columnId, isCtrlKey, isShiftKey })
+    logger.info('Cell selection toggled', { rowId, columnId, isCtrlKey, isShiftKey })
   }
 
   /**
@@ -907,7 +907,7 @@ export class InteractionStore implements IStore {
     this.dragSource = source
     this.dragTarget = null
 
-    log.info('Drag started', { source })
+    logger.info('Drag started', { source })
   }
 
   @action
@@ -924,7 +924,7 @@ export class InteractionStore implements IStore {
     this.dragSource = null
     this.dragTarget = null
 
-    log.info('Drag ended', { source, target })
+    logger.info('Drag ended', { source, target })
 
     return { source, target }
   }
@@ -935,7 +935,7 @@ export class InteractionStore implements IStore {
     this.dragSelectStart = cellId
     this.dragSelectCurrent = cellId
 
-    log.info('Drag selection started', { startCell: cellId })
+    logger.info('Drag selection started', { startCell: cellId })
   }
 
   @action
@@ -952,7 +952,7 @@ export class InteractionStore implements IStore {
     this.dragSelectStart = null
     this.dragSelectCurrent = null
 
-    log.info('Drag selection ended', { start, end: current })
+    logger.info('Drag selection ended', { start, end: current })
 
     return { start, end: current }
   }
@@ -1006,7 +1006,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.columnResizeVersion++
 
-    log.info('Column resize started, selections cleared', { columnId, startX, startWidth })
+    logger.info('Column resize started, selections cleared', { columnId, startX, startWidth })
   }
 
   @action
@@ -1017,7 +1017,7 @@ export class InteractionStore implements IStore {
     const newWidth = Math.max(50, this.resizeStartWidth + deltaX)
 
     if (this.columnResize) {
-      log.info('Setting columnResize with new width', {
+      logger.info('Setting columnResize with new width', {
         resizingColumn: this.resizingColumn,
         newWidth,
         previousWidth: this.columnResize.newWidth,
@@ -1051,7 +1051,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.columnResizeVersion++
 
-    log.info('Column resize ended', { columnId: resizingColumn, newWidth })
+    logger.info('Column resize ended', { columnId: resizingColumn, newWidth })
 
     return { columnId: resizingColumn, newWidth }
   }
@@ -1078,7 +1078,7 @@ export class InteractionStore implements IStore {
       menuType,
     }
 
-    log.info('Header menu opened', { columnId, position, menuType })
+    logger.info('Header menu opened', { columnId, position, menuType })
   }
 
   @action
@@ -1089,7 +1089,7 @@ export class InteractionStore implements IStore {
       menuType: null,
     }
 
-    log.info('Header menu closed')
+    logger.info('Header menu closed')
   }
 
   @action
@@ -1111,7 +1111,7 @@ export class InteractionStore implements IStore {
       targetId,
     }
 
-    log.info('Context menu opened', { position, context, targetId })
+    logger.info('Context menu opened', { position, context, targetId })
   }
 
   @action
@@ -1123,7 +1123,7 @@ export class InteractionStore implements IStore {
       targetId: null,
     }
 
-    log.info('Context menu closed')
+    logger.info('Context menu closed')
   }
 
   @action
@@ -1139,7 +1139,7 @@ export class InteractionStore implements IStore {
       searchValue: '',
     }
 
-    log.info('Column visibility menu opened')
+    logger.info('Column visibility menu opened')
   }
 
   @action
@@ -1149,7 +1149,7 @@ export class InteractionStore implements IStore {
       searchValue: '',
     }
 
-    log.info('Column visibility menu closed')
+    logger.info('Column visibility menu closed')
   }
 
   @action
@@ -1172,7 +1172,7 @@ export class InteractionStore implements IStore {
       isOpen: true,
     }
 
-    log.info('Group config menu opened')
+    logger.info('Group config menu opened')
   }
 
   @action
@@ -1181,7 +1181,7 @@ export class InteractionStore implements IStore {
       isOpen: false,
     }
 
-    log.info('Group config menu closed')
+    logger.info('Group config menu closed')
   }
 
   // ====================================
@@ -1204,7 +1204,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.clipboardVersion++
 
-    log.info('Clipboard set', {
+    logger.info('Clipboard set', {
       operation: clipboardData.operation,
       cellCount: this.selectedCells.size,
       hasRichData: !!clipboardData.richData,
@@ -1218,7 +1218,7 @@ export class InteractionStore implements IStore {
     // Increment version to trigger overlay updates
     this.clipboardVersion++
 
-    log.info('Clipboard cleared')
+    logger.info('Clipboard cleared')
   }
 
   // ====================================

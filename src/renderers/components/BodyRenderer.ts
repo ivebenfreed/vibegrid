@@ -11,7 +11,7 @@
  */
 
 import { reaction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableViewport$ } from '../../stores/pure-observables'
@@ -21,7 +21,7 @@ import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/components/BodyRenderer.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'BodyRenderer.ts'])
 
 const ROW_HEIGHT = 40
 

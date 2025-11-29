@@ -7,13 +7,13 @@
 
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
 import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
 
-const log = createLogger('components/vibegrid/components/VibeGridXHeaderPure')
+const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
 
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
@@ -41,7 +41,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
   // Log when component mounts and on every render
   useEffect(() => {
-    log.info('🎨 VibeGridXHeaderPure MOUNTED', {
+    logger.info('🎨 VibeGridXHeaderPure MOUNTED', {
       hasStores: !!stores,
       hasVisualStateStore: !!visualStateStore,
       columnCount: visualStateStore.columns.length,
@@ -53,12 +53,12 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
     })
 
     return () => {
-      log.info('🧹 VibeGridXHeaderPure UNMOUNTED')
+      logger.info('🧹 VibeGridXHeaderPure UNMOUNTED')
     }
   }, [])
 
   // Log on every render (data changes)
-  log.debug('🔄 VibeGridXHeaderPure RENDER', {
+  logger.debug('🔄 VibeGridXHeaderPure RENDER', {
     columnCount: visualStateStore.columns.length,
     hiddenColumnCount,
     visibleColumnCount: visualStateStore.columns.length - hiddenColumnCount,

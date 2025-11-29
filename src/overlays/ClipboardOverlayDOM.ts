@@ -1,10 +1,10 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
 import type { ViewportInfo } from '../types'
 import type { VisualCellPosition } from './OverlayTypes'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/ClipboardOverlayDOM.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'ClipboardOverlayDOM.ts'])
 
 // ====================================
 // CLIPBOARD OVERLAY - DOM Implementation

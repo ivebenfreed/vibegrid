@@ -1,8 +1,8 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
 import type { ViewportInfo } from '../types'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/DragPreviewOverlayDOM.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'DragPreviewOverlayDOM.ts'])
 
 // ====================================
 // DRAG PREVIEW OVERLAY - DOM Implementation

@@ -18,13 +18,13 @@
 import { makeObservable, reaction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { InteractionStore } from './InteractionStore'
 import type { GroupRowOrderConfig, TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 
-const log = createLogger('components/vibegrid/stores/PersistenceStore')
+const logger = getLogger(['vibegrid', 'stores', 'PersistenceStore'])
 
 // ====================================
 // TYPES
@@ -110,7 +110,7 @@ export class PersistenceStore implements IStore {
 
     makeObservable(this)
 
-    log.info('🎯 PersistenceStore created', {
+    logger.info('🎯 PersistenceStore created', {
       entityType,
       normalizedEntityType,
       orgId,
@@ -143,7 +143,7 @@ export class PersistenceStore implements IStore {
    * CRITICAL: This must happen BEFORE defaults are applied in other stores
    */
   async init(): Promise<void> {
-    log.info('🔄 Initializing PersistenceStore...', {
+    logger.info('🔄 Initializing PersistenceStore...', {
       entityType: this.entityType,
       storageKey: this.storageKey,
     })
@@ -152,7 +152,7 @@ export class PersistenceStore implements IStore {
     const saved = this.loadFromStorage()
 
     if (saved) {
-      log.info('✅ Loaded saved preferences', {
+      logger.info('✅ Loaded saved preferences', {
         entityType: this.entityType,
         hasColumnWidths: Object.keys(saved.columnWidths || {}).length > 0,
         hasColumnOrder: (saved.columnOrder || []).length > 0,
@@ -167,7 +167,7 @@ export class PersistenceStore implements IStore {
       // Apply loaded preferences to stores
       this.applyLoadedPreferences(saved)
     } else {
-      log.info('ℹ️ No saved preferences found', {
+      logger.info('ℹ️ No saved preferences found', {
         entityType: this.entityType,
         storageKey: this.storageKey,
       })
@@ -176,7 +176,7 @@ export class PersistenceStore implements IStore {
     // Set up auto-save reactions
     this.setupAutoSave()
 
-    log.info('✅ PersistenceStore initialized', {
+    logger.info('✅ PersistenceStore initialized', {
       entityType: this.entityType,
     })
   }
@@ -194,7 +194,7 @@ export class PersistenceStore implements IStore {
     // Dispose all reactions
     this.disposers.dispose()
 
-    log.info('🧹 PersistenceStore disposed', {
+    logger.info('🧹 PersistenceStore disposed', {
       entityType: this.entityType,
     })
   }
@@ -205,13 +205,13 @@ export class PersistenceStore implements IStore {
   reset(): void {
     try {
       localStorage.removeItem(this.storageKey)
-      log.info('🔄 Persistence reset', {
+      logger.info('🔄 Persistence reset', {
         entityType: this.entityType,
         storageKey: this.storageKey,
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Failed to reset persistence', {
+      logger.error('❌ Failed to reset persistence', {
         entityType: this.entityType,
         error: errorMessage,
       })
@@ -236,7 +236,7 @@ export class PersistenceStore implements IStore {
       return this.validatePreferences(parsed)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Failed to load preferences from localStorage', {
+      logger.error('❌ Failed to load preferences from localStorage', {
         entityType: this.entityType,
         storageKey: this.storageKey,
         error: errorMessage,
@@ -308,7 +308,7 @@ export class PersistenceStore implements IStore {
       }
     }
 
-    log.info('✅ Applied loaded preferences to stores', {
+    logger.info('✅ Applied loaded preferences to stores', {
       entityType: this.entityType,
     })
   }
@@ -322,7 +322,7 @@ export class PersistenceStore implements IStore {
    */
   private setupAutoSave(): void {
     if (!this.tableCoreStore || !this.visualStateStore) {
-      log.warn('⚠️ Cannot setup auto-save - stores not injected', {
+      logger.warn('⚠️ Cannot setup auto-save - stores not injected', {
         hasTableCore: !!this.tableCoreStore,
         hasVisualState: !!this.visualStateStore,
       })
@@ -358,7 +358,7 @@ export class PersistenceStore implements IStore {
           groupConfig: this.visualStateStore!.groupConfig,
         }),
         (data) => {
-          log.debug('[PERSIST] 🔥 Reaction fired - changes detected', {
+          logger.debug('[PERSIST] 🔥 Reaction fired - changes detected', {
             hasColumnWidths: Object.keys(data.columnWidths || {}).length > 0,
             hasColumnOrder: (data.columnOrder || []).length > 0,
             hasColumnVisibility: Object.keys(data.columnVisibility || {}).length > 0,
@@ -376,7 +376,7 @@ export class PersistenceStore implements IStore {
       ),
     )
 
-    log.info('✅ Auto-save reactions set up', {
+    logger.info('✅ Auto-save reactions set up', {
       entityType: this.entityType,
     })
   }
@@ -386,17 +386,17 @@ export class PersistenceStore implements IStore {
    */
   private debouncedSave(): void {
     if (this.saveTimer) {
-      log.debug('[PERSIST] ⏱️ Debounce timer reset - clearing previous timer')
+      logger.debug('[PERSIST] ⏱️ Debounce timer reset - clearing previous timer')
       clearTimeout(this.saveTimer)
     }
 
-    log.debug('[PERSIST] ⏱️ Debounce timer started', {
+    logger.debug('[PERSIST] ⏱️ Debounce timer started', {
       delayMs: this.SAVE_DEBOUNCE_MS,
       willSaveIn: `${this.SAVE_DEBOUNCE_MS}ms`,
     })
 
     this.saveTimer = setTimeout(() => {
-      log.debug('[PERSIST] ⏱️ Debounce timer expired - saving now')
+      logger.debug('[PERSIST] ⏱️ Debounce timer expired - saving now')
       this.saveToStorage()
       this.saveTimer = null
     }, this.SAVE_DEBOUNCE_MS)
@@ -407,7 +407,7 @@ export class PersistenceStore implements IStore {
    */
   private saveToStorage(): void {
     if (!this.tableCoreStore || !this.visualStateStore) {
-      log.warn('⚠️ Cannot save - stores not injected')
+      logger.warn('⚠️ Cannot save - stores not injected')
       return
     }
 
@@ -437,7 +437,7 @@ export class PersistenceStore implements IStore {
       // Check size before saving
       if (serialized.length > 100000) {
         // 100KB warning
-        log.warn('🚨 Preferences unusually large', {
+        logger.warn('🚨 Preferences unusually large', {
           entityType: this.entityType,
           size: serialized.length,
         })
@@ -446,7 +446,7 @@ export class PersistenceStore implements IStore {
 
       localStorage.setItem(this.storageKey, serialized)
 
-      log.info('[PERSIST] 💾 Saved to localStorage', {
+      logger.info('[PERSIST] 💾 Saved to localStorage', {
         entityType: this.entityType,
         size: serialized.length,
         storageKey: this.storageKey,
@@ -458,14 +458,14 @@ export class PersistenceStore implements IStore {
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Failed to save preferences', {
+      logger.error('❌ Failed to save preferences', {
         entityType: this.entityType,
         error: errorMessage,
       })
 
       // Handle quota exceeded errors
       if (error instanceof Error && error.name === 'QuotaExceededError') {
-        log.error('🚨 QuotaExceededError - localStorage quota exceeded', {
+        logger.error('🚨 QuotaExceededError - localStorage quota exceeded', {
           entityType: this.entityType,
           storageKey: this.storageKey,
         })
@@ -484,7 +484,7 @@ export class PersistenceStore implements IStore {
   private normalizeEntityType(entityType: string): string {
     // Guard against undefined/null
     if (!entityType) {
-      log.warn('normalizeEntityType called with undefined/null entityType, returning "unknown"')
+      logger.warn('normalizeEntityType called with undefined/null entityType, returning "unknown"')
       return 'unknown'
     }
 

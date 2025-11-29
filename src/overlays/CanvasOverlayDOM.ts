@@ -1,4 +1,4 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
 import type { ColumnDragState, ColumnResizeState, SelectionContext, ViewportInfo } from '../types'
@@ -10,7 +10,7 @@ import { FillHandleLayerDOM } from './FillHandleLayerDOM'
 import type { OverlayConfig, VisualCellPosition } from './OverlayTypes'
 import { SelectionOverlayDOM } from './SelectionOverlayDOM'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/CanvasOverlayDOM.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'CanvasOverlayDOM.ts'])
 // EditingOverlay is already DOM-based (React portal) - handled separately
 // SelectionColumnOverlay not needed - checkboxes are DOM elements
 
@@ -53,7 +53,7 @@ export class CanvasOverlayDOM {
   constructor(config: OverlayConfig, eventCallback?: CanvasEventCallback) {
     this.config = config
     this.eventCallback = eventCallback || null
-    fileLog.debug('CanvasOverlayDOM: Created with config', config)
+    fileLog.debug('CanvasOverlayDOM: Created with config', { config })
   }
 
   /**
@@ -140,7 +140,7 @@ export class CanvasOverlayDOM {
         ],
       })
     } catch (error) {
-      fileLog.error('CanvasOverlayDOM: Failed to pre-initialize overlays', error)
+      fileLog.error('CanvasOverlayDOM: Failed to pre-initialize overlays', { error })
     }
   }
 
@@ -275,19 +275,19 @@ export class CanvasOverlayDOM {
         },
         {
           onFillStart: (direction) => {
-            fileLog.debug('CanvasOverlayDOM: Fill start', direction)
+            fileLog.debug('CanvasOverlayDOM: Fill start', { direction })
             if (this.eventCallback) {
               this.eventCallback({ type: 'FILL_START', direction })
             }
           },
           onFillPreview: (previewCells) => {
-            fileLog.debug('CanvasOverlayDOM: Fill preview', previewCells.size)
+            fileLog.debug('CanvasOverlayDOM: Fill preview', { previewCellsSize: previewCells.size })
             if (this.eventCallback) {
               this.eventCallback({ type: 'FILL_PREVIEW', previewCells })
             }
           },
           onFillComplete: (fillCells) => {
-            fileLog.debug('CanvasOverlayDOM: Fill complete', fillCells.size)
+            fileLog.debug('CanvasOverlayDOM: Fill complete', { fillCellsSize: fillCells.size })
             if (this.eventCallback) {
               this.eventCallback({ type: 'FILL_COMPLETE', fillCells })
             }

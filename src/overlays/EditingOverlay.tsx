@@ -1,13 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { isDropdownType as isDropdownCellType } from '../column-types'
 import type { CellRef, Column } from '../types'
 // Pure Observable architecture - no XState dependencies
 import { createEditor, type EditorProps } from './editors'
 import type { VisualCellPosition } from './OverlayTypes'
 
-const fileLog = createLogger('components/vibegrid/overlays/EditingOverlay')
+const fileLog = getLogger(['vibegrid', 'overlays', 'EditingOverlay'])
 
 // ====================================
 // EDITING OVERLAY - React Portal for Cell Editing

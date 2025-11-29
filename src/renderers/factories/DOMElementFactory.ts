@@ -3,12 +3,12 @@
  * Provides consistent element creation patterns and styling
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { SelectionController } from '../modules/SelectionController'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/factories/DOMElementFactory.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'factories', 'DOMElementFactory.ts'])
 
 const ROW_HEIGHT = 40
 const HEADER_HEIGHT = 48

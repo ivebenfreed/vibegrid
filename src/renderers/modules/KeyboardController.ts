@@ -5,10 +5,10 @@
  * Follows the same pattern as MouseController for centralized event management.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { KeyboardNavigationController } from './KeyboardNavigationController'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/KeyboardController.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'KeyboardController.ts'])
 
 export interface KeyboardControllerOptions {
   container: HTMLElement
@@ -174,7 +174,7 @@ export class KeyboardController {
       try {
         element.removeEventListener(event, handler)
       } catch (error) {
-        fileLog.error('❌ Error removing keyboard event listener', error)
+        fileLog.error('❌ Error removing keyboard event listener', { error })
       }
     })
 

@@ -19,7 +19,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/shared/components/ui/command'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 import type { CellRef, Column, EnumOption, RelationshipContext } from '../../types'
 import { getOptionIconDisplay } from '../../utils/icon-mapping'
@@ -28,7 +28,7 @@ import { getOptionIconDisplay } from '../../utils/icon-mapping'
 // import { use$ } from '@legendapp/state/react'
 // import { getEntity$, universeOrgId$ } from '@/legend-state/observables'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/ComboboxEditor')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'ComboboxEditor'])
 
 export interface ComboboxEditorProps {
   cell: CellRef

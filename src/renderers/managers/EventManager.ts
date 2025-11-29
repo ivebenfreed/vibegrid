@@ -6,13 +6,13 @@
  */
 
 import { toast } from 'sonner'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { ClipboardManager } from '../../managers/ClipboardManager'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { OverlayManager } from '../modules/OverlayManager'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/managers/EventManager.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'managers', 'EventManager.ts'])
 
 export interface EventManagerOptions {
   tableCoreStore: TableCoreStore
@@ -185,7 +185,7 @@ export class EventManager {
         fileLog.debug('✂️ Cut completed', { cellCount: selectedCells.size })
       }
     } catch (error) {
-      fileLog.error('✂️ Cut failed', error)
+      fileLog.error('✂️ Cut failed', { error })
       toast.error('Cut operation failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
         duration: 4000,
@@ -334,7 +334,7 @@ export class EventManager {
       try {
         target.removeEventListener(type, listener)
       } catch (error) {
-        fileLog.error('❌ Error removing event listener', error)
+        fileLog.error('❌ Error removing event listener', { error })
       }
     })
 

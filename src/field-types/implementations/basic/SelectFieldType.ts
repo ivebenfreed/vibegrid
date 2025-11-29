@@ -6,7 +6,7 @@
  */
 
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { getOptionIconDisplay } from '../../../utils/icon-mapping'
 import type {
   CellEditor,
@@ -21,7 +21,7 @@ import type {
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
-const fileLog = createLogger(
+const logger = getLogger(
   'components/custom/vibegrid/field-types/implementations/basic/SelectFieldType',
 )
 

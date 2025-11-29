@@ -13,12 +13,12 @@ import {
 } from '@/shared/components/ui/dropdown-menu'
 import { Input } from '@/shared/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { formatFieldName } from '../column-defaults'
 import type { VibeGridStores } from '../stores/context'
 import type { Column } from '../types'
 
-const fileLog = createLogger('components/vibegrid/components/VibeGridXColumnVisibilityPure')
+const fileLog = getLogger(['vibegrid', 'components', 'VibeGridXColumnVisibilityPure'])
 
 interface VibeGridXColumnVisibilityPureProps {
   stores: VibeGridStores

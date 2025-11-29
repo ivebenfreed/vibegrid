@@ -3,10 +3,10 @@
  * Handles group row creation, expansion/collapse, and visual styling
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/components/GroupRenderer.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'GroupRenderer.ts'])
 
 const ROW_HEIGHT = 40
 

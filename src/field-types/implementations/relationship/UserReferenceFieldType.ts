@@ -7,7 +7,7 @@
 
 import { reaction } from 'mobx'
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
 import type {
   AsyncDataLoader,
@@ -23,7 +23,7 @@ import type {
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 
-const fileLog = createLogger(
+const logger = getLogger(
   'components/custom/vibegrid/field-types/implementations/relationship/UserReferenceFieldType.ts',
 )
 
@@ -50,7 +50,7 @@ export class UserDataLoader implements AsyncDataLoader {
       const result = (await response.json()) as { data?: RelationshipData }
       return result.data || {}
     } catch (error) {
-      fileLog.error('Failed to load user relationship data', { error, column: column.id })
+      logger.error('Failed to load user relationship data', { error, column: column.id })
       throw error
     }
   }
@@ -84,7 +84,7 @@ export class UserDataLoader implements AsyncDataLoader {
         (column as any).tableCoreStore?.membersData || (column as any).tableCore$?.membersData
 
       if (!membersData || typeof membersData.get !== 'function') {
-        fileLog.warn('No members data available in TableCoreStore')
+        logger.warn('No members data available in TableCoreStore')
         return []
       }
 
@@ -117,7 +117,7 @@ export class UserDataLoader implements AsyncDataLoader {
           metadata: user,
         }))
 
-      fileLog.debug('User search completed', {
+      logger.debug('User search completed', {
         query,
         totalMembers: allMembers.length,
         filteredMembers: filtered.length,
@@ -126,7 +126,7 @@ export class UserDataLoader implements AsyncDataLoader {
 
       return suggestions
     } catch (error) {
-      fileLog.error('Failed to search users', { error, query })
+      logger.error('Failed to search users', { error, query })
       return []
     }
   }
@@ -137,7 +137,7 @@ export class UserDataLoader implements AsyncDataLoader {
 
   invalidateCache(column: EnhancedColumn): void {
     // Implementation would clear relevant cache entries
-    fileLog.debug('Invalidating user reference cache', { column: column.id })
+    logger.debug('Invalidating user reference cache', { column: column.id })
   }
 
   private getOrgId(): string {
@@ -185,7 +185,7 @@ export class UserReferenceRenderer implements CellRenderer {
 
     const tableCoreStore = this.getTableCoreStore(column)
     if (!tableCoreStore) {
-      fileLog.warn('UserReferenceRenderer: No tableCoreStore available on column', {
+      logger.warn('UserReferenceRenderer: No tableCoreStore available on column', {
         columnId: column.id,
       })
       container.textContent = `User ${String(value).slice(-4)}`
@@ -198,7 +198,7 @@ export class UserReferenceRenderer implements CellRenderer {
     const tableCore$ = tableCoreStore
     const userId = value
 
-    fileLog.debug('Rendering UserReference', {
+    logger.debug('Rendering UserReference', {
       userId,
       hasTableCore: !!tableCore$,
       hasMembersData: !!tableCore$?.membersData,
@@ -209,7 +209,7 @@ export class UserReferenceRenderer implements CellRenderer {
     if (tableCore$?.membersData && typeof tableCore$.membersData.get === 'function') {
       const user = tableCore$.membersData.get(userId)
       if (user) {
-        fileLog.debug('User found in membersData immediately', { userId, userName: user.name })
+        logger.debug('User found in membersData immediately', { userId, userName: user.name })
         container.innerHTML = this.createUserBadge(user, userId)
         return container
       }
@@ -223,12 +223,12 @@ export class UserReferenceRenderer implements CellRenderer {
     const dispose = reaction(
       () => {
         const user = tableCore$?.membersData?.get(userId)
-        fileLog.debug('MobX reaction tracking', { userId, hasUser: !!user, userName: user?.name })
+        logger.debug('MobX reaction tracking', { userId, hasUser: !!user, userName: user?.name })
         return user
       },
       (user) => {
         if (user) {
-          fileLog.debug('MobX reaction fired - user loaded!', { userId, userName: user.name })
+          logger.debug('MobX reaction fired - user loaded!', { userId, userName: user.name })
           container.innerHTML = this.createUserBadge(user, userId)
           container.style.opacity = '1'
           dispose() // Stop watching after first update
@@ -359,7 +359,7 @@ export class UserReferenceRenderer implements CellRenderer {
       const membersData = tableCoreStore?.membersData
 
       if (!membersData || typeof membersData.get !== 'function') {
-        fileLog.warn('No members data available in TableCoreStore', { userId })
+        logger.warn('No members data available in TableCoreStore', { userId })
         container.textContent = `User ${userId.slice(-4)}`
         container.style.opacity = '0.6'
         container.style.fontStyle = 'italic'
@@ -379,7 +379,7 @@ export class UserReferenceRenderer implements CellRenderer {
         container.style.fontStyle = 'italic'
       }
     } catch (error) {
-      fileLog.error('Failed to load user data', { error, userId })
+      logger.error('Failed to load user data', { error, userId })
       container.textContent = `User ${userId.slice(-4)}`
       container.className += ' vibegridx-user-reference-error'
       container.style.color = '#dc2626'
@@ -446,7 +446,7 @@ export class UserReferenceEditor implements CellEditor {
       container.appendChild(input)
       setTimeout(() => input.focus(), 0)
     } catch (error) {
-      fileLog.error('Failed to create user reference editor', { error, columnId: column.id })
+      logger.error('Failed to create user reference editor', { error, columnId: column.id })
       // Fallback to simple input
       const input = document.createElement('input')
       input.type = 'text'
@@ -524,7 +524,7 @@ export class UserReferenceEditor implements CellEditor {
       const suggestions = await this.dataLoader.getSearchSuggestions(query, column, 5)
       this.showSuggestions(suggestions, container, column)
     } catch (error) {
-      fileLog.error('User search failed', { error, query })
+      logger.error('User search failed', { error, query })
     }
   }
 

@@ -1,8 +1,8 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
 import type { ColumnResizeState } from '../types'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/ColumnResizeOverlayDOM.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'ColumnResizeOverlayDOM.ts'])
 
 // ====================================
 // COLUMN RESIZE OVERLAY - DOM Implementation

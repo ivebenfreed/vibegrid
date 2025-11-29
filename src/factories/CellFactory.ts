@@ -5,7 +5,7 @@
  * Replaces the scattered cell creation logic throughout VibeGrid.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   EnhancedColumn,
   FieldTypeRegistry,
@@ -19,7 +19,7 @@ type CellFactoryColumn = EnhancedColumn & {
   asyncDataState?: any
 }
 
-const fileLog = createLogger('components/custom/vibegrid/factories/CellFactory.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'factories', 'CellFactory.ts'])
 
 export interface CellPosition {
   rowIndex: number

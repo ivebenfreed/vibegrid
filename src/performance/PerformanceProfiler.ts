@@ -4,9 +4,9 @@
  * Tracks and measures performance bottlenecks during VibeGrid initialization and rendering
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 
-const fileLog = createLogger('components/custom/vibegrid/performance/PerformanceProfiler.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'performance', 'PerformanceProfiler.ts'])
 
 export interface PerformanceMetric {
   name: string

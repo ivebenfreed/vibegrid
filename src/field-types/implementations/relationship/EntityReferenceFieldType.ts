@@ -6,7 +6,7 @@
 
 import { reaction } from 'mobx'
 import { orpcClient } from '@/shared/data/orpc/client'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
 import type {
   AsyncDataLoader,
@@ -20,7 +20,7 @@ import type {
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 
-const fileLog = createLogger(
+const logger = getLogger(
   'components/vibegrid/field-types/implementations/relationship/EntityReferenceFieldType',
 )
 
@@ -45,7 +45,7 @@ export class EntityDataLoader implements AsyncDataLoader {
       const result = (await response.json()) as { data?: RelationshipData }
       return result.data || {}
     } catch (error) {
-      fileLog.error('Failed to load entity relationship data', { error, column: column.id })
+      logger.error('Failed to load entity relationship data', { error, column: column.id })
       throw error
     }
   }
@@ -98,7 +98,7 @@ export class EntityDataLoader implements AsyncDataLoader {
         metadata: item,
       }))
     } catch (error) {
-      fileLog.error('Failed to search target entity', { error, query, targetEntity })
+      logger.error('Failed to search target entity', { error, query, targetEntity })
       return []
     }
   }
@@ -109,7 +109,7 @@ export class EntityDataLoader implements AsyncDataLoader {
   }
 
   invalidateCache(column: EnhancedColumn): void {
-    fileLog.debug('Invalidating entity reference cache', { column: column.id })
+    logger.debug('Invalidating entity reference cache', { column: column.id })
   }
 
   private getOrgId(): string {
@@ -121,7 +121,7 @@ export class EntityDataLoader implements AsyncDataLoader {
       }
       return '01920000-1000-7000-8000-000000000001'
     } catch (error) {
-      fileLog.warn('Failed to get org ID from URL', { error })
+      logger.warn('Failed to get org ID from URL', { error })
       return '01920000-1000-7000-8000-000000000001'
     }
   }
@@ -169,7 +169,7 @@ export class EntityReferenceRenderer implements CellRenderer {
     const tableCoreStore = this.getTableCoreStore(column)
     const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column)
     if (!rawTargetEntity) {
-      fileLog.warn(
+      logger.warn(
         'EntityReferenceRenderer: unable to determine target entity type; displaying raw value',
         {
           columnId: column.id,
@@ -214,7 +214,7 @@ export class EntityReferenceRenderer implements CellRenderer {
 
       this.disposers.push(dispose)
     } else {
-      fileLog.debug(
+      logger.debug(
         'EntityReferenceRenderer: no tableCoreStore available, falling back to direct fetch',
         {
           columnId: column.id,
@@ -328,7 +328,7 @@ export class EntityReferenceRenderer implements CellRenderer {
       if (!rawTargetEntity) {
         container.textContent = String(entityId)
         container.style.opacity = '0.6'
-        fileLog.warn('loadAndRenderEntity: unable to determine target entity; displaying raw id', {
+        logger.warn('loadAndRenderEntity: unable to determine target entity; displaying raw id', {
           columnId: column.id,
           entityId,
         })
@@ -363,12 +363,12 @@ export class EntityReferenceRenderer implements CellRenderer {
       const fallbackEntity = this.getTargetEntityType(column) || 'Entity'
       container.textContent = `${fallbackEntity} ${entityId}`
       container.style.opacity = '0.6'
-      fileLog.debug('EntityReferenceRenderer: fallback display', {
+      logger.debug('EntityReferenceRenderer: fallback display', {
         entityId,
         columnId: column.id,
       })
     } catch (error) {
-      fileLog.error('Failed to load entity data', { error, entityId })
+      logger.error('Failed to load entity data', { error, entityId })
       const fallbackEntity = this.getTargetEntityType(column) || 'Entity'
       container.textContent = `${fallbackEntity} ${entityId}`
       container.className += ' vibegridx-entity-reference-error'
@@ -383,7 +383,7 @@ export class EntityReferenceRenderer implements CellRenderer {
     try {
       const targetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column)
       if (!targetEntity) {
-        fileLog.warn('fetchEntityRecord: Unable to determine target entity type', {
+        logger.warn('fetchEntityRecord: Unable to determine target entity type', {
           columnId: column.id,
           entityId,
         })
@@ -402,7 +402,7 @@ export class EntityReferenceRenderer implements CellRenderer {
 
       return record ?? null
     } catch (error) {
-      fileLog.error('Failed to fetch entity record', { error, entityId, columnId: column.id })
+      logger.error('Failed to fetch entity record', { error, entityId, columnId: column.id })
       return null
     }
   }

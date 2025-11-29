@@ -21,12 +21,12 @@ import { eq } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useMemo } from 'react'
 import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import type { FilterConfig, SortConfig } from '../types'
 import { useMobxSnapshot } from './useMobxSnapshot'
 
-const log = createLogger('components/vibegrid/hooks/useVibeGridData')
+const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
 // ====================================
 // TYPES
@@ -139,7 +139,7 @@ function applyFilterToQuery(
       })
 
     default:
-      log.warn('Unknown filter operator', { operator })
+      logger.warn('Unknown filter operator', { operator })
       return query
   }
 }
@@ -215,7 +215,7 @@ export function useVibeGridData(
     (q: any) => {
       if (!collection) return undefined
 
-      log.debug('Running live query', {
+      logger.debug('Running live query', {
         entityType,
         filterCount: filterSnapshot.length,
         sortCount: sortSnapshot.length,
@@ -249,7 +249,7 @@ export function useVibeGridData(
   const createEntity = useMemo(() => {
     return (data: Record<string, any>) => {
       if (!collection) {
-        log.error('Cannot create: collection not loaded', { entityType })
+        logger.error('Cannot create: collection not loaded', { entityType })
         return
       }
 
@@ -261,14 +261,14 @@ export function useVibeGridData(
         updatedAt: new Date().toISOString(),
       })
 
-      log.info('Entity create initiated', { entityType, tempId })
+      logger.info('Entity create initiated', { entityType, tempId })
 
       tx.isPersisted.promise
         .then(() => {
-          log.info('Entity create persisted', { entityType, tempId })
+          logger.info('Entity create persisted', { entityType, tempId })
         })
         .catch((error: any) => {
-          log.error('Entity create failed', { entityType, tempId, error: error.message })
+          logger.error('Entity create failed', { entityType, tempId, error: error.message })
         })
     }
   }, [collection, entityType])
@@ -276,7 +276,7 @@ export function useVibeGridData(
   const updateEntity = useMemo(() => {
     return (id: string, updates: Record<string, any>) => {
       if (!collection) {
-        log.error('Cannot update: collection not loaded', { entityType })
+        logger.error('Cannot update: collection not loaded', { entityType })
         return
       }
 
@@ -285,14 +285,14 @@ export function useVibeGridData(
         draft.updatedAt = new Date().toISOString()
       })
 
-      log.info('Entity update initiated', { entityType, id })
+      logger.info('Entity update initiated', { entityType, id })
 
       tx.isPersisted.promise
         .then(() => {
-          log.info('Entity update persisted', { entityType, id })
+          logger.info('Entity update persisted', { entityType, id })
         })
         .catch((error: any) => {
-          log.error('Entity update failed', { entityType, id, error: error.message })
+          logger.error('Entity update failed', { entityType, id, error: error.message })
         })
     }
   }, [collection, entityType])
@@ -300,20 +300,20 @@ export function useVibeGridData(
   const deleteEntity = useMemo(() => {
     return (id: string) => {
       if (!collection) {
-        log.error('Cannot delete: collection not loaded', { entityType })
+        logger.error('Cannot delete: collection not loaded', { entityType })
         return
       }
 
       const tx = collection.delete(String(id))
 
-      log.info('Entity delete initiated', { entityType, id })
+      logger.info('Entity delete initiated', { entityType, id })
 
       tx.isPersisted.promise
         .then(() => {
-          log.info('Entity delete persisted', { entityType, id })
+          logger.info('Entity delete persisted', { entityType, id })
         })
         .catch((error: any) => {
-          log.error('Entity delete failed', { entityType, id, error: error.message })
+          logger.error('Entity delete failed', { entityType, id, error: error.message })
         })
     }
   }, [collection, entityType])

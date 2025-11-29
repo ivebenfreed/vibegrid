@@ -1,8 +1,8 @@
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
 import type { ColumnDragState } from '../types'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/ColumnDragOverlayDOM.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'ColumnDragOverlayDOM.ts'])
 
 // ====================================
 // COLUMN DRAG OVERLAY - DOM Implementation
@@ -93,7 +93,7 @@ export class ColumnDragOverlayDOM {
       (col: any) => col.columnId === dragState.draggedColumnId,
     )
     if (!column) {
-      fileLog.warn('ColumnDragOverlayDOM: Column not found:', dragState.draggedColumnId)
+      fileLog.warn('ColumnDragOverlayDOM: Column not found:', { draggedColumnId: dragState.draggedColumnId })
       return
     }
 

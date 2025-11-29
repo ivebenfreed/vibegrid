@@ -5,7 +5,7 @@
  * Handles user references, entity references, and relationship display data.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   EnhancedColumn,
   RelationshipConfig,
@@ -14,7 +14,7 @@ import type {
 } from '../field-types/FieldTypeRegistry'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 
-const fileLog = createLogger('components/custom/vibegrid/managers/RelationshipDataManager.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'RelationshipDataManager.ts'])
 
 export interface RelationshipCacheEntry {
   data: RelationshipData

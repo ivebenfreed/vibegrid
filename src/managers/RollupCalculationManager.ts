@@ -5,7 +5,7 @@
  * Integrates with entity change events for real-time updates.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   EnhancedColumn,
   RollupCalculator,
@@ -13,7 +13,7 @@ import type {
 } from '../field-types/FieldTypeRegistry'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 
-const fileLog = createLogger('components/custom/vibegrid/managers/RollupCalculationManager.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'RollupCalculationManager.ts'])
 
 export interface EntityChangeEvent {
   entityType: string

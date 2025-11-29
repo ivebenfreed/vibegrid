@@ -3,10 +3,10 @@
  * Handles viewport scrolling and header-body scroll coordination
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { VirtualViewportStore } from '../../stores/VirtualViewportStore'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/modules/ScrollController.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'ScrollController.ts'])
 
 export interface ScrollControllerOptions {
   viewport: HTMLElement

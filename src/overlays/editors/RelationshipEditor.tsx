@@ -12,12 +12,12 @@ import {
   getOrCreateEntityCollection,
   getOrCreateMembersCollection,
 } from '@/shared/data/db/collections/registry'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellType } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'
 import type { EditorProps } from './index'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RelationshipEditor.tsx')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'editors', 'RelationshipEditor.tsx'])
 
 export function RelationshipEditor({
   cell,

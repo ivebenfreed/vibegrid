@@ -18,10 +18,10 @@
 //
 // ====================================
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column, TableRow, ViewportInfo } from '../types'
 
-const fileLog = createLogger('components/vibegrid/coordinates/VibeGridXCoordinateManager')
+const fileLog = getLogger(['vibegrid', 'coordinates', 'VibeGridXCoordinateManager'])
 
 export interface CoordinatePosition {
   rowIndex: number
@@ -227,7 +227,7 @@ export class VibeGridXCoordinateManager {
     const columnMapping = this.mapping.columns.find((c) => c.columnId === cellRef.columnId)
 
     if (!rowMapping || !columnMapping) {
-      fileLog.warn('VibeGridXCoordinateManager: Could not find mapping for cell', cellRef)
+      fileLog.warn('VibeGridXCoordinateManager: Could not find mapping for cell', { cellRef })
       return null
     }
 
@@ -395,7 +395,7 @@ export class VibeGridXCoordinateManager {
     const columnMapping = this.mapping.columns[position.columnIndex]
 
     if (!rowMapping || !columnMapping) {
-      fileLog.warn('VibeGridXCoordinateManager: Invalid position', position)
+      fileLog.warn('VibeGridXCoordinateManager: Invalid position', { position })
       return null
     }
 

@@ -1,8 +1,8 @@
 import { hash } from 'ohash'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { Column } from '../types'
 
-const log = createLogger('vibegrid/utils/hashing')
+const logger = getLogger(['vibegrid', 'utils', 'hashing'])
 
 // Metadata columns excluded from change detection
 export const METADATA_COLUMNS = new Set([

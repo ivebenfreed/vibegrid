@@ -1,5 +1,5 @@
 import type React from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column } from '../../types'
 import { BooleanEditor } from './BooleanEditor'
 import { DateEditor } from './DateEditor'
@@ -14,7 +14,7 @@ import { SelectEditor } from './SelectEditor'
 import { SingleRelationshipEditor } from './SingleRelationshipEditor'
 import { TextEditor } from './TextEditor'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/index')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'index'])
 
 // Helper function to detect if a field should be treated as tags
 function isTagsLikeField(column: Column, initialValue: any): boolean {

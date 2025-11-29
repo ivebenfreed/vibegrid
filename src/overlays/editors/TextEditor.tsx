@@ -1,8 +1,8 @@
 import React from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column } from '../../types'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/TextEditor')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'TextEditor'])
 
 interface TextEditorProps {
   cell: CellRef

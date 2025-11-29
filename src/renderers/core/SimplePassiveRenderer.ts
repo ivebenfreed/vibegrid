@@ -7,7 +7,7 @@
 
 import { reaction, runInAction } from 'mobx'
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 // Service layer
@@ -45,7 +45,7 @@ import { type CoordinateMapping, OverlayManager } from '../modules/OverlayManage
 import { ScrollController } from '../modules/ScrollController'
 import { SelectionController } from '../modules/SelectionController'
 
-const fileLog = createLogger('components/custom/vibegrid/renderers/core/SimplePassiveRenderer.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'core', 'SimplePassiveRenderer.ts'])
 
 // Use centralized dimensions from the new system
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT

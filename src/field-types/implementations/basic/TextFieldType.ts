@@ -5,7 +5,7 @@
  * Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type {
   CellEditor,
   CellFormatter,
@@ -19,7 +19,7 @@ import type {
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
-const fieldLog = createLogger(
+const logger = getLogger(
   'components/custom/vibegrid/field-types/implementations/basic/TextFieldType.ts',
 )
 
@@ -28,7 +28,7 @@ const fieldLog = createLogger(
  */
 export class TextRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    fieldLog.debug('📝 [FIELD-TEXT] Rendering text field', {
+    logger.debug('📝 [FIELD-TEXT] Rendering text field', {
       columnId: column.id,
       fieldType: column.cellType || column.type,
       value: value,
@@ -499,6 +499,6 @@ export const TextFieldType: VibeGridFieldType = {
 }
 
 // Register immediately
-fieldLog.info('📝 [FIELD-TEXT] Registering TextFieldType')
+logger.info('📝 [FIELD-TEXT] Registering TextFieldType')
 fieldTypeRegistry.register('text', TextFieldType)
-fieldLog.info('✅ [FIELD-TEXT] TextFieldType registered for: text')
+logger.info('✅ [FIELD-TEXT] TextFieldType registered for: text')

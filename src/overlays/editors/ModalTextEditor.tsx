@@ -6,12 +6,12 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column } from '../../types'
 import { LongTextEditor } from './LongTextEditor'
 import { RichTextEditor } from './RichTextEditor'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/editors/ModalTextEditor.tsx')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'editors', 'ModalTextEditor.tsx'])
 
 interface ModalTextEditorProps {
   cell: CellRef

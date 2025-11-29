@@ -5,7 +5,7 @@
  * as cell renderers for consistent behavior.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { COLUMN_DEFAULTS } from '../column-defaults'
 import type { CellType } from '../column-types'
 import type { Column } from '../types'
@@ -14,7 +14,7 @@ import '../field-types'
 import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 
-const fileLog = createLogger('components/custom/vibegrid/stores/column-generation')
+const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'column-generation'])
 
 /**
  * Fallback function that returns basic columns when schema is not available

@@ -4,7 +4,7 @@
 // Processes raw entity data into grouped virtual rows
 // Handles hierarchical grouping and aggregations
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 import type {
   AggregationConfig,
@@ -19,7 +19,7 @@ import type {
   VirtualRowType,
 } from '../types'
 
-const fileLog = createLogger('GroupProcessor')
+const fileLog = getLogger(['GroupProcessor'])
 
 // ====================================
 // CONSTANTS

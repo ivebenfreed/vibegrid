@@ -30,7 +30,7 @@ import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
 import { getOrCreateEntityCollection } from '@/shared/data/db/collections/registry'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
@@ -39,7 +39,7 @@ import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/
 import { generateColumnsFromEntitySchema } from './column-generation'
 import type { VisualStateStore } from './VisualStateStore'
 
-const log = createLogger('components/vibegrid/stores/TableCoreStore')
+const logger = getLogger(['vibegrid', 'stores', 'TableCoreStore'])
 
 // ====================================
 // TYPES
@@ -319,7 +319,7 @@ export class TableCoreStore implements IStore {
   @action
   setCollection(collection: any): void {
     this.collection = collection
-    log.info('TanStack DB collection set on TableCoreStore', {
+    logger.info('TanStack DB collection set on TableCoreStore', {
       hasCollection: !!collection,
     })
   }
@@ -342,7 +342,7 @@ export class TableCoreStore implements IStore {
   @action
   setCoordinateManager(manager: ObservableCoordinateManager): void {
     this.coordinateManager = manager
-    log.info('ObservableCoordinateManager set on TableCoreStore')
+    logger.info('ObservableCoordinateManager set on TableCoreStore')
   }
 
   /**
@@ -351,7 +351,7 @@ export class TableCoreStore implements IStore {
   @action
   setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
     this.interactionStore = store
-    log.info('Interaction store set on TableCoreStore')
+    logger.info('Interaction store set on TableCoreStore')
   }
 
   /**
@@ -377,7 +377,7 @@ export class TableCoreStore implements IStore {
 
     // Step 5: Route based on classification
     if (metadata.type === ChangeType.NONE) {
-      log.debug('⏭️ Guard 1: No-op detected', {
+      logger.debug('⏭️ Guard 1: No-op detected', {
         reason: 'no_data_changes',
         loopBackProtected: true,
       })
@@ -394,7 +394,7 @@ export class TableCoreStore implements IStore {
       // Clear metadata (not applicable)
       this.lastChangedCells.clear()
       this.lastChangeMetadata = null
-      log.info('📊 Structural change', { structureVersion: this.structureVersion })
+      logger.info('📊 Structural change', { structureVersion: this.structureVersion })
       return
     }
 
@@ -405,7 +405,7 @@ export class TableCoreStore implements IStore {
       // Clear metadata (will trigger full render)
       this.lastChangedCells.clear()
       this.lastChangeMetadata = null
-      log.info('🔄 Sorting-sensitive change', { configVersion: this.configVersion })
+      logger.info('🔄 Sorting-sensitive change', { configVersion: this.configVersion })
       return
     }
 
@@ -415,7 +415,7 @@ export class TableCoreStore implements IStore {
     this.hasLoadedRows = true
     this.lastChangedCells = changedCells
     this.lastChangeMetadata = metadata // Keep for renderer
-    log.info('📝 Cell-only change', {
+    logger.info('📝 Cell-only change', {
       dataVersion: this.dataVersion,
       cellsChanged: metadata.estimatedCellCount,
     })
@@ -428,7 +428,7 @@ export class TableCoreStore implements IStore {
   @action
   incrementConfigVersion(): void {
     this.configVersion++
-    log.info('📋 Config version incremented (external trigger)', {
+    logger.info('📋 Config version incremented (external trigger)', {
       configVersion: this.configVersion,
     })
   }
@@ -445,7 +445,7 @@ export class TableCoreStore implements IStore {
         this.membersData.set(member.user_id, member.user)
       }
     })
-    log.debug('👥 Members data updated', {
+    logger.debug('👥 Members data updated', {
       memberCount: this.membersData.size,
     })
   }
@@ -461,7 +461,7 @@ export class TableCoreStore implements IStore {
    */
   @action
   initializeBaselineSnapshot(): void {
-    log.debug('🎯 [BASELINE] Initializing baseline snapshot', {
+    logger.debug('🎯 [BASELINE] Initializing baseline snapshot', {
       hasColumns: this.columns.length > 0,
       hasRows: this.rawRows.length > 0,
       previousSnapshotSize: this.previousRowsSnapshot.size,
@@ -476,11 +476,11 @@ export class TableCoreStore implements IStore {
       // This will trigger detectChangedCells which will create the baseline
       const currentRows = this.rawRows.slice()
       this.setRows(currentRows)
-      log.info('✅ [BASELINE] Baseline snapshot created', {
+      logger.info('✅ [BASELINE] Baseline snapshot created', {
         snapshotSize: this.previousRowsSnapshot.size,
       })
     } else {
-      log.debug('⏭️ [BASELINE] Skipping - preconditions not met or baseline already exists', {
+      logger.debug('⏭️ [BASELINE] Skipping - preconditions not met or baseline already exists', {
         hasColumns: this.columns.length > 0,
         hasRows: this.rawRows.length > 0,
         hasSnapshot: this.previousRowsSnapshot.size > 0,
@@ -505,7 +505,7 @@ export class TableCoreStore implements IStore {
   private detectChangedCells(newRows: any[]): Map<string, Set<string>> {
     const changedCells = new Map<string, Set<string>>()
 
-    log.debug('🔍 DEBUG: detectChangedCells START', {
+    logger.debug('🔍 DEBUG: detectChangedCells START', {
       newRowsCount: newRows.length,
       prevSnapshotSize: this.previousRowsSnapshot.size,
       columnsCount: this.columns.length,
@@ -514,7 +514,7 @@ export class TableCoreStore implements IStore {
     // Skip change detection if columns not loaded yet
     // This prevents creating invalid snapshots with empty columnHashes
     if (this.columns.length === 0) {
-      log.debug('⏭️ Skipping change detection - columns not loaded yet')
+      logger.debug('⏭️ Skipping change detection - columns not loaded yet')
       return changedCells
     }
 
@@ -525,7 +525,7 @@ export class TableCoreStore implements IStore {
 
     // Initialize baseline snapshot if empty (columns loaded but no previous snapshot)
     if (this.previousRowsSnapshot.size === 0 && newSnapshot.size > 0) {
-      log.info('🔄 Creating initial baseline snapshot', {
+      logger.info('🔄 Creating initial baseline snapshot', {
         rowCount: newSnapshot.size,
         columnCount: this.columns.length,
       })
@@ -545,7 +545,7 @@ export class TableCoreStore implements IStore {
       // LOOP-BACK PROTECTION: Check data-only hash first
       if (newSnap.dataHash === oldSnap.dataHash) {
         // Only metadata changed (e.g., updatedAt from backend)
-        log.debug('🔄 Loop-back protection activated', {
+        logger.debug('🔄 Loop-back protection activated', {
           rowId,
           note: 'Only metadata changed - treating as no-op',
         })
@@ -568,7 +568,7 @@ export class TableCoreStore implements IStore {
           // DEBUG: Log first 3 changes with actual values
           if (changedColumns.size <= 3) {
             const column = this.columns.find((c) => c.id === columnId)
-            log.debug('🔍 DEBUG: Cell change detected', {
+            logger.debug('🔍 DEBUG: Cell change detected', {
               rowId: rowId.substring(0, 8),
               columnId,
               fieldType: column?.fieldType?.type,
@@ -587,7 +587,7 @@ export class TableCoreStore implements IStore {
     // Update snapshot for next comparison
     this.previousRowsSnapshot = newSnapshot
 
-    log.debug('🔍 DEBUG: Updated previousRowsSnapshot', {
+    logger.debug('🔍 DEBUG: Updated previousRowsSnapshot', {
       snapshotSize: this.previousRowsSnapshot.size,
       firstRowId: Array.from(this.previousRowsSnapshot.keys())[0]?.substring(0, 8),
     })
@@ -603,7 +603,7 @@ export class TableCoreStore implements IStore {
       totalCellsChanged,
     }
 
-    log.info('📊 Change detection complete', {
+    logger.info('📊 Change detection complete', {
       totalRows: newRows.length,
       rowsChanged: changedCells.size,
       totalCellsChanged,
@@ -642,7 +642,7 @@ export class TableCoreStore implements IStore {
 
     await this.pendingEntityReferenceLoads.get(loadKey)
     const result = map.get(entityId)
-    log.debug('Entity reference ensure completed', {
+    logger.debug('Entity reference ensure completed', {
       targetEntity,
       entityId,
       hasRecord: !!result,
@@ -674,7 +674,7 @@ export class TableCoreStore implements IStore {
         runInAction(() => {
           map.set(entityId, collectionRecord)
         })
-        log.debug('Entity reference record loaded from collection', {
+        logger.debug('Entity reference record loaded from collection', {
           targetEntity,
           entityId,
         })
@@ -687,7 +687,7 @@ export class TableCoreStore implements IStore {
           runInAction(() => {
             map.set(entityId, record)
           })
-          log.debug('Entity reference record loaded via fallback loader', {
+          logger.debug('Entity reference record loaded via fallback loader', {
             targetEntity,
             entityId,
           })
@@ -695,12 +695,12 @@ export class TableCoreStore implements IStore {
         }
       }
 
-      log.debug('Entity reference record could not be loaded', {
+      logger.debug('Entity reference record could not be loaded', {
         targetEntity,
         entityId,
       })
     } catch (error) {
-      log.error('Failed to load entity reference record', {
+      logger.error('Failed to load entity reference record', {
         targetEntity,
         entityId,
         error,
@@ -717,7 +717,7 @@ export class TableCoreStore implements IStore {
     try {
       const orgId = this.visualStateStore?.orgId || getActiveOrganizationId()
       if (!orgId) {
-        log.debug('Entity reference collection load skipped - no orgId', {
+        logger.debug('Entity reference collection load skipped - no orgId', {
           targetEntity,
           entityId,
         })
@@ -725,7 +725,7 @@ export class TableCoreStore implements IStore {
       }
 
       if (!targetEntity) {
-        log.debug('Entity reference collection load skipped - unknown target entity', {
+        logger.debug('Entity reference collection load skipped - unknown target entity', {
           entityId,
         })
         return null
@@ -742,7 +742,7 @@ export class TableCoreStore implements IStore {
       await collection.preload()
       const record = collection.get(entityId)
       if (record) {
-        log.debug('Entity reference record found in TanStack collection', {
+        logger.debug('Entity reference record found in TanStack collection', {
           targetEntity: normalizedEntity,
           entityId,
         })
@@ -751,7 +751,7 @@ export class TableCoreStore implements IStore {
 
       return null
     } catch (error) {
-      log.debug('Entity reference collection load failed, will fall back to loader', {
+      logger.debug('Entity reference collection load failed, will fall back to loader', {
         targetEntity,
         entityId,
         error,
@@ -910,7 +910,7 @@ export class TableCoreStore implements IStore {
     for (const columnIds of changedCells.values()) {
       for (const columnId of columnIds) {
         if (sensitiveFields.has(columnId)) {
-          log.info('🔄 Sorting-sensitive field changed', {
+          logger.info('🔄 Sorting-sensitive field changed', {
             columnId,
             requiresFullRecompute: true,
           })
@@ -993,7 +993,7 @@ export class TableCoreStore implements IStore {
     // Increment config version to trigger renderer update
     this.configVersion++
 
-    log.info('🔄 Group row order set', {
+    logger.info('🔄 Group row order set', {
       groupId,
       rowCount: rowIds.length,
       configVersion: this.configVersion,
@@ -1008,7 +1008,7 @@ export class TableCoreStore implements IStore {
     const groupOrder = this.groupRowOrders[groupId]
 
     if (!groupOrder) {
-      log.warn('⚠️ No group order found for drag operation', { groupId })
+      logger.warn('⚠️ No group order found for drag operation', { groupId })
       return false
     }
 
@@ -1025,7 +1025,7 @@ export class TableCoreStore implements IStore {
     // Increment config version to trigger renderer update
     this.configVersion++
 
-    log.info('🔄 Row moved within group', {
+    logger.info('🔄 Row moved within group', {
       groupId,
       fromIndex,
       toIndex,
@@ -1049,7 +1049,7 @@ export class TableCoreStore implements IStore {
   @action
   clearGroupRowOrders(): void {
     this.groupRowOrders = {}
-    log.info('🗑️ All group row orders cleared')
+    logger.info('🗑️ All group row orders cleared')
   }
 
   /**
@@ -1063,7 +1063,7 @@ export class TableCoreStore implements IStore {
     draggedRowId: string,
     newIndex: number,
   ): Promise<boolean> {
-    log.info('🔧 moveRowInGroup called', {
+    logger.info('🔧 moveRowInGroup called', {
       sourceGroupId,
       targetGroupId,
       draggedRowId,
@@ -1083,7 +1083,7 @@ export class TableCoreStore implements IStore {
       const processedRows = this.processedRows
 
       if (!processedRows || !Array.isArray(processedRows)) {
-        log.error('❌ Invalid processedRows when creating group order', {
+        logger.error('❌ Invalid processedRows when creating group order', {
           processedRows: typeof processedRows,
           sourceGroupId,
         })
@@ -1098,7 +1098,7 @@ export class TableCoreStore implements IStore {
       )
       const initialOrder = groupRows.map((row) => row?.id).filter(Boolean)
 
-      log.info('🔍 Creating group order', {
+      logger.info('🔍 Creating group order', {
         sourceGroupId,
         processedRowsCount: processedRows.length,
         groupRowsCount: groupRows.length,
@@ -1113,7 +1113,7 @@ export class TableCoreStore implements IStore {
 
       this.groupRowOrders[sourceGroupId] = groupOrder
 
-      log.info('🆕 Created initial group row order', {
+      logger.info('🆕 Created initial group row order', {
         sourceGroupId,
         rowCount: initialOrder.length,
       })
@@ -1121,7 +1121,7 @@ export class TableCoreStore implements IStore {
 
     // Find current position of the dragged row
     if (!groupOrder.rowIds || !Array.isArray(groupOrder.rowIds)) {
-      log.error('❌ Invalid groupOrder.rowIds', {
+      logger.error('❌ Invalid groupOrder.rowIds', {
         sourceGroupId,
         groupOrder,
         rowIdsType: typeof groupOrder.rowIds,
@@ -1131,7 +1131,7 @@ export class TableCoreStore implements IStore {
 
     const currentIndex = groupOrder.rowIds.indexOf(draggedRowId)
     if (currentIndex === -1) {
-      log.warn('⚠️ Dragged row not found in group order', {
+      logger.warn('⚠️ Dragged row not found in group order', {
         draggedRowId,
         sourceGroupId,
         currentOrder: groupOrder.rowIds,
@@ -1146,7 +1146,7 @@ export class TableCoreStore implements IStore {
 
     // Validate newIndex - allow up to length (for appending at end)
     if (typeof newIndex !== 'number' || newIndex < 0 || newIndex > groupOrder.rowIds.length) {
-      log.error('❌ Invalid newIndex for row move', {
+      logger.error('❌ Invalid newIndex for row move', {
         newIndex,
         newIndexType: typeof newIndex,
         currentIndex,
@@ -1175,7 +1175,7 @@ export class TableCoreStore implements IStore {
       // Update coordinator with new row order
       this.updateCoordinatorWithCurrentRows()
 
-      log.info('🔄 Row moved within group by ID', {
+      logger.info('🔄 Row moved within group by ID', {
         sourceGroupId,
         draggedRowId,
         from: currentIndex,
@@ -1187,7 +1187,7 @@ export class TableCoreStore implements IStore {
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Error during array manipulation', {
+      logger.error('❌ Error during array manipulation', {
         error: errorMessage,
         currentIndex,
         newIndex,
@@ -1212,7 +1212,7 @@ export class TableCoreStore implements IStore {
     const parseGroupId = (groupId: string): { field: string; value: string } | null => {
       const match = groupId.match(/^group_([^_]+)_(.+)$/)
       if (!match) {
-        log.warn('🔍 Could not parse group ID', { groupId })
+        logger.warn('🔍 Could not parse group ID', { groupId })
         return null
       }
       return { field: match[1], value: match[2] }
@@ -1222,14 +1222,14 @@ export class TableCoreStore implements IStore {
     const sourceGroupInfo = parseGroupId(sourceGroupId)
 
     if (!targetGroupInfo) {
-      log.error('❌ Invalid target group ID format', { targetGroupId })
+      logger.error('❌ Invalid target group ID format', { targetGroupId })
       return false
     }
 
     const { field: fieldName, value: newValue } = targetGroupInfo
 
     if (!this.collection) {
-      log.error('❌ TanStack DB collection not available for cross-group move', {
+      logger.error('❌ TanStack DB collection not available for cross-group move', {
         hint: 'Call setCollection() before performing cross-group moves',
       })
       return false
@@ -1248,7 +1248,7 @@ export class TableCoreStore implements IStore {
       // Wait for the update to complete (handles optimistic state + server sync)
       await tx
 
-      log.info('🔄 Cross-group move completed via field update', {
+      logger.info('🔄 Cross-group move completed via field update', {
         draggedRowId,
         fieldName,
         oldValue: sourceGroupInfo?.value,
@@ -1262,7 +1262,7 @@ export class TableCoreStore implements IStore {
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('❌ Failed to update row field for cross-group move', {
+      logger.error('❌ Failed to update row field for cross-group move', {
         draggedRowId,
         fieldName,
         newValue,
@@ -1291,7 +1291,7 @@ export class TableCoreStore implements IStore {
     // Update coordinator with new row order
     this.updateCoordinatorWithCurrentRows()
 
-    log.info('🔄 Flat row order set', {
+    logger.info('🔄 Flat row order set', {
       rowCount: rowIds.length,
       configVersion: this.configVersion,
     })
@@ -1310,7 +1310,7 @@ export class TableCoreStore implements IStore {
       if (hasSorting) {
         // Store pending operation and show confirmation dialog
         this.pendingReorder = { fromIndex, toIndex }
-        log.info('⏸️ Reorder pending confirmation (sorting active)', {
+        logger.info('⏸️ Reorder pending confirmation (sorting active)', {
           fromIndex,
           toIndex,
           activeSort: sortBy.map((s) => `${s.field} ${s.direction}`),
@@ -1322,7 +1322,7 @@ export class TableCoreStore implements IStore {
       return this.executeReorder(fromIndex, toIndex)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      log.error('Error moving row in flat data:', errorMessage)
+      logger.error('Error moving row in flat data:', { errorMessage })
       return false
     }
   }
@@ -1363,7 +1363,7 @@ export class TableCoreStore implements IStore {
     // Update coordinator with new row order
     this.updateCoordinatorWithCurrentRows()
 
-    log.info('🔄 Flat row order updated', {
+    logger.info('🔄 Flat row order updated', {
       from: fromIndex,
       to: toIndex,
       movedRowId,
@@ -1390,7 +1390,7 @@ export class TableCoreStore implements IStore {
     const sortBy = this.visualStateStore?.sortBy || []
     if (sortBy.length > 0 && this.visualStateStore) {
       this.visualStateStore.setSortBy([])
-      log.info('✅ Sort cleared for manual reorder', {
+      logger.info('✅ Sort cleared for manual reorder', {
         previousSort: sortBy.map((s) => `${s.field} ${s.direction}`),
       })
     }
@@ -1410,7 +1410,7 @@ export class TableCoreStore implements IStore {
   @action
   cancelPendingReorder(): void {
     this.pendingReorder = null
-    log.info('❌ Reorder cancelled by user')
+    logger.info('❌ Reorder cancelled by user')
   }
 
   /**
@@ -1426,7 +1426,7 @@ export class TableCoreStore implements IStore {
   @action
   clearFlatRowOrder(): void {
     this.flatRowOrder = []
-    log.info('🗑️ Flat row order cleared')
+    logger.info('🗑️ Flat row order cleared')
   }
 
   /**
@@ -1434,7 +1434,7 @@ export class TableCoreStore implements IStore {
    * Delegates to visual state store
    */
   toggleGroupExpansion(groupId: string): void {
-    log.info('🎯 Group expansion toggle - should be handled by visual state', { groupId })
+    logger.info('🎯 Group expansion toggle - should be handled by visual state', { groupId })
     // NOTE: This will be handled by VisualStateStore in the integrated system
     // For now, this is a placeholder
   }
@@ -1448,7 +1448,7 @@ export class TableCoreStore implements IStore {
    */
   @action
   async init(): Promise<void> {
-    log.debug('Initializing TableCoreStore...', { entityType: this.entityType })
+    logger.debug('Initializing TableCoreStore...', { entityType: this.entityType })
 
     try {
       // Check if schema registry is available
@@ -1477,17 +1477,17 @@ export class TableCoreStore implements IStore {
         const orgId = this.visualStateStore.orgId || getActiveOrganizationId() || ''
         const userId = this.visualStateStore.userId || ''
         this.visualStateStore.initializeColumns(generatedColumns, this.entityType, orgId, userId)
-        log.info('✅ Columns initialized in VisualStateStore', {
+        logger.info('✅ Columns initialized in VisualStateStore', {
           entityType: this.entityType,
           columnCount: generatedColumns.length,
         })
       } else {
-        log.warn('⚠️ VisualStateStore not available for column initialization', {
+        logger.warn('⚠️ VisualStateStore not available for column initialization', {
           entityType: this.entityType,
         })
       }
 
-      log.info('✅ Schema loaded successfully', {
+      logger.info('✅ Schema loaded successfully', {
         entityType: this.entityType,
         columnCount: generatedColumns.length,
         hasCustomOptionReference: generatedColumns.some(
@@ -1506,7 +1506,7 @@ export class TableCoreStore implements IStore {
         this.isSchemaLoaded = false
       })
 
-      log.error('💥 Schema loading failed', {
+      logger.error('💥 Schema loading failed', {
         entityType: this.entityType,
         error: errorMessage,
       })
@@ -1520,7 +1520,7 @@ export class TableCoreStore implements IStore {
    */
   dispose(): void {
     this.disposers.dispose()
-    log.debug('TableCoreStore disposed', { entityType: this.entityType })
+    logger.debug('TableCoreStore disposed', { entityType: this.entityType })
   }
 
   /**
@@ -1549,7 +1549,7 @@ export class TableCoreStore implements IStore {
     this.structureVersion = 0
     this.lastChangeMetadata = null
 
-    log.info('🔄 TableCoreStore reset', { entityType: this.entityType })
+    logger.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }
 
   // ====================================
@@ -1560,28 +1560,28 @@ export class TableCoreStore implements IStore {
    * @deprecated Stub method for type compatibility
    */
   insertRow(): void {
-    log.warn('insertRow() not implemented - legacy method stub')
+    logger.warn('insertRow() not implemented - legacy method stub')
   }
 
   /**
    * @deprecated Stub method for type compatibility
    */
   deleteRow(): void {
-    log.warn('deleteRow() not implemented - legacy method stub')
+    logger.warn('deleteRow() not implemented - legacy method stub')
   }
 
   /**
    * @deprecated Stub method for type compatibility
    */
   undo(): void {
-    log.warn('undo() not implemented - legacy method stub')
+    logger.warn('undo() not implemented - legacy method stub')
   }
 
   /**
    * @deprecated Stub method for type compatibility
    */
   redo(): void {
-    log.warn('redo() not implemented - legacy method stub')
+    logger.warn('redo() not implemented - legacy method stub')
   }
 
   /**
@@ -1602,7 +1602,7 @@ export class TableCoreStore implements IStore {
 
     this.coordinateManager.updateRows(rows as any, this.visualStateStore?.sortBy || [])
 
-    log.info('🔄 Coordinator updated with row order (selection cleared)', {
+    logger.info('🔄 Coordinator updated with row order (selection cleared)', {
       rowCount: rows.length,
     })
   }

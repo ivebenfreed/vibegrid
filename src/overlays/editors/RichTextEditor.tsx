@@ -8,11 +8,11 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 
-const fileLog = createLogger('components/custom/vibegrid/overlays/editors/RichTextEditor.tsx')
+const fileLog = getLogger(['custom', 'vibegrid', 'overlays', 'editors', 'RichTextEditor.tsx'])
 
 interface RichTextEditorProps {
   cell: {

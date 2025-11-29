@@ -5,13 +5,13 @@
  * Imports all field type implementations to ensure they are registered.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 
 // Import registry first before any field type implementations
 import { fieldTypeRegistry } from './FieldTypeRegistry'
 import { modularCellBridge } from './ModularCellBridge'
 
-const fileLog = createLogger('components/vibegrid/field-types/index')
+const fileLog = getLogger(['vibegrid', 'field-types', 'index'])
 
 // Import all field type implementations to register them early
 // Basic types

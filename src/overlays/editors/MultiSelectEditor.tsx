@@ -9,12 +9,12 @@
  */
 
 import React from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 // TODO: MultiSelect component doesn't exist - needs to be created or use ComboboxEditor with isMultiSelect
 // import { MultiSelect } from '@/shared/components/ui/multi-select';
 import type { CellRef, Column, EnumOption } from '../../types'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/MultiSelectEditor')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'MultiSelectEditor'])
 
 interface MultiSelectEditorProps {
   cell: CellRef

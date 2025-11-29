@@ -11,12 +11,12 @@
  * - Respect explicit edit triggers (data-edit-trigger="true")
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
 import type { FieldInteractionPolicy } from '../field-types/FieldTypeRegistry'
 import type { EditingStore } from '../stores/EditingStore'
 
-const fileLog = createLogger('components/vibegrid/routing/CellActionRouter')
+const fileLog = getLogger(['vibegrid', 'routing', 'CellActionRouter'])
 
 // ====================================
 // TYPES

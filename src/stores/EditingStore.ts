@@ -22,11 +22,11 @@
 import { action, computed, makeObservable, observable, runInAction, untracked } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 
-const fileLog = createLogger('systems/vibegrid/stores/EditingStore')
+const fileLog = getLogger(['vibegrid', 'stores', 'EditingStore'])
 
 // ====================================
 // TYPES

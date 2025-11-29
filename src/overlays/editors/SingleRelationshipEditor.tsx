@@ -8,11 +8,11 @@
  */
 
 import React from 'react'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column, RelationshipContext } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'
 
-const fileLog = createLogger('components/vibegrid/overlays/editors/SingleRelationshipEditor')
+const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'SingleRelationshipEditor'])
 
 interface SingleRelationshipEditorProps {
   cell: CellRef

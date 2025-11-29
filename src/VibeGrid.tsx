@@ -16,7 +16,7 @@ import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { memo, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
@@ -29,7 +29,7 @@ import './vibegridx.css'
 // Import logging presets (exposes __VIBEGRID_LOGS__ on window)
 import './utils/logging-presets'
 
-const log = createLogger('components/vibegrid/VibeGrid')
+const logger = getLogger(['vibegrid', 'VibeGrid'])
 
 // ====================================
 // COMPONENT PROPS
@@ -125,7 +125,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
   // Log members query status
   useEffect(() => {
-    log.info('[MEMBERS] useLiveQuery status', {
+    logger.info('[MEMBERS] useLiveQuery status', {
       status: membersStatus,
       isLoading: membersLoading,
       memberCount: members?.length || 0,
@@ -147,7 +147,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
   useEffect(() => {
     if (!stores || !stores.initStore) {
-      log.warn('[VGDEBUG] ⚠️ Stores not ready for entity data load')
+      logger.warn('[VGDEBUG] ⚠️ Stores not ready for entity data load')
       return
     }
 
@@ -158,9 +158,9 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     // This prevents unnecessary React re-renders on optimistic updates
     if (!stores.initStore.hydrationState.entityDataLoaded) {
       stores.initStore.markReady('entityDataLoaded')
-      log.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
+      logger.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
     } else {
-      log.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', {
+      logger.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', {
         rowCount: rows?.length || 0,
       })
     }
@@ -175,7 +175,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     const { schemaLoaded, entityDataLoaded } = stores.initStore.hydrationState
 
     if (schemaLoaded && entityDataLoaded) {
-      log.info('[VGDEBUG] 🎯 Both schema and data loaded - initializing baseline snapshot', {
+      logger.info('[VGDEBUG] 🎯 Both schema and data loaded - initializing baseline snapshot', {
         schemaLoaded,
         entityDataLoaded,
         columnCount: tableCoreStore.columns.length,
@@ -192,14 +192,14 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // Sync members data to store for UserReference fields
   useEffect(() => {
     if (!tableCoreStore) return
-    log.debug('Syncing members to TableCoreStore', { memberCount: members.length })
+    logger.debug('Syncing members to TableCoreStore', { memberCount: members.length })
     tableCoreStore.setMembersData(members)
   }, [members, tableCoreStore])
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
     if (!interactionStore || !collection) return
-    log.info('Setting TanStack DB collection on InteractionStore', {
+    logger.info('Setting TanStack DB collection on InteractionStore', {
       hasCollection: !!collection,
       entityType,
     })
@@ -209,7 +209,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // Set TanStack DB collection on TableCoreStore for cross-group moves
   useEffect(() => {
     if (!tableCoreStore || !collection) return
-    log.info('Setting TanStack DB collection on TableCoreStore', {
+    logger.info('Setting TanStack DB collection on TableCoreStore', {
       hasCollection: !!collection,
       entityType,
     })
@@ -219,7 +219,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // Set TanStack DB collection on EditingStore for edit persistence
   useEffect(() => {
     if (!editingStore || !collection) return
-    log.info('Setting TanStack DB collection on EditingStore', {
+    logger.info('Setting TanStack DB collection on EditingStore', {
       hasCollection: !!collection,
       entityType,
     })
@@ -233,7 +233,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   useEffect(() => {
     const initializeRenderer = async () => {
       try {
-        log.info('🚀 Initializing VibeGrid renderer', {
+        logger.info('🚀 Initializing VibeGrid renderer', {
           tableId,
           entityType,
           storesReady: !!stores,
@@ -242,29 +242,29 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
         // Check if stores are available
         if (!stores || !stores.initStore) {
-          log.warn('[VGDEBUG] ⚠️ Stores not ready for initialization')
+          logger.warn('[VGDEBUG] ⚠️ Stores not ready for initialization')
           return
         }
 
         // Wait for container
         if (!containerRef.current) {
-          log.warn('[VGDEBUG] ⚠️ Container ref not available')
+          logger.warn('[VGDEBUG] ⚠️ Container ref not available')
           return
         }
 
         // Mark container as ready
         stores.initStore.markReady('containerReady')
-        log.info('[VGDEBUG] ✅ Container ready')
+        logger.info('[VGDEBUG] ✅ Container ready')
 
         // Wait for stores to be initialized
         if (!visualStateStore.columns.length) {
-          log.info('[VGDEBUG] ⏳ Waiting for columns to load...', {
+          logger.info('[VGDEBUG] ⏳ Waiting for columns to load...', {
             columnCount: visualStateStore.columns.length,
           })
           return
         }
 
-        log.info('[VGDEBUG] ✅ About to create SimplePassiveRenderer', {
+        logger.info('[VGDEBUG] ✅ About to create SimplePassiveRenderer', {
           columnCount: visualStateStore.columns.length,
         })
 
@@ -283,7 +283,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
         rendererRef.current = renderer
 
-        log.info('✅ SimplePassiveRenderer created successfully')
+        logger.info('✅ SimplePassiveRenderer created successfully')
 
         // Set up resize observer
         const resizeObserver = new ResizeObserver(() => {
@@ -300,14 +300,14 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         const initialRect = containerRef.current.getBoundingClientRect()
         visualStateStore.updateViewportDimensions(initialRect.width, initialRect.height)
 
-        log.info('🎯 VibeGrid fully initialized', {
+        logger.info('🎯 VibeGrid fully initialized', {
           entityType,
           tableId,
           rowCount: rows?.length || 0,
         })
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-        log.error('❌ Failed to initialize VibeGrid', err)
+        logger.error('❌ Failed to initialize VibeGrid', { err })
       }
     }
 
@@ -318,7 +318,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       const hasColumns = visualStateStore.columns.length > 0
 
       if (stores && hasColumns && !rendererRef.current) {
-        log.info('🎯 MobX autorun: Columns ready, initializing renderer', {
+        logger.info('🎯 MobX autorun: Columns ready, initializing renderer', {
           columnCount: visualStateStore.columns.length,
         })
         initializeRenderer()
@@ -331,7 +331,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       disposer()
 
       if (rendererRef.current) {
-        log.debug('🧹 Cleaning up VibeGrid')
+        logger.debug('🧹 Cleaning up VibeGrid')
 
         // Cleanup resize observer
         if ((rendererRef.current as any).resizeObserver) {
@@ -357,7 +357,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
 
   // Log header visibility decision
   useEffect(() => {
-    log.info('📊 Header visibility check', {
+    logger.info('📊 Header visibility check', {
       shouldShowHeader,
       isReady,
       isRendered,

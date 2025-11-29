@@ -5,7 +5,7 @@
  * Provides a migration path from the old hardcoded cell creation to the new unified system.
  */
 
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { CellFactory } from '../factories/CellFactory'
 import { RelationshipDataManager } from '../managers/RelationshipDataManager'
 import { RollupCalculationManager } from '../managers/RollupCalculationManager'
@@ -15,7 +15,7 @@ import { FieldTypeRegistry, fieldTypeRegistry } from './FieldTypeRegistry'
 
 // Field type implementations are now imported in the main index.ts
 
-const fileLog = createLogger('components/custom/vibegrid/field-types/ModularCellBridge.ts')
+const fileLog = getLogger(['custom', 'vibegrid', 'field-types', 'ModularCellBridge.ts'])
 
 /**
  * Bridge between old and new cell rendering systems

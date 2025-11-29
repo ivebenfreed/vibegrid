@@ -6,12 +6,12 @@
  */
 
 import { runInAction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { SelectionController } from './SelectionController'
 
-const fileLog = createLogger(
+const logger = getLogger(
   'components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts',
 )
 
@@ -50,7 +50,7 @@ export class KeyboardNavigationController {
     const visibleColumns = this.getVisibleColumns()
     const focusedCell = this.interactionStore.focusedCell
 
-    fileLog.debug('Handling arrow key', { direction, isShiftKey, focusedCell })
+    logger.debug('Handling arrow key', { direction, isShiftKey, focusedCell })
 
     // Ensure we have rows and columns
     if (processedRows.length === 0 || visibleColumns.length === 0) {
@@ -158,7 +158,7 @@ export class KeyboardNavigationController {
     // CRITICAL: During editing, only handle Escape (to cancel)
     // All other keys (including Ctrl+A) should work normally in the editor
     if (this.editingStore.isEditing && event.key !== 'Escape') {
-      fileLog.debug('Key pressed during editing - letting editor handle it', {
+      logger.debug('Key pressed during editing - letting editor handle it', {
         key: event.key,
         editingCell: this.editingStore.editingCell,
       })
@@ -178,7 +178,7 @@ export class KeyboardNavigationController {
             columns: visibleColumns,
             columnVisibility: Object.fromEntries(visibleColumns.map((col) => [col.id, true])),
           })
-          fileLog.debug('⌨️ Ctrl+A select all triggered via InteractionStore')
+          logger.debug('⌨️ Ctrl+A select all triggered via InteractionStore')
           return true
         }
         break
@@ -218,7 +218,7 @@ export class KeyboardNavigationController {
           }
 
           if (!column) {
-            fileLog.warn('Column not found for editing', { columnId })
+            logger.warn('Column not found for editing', { columnId })
             return true
           }
 
@@ -259,7 +259,7 @@ export class KeyboardNavigationController {
           (event.target as HTMLElement).tagName !== 'INPUT'
         ) {
           // Could trigger delete action here
-          fileLog.debug('Delete key pressed on focused cell', { focusedCell: currentFocusedCell })
+          logger.debug('Delete key pressed on focused cell', { focusedCell: currentFocusedCell })
           return true
         }
         break

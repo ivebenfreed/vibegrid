@@ -14,7 +14,7 @@
  */
 
 import { reaction } from 'mobx'
-import { createLogger } from '@/shared/lib/logging'
+import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../../../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../../../coordinates/ObservableCoordinateManager'
 import type { CanvasOverlayDOM } from '../../../overlays/CanvasOverlayDOM'
@@ -22,7 +22,7 @@ import type { VisualCellPosition } from '../../../overlays/OverlayTypes'
 import type { ViewportInfo } from '../../../types'
 import { OverlayController, type OverlayControllerOptions } from './OverlayController'
 
-const fileLog = createLogger('components/vibegrid/renderers/SelectionOverlayController')
+const fileLog = getLogger(['vibegrid', 'renderers', 'SelectionOverlayController'])
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
 /**
