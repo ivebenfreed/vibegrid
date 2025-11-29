@@ -196,10 +196,14 @@ export class OverlayManager {
       onCommit: async (value) => {
         // ✅ Delegate to EditingStore for proper commit handling
         await this.editingStore.commitEdit('user-action', value)
+        // Restore keyboard focus to container (fixes keyboard navigation after commit)
+        this.container.focus()
       },
       onCancel: () => {
         // ✅ Delegate to EditingStore for proper cancel handling
         this.editingStore.cancelEdit('user-action')
+        // Restore keyboard focus to container (consistent with commit path)
+        this.container.focus()
       },
       relationshipContext: {
         relationshipResolvers: {},
