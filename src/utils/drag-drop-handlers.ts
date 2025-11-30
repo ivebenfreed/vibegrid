@@ -189,7 +189,7 @@ export class DragDropManager {
 
         if (cellText) {
           cellPreview.textContent =
-            cellText.length > 20 ? cellText.substring(0, 20) + '...' : cellText
+            cellText.length > 20 ? `${cellText.substring(0, 20)}...` : cellText
           cellPreview.style.cssText = `
             flex: 0 0 auto;
             max-width: 120px;
@@ -294,7 +294,9 @@ export class DragDropManager {
    */
   private removeDropIndicators(): void {
     const indicators = document.querySelectorAll('.vibegrid-drop-indicator')
-    indicators.forEach((indicator) => indicator.remove())
+    indicators.forEach((indicator) => {
+      indicator.remove()
+    })
   }
 
   /**
@@ -338,7 +340,9 @@ export function applyGroupRowOrdering(
   })
 
   // Add any remaining rows that weren't in the order config
-  rowsById.forEach((row) => orderedRows.push(row))
+  rowsById.forEach((row) => {
+    orderedRows.push(row)
+  })
 
   fileLog.debug('✅ Applied group row ordering', {
     groupId,

@@ -1,5 +1,3 @@
-import type { Column } from '../types'
-
 export enum ChangeType {
   NONE = 'none',
   CELLS = 'cells',
