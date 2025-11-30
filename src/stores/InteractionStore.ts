@@ -402,7 +402,7 @@ export class InteractionStore implements IStore {
     logger.debug('📊 Selection version incremented', {
       newVersion: this.selectionVersion,
       cellId,
-      isMulti
+      isMulti,
     })
 
     logger.info('Cell selected', { cellId, isMulti, selectionCount: this.selectedCells.size })

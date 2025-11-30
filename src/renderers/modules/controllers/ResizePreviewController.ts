@@ -106,12 +106,14 @@ export class ResizePreviewController extends OverlayController {
    * 1. Column is resizing: Show resize preview at new width
    * 2. Resize ended: Clear resize preview
    */
-  private handleResizePreviewUpdate(columnResize: {
-    isResizing: boolean
-    columnId: string
-    startWidth: number
-    newWidth: number
-  } | null): void {
+  private handleResizePreviewUpdate(
+    columnResize: {
+      isResizing: boolean
+      columnId: string
+      startWidth: number
+      newWidth: number
+    } | null,
+  ): void {
     if (!this.canvasOverlay.isInitialized) {
       fileLog.debug('Canvas overlay not initialized, skipping resize preview update')
       return

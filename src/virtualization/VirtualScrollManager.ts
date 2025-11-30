@@ -29,7 +29,6 @@ import type {
   VirtualBounds,
   VirtualViewport,
 } from '../types/coordinate-types'
-import { CoordinateUtils } from '../types/coordinate-types'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'virtualization', 'VirtualScrollManager.ts'])
 
@@ -53,8 +52,8 @@ let virtualViewport: VirtualViewport = {
   viewportHeight: 0,
 }
 
-let virtualColumnLayouts: ColumnLayout[] = []
-let virtualRowLayouts: RowLayout[] = []
+let _virtualColumnLayouts: ColumnLayout[] = []
+let _virtualRowLayouts: RowLayout[] = []
 
 // ====================================
 // UPDATE OPERATIONS (Working)
@@ -108,7 +107,7 @@ export function updateVirtualViewport(options: {
  * Update column layouts for accurate positioning
  */
 export function updateVirtualColumns(columns: ColumnLayout[]): void {
-  virtualColumnLayouts = columns
+  _virtualColumnLayouts = columns
 
   const columnWidths = columns.map((col) => col.width)
   updateVirtualBounds({ columnWidths })
@@ -123,7 +122,7 @@ export function updateVirtualColumns(columns: ColumnLayout[]): void {
  * Update row layouts for grouping support
  */
 export function updateVirtualRows(rows: RowLayout[]): void {
-  virtualRowLayouts = rows
+  _virtualRowLayouts = rows
   updateVirtualBounds({ totalRows: rows.length })
 
   fileLog.debug('📊 Virtual rows updated', {
@@ -142,7 +141,7 @@ export function updateVirtualRows(rows: RowLayout[]): void {
  */
 export const virtualCellPosition$ = {
   get: () => ({
-    getCellPositionByIds: (rowId: string, columnId: string): CellCoordinates | null => {
+    getCellPositionByIds: (_rowId: string, _columnId: string): CellCoordinates | null => {
       // Stub implementation - returns null
       // TODO: Migrate to MobX computed
       return null
@@ -151,12 +150,12 @@ export const virtualCellPosition$ = {
 }
 
 // Scroll functions - disabled for now
-export function scrollToRow(rowIndex: number): void {
+export function scrollToRow(_rowIndex: number): void {
   // TODO: Implement with MobX
   fileLog.warn('scrollToRow not yet migrated to MobX')
 }
 
-export function scrollToColumn(columnIndex: number): void {
+export function scrollToColumn(_columnIndex: number): void {
   // TODO: Implement with MobX
   fileLog.warn('scrollToColumn not yet migrated to MobX')
 }
@@ -166,7 +165,7 @@ export function getScrollBoundaries(): { maxScrollTop: number; maxScrollLeft: nu
   return { maxScrollTop: 0, maxScrollLeft: 0 }
 }
 
-export function getVirtualCellPosition(cellKey: string): CellCoordinates | null {
+export function getVirtualCellPosition(_cellKey: string): CellCoordinates | null {
   // TODO: Implement with MobX
   return null
 }
