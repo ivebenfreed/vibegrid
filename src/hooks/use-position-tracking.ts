@@ -71,7 +71,7 @@ export function usePositionTracking(
       positionTracker.cleanup()
       isInitialized.current = false
     }
-  }, [enabled, containerRef, columns.length, totalRows, viewportDimensions, columns])
+  }, [enabled, containerRef, columns.length, totalRows])
 
   // Update column layouts when they change
   useEffect(() => {
@@ -98,7 +98,7 @@ export function usePositionTracking(
         viewportHeight: viewportDimensions.height,
       })
     }
-  }, [viewportDimensions?.width, viewportDimensions?.height, viewportDimensions])
+  }, [viewportDimensions?.width, viewportDimensions?.height])
 
   return {
     isTracking: isInitialized.current,

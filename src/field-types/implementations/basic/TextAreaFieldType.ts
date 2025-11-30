@@ -157,7 +157,7 @@ export const TextAreaFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

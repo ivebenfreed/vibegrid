@@ -13,6 +13,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -25,7 +26,7 @@ const fileLog = getLogger(['vibegrid', 'field-types', 'implementations', 'basic'
  * Date Cell Renderer
  */
 export class DateRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
 
     // Handle null/undefined values with consistent empty state
@@ -68,7 +69,7 @@ export class DateRenderer implements CellRenderer {
     return 'date'
   }
 
-  private createDateBadge(displayValue: string, _type: 'date' | 'datetime' | 'time'): string {
+  private createDateBadge(displayValue: string, type: 'date' | 'datetime' | 'time'): string {
     return `
       <div style="
         display: inline-flex;
@@ -152,7 +153,7 @@ export class DateRenderer implements CellRenderer {
       dateObj = value
     } else {
       dateObj = new Date(value)
-      if (Number.isNaN(dateObj.getTime())) {
+      if (isNaN(dateObj.getTime())) {
         return String(value) // Return original if can't parse
       }
     }
@@ -290,7 +291,7 @@ export class DateEditor implements CellEditor {
     }
 
     // Check if it's a valid date
-    if (Number.isNaN(dateObj.getTime())) {
+    if (isNaN(dateObj.getTime())) {
       errors.push(`${column.name} must be a valid date`)
       return { valid: false, errors, transformedValue: value }
     }
@@ -323,7 +324,7 @@ export class DateEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -345,6 +346,7 @@ export class DateEditor implements CellEditor {
         return 'datetime-local'
       case 'time':
         return 'time'
+      case 'date':
       default:
         return 'date'
     }
@@ -358,7 +360,7 @@ export class DateEditor implements CellEditor {
       dateObj = value
     } else {
       dateObj = new Date(value)
-      if (Number.isNaN(dateObj.getTime())) return null
+      if (isNaN(dateObj.getTime())) return null
     }
 
     switch (fieldType) {
@@ -386,7 +388,7 @@ export class DateEditor implements CellEditor {
 
     switch (fieldType) {
       case 'date':
-        return new Date(`${value}T00:00:00.000Z`)
+        return new Date(value + 'T00:00:00.000Z')
 
       case 'datetime':
       case 'datetime-local':
@@ -414,6 +416,7 @@ export class DateEditor implements CellEditor {
         return 'datetime-local'
       case 'time':
         return 'time'
+      case 'date':
       default:
         return 'date'
     }
@@ -464,7 +467,7 @@ export class DateEditor implements CellEditor {
     }
   }
 
-  private validateBusinessRules(_dateObj: Date, column: EnhancedColumn): string[] {
+  private validateBusinessRules(dateObj: Date, column: EnhancedColumn): string[] {
     const errors: string[] = []
     const businessRules = column.validation?.businessRules
 
@@ -512,7 +515,7 @@ export class DateFormatter implements CellFormatter {
       dateObj = value
     } else {
       dateObj = new Date(value)
-      if (Number.isNaN(dateObj.getTime())) return String(value)
+      if (isNaN(dateObj.getTime())) return String(value)
     }
 
     const type = column.cellType || column.type || 'date'
@@ -546,11 +549,11 @@ export class DateFormatter implements CellFormatter {
     }
   }
 
-  parse(text: string, _column: EnhancedColumn): any {
+  parse(text: string, column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     const dateObj = new Date(text)
-    return Number.isNaN(dateObj.getTime()) ? null : dateObj
+    return isNaN(dateObj.getTime()) ? null : dateObj
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
@@ -565,7 +568,7 @@ export class DateFormatter implements CellFormatter {
       dateObj = value
     } else {
       dateObj = new Date(value)
-      if (Number.isNaN(dateObj.getTime())) return String(value)
+      if (isNaN(dateObj.getTime())) return String(value)
     }
 
     const type = column.cellType || column.type || 'date'
@@ -631,7 +634,7 @@ export const DateFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

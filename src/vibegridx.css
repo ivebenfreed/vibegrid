@@ -175,7 +175,7 @@
 }
 
 .vibegridx-sort-icon:hover {
-  opacity: 1;
+  opacity: 1 !important;
   color: hsl(var(--primary));
   background-color: rgba(59, 130, 246, 0.15);
   transform: scale(1.05);
@@ -183,7 +183,7 @@
 
 /* Active sort states - Enhanced visibility */
 .vibegridx-sort-icon.active {
-  opacity: 1;
+  opacity: 1 !important;
   color: hsl(var(--primary));
   background-color: rgba(59, 130, 246, 0.1);
 }

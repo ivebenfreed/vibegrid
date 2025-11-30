@@ -72,7 +72,7 @@ export class InteractionCoordinator {
   private overlayManager?: any // Optional reference for fill handle delegation
 
   constructor(
-    _container: HTMLElement,
+    private container: HTMLElement,
     private interactionStore: InteractionStore,
     private selectionService: SelectionService,
     private cellActionRouter: CellActionRouter,

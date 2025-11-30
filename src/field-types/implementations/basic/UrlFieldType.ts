@@ -11,6 +11,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -20,7 +21,7 @@ import type {
  * URL Cell Renderer
  */
 export class UrlRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
     container.className =
       column.editable === false ? 'vibegridx-cell-url' : 'vibegridx-cell-url-editable'
@@ -88,7 +89,7 @@ export class UrlRenderer implements CellRenderer {
     return (type as string) === 'url'
   }
 
-  private formatValue(value: any, _column: EnhancedColumn): string {
+  private formatValue(value: any, column: EnhancedColumn): string {
     if (value == null) return ''
 
     let urlValue = String(value).trim()
@@ -125,7 +126,7 @@ export class UrlRenderer implements CellRenderer {
       const baseUrl = `${urlObj.protocol}//${urlObj.hostname}`
 
       if (baseUrl.length >= maxLength - 3) {
-        return `${url.substring(0, maxLength - 3)}...`
+        return url.substring(0, maxLength - 3) + '...'
       }
 
       const remainingLength = maxLength - baseUrl.length - 3
@@ -135,9 +136,9 @@ export class UrlRenderer implements CellRenderer {
         return baseUrl + pathPart
       }
 
-      return `${baseUrl + pathPart.substring(0, remainingLength)}...`
+      return baseUrl + pathPart.substring(0, remainingLength) + '...'
     } catch {
-      return `${url.substring(0, maxLength - 3)}...`
+      return url.substring(0, maxLength - 3) + '...'
     }
   }
 
@@ -279,7 +280,7 @@ export class UrlEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -340,7 +341,7 @@ export class UrlEditor implements CellEditor {
  * URL Cell Formatter
  */
 export class UrlFormatter implements CellFormatter {
-  format(value: any, _column: EnhancedColumn, _context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
     if (value == null) return ''
 
     let urlValue = String(value).trim()
@@ -353,7 +354,7 @@ export class UrlFormatter implements CellFormatter {
     return urlValue
   }
 
-  parse(text: string, _column: EnhancedColumn): any {
+  parse(text: string, column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     let urlValue = text.trim()
@@ -370,7 +371,7 @@ export class UrlFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     return value == null ? '' : String(value)
   }
 
@@ -432,7 +433,7 @@ export const UrlFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

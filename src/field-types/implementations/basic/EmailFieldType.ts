@@ -11,6 +11,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -20,7 +21,7 @@ import type {
  * Email Cell Renderer
  */
 export class EmailRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
     container.className =
       column.editable === false ? 'vibegridx-cell-email' : 'vibegridx-cell-email-editable'
@@ -90,7 +91,7 @@ export class EmailRenderer implements CellRenderer {
 
     // Apply length limits from backend metadata if available
     if (column.validation?.maxLength && emailValue.length > column.validation.maxLength) {
-      return `${emailValue.substring(0, column.validation.maxLength)}...`
+      return emailValue.substring(0, column.validation.maxLength) + '...'
     }
 
     return emailValue
@@ -224,7 +225,7 @@ export class EmailEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -285,14 +286,14 @@ export class EmailEditor implements CellEditor {
  * Email Cell Formatter
  */
 export class EmailFormatter implements CellFormatter {
-  format(value: any, _column: EnhancedColumn, _context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
     if (value == null) return ''
 
     // Auto-lowercase email addresses
     return String(value).toLowerCase().trim()
   }
 
-  parse(text: string, _column: EnhancedColumn): any {
+  parse(text: string, column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     // Auto-lowercase and trim
@@ -303,7 +304,7 @@ export class EmailFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     return value == null ? '' : String(value)
   }
 }
@@ -357,7 +358,7 @@ export const EmailFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

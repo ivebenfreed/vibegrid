@@ -10,7 +10,7 @@ import type {
 } from '../../FieldTypeRegistry'
 
 export class MarkdownRenderer implements CellRenderer {
-  render(value: any, _column: EnhancedColumn): HTMLElement {
+  render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-markdown'
 
@@ -57,7 +57,7 @@ export const MarkdownFieldType: VibeGridFieldType = {
   category: 'basic',
   renderer: new MarkdownRenderer(),
   editor: new (class implements CellEditor {
-    create(value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+    create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
       const textarea = document.createElement('textarea')
       textarea.value = value || ''
       textarea.rows = 4

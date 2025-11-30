@@ -25,6 +25,7 @@ export interface DragState {
 export class DragPreviewOverlayDOM {
   private container: HTMLElement
   private config: DragPreviewOverlayConfig
+  private coordinateMapping: CoordinateMapping | null = null
 
   // DOM elements
   private overlayContainer: HTMLDivElement | null = null
@@ -193,12 +194,12 @@ export class DragPreviewOverlayDOM {
    * Parse a value to a numeric value, returning null if invalid
    */
   private parseNumeric(value: any): number | null {
-    if (typeof value === 'number' && !Number.isNaN(value)) {
+    if (typeof value === 'number' && !isNaN(value)) {
       return value
     }
     if (typeof value === 'string') {
       const parsed = parseInt(value, 10)
-      return Number.isNaN(parsed) ? null : parsed
+      return isNaN(parsed) ? null : parsed
     }
     return null
   }

@@ -87,19 +87,6 @@ export function RichTextEditor({
     return temp.textContent || temp.innerText || ''
   }, [])
 
-  const handleCancel = () => {
-    if (isDirty) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
-      if (!confirmed) return
-    }
-
-    fileLog.debug('RichTextEditor cancelled', {
-      cellId: `${cell.rowId}:${cell.columnId}`,
-      isDirty,
-    })
-    onCancel()
-  }
-
   // Reset value when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -150,7 +137,7 @@ export function RichTextEditor({
       document.addEventListener('keydown', handleEscape, { capture: true })
       return () => document.removeEventListener('keydown', handleEscape, { capture: true })
     }
-  }, [isOpen, handleCancel])
+  }, [isOpen, isDirty])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -179,6 +166,19 @@ export function RichTextEditor({
       isDirty,
     })
     onCommit(content)
+  }
+
+  const handleCancel = () => {
+    if (isDirty) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
+      if (!confirmed) return
+    }
+
+    fileLog.debug('RichTextEditor cancelled', {
+      cellId: `${cell.rowId}:${cell.columnId}`,
+      isDirty,
+    })
+    onCancel()
   }
 
   const handleBackdropClick = (e: React.MouseEvent) => {

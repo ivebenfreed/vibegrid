@@ -13,12 +13,13 @@
  * All renderers, managers, and components should read from this store ONLY.
  */
 
-import { action, computed, makeObservable, observable } from 'mobx'
+import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
-import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
+import { GroupProcessor } from '../processors/GroupProcessor'
+import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
 import { assertInvariant } from '../utils/invariants'
 
 const logger = getLogger(['vibegrid', 'stores', 'VisualStateStore'])
@@ -502,10 +503,7 @@ export class VisualStateStore implements IStore {
     // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    logger.info('Column visibility toggled (selection cleared)', {
-      columnId,
-      visible: newVisibility,
-    })
+    logger.info('Column visibility toggled (selection cleared)', { columnId, visible: newVisibility })
   }
 
   /**
@@ -1018,7 +1016,7 @@ export class VisualStateStore implements IStore {
    * Load ALL saved preferences from localStorage
    */
   loadAllSavedPreferences(
-    _columns: Column[],
+    columns: Column[],
     entityType: string,
     orgId: string,
   ): {

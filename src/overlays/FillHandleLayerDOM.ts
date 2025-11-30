@@ -36,6 +36,13 @@ export class FillHandleLayerDOM {
 
   // Drag state
   private isDragging = false
+  private dragStartPos: { x: number; y: number } | null = null
+  private dragDirection: 'vertical' | 'horizontal' | null = null
+
+  // Semantic throttling - only process when meaningful changes occur
+  private lastRowsToFill: number = 0
+  private lastFillDirection: boolean | null = null
+  private cachedBounds: any = null
 
   // Visual settings
   private handleSize = 10
@@ -461,7 +468,7 @@ export class FillHandleLayerDOM {
   calculateFillPreviewCells(
     dragPos: { x: number; y: number },
     selectedCells: Set<string>,
-    _viewport: ViewportInfo,
+    viewport: ViewportInfo,
   ): Set<string> {
     if (!this.coordinateMapping || selectedCells.size === 0) {
       return new Set()
@@ -573,7 +580,7 @@ export class FillHandleLayerDOM {
       return null
     }
 
-    const _minRow = this.coordinateMapping.rows[minRowIndex]
+    const minRow = this.coordinateMapping.rows[minRowIndex]
     const maxRow = this.coordinateMapping.rows[maxRowIndex]
     const minCol = this.coordinateMapping.columns[minColIndex]
     const maxCol = this.coordinateMapping.columns[maxColIndex]

@@ -15,7 +15,7 @@ const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'ReferenceSelectEd
  * Infer entity type from field name for entity references
  * Examples: portfolio_id -> Portfolio, milestone_id -> Milestone
  */
-function _inferEntityFromFieldName(fieldName: string): string {
+function inferEntityFromFieldName(fieldName: string): string {
   if (fieldName.endsWith('_id')) {
     const baseName = fieldName.slice(0, -3)
     // Convert snake_case to PascalCase for entity names
@@ -118,14 +118,7 @@ export function ReferenceSelectEditor({
       error,
       options: options.slice(0, 3), // Log first 3 for debugging
     })
-  }, [
-    column.id,
-    column.customOptionSet,
-    column.referenceType,
-    column.systemArchetype,
-    column.systemOptionType,
-    column,
-  ])
+  }, [options, isLoading, error, column.id])
 
   return (
     <select

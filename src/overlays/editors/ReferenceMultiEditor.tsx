@@ -25,8 +25,8 @@ export function ReferenceMultiEditor({
   // TODO: Load reference options from TanStack DB
   // For now, use stub data
   const options: any[] = []
-  const _isLoading = false
-  const _error = null
+  const isLoading = false
+  const error = null
 
   /* ORIGINAL - TO BE MIGRATED TO TANSTACK DB
   const { options, isLoading, error } = useReferenceOptions({

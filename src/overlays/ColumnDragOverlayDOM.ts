@@ -27,6 +27,9 @@ export class ColumnDragOverlayDOM {
   private overlayContainer: HTMLDivElement | null = null
   private columnPreview: HTMLDivElement | null = null
   private dropIndicator: HTMLDivElement | null = null
+
+  // Current state
+  private dragState: ColumnDragState | null = null
   private dropIndex: number = -1
 
   constructor(container: HTMLElement, config: ColumnDragOverlayConfig) {
@@ -90,9 +93,7 @@ export class ColumnDragOverlayDOM {
       (col: any) => col.columnId === dragState.draggedColumnId,
     )
     if (!column) {
-      fileLog.warn('ColumnDragOverlayDOM: Column not found:', {
-        draggedColumnId: dragState.draggedColumnId,
-      })
+      fileLog.warn('ColumnDragOverlayDOM: Column not found:', { draggedColumnId: dragState.draggedColumnId })
       return
     }
 

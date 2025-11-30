@@ -11,6 +11,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -20,7 +21,7 @@ import type {
  * Boolean Cell Renderer
  */
 export class BooleanRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
 
     // Handle null/undefined values with consistent empty state
@@ -282,7 +283,7 @@ export class BooleanEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -423,7 +424,7 @@ export class BooleanFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     const boolValue = this.parseBoolean(value)
     if (boolValue === null) return ''
     return boolValue ? 'true' : 'false'
@@ -496,7 +497,7 @@ export const BooleanFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

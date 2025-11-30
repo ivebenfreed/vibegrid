@@ -16,7 +16,7 @@
  * This is the most complex interaction layer with sophisticated selection logic.
  */
 
-import { action, computed, makeObservable, observable } from 'mobx'
+import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
@@ -215,8 +215,17 @@ export class InteractionStore implements IStore {
 
   // Version tracking for clipboard state changes
   @observable clipboardVersion: number = 0
+
+  // ====================================
+  // DEPENDENCIES (Injected)
+  // ====================================
+
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned in constructor
+  private tableCore$: unknown = null // Legacy tableCore reference
   private tableCoreStore: TableCoreStore | null = null
   private visualStateStore: VisualStateStore | null = null
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
+  private collection: any = null // TanStack DB collection for entity mutations
   private disposers = new DisposerManager()
 
   constructor(tableCore$?: any) {
@@ -395,7 +404,7 @@ export class InteractionStore implements IStore {
     logger.debug('📊 Selection version incremented', {
       newVersion: this.selectionVersion,
       cellId,
-      isMulti,
+      isMulti
     })
 
     logger.info('Cell selected', { cellId, isMulti, selectionCount: this.selectedCells.size })
@@ -410,7 +419,7 @@ export class InteractionStore implements IStore {
    * @param shiftKey - Whether Shift key was pressed (for range select)
    */
   @action
-  handleCellClick(cellId: string, _isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
+  handleCellClick(cellId: string, isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
     // Assert stores are initialized
     assertStorePresent(this.tableCoreStore, 'TableCoreStore')
     assertStorePresent(this.visualStateStore, 'VisualStateStore')

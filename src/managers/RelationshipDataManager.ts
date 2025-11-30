@@ -8,9 +8,11 @@
 import { getLogger } from '@/shared/lib/logging'
 import type {
   EnhancedColumn,
+  RelationshipConfig,
   RelationshipData,
   RelationshipOption,
 } from '../field-types/FieldTypeRegistry'
+import type { TableCoreStore } from '../stores/TableCoreStore'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'RelationshipDataManager.ts'])
 
@@ -113,7 +115,7 @@ export class RelationshipDataManager {
 
     try {
       const config = column.relationshipConfig
-      const _orgId = this.getOrgId()
+      const orgId = this.getOrgId()
 
       const searchParams = new URLSearchParams({
         q: query,
@@ -151,7 +153,7 @@ export class RelationshipDataManager {
   invalidateCache(column: EnhancedColumn): void {
     const keysToRemove: string[] = []
 
-    this.cache.forEach((_entry, key) => {
+    this.cache.forEach((entry, key) => {
       if (key.startsWith(`${column.id}:`)) {
         keysToRemove.push(key)
       }
@@ -204,7 +206,7 @@ export class RelationshipDataManager {
     }
 
     const config = column.relationshipConfig
-    const _orgId = this.getOrgId()
+    const orgId = this.getOrgId()
 
     try {
       const endpoint = this.getRelationshipEndpoint(config.targetEntityType)

@@ -21,6 +21,7 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 // SelectionManager functionality consolidated into interaction-state
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { ViewportInfo } from '../../types'
+import { virtualCellPosition$ } from '../../virtualization/VirtualScrollManager'
 // Phase 2.6: New overlay controllers
 import { SelectionOverlayController } from './controllers/SelectionOverlayController'
 import { EditingOverlayController } from './controllers/EditingOverlayController'
@@ -86,6 +87,10 @@ export class OverlayManager {
 
   // MobX reaction disposers
   private disposers: (() => void)[] = []
+
+  // Flags to prevent re-entrant calls from focus changes
+  private isCommitting: boolean = false
+  private isCancelling: boolean = false
 
   constructor(options: OverlayManagerOptions) {
     this.container = options.container
@@ -193,16 +198,40 @@ export class OverlayManager {
         this.editingStore.updatePendingValue(value)
       },
       onCommit: async (value) => {
-        // ✅ Delegate to EditingStore for proper commit handling
-        await this.editingStore.commitEdit('user-action', value)
-        // Restore keyboard focus to container (fixes keyboard navigation after commit)
-        this.container.focus()
+        // Prevent re-entrant calls (e.g., from focus change blur events)
+        if (this.isCommitting) {
+          return
+        }
+        if (this.isCancelling) {
+          return
+        }
+
+        this.isCommitting = true
+        try {
+          // Restore keyboard focus to container FIRST (before commit clears session)
+          this.container.focus()
+          await this.editingStore.commitEdit('user-action', value)
+        } finally {
+          this.isCommitting = false
+        }
       },
       onCancel: () => {
-        // ✅ Delegate to EditingStore for proper cancel handling
-        this.editingStore.cancelEdit('user-action')
-        // Restore keyboard focus to container (consistent with commit path)
-        this.container.focus()
+        // Prevent re-entrant calls (e.g., from focus change blur events)
+        if (this.isCancelling) {
+          return
+        }
+        if (this.isCommitting) {
+          return
+        }
+
+        this.isCancelling = true
+        try {
+          // Restore keyboard focus to container FIRST (before cancel clears session)
+          this.container.focus()
+          this.editingStore.cancelEdit('user-action')
+        } finally {
+          this.isCancelling = false
+        }
       },
       relationshipContext: {
         relationshipResolvers: {},
@@ -298,7 +327,7 @@ export class OverlayManager {
     // State tracking for deduplication
     let lastEditingCell: string | null = null
     let lastResizeState: string = '' // Track full resize state as string
-    let _wasColumnResizing = false
+    let wasColumnResizing = false
     let pendingUpdate: number | null = null
 
     // BUGFIX: Pending update flags that ACCUMULATE across RAF cancellations
@@ -436,10 +465,10 @@ export class OverlayManager {
 
             // BUGFIX: Capture and reset pending flags at RAF execution time
             // This ensures all accumulated changes are processed even if RAF was rescheduled
-            const _doSelectionUpdate = pendingSelectionUpdate
-            const _doEditingUpdate = pendingEditingUpdate
-            const _doClipboardUpdate = pendingClipboardUpdate
-            const _doResizeUpdate = pendingResizeUpdate
+            const doSelectionUpdate = pendingSelectionUpdate
+            const doEditingUpdate = pendingEditingUpdate
+            const doClipboardUpdate = pendingClipboardUpdate
+            const doResizeUpdate = pendingResizeUpdate
             pendingSelectionUpdate = false
             pendingEditingUpdate = false
             pendingClipboardUpdate = false
@@ -448,7 +477,7 @@ export class OverlayManager {
             // BATCHED: All DOM updates happen together in a single frame
             // Phase 2.6: All overlay updates now handled by dedicated controllers
 
-            _wasColumnResizing = isColumnResizing
+            wasColumnResizing = isColumnResizing
           })
         },
       ),
@@ -551,6 +580,69 @@ export class OverlayManager {
         this.canvasOverlay.hideFillHandle()
       }
     }
+  }
+
+  /**
+   * Compare two Sets for equality (optimized for performance)
+   */
+  private areSetsEqual(set1: Set<string>, set2: Set<string>): boolean {
+    if (set1.size !== set2.size) return false
+    for (const item of set1) {
+      if (!set2.has(item)) return false
+    }
+    return true
+  }
+
+  // NOTE: updateEditingOverlay method removed - editing overlays now handled reactively via interactions observable
+
+  /**
+   * Get current cell value from data
+   */
+  private getCellValue(rowId: string, columnId: string): any {
+    const processedRows = this.tableCoreStore.processedRows
+
+    // Debug the full data structure
+    fileLog.debug('getCellValue DETAILED DEBUG', {
+      targetRowId: rowId,
+      targetColumnId: columnId,
+      totalRows: processedRows?.length || 0,
+      firstFewRowIds: processedRows?.slice(0, 3).map((r: any) => r.id) || [],
+      allRowIds: processedRows?.map((r: any) => r.id) || [],
+      sampleRowStructure: processedRows?.[0]
+        ? Object.keys(processedRows[0]).slice(0, 8)
+        : 'no rows',
+    })
+
+    const row = processedRows.find((r: any) => r.id === rowId)
+
+    if (!row) {
+      fileLog.debug('getCellValue: Row NOT found', {
+        targetRowId: rowId,
+        availableRowIds: processedRows?.map((r: any) => r.id) || [],
+      })
+      return ''
+    }
+
+    const value = row[columnId]
+
+    fileLog.debug('getCellValue: Row found, extracting value', {
+      targetRowId: rowId,
+      foundRowId: row.id,
+      targetColumnId: columnId,
+      extractedValue: value,
+      rowKeys: Object.keys(row).slice(0, 8),
+      hasTargetColumn: columnId in row,
+    })
+
+    fileLog.debug('📄 Getting cell value for editing', {
+      rowId,
+      columnId,
+      foundRow: !!row,
+      cellValue: value,
+      rowKeys: row ? Object.keys(row).slice(0, 5) : [],
+    })
+
+    return value
   }
 
   /**
@@ -702,7 +794,7 @@ export class OverlayManager {
   ): { x: number; y: number; width: number; height: number } | null {
     // PERFORMANCE FIX: Use cached scroll position instead of DOM read
     const cachedViewport = PositionEvents.getViewportCache()
-    const _currentScrollLeft = cachedViewport.scrollLeft || 0
+    const currentScrollLeft = cachedViewport.scrollLeft || 0
 
     const cellKey = `${rowId}:${columnId}`
 

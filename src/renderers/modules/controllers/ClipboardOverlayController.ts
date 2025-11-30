@@ -118,12 +118,10 @@ export class ClipboardOverlayController extends OverlayController {
    * 1. Clipboard has cells: Show clipboard indicators (copy or cut style)
    * 2. Clipboard cleared: Clear clipboard indicators
    */
-  private handleClipboardUpdate(
-    clipboard: {
-      copiedCells: Set<string>
-      operation: 'copy' | 'cut' | null
-    } | null,
-  ): void {
+  private handleClipboardUpdate(clipboard: {
+    copiedCells: Set<string>
+    operation: 'copy' | 'cut' | null
+  } | null): void {
     if (!this.canvasOverlay.isInitialized) {
       fileLog.debug('Canvas overlay not initialized, skipping clipboard update')
       return

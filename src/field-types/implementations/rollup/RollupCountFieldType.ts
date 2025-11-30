@@ -13,6 +13,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -95,7 +96,7 @@ export class RollupCountRenderer implements CellRenderer {
         try {
           const sourceData = this.getSourceData(column, { id: 'unknown' })
           displayValue = this.calculator.calculate(column.rollupConfig, sourceData, 'unknown')
-        } catch (_error) {
+        } catch (error) {
           displayValue = value || 0
         }
       }
@@ -109,7 +110,7 @@ export class RollupCountRenderer implements CellRenderer {
     return (type as string) === 'rollup_count'
   }
 
-  private getSourceData(column: EnhancedColumn, _rowData: any): any[] {
+  private getSourceData(column: EnhancedColumn, rowData: any): any[] {
     // This is a placeholder - in the real implementation this would:
     // 1. Use the relationship configuration to find related records
     // 2. Get data from tableCore$ or related data structures
@@ -162,7 +163,7 @@ export class RollupCountRenderer implements CellRenderer {
  * Rollup Count Cell Editor (Read-only)
  */
 export class RollupCountEditor implements CellEditor {
-  create(_value: any, _column: EnhancedColumn, _onSave: (value: any) => void): HTMLElement {
+  create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-rollup-count-editor'
     container.style.cssText = `
@@ -183,15 +184,15 @@ export class RollupCountEditor implements CellEditor {
     return container
   }
 
-  getValue(_element: HTMLElement): any {
+  getValue(element: HTMLElement): any {
     return null // Read-only field
   }
 
-  setValue(_element: HTMLElement, _value: any): void {
+  setValue(element: HTMLElement, value: any): void {
     // Read-only field - no setting allowed
   }
 
-  validate(value: any, _column: EnhancedColumn): ValidationResult {
+  validate(value: any, column: EnhancedColumn): ValidationResult {
     return {
       valid: true,
       errors: [],
@@ -199,7 +200,7 @@ export class RollupCountEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     // Nothing to clean up
   }
 
@@ -216,16 +217,16 @@ export class RollupCountEditor implements CellEditor {
  * Rollup Count Cell Formatter
  */
 export class RollupCountFormatter implements CellFormatter {
-  format(value: any, _column: EnhancedColumn, _context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
     if (value == null) return '0'
 
     const numValue = Number(value)
-    if (Number.isNaN(numValue)) return '0'
+    if (isNaN(numValue)) return '0'
 
     return numValue.toLocaleString()
   }
 
-  parse(_text: string, _column: EnhancedColumn): any {
+  parse(text: string, column: EnhancedColumn): any {
     return null // Read-only field
   }
 
@@ -233,7 +234,7 @@ export class RollupCountFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     return value == null ? '0' : String(value)
   }
 }
@@ -242,7 +243,7 @@ export class RollupCountFormatter implements CellFormatter {
  * Rollup Count Cell Validator
  */
 export class RollupCountValidator implements CellValidator {
-  validate(value: any, _column: EnhancedColumn): ValidationResult {
+  validate(value: any, column: EnhancedColumn): ValidationResult {
     // Rollup fields are always valid as they're calculated
     return {
       valid: true,
@@ -251,7 +252,7 @@ export class RollupCountValidator implements CellValidator {
     }
   }
 
-  getConstraints(_column: EnhancedColumn): Record<string, any> {
+  getConstraints(column: EnhancedColumn): Record<string, any> {
     return {
       readOnly: true,
       calculatedField: true,
@@ -293,7 +294,7 @@ export const RollupCountFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 }
 

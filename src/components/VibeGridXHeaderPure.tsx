@@ -6,7 +6,7 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
@@ -55,7 +55,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
     return () => {
       logger.info('🧹 VibeGridXHeaderPure UNMOUNTED')
     }
-  }, [createEntity, enableGrouping, entityName, hiddenColumnCount, orgId, stores, visualStateStore])
+  }, [])
 
   // Log on every render (data changes)
   logger.debug('🔄 VibeGridXHeaderPure RENDER', {

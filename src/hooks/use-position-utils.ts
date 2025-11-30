@@ -220,7 +220,7 @@ export function useCellPositionStyle$(
 /**
  * Track position changes over time for animations
  */
-export function useCellPositionHistory$(cellKey: string, _maxHistory: number = 5) {
+export function useCellPositionHistory$(cellKey: string, maxHistory: number = 5) {
   const position$ = useCellPosition$(cellKey)
 
   // Store history in a computed that tracks changes

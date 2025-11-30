@@ -328,7 +328,7 @@ export class ClipboardManager {
       // Data stays as-is (single cell value) - performColumnAwarePaste will broadcast it
     } else if (richClipboard && selectedCells.size === 1 && !isSingleCellCopy) {
       // Multi-cell copy to single cell: auto-expand
-      const [singleRowId, _singleColumnId] = Array.from(selectedCells)[0].split(':')
+      const [singleRowId, singleColumnId] = Array.from(selectedCells)[0].split(':')
 
       // Get row index for starting point
       const allRows = this.tableCore$.processedRows
@@ -1171,6 +1171,9 @@ export class ClipboardManager {
 
       case 'phone':
         return this.processPhoneValue(stringValue)
+
+      case 'text':
+      case 'textarea':
       default:
         return stringValue
     }
@@ -1213,7 +1216,7 @@ export class ClipboardManager {
    * Process multi-select field values
    */
   private processMultiSelectValue(value: string, column: any): string[] | null {
-    const _options = column.options || []
+    const options = column.options || []
 
     // Split by common delimiters
     const values = value
@@ -1242,7 +1245,7 @@ export class ClipboardManager {
     const cleaned = value.replace(/[$,\s]/g, '')
     const parsed = parseFloat(cleaned)
 
-    if (Number.isNaN(parsed)) {
+    if (isNaN(parsed)) {
       throw new Error(`"${value}" is not a valid number`)
     }
 
@@ -1257,7 +1260,7 @@ export class ClipboardManager {
     const cleaned = value.replace(/[$€£¥,\s]/g, '')
     const parsed = parseFloat(cleaned)
 
-    if (Number.isNaN(parsed)) {
+    if (isNaN(parsed)) {
       throw new Error(`"${value}" is not a valid currency amount`)
     }
 
@@ -1270,11 +1273,11 @@ export class ClipboardManager {
   private processDateValue(value: string): string | null {
     try {
       const date = new Date(value)
-      if (Number.isNaN(date.getTime())) {
+      if (isNaN(date.getTime())) {
         throw new Error(`"${value}" is not a valid date`)
       }
       return date.toISOString().split('T')[0] // Return YYYY-MM-DD format
-    } catch (_error) {
+    } catch (error) {
       throw new Error(`"${value}" is not a valid date format`)
     }
   }
@@ -1285,11 +1288,11 @@ export class ClipboardManager {
   private processDateTimeValue(value: string): string | null {
     try {
       const date = new Date(value)
-      if (Number.isNaN(date.getTime())) {
+      if (isNaN(date.getTime())) {
         throw new Error(`"${value}" is not a valid date/time`)
       }
       return date.toISOString()
-    } catch (_error) {
+    } catch (error) {
       throw new Error(`"${value}" is not a valid date/time format`)
     }
   }
@@ -1333,7 +1336,7 @@ export class ClipboardManager {
       const urlToTest = value.startsWith('http') ? value : `https://${value}`
       new URL(urlToTest)
       return urlToTest
-    } catch (_error) {
+    } catch (error) {
       throw new Error(`"${value}" is not a valid URL`)
     }
   }

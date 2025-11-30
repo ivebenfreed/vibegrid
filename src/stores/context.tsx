@@ -4,6 +4,7 @@
  * Provides all VibeGrid stores to components via React Context
  */
 
+import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { useSchemaRegistry } from '@/app/stores'
@@ -161,7 +162,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       virtualViewportStore,
       coordinateManager,
     }
-  }, [entityType, orgId, tableId, schemaRegistry])
+  }, [entityType, orgId, tableId])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -179,16 +180,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.persistenceStore.dispose()
       stores.initStore.dispose()
     }
-  }, [
-    entityType,
-    stores.editingStore.dispose,
-    stores.initStore.dispose,
-    stores.interactionStore.dispose,
-    stores.persistenceStore.dispose, // Dispose ALL stores to clear timeouts and prevent memory leaks
-    stores.tableCoreStore.dispose,
-    stores.visualStateStore.dispose,
-    tableId,
-  ]) // Run cleanup only on unmount
+  }, []) // Run cleanup only on unmount
 
   // Show error state if initialization failed
   if (initError) {

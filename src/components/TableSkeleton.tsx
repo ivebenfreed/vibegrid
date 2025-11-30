@@ -1,6 +1,7 @@
+import React from 'react'
 import { getLogger } from '@/shared/lib/logging'
 
-const _fileLog = getLogger(['vibegrid', 'components', 'TableSkeleton'])
+const fileLog = getLogger(['vibegrid', 'components', 'TableSkeleton'])
 
 // ====================================
 // TABLE SKELETON COMPONENT

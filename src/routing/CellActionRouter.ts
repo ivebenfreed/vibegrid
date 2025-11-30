@@ -42,7 +42,7 @@ export type CellAction = 'navigate' | 'edit' | 'custom' | 'none'
  * Return 'handled' to prevent default action.
  * Return void or undefined to allow default action.
  */
-export type OnCellClickCallback = (rowId: string, columnId: string) => undefined | 'handled'
+export type OnCellClickCallback = (rowId: string, columnId: string) => void | 'handled'
 
 // ====================================
 // ROUTER

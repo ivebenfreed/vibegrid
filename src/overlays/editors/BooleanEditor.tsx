@@ -1,3 +1,4 @@
+import React from 'react'
 import type { CellRef, Column } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'
 

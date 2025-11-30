@@ -23,19 +23,19 @@ export type TableCoreState = any
 export type TableInteractionState = any
 
 // Stub exports - these should not be used
-export function createPureObservables(_config: any): any {
+export function createPureObservables(config: any): any {
   throw new Error('createPureObservables has been removed - use MobX stores instead')
 }
 
-export function createTableCore$(_config: any): any {
+export function createTableCore$(config: any): any {
   throw new Error('createTableCore$ has been removed - use TableCoreStore instead')
 }
 
-export function createTableCoreSync$(_config: any): any {
+export function createTableCoreSync$(config: any): any {
   throw new Error('createTableCoreSync$ has been removed - use TableCoreStore instead')
 }
 
-export function createTableInteraction$(_config: any): any {
+export function createTableInteraction$(config: any): any {
   throw new Error('createTableInteraction$ has been removed - use InteractionStore instead')
 }
 

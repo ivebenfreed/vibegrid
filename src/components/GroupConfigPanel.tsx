@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { getLogger } from '@/shared/lib/logging'
 
-const _fileLog = getLogger(['GroupConfigPanel'])
+const fileLog = getLogger(['GroupConfigPanel'])
 
 import { Badge } from '@/shared/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
@@ -128,7 +128,7 @@ export function GroupConfigPanel({
     })
   }
 
-  const _handleMoveGroupField = (fromIndex: number, toIndex: number) => {
+  const handleMoveGroupField = (fromIndex: number, toIndex: number) => {
     if (!groupConfig) return
 
     const newFields = [...groupConfig.fields]

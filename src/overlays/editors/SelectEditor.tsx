@@ -1,3 +1,4 @@
+import React from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column, RelationshipContext } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'

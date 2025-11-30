@@ -5,8 +5,9 @@
  * Displays progress, errors, and provides retry functionality.
  */
 
-import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
+import React from 'react'
 import type { InitStore } from '../stores/InitStore'
 import { TableSkeleton } from './TableSkeleton'
 
@@ -32,9 +33,9 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
   showDetailedProgress = false,
 }: VibeGridLoadingOverlayProps) {
   // Access MobX store properties directly
-  const _isFullyInitialized = initStore.isFullyHydrated
-  const _errors = initStore.errors
-  const _hasErrors = initStore.hasErrors
+  const isFullyInitialized = initStore.isFullyHydrated
+  const errors = initStore.errors
+  const hasErrors = initStore.hasErrors
   const criticalErrors = initStore.criticalErrors
 
   // Always render - let parent control visibility to prevent flash

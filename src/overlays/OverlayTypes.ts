@@ -1,4 +1,4 @@
-import type { ViewportInfo } from '../types'
+import type { CellRef, ViewportInfo } from '../types'
 
 // ====================================
 // VISUAL POSITION TYPES

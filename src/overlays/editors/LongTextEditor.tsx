@@ -44,19 +44,6 @@ export function LongTextEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
-  const handleCancel = () => {
-    if (isDirty) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
-      if (!confirmed) return
-    }
-
-    fileLog.debug('LongTextEditor cancelled', {
-      cellId: `${cell.rowId}:${cell.columnId}`,
-      isDirty,
-    })
-    onCancel()
-  }
-
   // Reset value when initialValue changes or modal opens
   useEffect(() => {
     if (isOpen) {
@@ -94,7 +81,7 @@ export function LongTextEditor({
       document.addEventListener('keydown', handleEscape, { capture: true })
       return () => document.removeEventListener('keydown', handleEscape, { capture: true })
     }
-  }, [isOpen, handleCancel])
+  }, [isOpen, isDirty])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -118,6 +105,19 @@ export function LongTextEditor({
       isDirty,
     })
     onCommit(value)
+  }
+
+  const handleCancel = () => {
+    if (isDirty) {
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
+      if (!confirmed) return
+    }
+
+    fileLog.debug('LongTextEditor cancelled', {
+      cellId: `${cell.rowId}:${cell.columnId}`,
+      isDirty,
+    })
+    onCancel()
   }
 
   const handleBackdropClick = (e: React.MouseEvent) => {

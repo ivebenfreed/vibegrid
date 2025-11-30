@@ -44,6 +44,8 @@ export class KeyboardNavigationController {
   /**
    * Handle arrow key navigation
    * Note: This method is only called when NOT editing (checked in handleKeyDown)
+   *
+   * PHASE 5: Now includes focus validation and recovery
    */
   handleArrowKey(direction: 'up' | 'down' | 'left' | 'right', isShiftKey: boolean): void {
     const processedRows = this.getProcessedRows()
@@ -67,11 +69,23 @@ export class KeyboardNavigationController {
       return
     }
 
+    // PHASE 5: FOCUS VALIDATION
+    // Validate that focused cell still exists in current rows/columns
     const [currentRowId, currentColumnId] = focusedCell.split(':')
     const currentRowIndex = processedRows.findIndex((r) => r.id === currentRowId)
     const currentColIndex = visibleColumns.findIndex((c) => c.id === currentColumnId)
 
+    // PHASE 5: FOCUS RECOVERY
+    // If focus is invalid (row/column hidden, filtered, etc.), recover to first visible cell
     if (currentRowIndex === -1 || currentColIndex === -1) {
+      logger.warn('Focus invalid after config change, recovering', {
+        focusedCell,
+        rowFound: currentRowIndex !== -1,
+        colFound: currentColIndex !== -1,
+        reason: currentRowIndex === -1 ? 'Row not found (filtered/deleted)' : 'Column not found (hidden)',
+      })
+
+      this.recoverFocus(processedRows, visibleColumns)
       return
     }
 
@@ -308,5 +322,35 @@ export class KeyboardNavigationController {
       this.interactionStore.setFocusedCell(null)
       this.interactionStore.anchorCell = null
     })
+  }
+
+  /**
+   * Recover focus to first visible cell
+   *
+   * PHASE 5: Called when focused cell is invalid (hidden/filtered/deleted)
+   * Ensures keyboard navigation continues to work after config changes
+   *
+   * @param processedRows Current visible rows
+   * @param visibleColumns Current visible columns
+   */
+  private recoverFocus(processedRows: any[], visibleColumns: any[]): void {
+    if (processedRows.length === 0 || visibleColumns.length === 0) {
+      logger.warn('Cannot recover focus - no visible rows or columns')
+      return
+    }
+
+    // Focus first visible cell (skip selection column)
+    const firstRow = processedRows[0]
+    const firstCol = visibleColumns.find((c) => c.id !== 'selection') || visibleColumns[0]
+    const firstCellId = `${firstRow.id}:${firstCol.id}`
+
+    logger.info('Recovering focus to first visible cell', {
+      cellId: firstCellId,
+      rowId: firstRow.id,
+      columnId: firstCol.id,
+    })
+
+    this.interactionStore.setFocusedCell(firstCellId)
+    this.interactionStore.selectCell(firstCellId, false)
   }
 }

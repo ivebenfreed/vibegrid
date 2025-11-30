@@ -5,6 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
+import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
 import { getOptionIconDisplay } from '../../../utils/icon-mapping'
 import type {
@@ -13,13 +14,14 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
-const _logger = getLogger(
+const logger = getLogger(
   'components/custom/vibegrid/field-types/implementations/basic/SelectFieldType',
 )
 
@@ -37,7 +39,7 @@ interface SelectOption {
  * Select Cell Renderer
  */
 export class SelectRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     // 🚀 PERFORMANCE: Removed expensive logging from hot path
 
     const container = document.createElement('span')
@@ -359,7 +361,7 @@ export class SelectEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -519,7 +521,7 @@ export class SelectEditor implements CellEditor {
  * Select Cell Formatter
  */
 export class SelectFormatter implements CellFormatter {
-  format(value: any, column: EnhancedColumn, _context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
     if (value == null) return ''
 
     const fieldType = column.cellType || column.type || 'select'
@@ -551,7 +553,7 @@ export class SelectFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     if (value == null) return ''
 
     if (Array.isArray(value)) {
@@ -670,7 +672,7 @@ export const SelectFieldType: VibeGridFieldType = {
   // 🚀 NEW: Simple formatter interface for pre-computation
   getFormatter(): (value: any, rowData?: any, column?: any) => string {
     const formatter = new SelectFormatter()
-    return (value: any, _rowData?: any, column?: any) => {
+    return (value: any, rowData?: any, column?: any) => {
       if (!column) return String(value || '')
 
       // Use reactive options from schema store if available
@@ -682,7 +684,7 @@ export const SelectFieldType: VibeGridFieldType = {
             const tempColumn = { ...column, options }
             return formatter.format(value, tempColumn)
           }
-        } catch (_error) {
+        } catch (error) {
           // Fallback to column options
         }
       }

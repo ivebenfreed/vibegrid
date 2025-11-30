@@ -11,7 +11,7 @@ import type {
 } from '../../FieldTypeRegistry'
 
 export class ImageRenderer implements CellRenderer {
-  render(value: any, _column: EnhancedColumn): HTMLElement {
+  render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-image'
     container.style.cssText = 'display: flex; align-items: center; gap: 6px; height: 100%;'
@@ -54,7 +54,7 @@ export const ImageFieldType: VibeGridFieldType = {
   category: 'basic',
   renderer: new ImageRenderer(),
   editor: new (class implements CellEditor {
-    create(_value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+    create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'

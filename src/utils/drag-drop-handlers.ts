@@ -133,6 +133,163 @@ export class DragDropManager {
   }
 
   /**
+   * Get the index of a row within its group
+   */
+  private getRowIndexInGroup(rowElement: HTMLElement, groupId: string): number {
+    const container = document.querySelector(`[data-group-id="${groupId}"]`)?.parentElement
+    if (!container) return -1
+
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
+    return dataRows.indexOf(rowElement)
+  }
+
+  /**
+   * Get the index of a row in flat mode
+   */
+  private getRowIndexFlat(rowElement: HTMLElement): number {
+    const container = rowElement.closest('.vibegridx-container')
+    if (!container) return -1
+
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
+    return dataRows.indexOf(rowElement)
+  }
+
+  /**
+   * Create a clean drag preview showing all visible row content
+   */
+  private createDragPreview(rowElement: HTMLElement): HTMLElement {
+    const preview = document.createElement('div')
+    preview.className = 'vibegrid-drag-preview'
+
+    // Clone the row content but only visible parts
+    const viewportWidth = window.innerWidth
+    const cells = rowElement.querySelectorAll('.vibegridx-cell')
+
+    // Collect all visible cells
+    const visibleCells = Array.from(cells).filter((cell) => {
+      const cellRect = cell.getBoundingClientRect()
+      return cellRect.right > 0 && cellRect.left < viewportWidth
+    })
+
+    if (visibleCells.length > 0) {
+      // Create a mini table-like structure for the preview
+      preview.style.display = 'flex'
+      preview.style.alignItems = 'center'
+      preview.style.gap = '12px'
+
+      visibleCells.forEach((cell, index) => {
+        if (index >= 4) return // Limit to first 4 visible cells to avoid too wide preview
+
+        const cellPreview = document.createElement('div')
+        const cellText = cell.textContent?.trim() || ''
+
+        if (cellText) {
+          cellPreview.textContent =
+            cellText.length > 20 ? cellText.substring(0, 20) + '...' : cellText
+          cellPreview.style.cssText = `
+            flex: 0 0 auto;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 13px;
+            color: #374151;
+          `
+
+          // Add separator between cells (except last)
+          if (index > 0) {
+            const separator = document.createElement('div')
+            separator.textContent = '•'
+            separator.style.cssText = `
+              color: #9ca3af;
+              font-size: 12px;
+              flex: 0 0 auto;
+            `
+            preview.appendChild(separator)
+          }
+
+          preview.appendChild(cellPreview)
+        }
+      })
+
+      // If no visible content found, show fallback
+      if (preview.children.length === 0) {
+        preview.textContent = 'Moving row...'
+        preview.style.display = 'block'
+      }
+    } else {
+      preview.textContent = 'Moving row...'
+    }
+
+    // Style the preview container
+    Object.assign(preview.style, {
+      position: 'fixed',
+      top: '-200px',
+      left: '50px',
+      background: '#ffffff',
+      border: '2px solid #3b82f6',
+      borderRadius: '6px',
+      padding: '10px 14px',
+      fontSize: '14px',
+      fontWeight: '500',
+      color: '#1f2937',
+      boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
+      zIndex: '9999',
+      maxWidth: '500px',
+      minWidth: '150px',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+    })
+
+    document.body.appendChild(preview)
+    return preview
+  }
+
+  /**
+   * Show drop indicator at target position
+   */
+  private showDropIndicator(targetElement: HTMLElement, e: DragEvent): void {
+    this.removeDropIndicators()
+
+    const rect = targetElement.getBoundingClientRect()
+    const insertBefore = e.clientY < rect.top + rect.height / 2
+
+    const indicator = document.createElement('div')
+    indicator.className = 'vibegrid-drop-indicator'
+
+    Object.assign(indicator.style, {
+      position: 'absolute',
+      left: '0',
+      right: '0',
+      height: '3px',
+      backgroundColor: '#3b82f6',
+      borderRadius: '1.5px',
+      zIndex: '1000',
+      boxShadow: '0 0 6px rgba(59, 130, 246, 0.4)',
+      pointerEvents: 'none',
+    })
+
+    // Position the indicator
+    const container = targetElement.closest('.vibegridx-container')
+    if (container) {
+      const containerRect = container.getBoundingClientRect()
+      const targetRect = targetElement.getBoundingClientRect()
+
+      if (insertBefore) {
+        indicator.style.top = `${targetRect.top - containerRect.top - 1.5}px`
+      } else {
+        indicator.style.top = `${targetRect.bottom - containerRect.top - 1.5}px`
+      }
+
+      container.appendChild(indicator)
+    }
+  }
+
+  /**
    * Remove all drop indicators
    */
   private removeDropIndicators(): void {

@@ -2,7 +2,7 @@ import { hash } from 'ohash'
 import { getLogger } from '@/shared/lib/logging'
 import type { Column } from '../types'
 
-const _logger = getLogger(['vibegrid', 'utils', 'hashing'])
+const logger = getLogger(['vibegrid', 'utils', 'hashing'])
 
 // Metadata columns excluded from change detection
 export const METADATA_COLUMNS = new Set([
@@ -56,7 +56,7 @@ export function normalizeValue(column: Column, value: any): any {
   // This handles complex field types consistently
   try {
     return JSON.stringify(value)
-  } catch (_e) {
+  } catch (e) {
     return String(value)
   }
 }

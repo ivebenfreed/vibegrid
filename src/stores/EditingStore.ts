@@ -148,6 +148,8 @@ export class EditingStore implements IStore {
   // ====================================
 
   private tableCoreStore: TableCoreStore
+  private visualStateStore: VisualStateStore
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for mutations
   private disposers = new DisposerManager()
 
@@ -223,6 +225,7 @@ export class EditingStore implements IStore {
    */
   @action
   startEdit(cellId: string, column: any): void {
+    console.log('🔥 START_EDIT CALLED', { cellId, column: column?.id })
     const [rowId, columnId] = cellId.split(':')
 
     // CONSISTENT VALUE LOOKUP (fixes keyboard vs click desync)
@@ -306,14 +309,37 @@ export class EditingStore implements IStore {
    *
    * @param reason Why commit is happening
    * @param explicitValue Optional explicit value (overrides pendingValue)
+   * @param retryCount Internal retry counter to prevent infinite loops
    */
   @action
-  async commitEdit(reason: CommitReason, explicitValue?: any): Promise<void> {
+  async commitEdit(
+    reason: CommitReason,
+    explicitValue?: any,
+    retryCount: number = 0,
+  ): Promise<void> {
     // SESSION READY CHECK (fixes Issue #7)
     if (!this.sessionReady) {
-      fileLog.warn('Commit called before session ready, deferring...', { reason })
-      // Defer until next tick
-      setTimeout(() => this.commitEdit(reason, explicitValue), 0)
+      // If there's no session, don't defer - just log and return
+      if (!this.currentSession) {
+        fileLog.warn('commit() called but no active session', { reason })
+        return
+      }
+
+      // Max 3 retries to prevent infinite loops
+      if (retryCount >= 3) {
+        fileLog.error('commit() retry limit exceeded - session never became ready', {
+          reason,
+          retryCount,
+        })
+        return
+      }
+
+      fileLog.warn('Commit called before session ready, deferring...', {
+        reason,
+        retryCount,
+      })
+      // Defer until next tick with incremented retry count
+      setTimeout(() => this.commitEdit(reason, explicitValue, retryCount + 1), 0)
       return
     }
 
@@ -347,6 +373,8 @@ export class EditingStore implements IStore {
 
     // Clear session BEFORE async save (prevents double-commit)
     const sessionToSave = this.currentSession
+    console.log('🔥 CLEARING SESSION in commitEdit', { cellId })
+    console.trace('🔥 COMMIT STACK TRACE')
     this.currentSession = null
     this.sessionReady = false
 
@@ -385,6 +413,7 @@ export class EditingStore implements IStore {
     this.isCancelling = true
 
     // Clear session
+    console.log('🔥 CLEARING SESSION in cancelEdit', { cellId })
     this.currentSession = null
     this.sessionReady = false
 
@@ -598,7 +627,7 @@ export class EditingStore implements IStore {
    * @param value Value to validate
    */
   @action
-  validateEdit(_value: any): void {
+  validateEdit(value: any): void {
     if (!this.currentSession) {
       fileLog.warn('validateEdit called but no active session')
       return

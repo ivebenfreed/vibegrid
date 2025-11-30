@@ -12,7 +12,7 @@ import type {
 } from '../../FieldTypeRegistry'
 
 export class RatingRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-rating'
     container.style.cssText = 'display: flex; align-items: center; gap: 2px;'
@@ -56,6 +56,9 @@ export class RatingRenderer implements CellRenderer {
 }
 
 export class RatingEditor implements CellEditor {
+  private currentElement: HTMLElement | null = null
+  private onSaveCallback: ((value: any) => void) | null = null
+
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 
@@ -114,7 +117,7 @@ export class RatingEditor implements CellEditor {
     const rating = Number(value)
     const maxRating = column.validation?.max || 5
 
-    if (Number.isNaN(rating) || rating < 0 || rating > maxRating) {
+    if (isNaN(rating) || rating < 0 || rating > maxRating) {
       errors.push(`${column.name} must be between 0 and ${maxRating}`)
     }
 
@@ -168,7 +171,7 @@ export const RatingFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 }
 

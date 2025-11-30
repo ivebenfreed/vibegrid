@@ -11,6 +11,7 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
+  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -20,7 +21,7 @@ import type {
  * Color Cell Renderer
  */
 export class ColorRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
     container.className =
       column.editable === false ? 'vibegridx-cell-color' : 'vibegridx-cell-color-editable'
@@ -132,7 +133,7 @@ export class ColorRenderer implements CellRenderer {
     return (type as string) === 'color'
   }
 
-  private formatValue(value: any, _column: EnhancedColumn): string {
+  private formatValue(value: any, column: EnhancedColumn): string {
     if (value == null) return ''
 
     const colorValue = String(value).trim()
@@ -202,7 +203,7 @@ export class ColorRenderer implements CellRenderer {
   }
 
   private applyDisplayMetadata(
-    _container: HTMLElement,
+    container: HTMLElement,
     swatch: HTMLElement,
     displayMetadata: any,
   ): void {
@@ -224,7 +225,7 @@ export class ColorEditor implements CellEditor {
   private currentElement: HTMLElement | null = null
   private onSaveCallback: ((value: any) => void) | null = null
 
-  create(value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+  create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 
     const container = document.createElement('div')
@@ -354,7 +355,7 @@ export class ColorEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
+  destroy(element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -481,6 +482,21 @@ export class ColorEditor implements CellEditor {
     return 'named'
   }
 
+  private applyDisplayMetadata(
+    container: HTMLElement,
+    swatch: HTMLElement,
+    displayMetadata: any,
+  ): void {
+    if (displayMetadata.showColorPreview === false) {
+      swatch.style.display = 'none'
+    }
+
+    if (displayMetadata.swatchSize) {
+      swatch.style.width = `${displayMetadata.swatchSize}px`
+      swatch.style.height = `${displayMetadata.swatchSize}px`
+    }
+  }
+
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
       const value = this.getValue(this.currentElement)
@@ -521,12 +537,13 @@ export class ColorFormatter implements CellFormatter {
         return this.hexToRgb(normalizedHex)
       case 'hsl':
         return this.hexToHsl(normalizedHex)
+      case 'hex':
       default:
         return normalizedHex
     }
   }
 
-  parse(text: string, _column: EnhancedColumn): any {
+  parse(text: string, column: EnhancedColumn): any {
     if (text.trim() === '') return null
     return this.normalizeColor(text)
   }
@@ -535,7 +552,7 @@ export class ColorFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, _column: EnhancedColumn): string {
+  formatForExport(value: any, column: EnhancedColumn): string {
     return value == null ? '' : this.normalizeColor(value)
   }
 
@@ -649,7 +666,7 @@ export const ColorFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 }
 

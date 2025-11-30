@@ -17,6 +17,7 @@
 
 import {
   action,
+  autorun,
   computed,
   makeObservable,
   type ObservableMap,
@@ -259,8 +260,16 @@ export class TableCoreStore implements IStore {
 
   // Change metadata for renderer routing
   @observable lastChangeMetadata: ChangeMetadata | null = null
+
+  // ====================================
+  // DEPENDENCIES (injected)
+  // ====================================
+
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setVisualStateInputs()
+  private visualStateInputs: VisualStateInputs | null = null
   private visualStateStore: VisualStateStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for entity mutations
   private schemaRegistry:
     | import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore
@@ -1199,7 +1208,7 @@ export class TableCoreStore implements IStore {
     sourceGroupId: string,
     targetGroupId: string,
     draggedRowId: string,
-    _newIndex: number,
+    newIndex: number,
   ): Promise<boolean> {
     // Extract the field name and value from group IDs (e.g., "group_status_done" -> {field: "status", value: "done"})
     const parseGroupId = (groupId: string): { field: string; value: string } | null => {

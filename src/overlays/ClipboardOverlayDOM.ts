@@ -90,12 +90,7 @@ export class ClipboardOverlayDOM {
       maxY = Math.max(maxY, cell.y + cell.height)
     }
 
-    if (
-      !Number.isFinite(minX) ||
-      !Number.isFinite(minY) ||
-      !Number.isFinite(maxX) ||
-      !Number.isFinite(maxY)
-    ) {
+    if (!isFinite(minX) || !isFinite(minY) || !isFinite(maxX) || !isFinite(maxY)) {
       fileLog.error('ClipboardOverlayDOM: Invalid bounds calculated')
       this.clear()
       return

@@ -83,8 +83,12 @@ export class PersistenceStore implements IStore {
 
   private tableCoreStore: TableCoreStore | null = null
   private visualStateStore: VisualStateStore | null = null
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setInteractionStore()
+  private interactionStore: InteractionStore | null = null
 
   private entityType: string
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned in constructor
+  private orgId?: string
   private storageKey: string
   private disposers = new DisposerManager()
 

@@ -5,7 +5,7 @@
  * This bypasses the normal inline editing flow for long text content.
  */
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import type { CellRef, Column } from '../../types'
 import { LongTextEditor } from './LongTextEditor'

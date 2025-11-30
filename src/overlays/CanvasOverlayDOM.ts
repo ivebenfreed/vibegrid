@@ -1,7 +1,7 @@
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
-import type { ColumnDragState, ColumnResizeState, ViewportInfo } from '../types'
+import type { ColumnDragState, ColumnResizeState, SelectionContext, ViewportInfo } from '../types'
 import { ClipboardOverlayDOM } from './ClipboardOverlayDOM'
 import { ColumnDragOverlayDOM } from './ColumnDragOverlayDOM'
 import { ColumnResizeOverlayDOM } from './ColumnResizeOverlayDOM'
@@ -646,7 +646,7 @@ export class CanvasOverlayDOM {
   /**
    * Get drop index for column drag
    */
-  getColumnDropIndex(_mouseX: number): number {
+  getColumnDropIndex(mouseX: number): number {
     if (!this.columnDragOverlay) return -1
     return this.columnDragOverlay.getDropIndex()
   }
