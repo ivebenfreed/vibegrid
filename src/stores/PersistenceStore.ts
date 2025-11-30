@@ -83,10 +83,8 @@ export class PersistenceStore implements IStore {
 
   private tableCoreStore: TableCoreStore | null = null
   private visualStateStore: VisualStateStore | null = null
-  private interactionStore: InteractionStore | null = null
 
   private entityType: string
-  private orgId?: string
   private storageKey: string
   private disposers = new DisposerManager()
 

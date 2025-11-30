@@ -78,6 +78,11 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     [interactionStore],
   )
 
+  const getColumnDisplayName = (column: Column): string => {
+    // Use explicit name if available, otherwise format the field/id
+    return column.name || formatFieldName(column.field || column.id)
+  }
+
   // Only calculate expensive operations when dropdown is open
   const filteredColumns = React.useMemo(() => {
     if (!isOpen) return [] // Don't calculate unless dropdown is open
@@ -90,7 +95,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         (column.field && column.field.toLowerCase().includes(searchValue.toLowerCase()))
       )
     })
-  }, [columns, searchValue, isOpen])
+  }, [columns, searchValue, isOpen, getColumnDisplayName])
 
   // Categorize columns only when dropdown is open
   const categorizedColumns = React.useMemo(() => {
@@ -116,23 +121,18 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     return { required, business, system }
   }, [filteredColumns, isOpen])
 
-  const isColumnHidden = (columnId: string): boolean => {
+  const _isColumnHidden = (columnId: string): boolean => {
     return columnVisibility[columnId] === false
   }
 
   const isColumnVisible = (columnId: string): boolean => {
     // Ensure explicit boolean value - treat undefined as true (default visible)
-    const visible = columnVisibility[columnId] === false ? false : true
+    const visible = columnVisibility[columnId] !== false
     return visible
   }
 
   const canHideColumn = (column: Column): boolean => {
     return column.hideable !== false
-  }
-
-  const getColumnDisplayName = (column: Column): string => {
-    // Use explicit name if available, otherwise format the field/id
-    return column.name || formatFieldName(column.field || column.id)
   }
 
   const renderColumnItem = (column: Column, isRequired: boolean, category: string = 'default') => {
@@ -147,7 +147,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         <Checkbox
           checked={isVisible}
           disabled={!canHide}
-          onCheckedChange={(checked) => {
+          onCheckedChange={(_checked) => {
             if (canHide) {
               handleToggleColumn(column.id)
             }

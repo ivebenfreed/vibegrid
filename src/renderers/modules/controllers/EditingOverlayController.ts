@@ -15,7 +15,7 @@
 
 import { reaction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
-import { domPositions$, PositionEvents } from '../../../stores/dom-position-state'
+import { domPositions$ } from '../../../stores/dom-position-state'
 import type { EditingOverlay } from '../../../overlays/EditingOverlay'
 import type { EditingStore } from '../../../stores/EditingStore'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'

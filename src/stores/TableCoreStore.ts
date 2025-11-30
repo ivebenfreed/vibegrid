@@ -17,7 +17,6 @@
 
 import {
   action,
-  autorun,
   computed,
   makeObservable,
   type ObservableMap,
@@ -260,12 +259,6 @@ export class TableCoreStore implements IStore {
 
   // Change metadata for renderer routing
   @observable lastChangeMetadata: ChangeMetadata | null = null
-
-  // ====================================
-  // DEPENDENCIES (injected)
-  // ====================================
-
-  private visualStateInputs: VisualStateInputs | null = null
   private visualStateStore: VisualStateStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
   private collection: any = null // TanStack DB collection for entity mutations
@@ -1206,7 +1199,7 @@ export class TableCoreStore implements IStore {
     sourceGroupId: string,
     targetGroupId: string,
     draggedRowId: string,
-    newIndex: number,
+    _newIndex: number,
   ): Promise<boolean> {
     // Extract the field name and value from group IDs (e.g., "group_status_done" -> {field: "status", value: "done"})
     const parseGroupId = (groupId: string): { field: string; value: string } | null => {

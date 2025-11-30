@@ -9,15 +9,12 @@
 
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
-import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type {
   CellCoordinates,
   CellPositionMap,
-  CellRef,
   PositionChangeEvent,
   PositionUpdateHandler,
 } from '../types/coordinate-types'
-import { CoordinateUtils } from '../types/coordinate-types'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'dom-position-state.ts'])
 
@@ -533,22 +530,6 @@ class ReactivePositionTracker {
         fileLog.error('❌ Error in position change handler', { error })
       }
     })
-  }
-
-  /**
-   * Extract cell key from DOM element
-   */
-  private getCellKey(element: HTMLElement): string | null {
-    const rowId = element.getAttribute('data-row-id')
-    const columnId = element.getAttribute('data-column-id')
-    return rowId && columnId ? CoordinateUtils.createCellKey(rowId, columnId) : null
-  }
-
-  /**
-   * Check if element is a cell
-   */
-  private isCellElement(element: HTMLElement): boolean {
-    return element.hasAttribute('data-row-id') && element.hasAttribute('data-column-id')
   }
 
   /**

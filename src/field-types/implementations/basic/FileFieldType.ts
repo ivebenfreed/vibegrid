@@ -23,7 +23,7 @@ interface FileValue {
 }
 
 export class FileRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-file'
 
@@ -154,10 +154,9 @@ export class FileRenderer implements CellRenderer {
 }
 
 export class FileEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null
   private onSaveCallback: ((value: any) => void) | null = null
 
-  create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+  create(_value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 
     const container = document.createElement('div')
@@ -203,7 +202,7 @@ export class FileEditor implements CellEditor {
     }
   }
 
-  setValue(element: HTMLElement, value: any): void {
+  setValue(_element: HTMLElement, _value: any): void {
     // File inputs can't be programmatically set for security reasons
   }
 
@@ -235,7 +234,7 @@ export class FileEditor implements CellEditor {
     return { valid: errors.length === 0, errors, transformedValue: value }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -295,7 +294,7 @@ export const FileFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 }
 

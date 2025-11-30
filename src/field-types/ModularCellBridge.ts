@@ -11,7 +11,7 @@ import { RelationshipDataManager } from '../managers/RelationshipDataManager'
 import { RollupCalculationManager } from '../managers/RollupCalculationManager'
 import { SchemaAdapter } from '../schema/SchemaAdapter'
 import type { Column } from '../types'
-import { FieldTypeRegistry, fieldTypeRegistry } from './FieldTypeRegistry'
+import { fieldTypeRegistry } from './FieldTypeRegistry'
 
 // Field type implementations are now imported in the main index.ts
 
@@ -181,7 +181,7 @@ export class ModularCellBridge {
       try {
         const content = column.fieldType.renderer.render(value, column, rowData)
         container.appendChild(content)
-      } catch (error) {
+      } catch (_error) {
         // Fallback to formatter if renderer fails
         const displayValue = column.formatter!(value, rowData, column)
         container.textContent = displayValue
@@ -335,29 +335,6 @@ export class ModularCellBridge {
     }
 
     return enhancedColumn
-  }
-
-  private createFallbackCell(value: any, column: Column): HTMLElement {
-    const cell = document.createElement('div')
-    cell.className = 'vibegridx-cell vibegridx-fallback-cell'
-    cell.style.cssText = `
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      height: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      background-color: #fef3c7;
-      border-left: 3px solid #f59e0b;
-    `
-
-    const content = document.createElement('span')
-    content.textContent = String(value || '')
-    content.title = `Fallback rendering for ${column.id} (${column.cellType || column.type})`
-
-    cell.appendChild(content)
-    return cell
   }
 }
 

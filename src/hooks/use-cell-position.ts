@@ -28,7 +28,7 @@ throw new Error('This file has not been migrated to MobX - see file header for d
 // TODO: Remove Legend State - migrating to MobX
 import { computed } from 'mobx'
 import { domPositions$ } from '../stores/dom-position-state'
-import type { CellCoordinates, CellRef } from '../types/coordinate-types'
+import type { CellCoordinates } from '../types/coordinate-types'
 import { CoordinateUtils } from '../types/coordinate-types'
 import { virtualCellPosition$ } from '../virtualization/VirtualScrollManager'
 
@@ -155,7 +155,7 @@ export function useCellInVirtualRange$(cellKey: string) {
     const cellRef = CoordinateUtils.parseCellKey(cellKey)
     if (!cellRef) return false
 
-    const virtualCalc = virtualCellPosition$.get()
+    const _virtualCalc = virtualCellPosition$.get()
     // Legacy code - these methods don't exist on current interface
     // Return true as fallback for now
     return true

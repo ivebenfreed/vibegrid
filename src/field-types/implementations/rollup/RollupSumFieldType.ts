@@ -52,7 +52,7 @@ export class RollupSumRenderer implements CellRenderer {
     return container
   }
 
-  update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+  update(element: HTMLElement, _value: any, column: EnhancedColumn): void {
     const valueSpan = element.querySelector('.vibegridx-rollup-value')
     if (valueSpan && column.rollupConfig) {
       const sourceData = this.getMockSourceData()
@@ -66,7 +66,7 @@ export class RollupSumRenderer implements CellRenderer {
   }
 
   private formatSumValue(value: number, column: EnhancedColumn): string {
-    if (value == null || isNaN(value)) return '0'
+    if (value == null || Number.isNaN(value)) return '0'
 
     const precision = column.rollupConfig?.precision || 2
     return value.toLocaleString(undefined, {
@@ -125,7 +125,7 @@ export const RollupSumFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 }
 

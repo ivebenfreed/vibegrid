@@ -235,8 +235,8 @@ export function setupCellEditingHandlers(
   rowId: string,
   columnId: string,
   onEditStart: (rowId: string, columnId: string) => void,
-  onEditEnd: (rowId: string, columnId: string, value: any) => void,
-  onEditCancel: (rowId: string, columnId: string) => void,
+  _onEditEnd: (rowId: string, columnId: string, value: any) => void,
+  _onEditCancel: (rowId: string, columnId: string) => void,
 ): void {
   cellElement.addEventListener('dblclick', (e: MouseEvent) => {
     e.preventDefault()

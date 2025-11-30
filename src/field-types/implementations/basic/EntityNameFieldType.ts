@@ -8,14 +8,9 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import type {
-  CellEditor,
-  CellRenderer,
-  EnhancedColumn,
-  VibeGridFieldType,
-} from '../../FieldTypeRegistry'
+import type { CellRenderer, EnhancedColumn, VibeGridFieldType } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
-import { TextEditor, TextFormatter, TextRenderer, TextValidator } from './TextFieldType'
+import { TextEditor, TextFormatter, TextValidator } from './TextFieldType'
 
 const logger = getLogger(
   'components/vibegrid/field-types/implementations/basic/EntityNameFieldType',
@@ -26,8 +21,6 @@ const logger = getLogger(
  * Renders name/title fields as clickable links with hover states
  */
 export class EntityNameRenderer implements CellRenderer {
-  private textRenderer = new TextRenderer()
-
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     logger.debug('📝 [FIELD-ENTITY-NAME] Rendering entity name field', {
       columnId: column.id,
@@ -111,7 +104,7 @@ export class EntityNameRenderer implements CellRenderer {
     return container
   }
 
-  update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+  update(element: HTMLElement, value: any, _column: EnhancedColumn): void {
     const textElement = element.querySelector('.vibegridx-entity-name-text') as HTMLSpanElement
     if (textElement) {
       // Force update by always setting textContent (no caching/diffing)

@@ -443,7 +443,7 @@ export class MouseController {
         const targetRowId = targetRowElement.getAttribute('data-row-id')
         // Skip drag handle cells and group headers for drop targets
         const targetCellElement = target.closest('[data-column-id]')
-        const targetColumnId = targetCellElement?.getAttribute('data-column-id')
+        const _targetColumnId = targetCellElement?.getAttribute('data-column-id')
 
         if (targetRowId && targetRowId !== this.dragRowId) {
           runInAction(() => {
@@ -1013,18 +1013,6 @@ export class MouseController {
   }
 
   /**
-   * Robust check for VibeGrid editable elements using pattern matching
-   * This approach is more maintainable than hardcoding class names
-   */
-  private hasEditableClass(element: HTMLElement): boolean {
-    // Check if any class name matches the editable pattern
-    const classList = Array.from(element.classList)
-    return classList.some(
-      (className) => className.startsWith('vibegridx-cell-') && className.endsWith('-editable'),
-    )
-  }
-
-  /**
    * Get current drag state - for other components to query
    */
   get isCurrentlyDragging(): boolean {
@@ -1220,7 +1208,7 @@ export class MouseController {
   private createRowDragPreview(rowId: string): void {
     // Get row info for preview text
     const rowElement = this.container.querySelector(`[data-row-id="${rowId}"]`)
-    const rowText = rowElement?.textContent?.trim().slice(0, 50) + '...' || `Row ${rowId}`
+    const rowText = `${rowElement?.textContent?.trim().slice(0, 50)}...` || `Row ${rowId}`
 
     // Create floating preview element
     this.dragPreviewElement = document.createElement('div')
@@ -1233,7 +1221,7 @@ export class MouseController {
       const cellTexts = visibleCells
         .map((cell) => {
           const text = cell.textContent?.trim() || ''
-          return text.length > 15 ? text.substring(0, 15) + '...' : text
+          return text.length > 15 ? `${text.substring(0, 15)}...` : text
         })
         .filter((text) => text.length > 0)
 

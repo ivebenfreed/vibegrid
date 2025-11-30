@@ -85,7 +85,6 @@ export class CellFactory {
           return this.createRollupCell(container, value, column, rowData, fieldType)
         case 'computed':
           return this.createComputedCell(container, value, column, rowData, fieldType)
-        case 'basic':
         default:
           return this.createBasicCell(container, value, column, rowData, fieldType)
       }
@@ -361,33 +360,6 @@ export class CellFactory {
   }
 
   /**
-   * Create an error cell when something goes wrong
-   */
-  private createErrorCell(
-    container: HTMLElement,
-    column: CellFactoryColumn,
-    error: any,
-  ): HTMLElement {
-    container.classList.add('vibegridx-cell-error')
-
-    const errorContent = document.createElement('div')
-    errorContent.className = 'vibegridx-cell-content vibegridx-error'
-    errorContent.style.cssText = `
-      padding: 0 12px;
-      display: flex;
-      align-items: center;
-      height: 100%;
-      color: #dc2626;
-      font-size: 12px;
-    `
-    errorContent.textContent = 'Error'
-    errorContent.title = `Error rendering ${column.id}: ${error?.message || 'Unknown error'}`
-
-    container.appendChild(errorContent)
-    return container
-  }
-
-  /**
    * Get column width from column definition or visual state
    */
   private getColumnWidth(column: CellFactoryColumn): number {
@@ -450,96 +422,6 @@ export class CellFactory {
   }
 
   /**
-   * ✅ REMOVED: addEditingSupport method
-   *
-   * Editing is now handled by the service layer:
-   * - CellActionRouter detects content vs padding clicks (spatial pattern)
-   * - Content click → EditSessionManager.start()
-   * - Padding click → SelectionService (selection only)
-   * - Keyboard (F2/Enter) → KeyboardController delegates to coordinator
-   *
-   * This method previously added click handlers that conflicted with
-   * the new service layer and prevented proper spatial click detection.
-   */
-
-  /**
-   * ✅ REMOVED: addRelationshipEditingSupport method
-   *
-   * Relationship editing now handled by service layer like all other field types.
-   */
-
-  /**
-   * Start editing a cell
-   */
-  private startEditing(
-    container: HTMLElement,
-    value: any,
-    column: CellFactoryColumn,
-    fieldType: VibeGridFieldType,
-  ): void {
-    const contentWrapper = container.querySelector('.vibegridx-cell-content') as HTMLElement
-    if (!contentWrapper) return
-
-    try {
-      // Create editor
-      const editor = fieldType.editor.create(value, column, (newValue) => {
-        this.saveEdit(container, newValue, column, fieldType)
-      })
-
-      // Replace content with editor
-      contentWrapper.innerHTML = ''
-      contentWrapper.appendChild(editor)
-
-      container.classList.add('vibegridx-cell-editing')
-    } catch (error) {
-      fileLog.error('Error starting cell edit', {
-        error,
-        columnId: column.id,
-      })
-    }
-  }
-
-  /**
-   * Save cell edit
-   */
-  private saveEdit(
-    container: HTMLElement,
-    value: any,
-    column: CellFactoryColumn,
-    fieldType: VibeGridFieldType,
-  ): void {
-    fileLog.debug('Saving cell edit', {
-      columnId: column.id,
-      value,
-    })
-
-    // Validate the new value using the field type's validator
-    try {
-      const validationResult = fieldType.validator
-        ? fieldType.validator.validate(value, column)
-        : { valid: true, errors: [], transformedValue: value }
-
-      if (validationResult.valid) {
-        // Re-render the cell with the validated value
-        const finalValue = validationResult.transformedValue ?? value
-        this.updateCell(container, finalValue, column, {})
-        container.classList.remove('vibegridx-cell-editing')
-      } else {
-        // Show validation error
-        fileLog.warn('Cell edit validation failed', {
-          columnId: column.id,
-          value,
-          errors: validationResult.errors,
-        })
-      }
-    } catch (error) {
-      fileLog.error('Error during cell edit save', { error, columnId: column.id })
-      // Revert to previous state
-      container.classList.remove('vibegridx-cell-editing')
-    }
-  }
-
-  /**
    * Check if cell needs async data loading
    */
   private needsAsyncData(value: any, column: CellFactoryColumn): boolean {
@@ -561,7 +443,7 @@ export class CellFactory {
         fieldType.asyncDataLoader &&
         typeof fieldType.asyncDataLoader.loadRelationshipData === 'function'
       ) {
-        const loadedData = await fieldType.asyncDataLoader.loadRelationshipData(
+        const _loadedData = await fieldType.asyncDataLoader.loadRelationshipData(
           column,
           [String(value)],
           {} as any, // TableCore$ - not needed for our simple case
@@ -585,7 +467,7 @@ export class CellFactory {
    * Update selection state for a cell
    */
   private updateSelectionState(
-    cellElement: HTMLElement,
+    _cellElement: HTMLElement,
     column: CellFactoryColumn,
     rowData: any,
   ): void {

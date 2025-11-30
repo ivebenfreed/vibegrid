@@ -308,7 +308,7 @@ export class VibeGridXCoordinateManager {
       return null
     }
 
-    const rowHeight = 40 // TODO: Get from config
+    const _rowHeight = 40 // TODO: Get from config
     const absoluteRowIndex = absolutePos.row
 
     // Check if row is in visible range (with buffer)

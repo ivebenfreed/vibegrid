@@ -12,7 +12,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -27,7 +26,7 @@ const logger = getLogger(
  * Text Cell Renderer
  */
 export class TextRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     logger.debug('📝 [FIELD-TEXT] Rendering text field', {
       columnId: column.id,
       fieldType: column.cellType || column.type,
@@ -145,13 +144,13 @@ export class TextRenderer implements CellRenderer {
 
     // Apply length limits from backend metadata if available
     if (column.validation?.maxLength && strValue.length > column.validation.maxLength) {
-      return strValue.substring(0, column.validation.maxLength) + '...'
+      return `${strValue.substring(0, column.validation.maxLength)}...`
     }
 
     // Apply display truncation
     const maxDisplayLength = column.display?.truncateAt || 100
     if (strValue.length > maxDisplayLength) {
-      return strValue.substring(0, maxDisplayLength) + '...'
+      return `${strValue.substring(0, maxDisplayLength)}...`
     }
 
     return strValue
@@ -193,7 +192,7 @@ export class TextRenderer implements CellRenderer {
     if (displayMetadata.truncateAt && element.textContent) {
       const text = element.textContent
       if (text.length > displayMetadata.truncateAt) {
-        element.textContent = text.substring(0, displayMetadata.truncateAt) + '...'
+        element.textContent = `${text.substring(0, displayMetadata.truncateAt)}...`
         element.title = text // Show full text on hover
       }
     }
@@ -308,7 +307,7 @@ export class TextEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     // Clean up event listeners and references
     this.currentElement = null
     this.onSaveCallback = null
@@ -390,7 +389,7 @@ export class TextEditor implements CellEditor {
  * Text Cell Formatter
  */
 export class TextFormatter implements CellFormatter {
-  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, _context?: FormattingContext): string {
     if (value == null) return ''
 
     const strValue = String(value)
@@ -410,7 +409,7 @@ export class TextFormatter implements CellFormatter {
     return strValue
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     return text.trim() === '' ? null : text.trim()
   }
 
@@ -418,7 +417,7 @@ export class TextFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     return value == null ? '' : String(value)
   }
 }
@@ -480,7 +479,7 @@ export const TextFieldType: VibeGridFieldType = {
   // 🚀 NEW: Simple formatter interface for pre-computation
   getFormatter(): (value: any, rowData?: any, column?: any) => string {
     const formatter = new TextFormatter()
-    return (value: any, rowData?: any, column?: any) => {
+    return (value: any, _rowData?: any, column?: any) => {
       return formatter.format(value, column)
     }
   },

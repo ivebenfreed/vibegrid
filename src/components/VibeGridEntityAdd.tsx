@@ -23,13 +23,6 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
@@ -72,7 +65,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Record<string, FieldValue>>({})
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
+  const [_hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
 
   // Get reactive data from MobX stores
   const columns = tableCoreStore.columns
@@ -176,7 +169,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       value !== null
     ) {
       const numValue = typeof value === 'string' ? parseFloat(value) : value
-      if (isNaN(numValue)) {
+      if (Number.isNaN(numValue)) {
         const errorMessage =
           validation?.messages?.custom?.INVALID_NUMBER || 'Please enter a valid number'
         return { isValid: false, error: errorMessage }
@@ -217,7 +210,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       formData,
       allFields: Object.keys(formData),
       invalidFields: Object.entries(formData)
-        .filter(([key, field]) => !field.isValid)
+        .filter(([_key, field]) => !field.isValid)
         .map(([key]) => key),
       isValid: Object.values(formData).every((field) => field.isValid),
     })
@@ -364,7 +357,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
 
           if (isSelectField) {
             // For select fields, we need to provide some common options based on the field
-            const getOptionsForField = (fieldId: string, fieldType: string) => {
+            const getOptionsForField = (fieldId: string, _fieldType: string) => {
               const lowerFieldId = fieldId.toLowerCase()
 
               if (lowerFieldId.includes('status')) {

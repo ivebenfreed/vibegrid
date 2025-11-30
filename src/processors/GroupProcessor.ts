@@ -7,12 +7,9 @@
 import { getLogger } from '@/shared/lib/logging'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 import type {
-  AggregationConfig,
-  CellType,
   Column,
   GroupAggregation,
   GroupConfig,
-  GroupField,
   GroupNode,
   TableRow,
   VirtualRow,
@@ -27,7 +24,7 @@ const fileLog = getLogger(['GroupProcessor'])
 
 const DATA_ROW_HEIGHT = 40
 const GROUP_ROW_HEIGHT = 44
-const SUMMARY_ROW_HEIGHT = 36
+const _SUMMARY_ROW_HEIGHT = 36
 
 // ====================================
 // GROUP TREE STRUCTURE
@@ -265,7 +262,7 @@ export class GroupProcessor {
     rows: TableRow[],
     columns: Column[],
     config: GroupConfig,
-    groupRowOrders?: Record<string, GroupRowOrderConfig>,
+    _groupRowOrders?: Record<string, GroupRowOrderConfig>,
   ): GroupNode[] {
     const buildLevel = (
       remainingRows: TableRow[],
@@ -371,8 +368,8 @@ export class GroupProcessor {
 
   private static calculateAggregations(
     groups: GroupNode[],
-    allRows: TableRow[],
-    columns: Column[],
+    _allRows: TableRow[],
+    _columns: Column[],
     config: GroupConfig,
   ): void {
     if (config.aggregations.length === 0) {
@@ -588,7 +585,7 @@ export class GroupProcessor {
     if (groupKey.startsWith('{') || groupKey.startsWith('[')) {
       try {
         return JSON.parse(groupKey)
-      } catch (e) {
+      } catch (_e) {
         // If JSON parsing fails, treat as string
         return groupKey
       }

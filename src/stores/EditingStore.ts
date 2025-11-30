@@ -148,7 +148,6 @@ export class EditingStore implements IStore {
   // ====================================
 
   private tableCoreStore: TableCoreStore
-  private visualStateStore: VisualStateStore
   private collection: any = null // TanStack DB collection for mutations
   private disposers = new DisposerManager()
 
@@ -599,7 +598,7 @@ export class EditingStore implements IStore {
    * @param value Value to validate
    */
   @action
-  validateEdit(value: any): void {
+  validateEdit(_value: any): void {
     if (!this.currentSession) {
       fileLog.warn('validateEdit called but no active session')
       return

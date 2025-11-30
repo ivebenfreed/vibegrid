@@ -21,7 +21,7 @@ import {
 } from '@/shared/components/ui/command'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
-import type { CellRef, Column, EnumOption, RelationshipContext } from '../../types'
+import type { CellRef, Column, RelationshipContext } from '../../types'
 import { getOptionIconDisplay } from '../../utils/icon-mapping'
 
 // TODO: Remove Legend State dependencies - not needed for this editor
@@ -108,7 +108,13 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
 
       loadOptions()
     }
-  }, [column.relationshipOptionsProvider, relationshipContext])
+  }, [
+    column.relationshipOptionsProvider,
+    relationshipContext,
+    column.id,
+    column.relationshipEntityType,
+    column.relationshipTable,
+  ])
 
   // Get options from column configuration or dynamic provider
   const options = React.useMemo(() => {
@@ -173,6 +179,9 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     column.nullLabel,
     column.relationshipOptionsProvider,
     dynamicOptions,
+    column.cellType,
+    column.id,
+    column,
   ])
 
   // Filter options based on search
@@ -184,6 +193,41 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
         option.value.toLowerCase().includes(searchValue.toLowerCase()),
     )
   }, [options, searchValue])
+
+  const handleCommit = (value: any) => {
+    if (hasCommitted) return
+
+    // Only commit if the value actually changed
+    if (value !== initialValue) {
+      setHasCommitted(true)
+      onCommit(value)
+    } else {
+      onCancel()
+    }
+  }
+
+  const handleSelect = (value: string) => {
+    if (isMultiSelect) {
+      // For multi-select, toggle the value in the array
+      const newValues = [...selectedValues]
+      const index = newValues.indexOf(value)
+
+      if (index >= 0) {
+        // Remove if already selected
+        newValues.splice(index, 1)
+      } else {
+        // Add if not selected
+        newValues.push(value)
+      }
+
+      setSelectedValues(newValues)
+      // Don't commit immediately for multi-select
+    } else {
+      // For single-select, just set the value and commit
+      const finalValue = value === '__null__' ? null : value
+      handleCommit(finalValue)
+    }
+  }
 
   // Handle keyboard navigation
   React.useEffect(() => {
@@ -238,44 +282,16 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [filteredOptions, highlightedIndex, initialValue, selectedValues, isMultiSelect])
-
-  const handleSelect = (value: string) => {
-    if (isMultiSelect) {
-      // For multi-select, toggle the value in the array
-      const newValues = [...selectedValues]
-      const index = newValues.indexOf(value)
-
-      if (index >= 0) {
-        // Remove if already selected
-        newValues.splice(index, 1)
-      } else {
-        // Add if not selected
-        newValues.push(value)
-      }
-
-      setSelectedValues(newValues)
-      // Don't commit immediately for multi-select
-    } else {
-      // For single-select, just set the value and commit
-      const finalValue = value === '__null__' ? null : value
-      handleCommit(finalValue)
-    }
-  }
-
-  const handleCommit = (value: any) => {
-    if (hasCommitted) return
-
-    // Only commit if the value actually changed
-    if (value !== initialValue) {
-      setHasCommitted(true)
-      onCommit(value)
-    } else {
-      // Value didn't change, just cancel the edit
-      setHasCommitted(true)
-      onCancel()
-    }
-  }
+  }, [
+    filteredOptions,
+    highlightedIndex,
+    initialValue,
+    selectedValues,
+    isMultiSelect,
+    handleCommit,
+    handleSelect,
+    onCancel,
+  ])
 
   const handleCancel = () => {
     if (hasCommitted) return
@@ -286,7 +302,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
   // Reset highlighted index when filtered options change
   React.useEffect(() => {
     setHighlightedIndex(0)
-  }, [filteredOptions])
+  }, [])
 
   return (
     <div className={cn('w-full h-full', className)}>
@@ -323,7 +339,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                 // Render grouped options
                 return sortedGroups.map((groupName) => (
                   <CommandGroup key={groupName} heading={groupName}>
-                    {grouped[groupName].map((option: any, groupIndex: any) => {
+                    {grouped[groupName].map((option: any, _groupIndex: any) => {
                       const globalIndex = filteredOptions.findIndex((o) => o.value === option.value)
                       return (
                         <CommandItem

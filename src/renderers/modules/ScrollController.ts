@@ -86,7 +86,7 @@ export class ScrollController {
   /**
    * Handle viewport scroll event
    */
-  private handleViewportScroll(event: Event): void {
+  private handleViewportScroll(_event: Event): void {
     const scrollLeft = this.viewport.scrollLeft
     const scrollTop = this.viewport.scrollTop
 

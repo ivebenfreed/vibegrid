@@ -1,10 +1,9 @@
-import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { getLogger } from '@/shared/lib/logging'
 import { isDropdownType as isDropdownCellType } from '../column-types'
 import type { CellRef, Column } from '../types'
 // Pure Observable architecture - no XState dependencies
-import { createEditor, type EditorProps } from './editors'
+import { createEditor } from './editors'
 import type { VisualCellPosition } from './OverlayTypes'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'EditingOverlay'])
@@ -98,7 +97,7 @@ export class EditingOverlay {
     cell: CellRef,
     column: Column,
     value: any,
-    validationErrors?: Map<string, string>,
+    _validationErrors?: Map<string, string>,
     mode?: 'single-click' | 'double-click' | 'keyboard',
     immediate?: boolean,
   ): void {
@@ -118,7 +117,7 @@ export class EditingOverlay {
       receivedValue: value,
       valueType: typeof value,
       valueLength: typeof value === 'string' ? value.length : 'N/A',
-      firstChars: typeof value === 'string' ? value.substring(0, 50) + '...' : value,
+      firstChars: typeof value === 'string' ? `${value.substring(0, 50)}...` : value,
       mode,
       immediate,
     })
@@ -387,7 +386,7 @@ export class EditingOverlay {
     // This prevents unnecessary re-renders on every keypress
   }
 
-  public updateValidationErrors(errors: Map<string, string>): void {
+  public updateValidationErrors(_errors: Map<string, string>): void {
     // Re-render with validation errors
     if (this.currentCell && this.currentColumn && this.currentValue !== null && this.root) {
       this.root.render(
@@ -414,7 +413,7 @@ export class EditingOverlay {
     }
   }
 
-  private addEditingIndicatorToCell(cell: CellRef, mode?: string): void {
+  private addEditingIndicatorToCell(cell: CellRef, _mode?: string): void {
     // Find the cell element and add an editing indicator
     const cellElement = document.querySelector(
       `[data-row-id="${cell.rowId}"][data-column-id="${cell.columnId}"]`,

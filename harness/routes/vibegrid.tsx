@@ -14,7 +14,7 @@ export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
 
 function DebugVibeGridPage() {
   const [entityType] = useState('WorkTask')
-  const [stats, setStats] = useState({
+  const [_stats, setStats] = useState({
     renders: 0,
     selections: 0,
     edits: 0,
@@ -56,7 +56,7 @@ function DebugVibeGridPage() {
                     setStats((s) => ({ ...s, edits: s.edits + 1 }))
                   }
                 }}
-                onPerformanceUpdate={(metrics) => {
+                onPerformanceUpdate={(_metrics) => {
                   setStats((s) => ({ ...s, renders: s.renders + 1 }))
                 }}
               />

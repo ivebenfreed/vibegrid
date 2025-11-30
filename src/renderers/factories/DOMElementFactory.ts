@@ -8,7 +8,7 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { SelectionController } from '../modules/SelectionController'
 
-const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'factories', 'DOMElementFactory.ts'])
+const _fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'factories', 'DOMElementFactory.ts'])
 
 const ROW_HEIGHT = 40
 const HEADER_HEIGHT = 48
@@ -58,12 +58,6 @@ export class DOMElementFactory {
 
     // Debug logging for missing group data
     if (!groupData) {
-      console.error('❌ Group row missing data!', {
-        rowIndex,
-        groupRowId: groupRow.id,
-        groupRowKeys: Object.keys(groupRow),
-        fullGroupRow: groupRow,
-      })
     }
 
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header')
@@ -347,7 +341,7 @@ export class DOMElementFactory {
   private createSortIconSVG(direction: 'asc' | 'desc' | null): string {
     const activeColor = '#3b82f6'
     const inactiveColor = '#9ca3af'
-    const hoverColor = '#6366f1'
+    const _hoverColor = '#6366f1'
 
     return `
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" class="vibegridx-sort-svg">

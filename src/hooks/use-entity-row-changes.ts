@@ -17,12 +17,6 @@
 // This file is disabled and will throw errors if used
 throw new Error('This file has not been migrated to MobX - see file header for details')
 
-// TODO: This hook needs to be migrated to MobX + TanStack DB when it's needed
-// Currently not used anywhere in the codebase
-// import { use$, useObserve } from '@legendapp/state/react';
-// import { observe } from '@legendapp/state';
-// import { entities$, universeSchema$, universeLoading$, getEntity$ } from '@/legend-state/observables';
-import React, { useCallback, useRef } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'hooks', 'use-entity-row-changes.ts'])

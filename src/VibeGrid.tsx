@@ -21,7 +21,7 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
+import { useVibeGridStores } from './stores/context'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -35,7 +35,7 @@ const logger = getLogger(['vibegrid', 'VibeGrid'])
 // COMPONENT PROPS
 // ====================================
 
-interface VibeGridProps<T = any> {
+interface VibeGridProps<_T = any> {
   tableId: string // Unique identifier for this table instance
   entityType: string // Entity type (determines data source)
   orgId?: string // Organization ID for multi-tenant support
@@ -306,7 +306,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           rowCount: rows?.length || 0,
         })
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+        const _errorMsg = err instanceof Error ? err.message : 'Unknown error'
         logger.error('❌ Failed to initialize VibeGrid', { err })
       }
     }
@@ -342,7 +342,20 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         rendererRef.current = null
       }
     }
-  }, [stores]) // Only depend on stores - MobX autorun handles columns readiness!
+  }, [
+    stores,
+    bufferSize,
+    enableSelectionColumn,
+    entityType,
+    onBatchEntityUpdate,
+    onCellClick,
+    onEntityUpdate,
+    rows?.length,
+    tableId,
+    updateEntity,
+    visualStateStore.columns.length,
+    visualStateStore.updateViewportDimensions,
+  ]) // Only depend on stores - MobX autorun handles columns readiness!
 
   // ====================================
   // DERIVED STATE

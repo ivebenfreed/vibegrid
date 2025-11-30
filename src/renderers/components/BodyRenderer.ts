@@ -14,7 +14,6 @@ import { reaction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 import type { InteractionStore } from '../../stores/InteractionStore'
-import type { TableViewport$ } from '../../stores/pure-observables'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
@@ -72,9 +71,6 @@ export class BodyRenderer {
   private dragDropManager?: DragDropManager
   private isGroupedMode: boolean = false
 
-  // Store context for potential drag selection
-  private lastClickedCell: { cellId: string; row: any; column: any } | null = null
-
   // Observer cleanup
   private selectionObserverDisposer?: () => void
 
@@ -87,7 +83,6 @@ export class BodyRenderer {
     lastRenderTime: 0,
     renderErrors: [] as string[],
   }
-  private renderTimeoutId?: number
 
   // NEW: Modular cell system support
   private modularCellBridge: any = null
@@ -232,7 +227,7 @@ export class BodyRenderer {
     }
 
     // startX now comes from visual state which already includes drag + checkbox columns (70px total)
-    const adjustedStartX = startX
+    const _adjustedStartX = startX
 
     // Add alternating row class for CSS styling (supports dark mode)
     if (rowIndex % 2 !== 0) {
@@ -585,28 +580,6 @@ export class BodyRenderer {
     return groupLabel
   }
 
-  /**
-   * Set up group header click handling
-   */
-  private setupGroupHeaderHandler(
-    rowElement: HTMLElement,
-    groupRow: any,
-    isExpanded: boolean,
-  ): void {
-    rowElement.addEventListener('click', (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-
-      fileLog.debug('🎯 Group header clicked', {
-        groupId: groupRow.id,
-        currentlyExpanded: isExpanded,
-      })
-
-      // Toggle group expansion via tableCore$
-      this.tableCoreStore.toggleGroupExpansion(groupRow.id)
-    })
-  }
-
   // ====================================
   // CELL RENDERING METHODS
   // ====================================
@@ -687,7 +660,7 @@ export class BodyRenderer {
     cellElement: HTMLElement,
     row: any,
     column: any,
-    value: any,
+    _value: any,
   ): void {
     // ✅ REMOVED: Old content click handler (now handled by CellActionRouter spatial detection)
     // CellActionRouter detects content vs padding clicks and routes accordingly:
@@ -1152,8 +1125,8 @@ export class BodyRenderer {
       rowsAffected: changedCells.size,
       cellsUpdated: updateCount,
       cellsFailed: failCount,
-      duration: duration.toFixed(2) + 'ms',
-      avgPerCell: updateCount > 0 ? (duration / updateCount).toFixed(2) + 'ms' : 'N/A',
+      duration: `${duration.toFixed(2)}ms`,
+      avgPerCell: updateCount > 0 ? `${(duration / updateCount).toFixed(2)}ms` : 'N/A',
     })
   }
 
@@ -1265,7 +1238,7 @@ export class CellFormatter {
     }
 
     if (type === 'number' || type === 'integer' || type === 'float' || type === 'decimal') {
-      return isNaN(Number(value))
+      return Number.isNaN(Number(value))
     }
 
     return false
@@ -1422,23 +1395,6 @@ export class CellFormatter {
 
     // Clean up context since interaction is complete
     this.lastClickedCell = null
-  }
-
-  // ====================================
-  // CELL RENDERING DEBUG METHODS
-  // ====================================
-
-  /**
-   * Schedule a health check to detect if cell rendering stalls
-   */
-  private scheduleRenderHealthCheck(): void {
-    // Clear any existing timeout
-    if (this.renderTimeoutId) {
-      clearTimeout(this.renderTimeoutId)
-    }
-
-    // Schedule new health check in 2 seconds
-    this.renderTimeoutId = window.setTimeout(() => {}, 2000)
   }
 
   /**
