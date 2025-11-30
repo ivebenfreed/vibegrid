@@ -9,11 +9,9 @@
 
 import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
-import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type {
   CellCoordinates,
   CellPositionMap,
-  CellRef,
   PositionChangeEvent,
   PositionUpdateHandler,
 } from '../types/coordinate-types'

@@ -27,11 +27,11 @@ export function createPureObservables(_config: any): any {
   throw new Error('createPureObservables has been removed - use MobX stores instead')
 }
 
-export function createTableCore$(config: any): any {
+export function createTableCore$(_config: any): any {
   throw new Error('createTableCore$ has been removed - use TableCoreStore instead')
 }
 
-export function createTableCoreSync$(config: any): any {
+export function createTableCoreSync$(_config: any): any {
   throw new Error('createTableCoreSync$ has been removed - use TableCoreStore instead')
 }
 
