@@ -503,7 +503,10 @@ export class VisualStateStore implements IStore {
     // Update coordinator with new layout
     this.updateCoordinatorWithCurrentLayout()
 
-    logger.info('Column visibility toggled (selection cleared)', { columnId, visible: newVisibility })
+    logger.info('Column visibility toggled (selection cleared)', {
+      columnId,
+      visible: newVisibility,
+    })
   }
 
   /**

@@ -250,7 +250,7 @@ export class ModularCellBridge {
    */
   requiresAsyncData(column: Column): boolean {
     const category = this.getFieldCategory(column)
-    return category === 'relationship'
+    return category === 'custom_entity_reference'
   }
 
   /**

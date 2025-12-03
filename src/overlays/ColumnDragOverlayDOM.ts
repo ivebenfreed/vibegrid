@@ -93,7 +93,9 @@ export class ColumnDragOverlayDOM {
       (col: any) => col.columnId === dragState.draggedColumnId,
     )
     if (!column) {
-      fileLog.warn('ColumnDragOverlayDOM: Column not found:', { draggedColumnId: dragState.draggedColumnId })
+      fileLog.warn('ColumnDragOverlayDOM: Column not found:', {
+        draggedColumnId: dragState.draggedColumnId,
+      })
       return
     }
 

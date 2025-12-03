@@ -82,7 +82,8 @@ export class KeyboardNavigationController {
         focusedCell,
         rowFound: currentRowIndex !== -1,
         colFound: currentColIndex !== -1,
-        reason: currentRowIndex === -1 ? 'Row not found (filtered/deleted)' : 'Column not found (hidden)',
+        reason:
+          currentRowIndex === -1 ? 'Row not found (filtered/deleted)' : 'Column not found (hidden)',
       })
 
       this.recoverFocus(processedRows, visibleColumns)

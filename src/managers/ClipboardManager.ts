@@ -481,7 +481,7 @@ export class ClipboardManager {
           return 'multi-select'
         case 'textarea':
           return 'text'
-        case 'datetime':
+        case 'datetime-local':
           return 'date'
         default:
           return type
@@ -527,7 +527,7 @@ export class ClipboardManager {
 
     // Special cases with detailed reasons
     if (!isCompatible) {
-      if (normSource === 'select' && normTarget === 'text') {
+      if (normSource === 'select' && normTarget === 'string') {
         return {
           sourceType,
           targetType,
@@ -536,7 +536,7 @@ export class ClipboardManager {
         }
       }
 
-      if (normSource === 'text' && normTarget === 'select') {
+      if (normSource === 'string' && normTarget === 'select') {
         return {
           sourceType,
           targetType,
@@ -545,7 +545,7 @@ export class ClipboardManager {
         }
       }
 
-      if (normSource === 'multi-select' && normTarget === 'text') {
+      if (normSource === 'multi-select' && normTarget === 'string') {
         return {
           sourceType,
           targetType,
@@ -687,7 +687,7 @@ export class ClipboardManager {
         }
         return String(value)
       case 'date':
-      case 'datetime':
+      case 'datetime-local':
         return value instanceof Date ? value.toISOString() : String(value)
       case 'currency':
         return typeof value === 'number' ? value.toString() : String(value)
@@ -1131,7 +1131,7 @@ export class ClipboardManager {
     // Handle null/undefined/empty values based on column type
     if (rawValue === null || rawValue === undefined || rawValue === '') {
       // For text fields, preserve empty string to avoid violating NOT NULL constraints
-      if (columnType === 'text' || columnType === 'textarea') {
+      if (columnType === 'string' || columnType === 'textarea') {
         return ''
       }
       // For other types, return null
@@ -1157,7 +1157,7 @@ export class ClipboardManager {
       case 'date':
         return this.processDateValue(stringValue)
 
-      case 'datetime':
+      case 'datetime-local':
         return this.processDateTimeValue(stringValue)
 
       case 'boolean':

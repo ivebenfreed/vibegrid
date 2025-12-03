@@ -73,7 +73,8 @@ export function GroupConfigPanel({
     return availableColumns.filter((col) => {
       const fieldType = col.type || 'text'
       return (
-        ['number', 'decimal', 'currency', 'percentage'].includes(fieldType) || fieldType === 'text'
+        ['number', 'decimal', 'currency', 'percentage'].includes(fieldType) ||
+        fieldType === 'string'
       ) // Text fields can be counted
     })
   }, [availableColumns])

@@ -40,7 +40,7 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Dates: normalize to ISO string
-  if (fieldType === 'date' || fieldType === 'datetime') {
+  if (fieldType === 'date' || fieldType === 'datetime-local') {
     if (value instanceof Date) return value.toISOString()
     if (typeof value === 'string') return value
     return null

@@ -163,7 +163,6 @@ export class DateRenderer implements CellRenderer {
       case 'date':
         return dateObj.toLocaleDateString()
 
-      case 'datetime':
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
@@ -339,7 +338,6 @@ export class DateEditor implements CellEditor {
 
   private getInputType(fieldType: string): string {
     switch (fieldType) {
-      case 'datetime':
       case 'datetime-local':
       case 'timestamp':
       case 'timestamptz':
@@ -367,9 +365,7 @@ export class DateEditor implements CellEditor {
       case 'date':
         return dateObj.toISOString().split('T')[0] // YYYY-MM-DD
 
-      case 'datetime':
       case 'datetime-local':
-      case 'timestamp':
       case 'timestamptz': {
         const isoString = dateObj.toISOString()
         return isoString.slice(0, 16) // YYYY-MM-DDTHH:MM
@@ -390,9 +386,7 @@ export class DateEditor implements CellEditor {
       case 'date':
         return new Date(value + 'T00:00:00.000Z')
 
-      case 'datetime':
       case 'datetime-local':
-      case 'timestamp':
       case 'timestamptz':
         return new Date(value)
 
@@ -531,10 +525,8 @@ export class DateFormatter implements CellFormatter {
       case 'date':
         return dateObj.toLocaleDateString(locale, options)
 
-      case 'datetime':
       case 'datetime-local':
       case 'timestamp':
-      case 'timestamptz':
         return dateObj.toLocaleString(locale, options)
 
       case 'time':

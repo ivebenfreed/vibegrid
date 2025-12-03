@@ -270,7 +270,7 @@ export class SchemaAdapter {
         break
 
       case 'date':
-      case 'datetime':
+      case 'datetime-local':
         defaultDisplay.width = 140
         break
 
@@ -303,7 +303,6 @@ export class SchemaAdapter {
 
     // Type-specific editor settings
     switch (type as string) {
-      case 'longtext':
       case 'textarea':
         defaultEditor.multiline = true
         defaultEditor.rows = 3
@@ -336,7 +335,7 @@ export class SchemaAdapter {
         defaultEditor.dateFormat = 'YYYY-MM-DD'
         break
 
-      case 'datetime':
+      case 'datetime-local':
         defaultEditor.dateFormat = 'YYYY-MM-DD'
         defaultEditor.timeFormat = 'HH:mm'
         defaultEditor.showTime = true
@@ -404,15 +403,13 @@ export class SchemaAdapter {
       case 'boolean':
         return 'boolean'
       case 'date':
-      case 'datetime':
+      case 'datetime-local':
         return 'date'
       case 'select':
       case 'single-select':
-      case 'enum':
         return 'select'
       case 'multi-select':
         return 'multi-select'
-      case 'longtext':
       case 'textarea':
       case 'markdown':
         return 'textarea'

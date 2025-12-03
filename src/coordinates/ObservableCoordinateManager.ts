@@ -219,7 +219,10 @@ export class ObservableCoordinateManager {
   /**
    * Get all visible cells in viewport
    */
-  getVisibleCells(selectedCells: Set<string>, viewport: ViewportInfo): Map<string, ViewportAwarePosition> {
+  getVisibleCells(
+    selectedCells: Set<string>,
+    viewport: ViewportInfo,
+  ): Map<string, ViewportAwarePosition> {
     return this.coordinator.getVisibleCells(selectedCells, viewport)
   }
 
@@ -254,10 +257,7 @@ export class ObservableCoordinateManager {
   /**
    * Move cell reference in a direction
    */
-  moveCellRef(
-    current: CellRef,
-    direction: 'up' | 'down' | 'left' | 'right',
-  ): CellRef | null {
+  moveCellRef(current: CellRef, direction: 'up' | 'down' | 'left' | 'right'): CellRef | null {
     return this.coordinator.moveCellRef(current, direction)
   }
 

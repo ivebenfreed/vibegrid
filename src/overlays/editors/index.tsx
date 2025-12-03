@@ -104,21 +104,18 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
   switch (cellType) {
     case 'text':
-    case 'string':
       fileLog.debug('createEditor: Creating TextEditor')
       return <TextEditor {...props} />
 
     case 'textarea':
       return <TextEditor {...props} multiline />
 
-    case 'longtext':
       // For longtext, use ModalTextEditor which opens the long text overlay
       fileLog.debug('createEditor: Using ModalTextEditor for longtext')
       return <ModalTextEditor {...props} editorType="longtext" />
 
     case 'richtext':
     case 'rich-text':
-    case 'rich_text':
       // For richtext, use ModalTextEditor which opens the rich text overlay
       fileLog.debug('createEditor: Using ModalTextEditor for richtext')
       return <ModalTextEditor {...props} editorType="richtext" />
@@ -131,7 +128,6 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
     case 'select':
     case 'single-select':
-    case 'enum':
       return <SelectEditor {...props} />
 
     case 'select-multi':
@@ -170,8 +166,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
     case 'date':
       return <DateEditor {...props} />
-
-    case 'datetime':
+    case 'datetime-local':
     case 'timestamp':
       return <DateEditor {...props} includeTime />
 
@@ -181,7 +176,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'url':
       return <TextEditor {...props} />
 
-    case 'relationship':
+    case 'custom_entity_reference':
     case 'relationship-single':
       return <SingleRelationshipEditor {...props} />
 
@@ -212,7 +207,6 @@ export function createEditor(props: EditorProps): React.ReactElement {
       return <RelationshipEditor {...props} />
 
     case 'entity_reference':
-    case 'custom_entity_reference':
       fileLog.debug('createEditor: Creating RelationshipEditor for entity reference', { cellType })
       return <RelationshipEditor {...props} />
 

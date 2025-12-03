@@ -366,7 +366,7 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
     case 'timestamp':
     case 'date':
       return 'date'
-    case 'datetime':
+    case 'datetime-local':
       return 'datetime'
 
     // Number types
@@ -381,10 +381,9 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
     // Text types
     case 'text':
       return 'text'
-    case 'longtext':
+    case 'textarea':
       return 'longtext'
     case 'rich-text':
-    case 'rich_text':
       return 'rich-text'
 
     // Boolean types

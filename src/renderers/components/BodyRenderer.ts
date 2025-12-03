@@ -1228,7 +1228,7 @@ export class CellFormatter {
       case 'boolean':
         return 'Not set'
       case 'date':
-      case 'datetime':
+      case 'datetime-local':
         return 'No date'
       case 'number':
       case 'integer':
@@ -1238,7 +1238,7 @@ export class CellFormatter {
         return '—'
       case 'tags':
         return 'No tags'
-      case 'enum':
+      case 'single-select':
       case 'select':
         return 'Select...'
       default:
@@ -1287,7 +1287,7 @@ export class CellFormatter {
         }
         return String(value)
 
-      case 'datetime':
+      case 'datetime-local':
         if (value instanceof Date) {
           return value.toISOString()
         }
@@ -1329,7 +1329,7 @@ export class CellFormatter {
         return value === 'true' || value === '1' || value === 'yes'
 
       case 'date':
-      case 'datetime':
+      case 'datetime-local':
         return new Date(value)
 
       case 'number':
