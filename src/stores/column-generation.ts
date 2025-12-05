@@ -82,6 +82,13 @@ export async function generateColumnsFromEntitySchema<T = any>(
 ): Promise<Column<T>[]> {
   fileLog.debug('🎯 Generating columns from entity schema', { entityType })
 
+  // Special case: Platform users (admin-only, not DataForge entities)
+  if (entityType === 'PlatformUser') {
+    fileLog.debug('🔑 Using platform user schema (system entity)', { entityType })
+    const { platformUserColumns } = await import('@/features/admin/schemas/platform-user-schema')
+    return platformUserColumns as any
+  }
+
   // Check if schema registry is ready
   if (schemaRegistry.isBootstrapping) {
     fileLog.debug('⏳ Schema registry still loading', { entityType })
