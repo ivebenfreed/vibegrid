@@ -2,7 +2,7 @@
 // VIBEGRIDX - COMPLETE POC EXPORT
 // ====================================
 
-export type { VibeGridProps } from './VibeGrid'
+export type { VibeGridProps, RowAction } from './VibeGrid'
 // Main component
 export { VibeGrid } from './VibeGrid'
 
