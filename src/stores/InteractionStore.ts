@@ -70,6 +70,12 @@ export interface GroupConfigMenuState {
   isOpen: boolean
 }
 
+export interface RowActionMenuState {
+  isOpen: boolean
+  position: { x: number; y: number }
+  rowId: string | null
+}
+
 export interface ClipboardState {
   data: any[][] | null
   operation: 'copy' | 'cut' | null
@@ -207,6 +213,12 @@ export class InteractionStore implements IStore {
     isOpen: false,
   }
 
+  @observable rowActionMenuState: RowActionMenuState = {
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    rowId: null,
+  }
+
   // ====================================
   // CLIPBOARD STATE
   // ====================================
@@ -310,6 +322,7 @@ export class InteractionStore implements IStore {
     }
     this.columnVisibilityMenuState = { isOpen: false, searchValue: '' }
     this.groupConfigMenuState = { isOpen: false }
+    this.rowActionMenuState = { isOpen: false, position: { x: 0, y: 0 }, rowId: null }
     this.clipboard = null
     logger.info('InteractionStore reset to defaults')
   }
@@ -1184,6 +1197,35 @@ export class InteractionStore implements IStore {
     }
 
     logger.info('Group config menu closed')
+  }
+
+  @action
+  openRowActionMenu(rowId: string, position: { x: number; y: number }): void {
+    // Close other menus first
+    this.headerMenuState.openMenu = null
+    this.contextMenuState.isOpen = false
+    this.columnVisibilityMenuState.isOpen = false
+    this.groupConfigMenuState.isOpen = false
+
+    // Open row action menu
+    this.rowActionMenuState = {
+      isOpen: true,
+      position,
+      rowId,
+    }
+
+    logger.info('Row action menu opened', { rowId, position })
+  }
+
+  @action
+  closeRowActionMenu(): void {
+    this.rowActionMenuState = {
+      isOpen: false,
+      position: { x: 0, y: 0 },
+      rowId: null,
+    }
+
+    logger.info('Row action menu closed')
   }
 
   // ====================================

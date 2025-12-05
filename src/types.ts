@@ -138,6 +138,9 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options'> {
   className?: string
   style?: Record<string, any>
 
+  // Primary field marker (uses entity-name field type with pencil icon)
+  isPrimaryField?: boolean
+
   // Additional text renderer options
   minLength?: number
   pattern?: string

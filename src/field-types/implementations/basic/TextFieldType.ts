@@ -37,18 +37,15 @@ export class TextRenderer implements CellRenderer {
     const container = document.createElement('span')
     const fieldType = column.cellType || column.type || 'text'
 
-    // Set appropriate CSS class based on editability (plain text hover pattern)
-    const hoverClass =
-      column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable'
-    container.className = `vibegridx-cell-${fieldType} ${hoverClass}`
+    // Set base class only - CellFactory will append -editable if needed
+    container.className = `vibegridx-cell-${fieldType}`
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
+      container.className = 'vibegridx-cell-empty'
       if (column.editable === false) {
-        container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container

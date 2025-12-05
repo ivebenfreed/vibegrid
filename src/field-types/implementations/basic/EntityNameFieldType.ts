@@ -127,7 +127,13 @@ export class EntityNameRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    // Handle columns named 'name' or 'title'
+    // Priority 1: If isPrimaryField is explicitly set, respect that
+    const isPrimary = (column as any).isPrimaryField
+    if (isPrimary !== undefined) {
+      return isPrimary === true
+    }
+
+    // Priority 2: Auto-detect columns named 'name' or 'title' (legacy behavior)
     const columnId = column.id?.toLowerCase() || ''
     return columnId === 'name' || columnId === 'title'
   }

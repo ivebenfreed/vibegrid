@@ -19,6 +19,7 @@ import { membersCollection } from '@/shared/data/db/collections/member-collectio
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
+import { ActionsBar } from './components/ActionsBar'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
@@ -30,6 +31,19 @@ import './vibegridx.css'
 import './utils/logging-presets'
 
 const logger = getLogger(['vibegrid', 'VibeGrid'])
+
+// ====================================
+// ROW ACTION TYPES
+// ====================================
+
+export interface RowAction {
+  id: string
+  label: string
+  icon?: React.ComponentType<{ className?: string }>
+  onClick?: (rowData: any) => void | Promise<void>
+  destructive?: boolean // Red color, requires confirmation
+  hidden?: (rowData: any) => boolean // Conditional visibility
+}
 
 // ====================================
 // COMPONENT PROPS
@@ -55,6 +69,15 @@ interface VibeGridProps<T = any> {
   onBatchEntityUpdate?: (
     updates: Array<{ id: string; updates: Record<string, any> }>,
   ) => Promise<void> | void
+
+  // Row actions (optional)
+  rowActions?: RowAction[]
+  onRowAction?: (actionId: string, rowIds: string[], rowsData: any[]) => void | Promise<void>
+
+  // Built-in delete action (optional)
+  enableDelete?: boolean
+  onDelete?: (rowIds: string[], rowsData: any[]) => Promise<void>
+  deleteConfirmation?: (rowsData: any[]) => string | React.ReactNode
 
   // Performance options
   enableVirtualScrolling?: boolean
@@ -88,6 +111,11 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     onPerformanceUpdate,
     onEntityUpdate,
     onBatchEntityUpdate,
+    rowActions,
+    onRowAction,
+    enableDelete,
+    onDelete,
+    deleteConfirmation,
     enableVirtualScrolling = true,
     bufferSize = 10,
     enableGrouping = true,
@@ -345,6 +373,15 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   }, [stores]) // Only depend on stores - MobX autorun handles columns readiness!
 
   // ====================================
+  // ROW ACTIONS HELPER
+  // ====================================
+
+  // Helper function to get row data by ID
+  const getRowData = (rowId: string) => {
+    return tableCoreStore.processedRows.find((row) => row.id === rowId)
+  }
+
+  // ====================================
   // DERIVED STATE
   // ====================================
 
@@ -425,6 +462,18 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
             outline: 'none',
           }}
         />
+
+        {/* Actions bar - appears when rows are selected */}
+        {enableSelectionColumn && (rowActions || enableDelete) && (
+          <ActionsBar
+            rowActions={rowActions}
+            onRowAction={onRowAction}
+            enableDelete={enableDelete}
+            onDelete={onDelete}
+            deleteConfirmation={deleteConfirmation}
+            getRowData={getRowData}
+          />
+        )}
       </div>
 
       {/* Debug info in development - removed to avoid MobX tracking */}
