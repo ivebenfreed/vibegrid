@@ -2,6 +2,7 @@
  * Slider Field Type - Range slider with min/max/step controls
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -14,6 +15,12 @@ import type {
 export class SliderRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'toggle' : 'none'
+    container.dataset.affordanceRole = 'control'
+
     container.className = 'vibegridx-cell-slider'
     container.style.cssText = 'display: flex; align-items: center; gap: 8px; width: 100%;'
 
@@ -166,6 +173,12 @@ export const SliderFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'toggle-control',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

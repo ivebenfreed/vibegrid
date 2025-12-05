@@ -2,6 +2,7 @@
 
 /* Import additional styles */
 @import "./vibegridx-cells.css";
+@import "./affordances/affordances.css";
 
 /* CSS Variables for dynamic configuration */
 :root {

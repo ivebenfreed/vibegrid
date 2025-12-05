@@ -5,6 +5,7 @@
  * and proper formatting. Integrates with backend Enhanced Field Handler metadata.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -23,16 +24,16 @@ import type {
 export class EmailRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
-    container.className =
-      column.editable === false ? 'vibegridx-cell-email' : 'vibegridx-cell-email-editable'
+    const isEditable = column.editable !== false
+    container.className = isEditable ? 'vibegridx-cell-email-editable' : 'vibegridx-cell-email'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -42,10 +43,13 @@ export class EmailRenderer implements CellRenderer {
     const displayValue = this.formatValue(value, column)
     container.textContent = displayValue
 
+    // Add affordance for the navigate action (email link)
+    container.dataset.affordance = 'navigate'
+    container.dataset.affordanceRole = 'link'
+
     // Apply email-specific styling
     container.style.color = '#2563eb' // Blue for email links
     container.style.textDecoration = 'none'
-    container.style.cursor = 'pointer'
 
     // Store email href for coordinator to handle (no stopPropagation)
     container.dataset.emailHref = `mailto:${displayValue}`
@@ -69,7 +73,7 @@ export class EmailRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -367,6 +371,12 @@ export const EmailFieldType: VibeGridFieldType = {
     editTrigger: 'icon', // Click icon to edit (e.g., pencil icon)
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'link-only', // Navigate to mailto: URL
+    whenNotEditable: 'link-only', // Still navigable when not editable
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

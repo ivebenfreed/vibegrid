@@ -354,7 +354,8 @@ export class VisualStateStore implements IStore {
   @action
   initialize(columns: Column[], entityType: string, orgId: string, userId: string): void {
     const defaultWidths = Object.fromEntries(columns.map((col) => [col.id, col.width || 150]))
-    const defaultVisibility = Object.fromEntries(columns.map((col) => [col.id, true]))
+    // Respect column.hidden property - hide columns marked as hidden by default
+    const defaultVisibility = Object.fromEntries(columns.map((col) => [col.id, !col.hidden]))
     const defaultOrder = columns.map((col) => col.id)
 
     this.columns = columns
@@ -386,10 +387,9 @@ export class VisualStateStore implements IStore {
     // We should only apply defaults for values that haven't been loaded yet.
     // Check if values already exist before overwriting them.
 
-    // Only set columns if not already set
-    if (this.columns.length === 0) {
-      this.columns = columns
-    }
+    // Always update columns from schema (schema is source of truth for column definitions)
+    // This ensures new columns get added when schema changes
+    this.columns = columns
 
     // Only set columnWidths if empty (PersistenceStore may have already loaded them)
     if (Object.keys(this.columnWidths).length === 0) {
@@ -398,12 +398,33 @@ export class VisualStateStore implements IStore {
 
     // Only set columnVisibility if empty (PersistenceStore may have already loaded them)
     if (Object.keys(this.columnVisibility).length === 0) {
-      this.columnVisibility = Object.fromEntries(columns.map((col) => [col.id, true]))
+      // Respect column.hidden property - hide columns marked as hidden by default
+      this.columnVisibility = Object.fromEntries(columns.map((col) => [col.id, !col.hidden]))
     }
 
-    // Only set columnOrder if empty (PersistenceStore may have already loaded it)
+    // Handle columnOrder - merge new columns that exist in schema but not in saved order
     if (this.columnOrder.length === 0) {
+      // No saved order - use schema order
       this.columnOrder = columns.map((col) => col.id)
+    } else {
+      // Merge new columns: add any columns from schema that aren't in saved order
+      const savedOrderSet = new Set(this.columnOrder)
+      const newColumns = columns.filter((col) => !savedOrderSet.has(col.id)).map((col) => col.id)
+      if (newColumns.length > 0) {
+        // Append new columns to the end of the order
+        this.columnOrder = [...this.columnOrder, ...newColumns]
+        logger.info('Added new columns to order', { newColumns })
+      }
+
+      // Also add new columns to columnVisibility with default values
+      for (const col of columns) {
+        if (this.columnVisibility[col.id] === undefined) {
+          this.columnVisibility[col.id] = !col.hidden
+        }
+        if (this.columnWidths[col.id] === undefined) {
+          this.columnWidths[col.id] = col.width || 150
+        }
+      }
     }
 
     // Only set groupConfig if null (PersistenceStore may have already loaded it)

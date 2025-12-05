@@ -6,6 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import { affordanceResolver } from '../affordances'
 import type {
   EnhancedColumn,
   FieldTypeRegistry,
@@ -192,6 +193,9 @@ export class CellFactory {
     rowData: any,
     fieldType: VibeGridFieldType,
   ): HTMLElement {
+    // Apply affordance system container attributes
+    this.applyAffordanceAttributes(container, column, fieldType)
+
     // Create content directly in container (VibeGrid structure)
     // Container already has proper padding and flex layout from createContainer
     const content = fieldType.renderer.render(value, column, rowData)
@@ -207,6 +211,32 @@ export class CellFactory {
     // Editing now handled by CellActionRouter via spatial click detection
 
     return container
+  }
+
+  /**
+   * Apply affordance system data attributes to cell container
+   *
+   * These attributes drive CSS cursor/hover behavior and inform CellActionRouter
+   * about what action to take when the cell is clicked.
+   */
+  private applyAffordanceAttributes(
+    container: HTMLElement,
+    column: CellFactoryColumn,
+    fieldType: VibeGridFieldType,
+  ): void {
+    const resolved = affordanceResolver.resolve(fieldType, column)
+    const attrs = affordanceResolver.getDataAttributes(resolved)
+
+    // Apply container attributes
+    for (const [key, value] of Object.entries(attrs.container)) {
+      container.setAttribute(key, value)
+    }
+
+    fileLog.debug('🎯 [AFFORDANCE] Applied container attributes', {
+      columnId: column.id,
+      groupName: resolved.groupName,
+      isEditable: resolved.isEditable,
+    })
   }
 
   /**

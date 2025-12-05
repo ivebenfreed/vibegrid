@@ -8,6 +8,7 @@
 import { reaction } from 'mobx'
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
 import type {
   AsyncDataLoader,
@@ -155,15 +156,21 @@ export class UserReferenceRenderer implements CellRenderer {
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'badge'
+
     container.className = 'vibegridx-user-reference'
-    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden; cursor: pointer;'
+    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden;'
 
     if (!value) {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -250,7 +257,7 @@ export class UserReferenceRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -288,12 +295,9 @@ export class UserReferenceRenderer implements CellRenderer {
   }
 
   private createUserBadgeHTML(displayName: string, initials: string): string {
-    // Determine if badge is editable based on column context
-    // For now, assume editable - will be refined with column.editable check
-    const hoverClass = 'vibegridx-badge-editable'
-
+    // Badge styling - cursor/hover controlled by affordance system
     return `
-      <div class="vibegridx-user-badge ${hoverClass}" data-action="edit" title="${displayName}" style="
+      <div class="vibegridx-user-badge" data-action="edit" title="${displayName}" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -731,6 +735,12 @@ export const UserReferenceFieldType: VibeGridFieldType = {
     editTrigger: 'content-click', // Click badge to open picker (padding = selection only)
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-badge',
+    whenNotEditable: 'readonly-badge',
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

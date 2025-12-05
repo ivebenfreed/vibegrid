@@ -4,6 +4,7 @@
  * Handles file field types with upload, preview, and metadata display.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -25,15 +26,21 @@ interface FileValue {
 export class FileRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'badge'
+
     container.className = 'vibegridx-cell-file'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -47,15 +54,21 @@ export class FileRenderer implements CellRenderer {
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+    const isEditable = column.editable !== false
+
+    // Update affordance attributes
+    element.dataset.affordance = isEditable ? 'edit' : 'none'
+    element.dataset.affordanceRole = 'badge'
+
     element.className = 'vibegridx-cell-file'
 
     // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -297,6 +310,12 @@ export const FileFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-badge',
+    whenNotEditable: 'readonly-badge',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

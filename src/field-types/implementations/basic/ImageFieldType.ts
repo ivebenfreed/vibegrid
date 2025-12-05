@@ -2,6 +2,7 @@
  * Image Field Type - Image upload with preview and format validation
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -13,6 +14,12 @@ import type {
 export class ImageRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'badge'
+
     container.className = 'vibegridx-cell-image'
     container.style.cssText = 'display: flex; align-items: center; gap: 6px; height: 100%;'
 
@@ -95,6 +102,12 @@ export const ImageFieldType: VibeGridFieldType = {
     requiresSpecialEditor: true,
     hasRichDisplay: true,
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-badge',
+    whenNotEditable: 'readonly-badge',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

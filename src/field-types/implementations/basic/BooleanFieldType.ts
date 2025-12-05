@@ -5,6 +5,7 @@
  * Integrates with backend Enhanced Field Handler metadata.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -30,23 +31,22 @@ export class BooleanRenderer implements CellRenderer {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
     }
 
-    // Determine hover class based on editability
-    const hoverClass =
-      column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable'
-    container.className = `vibegridx-boolean-badge ${hoverClass}`
+    // Boolean badges use affordance system for cursor/hover
+    container.className = 'vibegridx-boolean-badge'
 
     // Format value for display
     const boolValue = this.parseBoolean(value)
     const displayValue = this.formatValue(value, column)
+    const isEditable = column.editable !== false
 
     // Create boolean badge
-    container.innerHTML = this.createBooleanBadge(displayValue, boolValue)
+    container.innerHTML = this.createBooleanBadge(displayValue, boolValue, isEditable)
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -56,7 +56,11 @@ export class BooleanRenderer implements CellRenderer {
     return container
   }
 
-  private createBooleanBadge(displayValue: string, boolValue: boolean | null): string {
+  private createBooleanBadge(
+    displayValue: string,
+    boolValue: boolean | null,
+    isEditable: boolean,
+  ): string {
     // Determine colors based on boolean value
     let backgroundColor = '#f3f4f6'
     let textColor = '#6b7280'
@@ -72,8 +76,9 @@ export class BooleanRenderer implements CellRenderer {
       icon = '✗'
     }
 
+    const affordance = isEditable ? 'toggle' : 'none'
     return `
-      <div style="
+      <div data-affordance="${affordance}" data-affordance-role="control" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -111,7 +116,7 @@ export class BooleanRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -478,7 +483,7 @@ export class BooleanValidator implements CellValidator {
 /**
  * Boolean Field Type Definition
  */
-export const BooleanFieldType: VibeGridFieldType = {
+export const BooleanFieldType: VibeGridFieldType & { affordance: FieldTypeAffordance } = {
   type: 'boolean',
   category: 'basic',
   renderer: new BooleanRenderer(),
@@ -495,15 +500,22 @@ export const BooleanFieldType: VibeGridFieldType = {
     supportsValidation: true,
     supportsFormatting: true,
   },
+
+  // 🎯 Affordance declaration - toggle control that changes value on click
+  affordance: {
+    group: 'toggle-control', // Checkbox/toggle with pointer cursor
+    whenNotEditable: 'readonly-display', // Read-only display
+  },
+
   getFormatter() {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
-  // 🚀 Interaction policy
+  // 🚀 Interaction policy (legacy - being replaced by affordance system)
   interactionPolicy: {
     defaultAction: 'edit', // Boolean fields are for editing
-    editTrigger: 'content-click', // ✅ Click content to edit, click padding to select
+    editTrigger: 'content-click', // Click content to edit, click padding to select
     blurPolicy: 'commit', // Save on blur
   },
 }

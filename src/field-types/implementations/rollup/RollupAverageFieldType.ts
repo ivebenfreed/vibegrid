@@ -2,6 +2,7 @@
  * Rollup Average Field Type - Frontend calculated averages
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import { RollupAverageCalculator } from '../../../managers/RollupCalculationManager'
 import type {
   CellEditor,
@@ -16,6 +17,11 @@ export class RollupAverageRenderer implements CellRenderer {
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+
+    // Rollup fields are always read-only
+    container.dataset.affordance = 'none'
+    container.dataset.affordanceRole = 'content'
+
     container.className = 'vibegridx-rollup-average'
 
     let displayValue = value
@@ -91,6 +97,12 @@ export const RollupAverageFieldType: VibeGridFieldType = {
     isReadOnly: true,
     hasRichDisplay: true,
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'readonly-display',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

@@ -7,6 +7,7 @@
 
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import { getOptionIconDisplay } from '../../../utils/icon-mapping'
 import type {
   CellEditor,
@@ -52,7 +53,7 @@ export class SelectRenderer implements CellRenderer {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -79,7 +80,7 @@ export class SelectRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return
@@ -118,14 +119,14 @@ export class SelectRenderer implements CellRenderer {
     if (option) {
       // Create badge element (content that triggers edit)
       const badge = document.createElement('span')
+      const isEditable = column.editable !== false
 
-      // ✅ Explicit action: clicking badge opens dropdown
-      badge.dataset.action = 'edit'
+      // ✅ Affordance data attributes for cursor/hover behavior
+      badge.dataset.affordance = isEditable ? 'edit' : 'none'
+      badge.dataset.affordanceRole = 'badge'
 
-      // Add hover class for dropdown indicator (editable badges get larger scale)
-      const hoverClass =
-        column.editable !== false ? 'vibegridx-badge-dropdown' : 'vibegridx-badge-readonly'
-      badge.className = `vibegridx-enum-badge ${hoverClass}`
+      // Badge styling - cursor/hover controlled by data-affordance attributes
+      badge.className = 'vibegridx-enum-badge'
 
       // Apply badge styling
       badge.textContent = option.label
@@ -141,8 +142,8 @@ export class SelectRenderer implements CellRenderer {
         background-color: ${option.backgroundColor || '#f3f4f6'};
         color: ${option.color || '#374151'};
         border: 1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'};
-        cursor: pointer;
       `
+      // cursor is now controlled by CSS via data-affordance attribute
 
       if (option.icon) {
         const iconSymbol = getOptionIconDisplay(option.icon)
@@ -184,17 +185,21 @@ export class SelectRenderer implements CellRenderer {
       return container
     }
 
+    const isEditable = column.editable !== false
     values.forEach((value) => {
       const option = this.findOption(value, column)
       if (option) {
-        const badge = this.createOptionBadge(option)
+        const badge = this.createOptionBadge(option, isEditable)
         badge.style.fontSize = '11px' // Smaller for multi-select
         container.appendChild(badge)
       } else {
-        const unknownBadge = this.createOptionBadge({
-          value: String(value),
-          label: String(value),
-        })
+        const unknownBadge = this.createOptionBadge(
+          {
+            value: String(value),
+            label: String(value),
+          },
+          isEditable,
+        )
         unknownBadge.style.opacity = '0.7'
         unknownBadge.style.fontStyle = 'italic'
         container.appendChild(unknownBadge)
@@ -204,13 +209,14 @@ export class SelectRenderer implements CellRenderer {
     return container
   }
 
-  private createOptionBadge(option: SelectOption): HTMLElement {
+  private createOptionBadge(option: SelectOption, isEditable = true): HTMLElement {
     const badge = document.createElement('span')
     badge.className = 'vibegridx-select-badge'
     badge.textContent = option.label
 
-    // ✅ Explicit action: clicking badge opens dropdown (multi-select will handle multiple values)
-    badge.dataset.action = 'edit'
+    // ✅ Affordance data attributes for cursor/hover behavior
+    badge.dataset.affordance = isEditable ? 'edit' : 'none'
+    badge.dataset.affordanceRole = 'badge'
 
     badge.style.cssText = `
       display: inline-flex;
@@ -224,8 +230,8 @@ export class SelectRenderer implements CellRenderer {
       background-color: ${option.backgroundColor || '#f3f4f6'};
       color: ${option.color || '#374151'};
       border: 1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'};
-      cursor: pointer;
     `
+    // cursor is now controlled by CSS via data-affordance attribute
 
     if (option.icon) {
       const iconSymbol = getOptionIconDisplay(option.icon)
@@ -651,7 +657,7 @@ export class SelectValidator implements CellValidator {
 /**
  * Select Field Type Definition
  */
-export const SelectFieldType: VibeGridFieldType = {
+export const SelectFieldType: VibeGridFieldType & { affordance: FieldTypeAffordance } = {
   type: 'select',
   category: 'basic',
   renderer: new SelectRenderer(),
@@ -669,7 +675,13 @@ export const SelectFieldType: VibeGridFieldType = {
     supportsFormatting: true,
   },
 
-  // 🚀 NEW: Simple formatter interface for pre-computation
+  // 🎯 Affordance declaration - badge that opens dropdown on click
+  affordance: {
+    group: 'editable-badge', // Badge with scale hover effect, pointer cursor
+    whenNotEditable: 'readonly-badge', // Badge without interaction (subtle brightness hover)
+  },
+
+  // 🚀 Simple formatter interface for pre-computation
   getFormatter(): (value: any, rowData?: any, column?: any) => string {
     const formatter = new SelectFormatter()
     return (value: any, rowData?: any, column?: any) => {
@@ -698,7 +710,7 @@ export const SelectFieldType: VibeGridFieldType = {
     return new SelectEditor()
   },
 
-  // 🚀 Interaction policy
+  // 🚀 Interaction policy (legacy - being replaced by affordance system)
   interactionPolicy: {
     defaultAction: 'edit', // Select fields open dropdown on click
     editTrigger: 'content-click', // Click badge content to open dropdown (padding = selection only)

@@ -5,6 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -23,19 +24,22 @@ import type {
 export class NumberRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
+    const isEditable = column.editable !== false
 
-    // Add hover class based on editability (plain text hover pattern)
-    const hoverClass =
-      column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable'
-    container.className = `vibegridx-cell-number ${hoverClass}`
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'content'
+
+    // Number cells use affordance system for cursor/hover
+    container.className = 'vibegridx-cell-number'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -59,17 +63,22 @@ export class NumberRenderer implements CellRenderer {
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+    const isEditable = column.editable !== false
+
+    // Update affordance attributes
+    element.dataset.affordance = isEditable ? 'edit' : 'none'
+    element.dataset.affordanceRole = 'content'
+
     // Clear existing content
-    element.className =
-      column.editable === false ? 'vibegridx-cell-number' : 'vibegridx-cell-number-editable'
+    element.className = isEditable ? 'vibegridx-cell-number-editable' : 'vibegridx-cell-number'
 
     // Handle empty values
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         element.className += ' vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className += ' vibegridx-cell-empty vibegridx-text-editable'
+        element.className += ' vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -487,6 +496,12 @@ export const NumberFieldType: VibeGridFieldType = {
     editTrigger: 'content-click', // ✅ Click content to edit, click padding to select
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-content',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

@@ -14,6 +14,7 @@
 
 import { untracked } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
+import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 import type { CellActionRouter } from '../routing/CellActionRouter'
 import type { EditingStore } from '../stores/EditingStore'
 import type { SelectionService } from '../services/SelectionService'
@@ -147,12 +148,15 @@ export class InteractionCoordinator {
       return
     }
 
+    // Get field type - either from column or lookup from registry
+    const fieldType = column.fieldType || fieldTypeRegistry.getFieldType(column as any)
+
     // Delegate to action router
     this.cellActionRouter.route({
       cellId,
       row: cellData.row,
       column,
-      fieldPolicy: column.fieldType?.interactionPolicy,
+      fieldPolicy: fieldType?.interactionPolicy,
       target,
       modifiers,
       nativeEvent,
@@ -186,12 +190,15 @@ export class InteractionCoordinator {
       return
     }
 
+    // Get field type - either from column or lookup from registry
+    const fieldType = column.fieldType || fieldTypeRegistry.getFieldType(column as any)
+
     // Check if field policy uses double-click trigger
-    const policy = column.fieldType?.interactionPolicy
+    const policy = fieldType?.interactionPolicy
     if (policy?.editTrigger === 'double-click') {
       fileLog.debug('Starting edit via double-click policy', {
         cellId,
-        fieldType: column.fieldType?.id,
+        fieldType: fieldType?.type,
       })
       this.editingStore.startEdit(cellId, column)
     }

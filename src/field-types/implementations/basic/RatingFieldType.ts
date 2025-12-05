@@ -2,6 +2,7 @@
  * Rating Field Type Implementation - Star ratings with configurable max
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -14,6 +15,12 @@ import type {
 export class RatingRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'toggle' : 'none'
+    container.dataset.affordanceRole = 'control'
+
     container.className = 'vibegridx-cell-rating'
     container.style.cssText = 'display: flex; align-items: center; gap: 2px;'
 
@@ -173,6 +180,12 @@ export const RatingFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'toggle-control',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

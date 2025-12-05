@@ -7,6 +7,7 @@
 
 import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -35,24 +36,23 @@ export class DateRenderer implements CellRenderer {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
     }
 
-    // Determine hover class based on editability
-    const hoverClass =
-      column.editable === false ? 'vibegridx-badge-readonly' : 'vibegridx-badge-editable'
-    container.className = `vibegridx-date-badge ${hoverClass}`
+    // Date badges use affordance system for cursor/hover
+    container.className = 'vibegridx-date-badge'
 
     // Use the exact same formatting as original BodyRenderer
     const cellType = column.cellType || column.type || 'date'
     const displayValue = this.formatCellValue(value, cellType, column)
+    const isEditable = column.editable !== false
 
     // Create badge with calendar icon
     const dateType = this.getDateType(cellType)
-    container.innerHTML = this.createDateBadge(displayValue, dateType)
+    container.innerHTML = this.createDateBadge(displayValue, dateType, isEditable)
 
     // Apply backend display metadata if available
     if (column.display) {
@@ -69,9 +69,14 @@ export class DateRenderer implements CellRenderer {
     return 'date'
   }
 
-  private createDateBadge(displayValue: string, type: 'date' | 'datetime' | 'time'): string {
+  private createDateBadge(
+    displayValue: string,
+    type: 'date' | 'datetime' | 'time',
+    isEditable: boolean,
+  ): string {
+    const affordance = isEditable ? 'edit' : 'none'
     return `
-      <div style="
+      <div data-affordance="${affordance}" data-affordance-role="badge" style="
         display: inline-flex;
         align-items: center;
         padding: 4px 8px;
@@ -85,7 +90,6 @@ export class DateRenderer implements CellRenderer {
         max-width: 100%;
         min-width: 0;
         font-variant-numeric: tabular-nums;
-        cursor: pointer;
         user-select: none;
       ">
         <span style="
@@ -110,7 +114,7 @@ export class DateRenderer implements CellRenderer {
         element.className += ' vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className += ' vibegridx-cell-empty vibegridx-text-editable'
+        element.className += ' vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -607,7 +611,7 @@ export class DateValidator implements CellValidator {
 /**
  * Date Field Type Definition
  */
-export const DateFieldType: VibeGridFieldType = {
+export const DateFieldType: VibeGridFieldType & { affordance: FieldTypeAffordance } = {
   type: 'date',
   category: 'basic',
   renderer: new DateRenderer(),
@@ -624,12 +628,19 @@ export const DateFieldType: VibeGridFieldType = {
     supportsValidation: true,
     supportsFormatting: true,
   },
+
+  // 🎯 Affordance declaration - badge that opens date picker on click
+  affordance: {
+    group: 'editable-badge', // Badge with scale hover effect, pointer cursor
+    whenNotEditable: 'readonly-badge', // Badge without interaction
+  },
+
   getFormatter() {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
 
-  // 🚀 Interaction policy
+  // 🚀 Interaction policy (legacy - being replaced by affordance system)
   interactionPolicy: {
     defaultAction: 'edit', // Date fields are for editing
     editTrigger: 'content-click', // Click content to edit

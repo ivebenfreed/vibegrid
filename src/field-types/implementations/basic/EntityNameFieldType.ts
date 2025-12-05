@@ -8,6 +8,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellRenderer,
@@ -55,10 +56,11 @@ export class EntityNameRenderer implements CellRenderer {
     textElement.style.color = 'var(--primary)'
     textElement.style.textDecoration = 'none'
     textElement.style.transition = 'text-decoration 0.2s'
-    textElement.style.cursor = 'pointer'
+    // cursor is now controlled by CSS via data-affordance attribute
 
-    // ✅ Explicit action: clicking text navigates
-    textElement.dataset.action = 'navigate'
+    // ✅ Affordance data attributes for cursor/hover behavior
+    textElement.dataset.affordance = 'navigate'
+    textElement.dataset.affordanceRole = 'link'
 
     // Handle empty values
     if (value == null || value === '') {
@@ -78,7 +80,7 @@ export class EntityNameRenderer implements CellRenderer {
     //   textElement.style.textDecoration = 'none'
     // })
 
-    // Create pencil icon (hidden by default, shown on hover)
+    // Create pencil icon (hidden by default, shown on hover via CSS)
     const pencilIcon = document.createElement('span')
     pencilIcon.className = 'vibegridx-entity-name-edit-icon'
     pencilIcon.innerHTML = '✏️'
@@ -86,11 +88,12 @@ export class EntityNameRenderer implements CellRenderer {
     pencilIcon.style.transition = 'opacity 0.2s'
     pencilIcon.style.fontSize = '14px'
     pencilIcon.style.flexShrink = '0'
-    pencilIcon.style.cursor = 'pointer'
+    // cursor is now controlled by CSS via data-affordance attribute
     pencilIcon.title = 'Click to edit inline'
 
-    // ✅ Add data attribute for CellActionRouter detection
-    pencilIcon.dataset.editTrigger = 'true'
+    // ✅ Affordance data attributes for cursor/hover behavior
+    pencilIcon.dataset.affordance = column.editable !== false ? 'edit' : 'none'
+    pencilIcon.dataset.affordanceRole = 'icon'
 
     // Show pencil icon on hover
     // NOTE: Replaced with CSS :hover for performance (allows innerHTML cell updates)
@@ -143,7 +146,7 @@ export class EntityNameRenderer implements CellRenderer {
  * Entity Name Field Type
  * Uses the special EntityNameRenderer with standard text editing
  */
-export const EntityNameFieldType: VibeGridFieldType = {
+export const EntityNameFieldType: VibeGridFieldType & { affordance: FieldTypeAffordance } = {
   type: 'entity-name',
   category: 'basic',
   renderer: new EntityNameRenderer(),
@@ -164,10 +167,17 @@ export const EntityNameFieldType: VibeGridFieldType = {
     requiresAsyncData: false,
   },
 
-  // 🚀 NEW: Interaction policy
+  // 🎯 Affordance declaration - link with edit icon on hover
+  // This is the most complex pattern: text navigates, icon edits
+  affordance: {
+    group: 'link-with-edit-icon', // Text underlines on hover (navigate), pencil appears (edit)
+    whenNotEditable: 'link-only', // Text still navigates, no edit icon
+  },
+
+  // 🚀 Interaction policy (legacy - being replaced by affordance system)
   interactionPolicy: {
     defaultAction: 'navigate', // Clicking navigates to entity detail
-    editTrigger: 'icon', // Only edit via pencil icon (future implementation)
+    editTrigger: 'icon', // Only edit via pencil icon
     blurPolicy: 'commit', // Save on blur when editing
   },
 }

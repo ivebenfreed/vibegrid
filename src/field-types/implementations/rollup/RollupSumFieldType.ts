@@ -4,6 +4,7 @@
  * Handles rollup_sum field types with frontend calculation of numeric sums.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import { RollupSumCalculator } from '../../../managers/RollupCalculationManager'
 import type {
   CellEditor,
@@ -18,6 +19,11 @@ export class RollupSumRenderer implements CellRenderer {
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+
+    // Rollup fields are always read-only
+    container.dataset.affordance = 'none'
+    container.dataset.affordanceRole = 'content'
+
     container.className = 'vibegridx-rollup-sum'
 
     let displayValue = value
@@ -127,6 +133,12 @@ export const RollupSumFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'readonly-display',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

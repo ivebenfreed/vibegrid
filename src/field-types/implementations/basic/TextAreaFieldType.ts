@@ -2,6 +2,7 @@
  * TextArea Field Type - Multi-line text with word/character limits
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellRenderer,
@@ -12,11 +13,14 @@ import type {
 export class TextAreaRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('span')
+    const isEditable = column.editable !== false
 
-    // Add hover class based on editability (plain text hover pattern)
-    const hoverClass =
-      column.editable === false ? 'vibegridx-text-readonly' : 'vibegridx-text-editable'
-    container.className = `vibegridx-cell-textarea ${hoverClass}`
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'content'
+
+    // Textarea cells use affordance system for cursor/hover
+    container.className = 'vibegridx-cell-textarea'
 
     container.style.cssText = `
       padding: 4px;
@@ -34,7 +38,7 @@ export class TextAreaRenderer implements CellRenderer {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -57,7 +61,7 @@ export class TextAreaRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -166,6 +170,12 @@ export const TextAreaFieldType: VibeGridFieldType = {
     editTrigger: 'content-click', // Click content to edit
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-content',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

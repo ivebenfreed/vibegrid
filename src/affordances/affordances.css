@@ -1,0 +1,190 @@
+/* ====================================
+ * VIBEGRID AFFORDANCE SYSTEM
+ *
+ * Single source of truth for cell interaction visuals.
+ * All cursor and hover behaviors are controlled through data attributes.
+ *
+ * @see DESIGN.md in planning/04-improvements/vibegrid-cell-interaction/
+ * ==================================== */
+
+/* ====================================
+ * BASE AFFORDANCE CURSORS
+ *
+ * Each data-affordance value maps to a cursor type.
+ * These are the foundational rules that all cells use.
+ * ==================================== */
+
+[data-affordance="select"] {
+  cursor: default;
+}
+
+[data-affordance="navigate"] {
+  cursor: pointer;
+}
+
+[data-affordance="edit"] {
+  cursor: pointer;
+}
+
+[data-affordance="toggle"] {
+  cursor: pointer;
+}
+
+[data-affordance="open-menu"] {
+  cursor: pointer;
+}
+
+[data-affordance="none"] {
+  cursor: default;
+}
+
+/* Content with edit affordance uses pointer cursor
+ * Indicates the content is clickable to enter edit mode */
+[data-affordance-role="content"][data-affordance="edit"] {
+  cursor: pointer;
+}
+
+/* ====================================
+ * AFFORDANCE HOVER EFFECTS
+ *
+ * Group-specific hover behaviors.
+ * Each affordance group can have custom hover effects.
+ * ==================================== */
+
+/* Link underline (link-with-edit-icon, link-only groups) */
+[data-affordance-group="link-with-edit-icon"] [data-affordance="navigate"]:hover,
+[data-affordance-group="link-only"] [data-affordance="navigate"]:hover {
+  text-decoration: underline;
+}
+
+/* Badge scale + darken (editable-badge group)
+ * Makes badge feel "pressable" */
+[data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+  transform: scale(1.02);
+  filter: brightness(0.95);
+  transition:
+    transform 0.15s ease,
+    filter 0.15s ease;
+}
+
+/* Content background highlight (editable-content group)
+ * Shows a subtle background to indicate editability
+ * Uses semi-transparent gray that works in both light and dark modes */
+[data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+  background-color: oklch(0.5 0 0 / 0.15);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: background-color 0.15s ease;
+}
+
+/* Readonly badge subtle feedback (readonly-badge group)
+ * Just enough feedback to show it's hoverable but not actionable */
+[data-affordance-group="readonly-badge"] [data-affordance="none"]:hover {
+  filter: brightness(0.98);
+}
+
+/* ====================================
+ * EDIT ICON VISIBILITY
+ *
+ * For link-with-edit-icon group, the edit icon
+ * is hidden by default and shown on container hover.
+ * ==================================== */
+
+[data-affordance-group="link-with-edit-icon"] [data-affordance-role="icon"] {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+[data-affordance-group="link-with-edit-icon"]:hover [data-affordance-role="icon"] {
+  opacity: 0.6;
+}
+
+[data-affordance-group="link-with-edit-icon"] [data-affordance-role="icon"]:hover {
+  opacity: 1;
+}
+
+/* ====================================
+ * TOGGLE CONTROL STYLES
+ *
+ * For toggle-control group (boolean fields).
+ * The control should have clear interactive feedback.
+ * ==================================== */
+
+[data-affordance-group="toggle-control"] [data-affordance="toggle"] {
+  cursor: pointer;
+}
+
+[data-affordance-group="toggle-control"] [data-affordance="toggle"]:hover {
+  filter: brightness(1.1);
+}
+
+/* ====================================
+ * GLOBAL STATE OVERRIDES
+ *
+ * These override ALL affordance cursors when active.
+ * Used for grid-level interactions like dragging and resizing.
+ *
+ * Note: !important is intentional here - these are global states
+ * that must override all other cursor rules.
+ * ==================================== */
+
+body.vibegridx-dragging-active,
+body.vibegridx-dragging-active * {
+  cursor: grabbing !important;
+}
+
+.vibegridx-resizing,
+.vibegridx-resizing * {
+  cursor: col-resize !important;
+}
+
+/* ====================================
+ * DARK MODE ADJUSTMENTS
+ *
+ * Adjust colors and brightness for dark mode.
+ * Dark mode typically needs inverted brightness changes.
+ * ==================================== */
+
+.dark [data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+  background-color: oklch(0.6 0 0 / 0.2);
+}
+
+.dark [data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+  filter: brightness(1.05);
+}
+
+.dark [data-affordance-group="readonly-badge"] [data-affordance="none"]:hover {
+  filter: brightness(1.02);
+}
+
+.dark [data-affordance-group="toggle-control"] [data-affordance="toggle"]:hover {
+  filter: brightness(1.15);
+}
+
+/* ====================================
+ * ACCESSIBILITY
+ *
+ * High contrast mode and reduced motion support.
+ * ==================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-affordance-group] * {
+    transition: none !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  [data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    background-color: transparent;
+  }
+
+  [data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+    filter: none;
+    transform: none;
+  }
+}

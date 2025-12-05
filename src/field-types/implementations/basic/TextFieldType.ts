@@ -6,6 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -36,9 +37,14 @@ export class TextRenderer implements CellRenderer {
 
     const container = document.createElement('span')
     const fieldType = column.cellType || column.type || 'text'
+    const isEditable = column.editable !== false
 
     // Set base class only - CellFactory will append -editable if needed
     container.className = `vibegridx-cell-${fieldType}`
+
+    // Apply affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'content'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
@@ -85,7 +91,7 @@ export class TextRenderer implements CellRenderer {
         element.className += ' vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className += ' vibegridx-cell-empty vibegridx-text-editable'
+        element.className += ' vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       element.title = ''
@@ -454,7 +460,7 @@ export class TextValidator implements CellValidator {
 /**
  * Text Field Type Definition
  */
-export const TextFieldType: VibeGridFieldType = {
+export const TextFieldType: VibeGridFieldType & { affordance: FieldTypeAffordance } = {
   type: 'text',
   category: 'basic',
   renderer: new TextRenderer(),
@@ -472,7 +478,13 @@ export const TextFieldType: VibeGridFieldType = {
     supportsFormatting: true,
   },
 
-  // 🚀 NEW: Simple formatter interface for pre-computation
+  // 🎯 Affordance declaration - single source of truth for cursor/hover behavior
+  affordance: {
+    group: 'editable-content', // Content area is directly editable (text cursor, background hover)
+    whenNotEditable: 'readonly-display', // Falls back to readonly display group
+  },
+
+  // 🚀 Simple formatter interface for pre-computation
   getFormatter(): (value: any, rowData?: any, column?: any) => string {
     const formatter = new TextFormatter()
     return (value: any, _rowData?: any, column?: any) => {
@@ -480,15 +492,15 @@ export const TextFieldType: VibeGridFieldType = {
     }
   },
 
-  // 🚀 NEW: Optional editor interface
+  // 🚀 Optional editor interface
   getEditor(): any {
     return new TextEditor()
   },
 
-  // 🚀 NEW: Interaction policy
+  // 🚀 Interaction policy (legacy - being replaced by affordance system)
   interactionPolicy: {
     defaultAction: 'edit', // Text fields are for editing
-    editTrigger: 'content-click', // ✅ Click content to edit, click padding to select
+    editTrigger: 'content-click', // Click content to edit, click padding to select
     blurPolicy: 'commit', // Save on blur
   },
 }

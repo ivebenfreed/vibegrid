@@ -2,6 +2,7 @@
  * Markdown Field Type - Markdown with syntax validation and preview
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellRenderer,
@@ -12,6 +13,12 @@ import type {
 export class MarkdownRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn): HTMLElement {
     const container = document.createElement('div')
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'content'
+
     container.className = 'vibegridx-cell-markdown'
 
     if (!value) {
@@ -101,6 +108,12 @@ export const MarkdownFieldType: VibeGridFieldType = {
     editTrigger: 'content-click', // Click content to edit
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-content',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
