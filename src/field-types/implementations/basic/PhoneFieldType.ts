@@ -5,6 +5,7 @@
  * Integrates with backend Enhanced Field Handler metadata.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -23,16 +24,16 @@ import type {
 export class PhoneRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
-    container.className =
-      column.editable === false ? 'vibegridx-cell-phone' : 'vibegridx-cell-phone-editable'
+    const isEditable = column.editable !== false
+    container.className = isEditable ? 'vibegridx-cell-phone-editable' : 'vibegridx-cell-phone'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -42,9 +43,12 @@ export class PhoneRenderer implements CellRenderer {
     const displayValue = this.formatValue(value, column)
     container.textContent = displayValue
 
+    // Add affordance for the navigate action (phone link)
+    container.dataset.affordance = 'navigate'
+    container.dataset.affordanceRole = 'link'
+
     // Apply phone-specific styling
     container.style.color = '#2563eb'
-    container.style.cursor = 'pointer'
     container.style.fontVariantNumeric = 'tabular-nums'
 
     // Store phone number for coordinator to handle (no stopPropagation)
@@ -71,7 +75,7 @@ export class PhoneRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -512,6 +516,12 @@ export const PhoneFieldType: VibeGridFieldType = {
     editTrigger: 'icon', // Click icon to edit (e.g., pencil icon)
     blurPolicy: 'commit', // Save on blur
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'link-only', // Navigate to tel: URL
+    whenNotEditable: 'link-only', // Still navigable when not editable
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

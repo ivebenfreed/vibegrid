@@ -77,91 +77,8 @@
   transition: var(--badge-hover-transition);
 }
 
-/* Editable Badge Hover (with scale + stronger darken) */
-.vibegridx-badge-editable {
-  cursor: pointer;
-  transition: var(--badge-hover-transition);
-}
-
-.vibegridx-badge-editable:hover {
-  filter: brightness(var(--badge-hover-brightness-strong));
-  transform: scale(var(--badge-hover-scale));
-}
-
-/* Non-Editable Badge Hover (subtle darken only, no scale) */
-.vibegridx-badge-readonly {
-  cursor: default;
-  transition: var(--badge-hover-transition);
-}
-
-.vibegridx-badge-readonly:hover {
-  filter: brightness(var(--badge-hover-brightness));
-}
-
-/* Large Badge Hover (Select/Enum with dropdown indicator) */
-.vibegridx-badge-dropdown:hover {
-  filter: brightness(var(--badge-hover-brightness-strong));
-  transform: scale(var(--badge-hover-scale-large));
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* ====================================
-   SPECIFIC BADGE TYPE STYLES
-   ==================================== */
-
-/* User Reference Badge Styles */
-.vibegridx-user-badge {
-  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
-}
-
-/* Entity Reference Badge Styles */
-.vibegridx-entity-badge {
-  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
-}
-
-/* Date Badge Styles */
-.vibegridx-date-badge {
-  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
-}
-
-/* Boolean Badge Styles */
-.vibegridx-boolean-badge {
-  /* Hover handled by .vibegridx-badge-editable or .vibegridx-badge-readonly */
-}
-
-/* ====================================
-   PLAIN TEXT HOVER STYLES
-   ==================================== */
-
-/* Editable Plain Text Hover */
-.vibegridx-text-editable {
-  cursor: pointer !important;
-  transition:
-    background-color 0.15s ease,
-    padding 0.15s ease;
-  padding: 2px 4px !important;
-  border-radius: 4px !important;
-  display: inline-block !important;
-}
-
-/* Light Mode ONLY - Highest Specificity */
-html:not(.dark) .vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-text.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-number.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-email.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-url.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-phone.vibegridx-text-editable:hover,
-html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
-  background-color: #e5e7eb !important; /* Light gray - visible on zebra stripes */
-  padding: 4px 8px !important;
-  cursor: pointer !important;
-}
-
-/* Non-Editable Plain Text (No Hover) */
-.vibegridx-text-readonly {
-  cursor: default !important;
-}
+/* NOTE: Badge and text hover behaviors moved to affordances.css
+   using data-affordance attributes for declarative interaction visuals */
 
 /* Number Cell Styles */
 .vibegridx-number-content {
@@ -305,24 +222,7 @@ html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
   transition: all 0.2s ease;
 }
 
-/* Editable enum badge shows pointer cursor and hover effect */
-.vibegridx-cell-badge-editable {
-  cursor: pointer;
-  position: relative;
-}
-
-.vibegridx-cell-badge-editable:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Add dropdown indicator for editable select badges */
-.vibegridx-cell-badge-editable::after {
-  content: "▼";
-  margin-left: 6px;
-  font-size: 0.5rem;
-  opacity: 0.6;
-}
+/* NOTE: Editable badge hover moved to affordances.css [data-affordance="edit"] */
 
 .vibegridx-enum-tag {
   display: inline-block;
@@ -575,30 +475,10 @@ html:not(.dark) span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
     color: var(--foreground, #f9fafb);
   }
 
-  /* Dark mode text hover - explicit color override */
-  .vibegridx-text-editable:hover,
-  span.vibegridx-cell-text.vibegridx-text-editable:hover,
-  span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
-  span.vibegridx-cell-number.vibegridx-text-editable:hover,
-  span.vibegridx-cell-email.vibegridx-text-editable:hover,
-  span.vibegridx-cell-url.vibegridx-text-editable:hover,
-  span.vibegridx-cell-phone.vibegridx-text-editable:hover,
-  span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
-    background-color: #374151 !important; /* Medium gray for dark mode */
-  }
+  /* NOTE: Dark mode text hover moved to affordances.css */
 }
 
-/* Dark Mode Support - Class-based (Tailwind/shadcn) */
-html.dark .vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-text.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-textarea.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-number.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-email.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-url.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-phone.vibegridx-text-editable:hover,
-html.dark span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
-  background-color: #374151 !important; /* Medium gray for dark mode */
-}
+/* NOTE: Class-based dark mode text hover moved to affordances.css */
 
 /* .vibegridx-cell:hover .vibegridx-cell-content {
   background-color: var(--accent, #1f2937);
@@ -711,29 +591,12 @@ html.dark span.vibegridx-cell-longtext.vibegridx-text-editable:hover {
    ENTITY NAME FIELD HOVER EFFECTS (CSS)
    ==================================== */
 
-/* Disable generic text editable hover for EntityName (uses custom hover effects) */
-.vibegridx-entity-name-text.vibegridx-text-editable:hover,
-html:not(.dark) .vibegridx-entity-name-text.vibegridx-text-editable:hover,
-html.dark .vibegridx-entity-name-text.vibegridx-text-editable:hover {
-  background-color: transparent !important;
-  padding: 2px 4px !important; /* Keep original padding */
-}
-
-/* Text underline on hover - replaces JavaScript addEventListener */
+/* Text underline on hover */
 .vibegridx-entity-name-text:hover {
   text-decoration: underline !important;
 }
 
-/* Pencil icon visibility on container hover - replaces JavaScript addEventListener */
+/* Pencil icon visibility on container hover */
 .vibegridx-cell-entity-name:hover .vibegridx-entity-name-edit-icon {
   opacity: 0.6 !important;
 }
-
-/* Issue #5: Background hover removed - keep underline and pencil icon only */
-/* .vibegridx-cell-entity-name:hover {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-
-.dark .vibegridx-cell-entity-name:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-} */

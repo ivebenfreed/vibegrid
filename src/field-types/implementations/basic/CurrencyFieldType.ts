@@ -5,6 +5,7 @@
  * Integrates with backend Enhanced Field Handler metadata.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -28,16 +29,21 @@ interface CurrencyValue {
 export class CurrencyRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('span')
-    container.className =
-      column.editable === false ? 'vibegridx-cell-currency' : 'vibegridx-cell-currency-editable'
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'content'
+
+    container.className = isEditable ? 'vibegridx-cell-currency-editable' : 'vibegridx-cell-currency'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -52,16 +58,21 @@ export class CurrencyRenderer implements CellRenderer {
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    element.className =
-      column.editable === false ? 'vibegridx-cell-currency' : 'vibegridx-cell-currency-editable'
+    const isEditable = column.editable !== false
+
+    // Update affordance attributes
+    element.dataset.affordance = isEditable ? 'edit' : 'none'
+    element.dataset.affordanceRole = 'content'
+
+    element.className = isEditable ? 'vibegridx-cell-currency-editable' : 'vibegridx-cell-currency'
 
     // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -385,6 +396,12 @@ export const CurrencyFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-content',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

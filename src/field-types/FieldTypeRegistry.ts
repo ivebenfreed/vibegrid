@@ -6,6 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import type { FieldTypeAffordance } from '../affordances/types'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { Column } from '../types'
 
@@ -241,6 +242,9 @@ export interface VibeGridFieldType {
 
   // 🚀 NEW: Custom click handler (for custom action types)
   handleClick?(context: any): void
+
+  // 🎯 Affordance Group System - Declarative interaction visuals
+  affordance?: FieldTypeAffordance
 
   // Relationship-specific properties
   relationshipConfig?: RelationshipConfig

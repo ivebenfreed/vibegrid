@@ -2,6 +2,7 @@
  * Rollup Concat Field Type - Frontend calculated text concatenation
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import { RollupConcatCalculator } from '../../../managers/RollupCalculationManager'
 import type {
   CellEditor,
@@ -16,6 +17,11 @@ export class RollupConcatRenderer implements CellRenderer {
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
+
+    // Rollup fields are always read-only
+    container.dataset.affordance = 'none'
+    container.dataset.affordanceRole = 'content'
+
     container.className = 'vibegridx-rollup-concat'
 
     let displayValue = value
@@ -90,6 +96,12 @@ export const RollupConcatFieldType: VibeGridFieldType = {
     isReadOnly: true,
     hasRichDisplay: true,
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'readonly-display',
+    whenNotEditable: 'readonly-display',
+  } as FieldTypeAffordance,
 }
 
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'

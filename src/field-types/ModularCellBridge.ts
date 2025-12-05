@@ -6,6 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import { affordanceResolver } from '../affordances'
 import { CellFactory } from '../factories/CellFactory'
 import { RelationshipDataManager } from '../managers/RelationshipDataManager'
 import { RollupCalculationManager } from '../managers/RollupCalculationManager'
@@ -174,6 +175,18 @@ export class ModularCellBridge {
         position: relative;
         cursor: default;
       `
+    }
+
+    // 🎯 Apply affordance system data attributes (critical for hover styles!)
+    // This matches what CellFactory.applyAffordanceAttributes() does
+    if (column.fieldType) {
+      const resolved = affordanceResolver.resolve(column.fieldType, column as any)
+      const attrs = affordanceResolver.getDataAttributes(resolved)
+
+      // Apply container attributes for CSS hover selectors
+      for (const [key, attrValue] of Object.entries(attrs.container)) {
+        container.setAttribute(key, attrValue)
+      }
     }
 
     // Use the original field type renderer for proper styling (badges, etc.)

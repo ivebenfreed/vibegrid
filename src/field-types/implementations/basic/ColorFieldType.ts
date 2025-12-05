@@ -5,6 +5,7 @@
  * Provides color preview and picker functionality.
  */
 
+import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {
   CellEditor,
   CellFormatter,
@@ -23,8 +24,13 @@ import type {
 export class ColorRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
-    container.className =
-      column.editable === false ? 'vibegridx-cell-color' : 'vibegridx-cell-color-editable'
+    const isEditable = column.editable !== false
+
+    // Add affordance data attributes
+    container.dataset.affordance = isEditable ? 'edit' : 'none'
+    container.dataset.affordanceRole = 'badge'
+
+    container.className = isEditable ? 'vibegridx-cell-color-editable' : 'vibegridx-cell-color'
 
     container.style.cssText = `
       display: flex;
@@ -39,7 +45,7 @@ export class ColorRenderer implements CellRenderer {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
       } else {
-        container.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        container.className = 'vibegridx-cell-empty'
         container.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
       return container
@@ -83,8 +89,13 @@ export class ColorRenderer implements CellRenderer {
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    element.className =
-      column.editable === false ? 'vibegridx-cell-color' : 'vibegridx-cell-color-editable'
+    const isEditable = column.editable !== false
+
+    // Update affordance attributes
+    element.dataset.affordance = isEditable ? 'edit' : 'none'
+    element.dataset.affordanceRole = 'badge'
+
+    element.className = isEditable ? 'vibegridx-cell-color-editable' : 'vibegridx-cell-color'
 
     element.innerHTML = ''
 
@@ -94,7 +105,7 @@ export class ColorRenderer implements CellRenderer {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
-        element.className = 'vibegridx-cell-empty vibegridx-text-editable'
+        element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
@@ -668,6 +679,12 @@ export const ColorFieldType: VibeGridFieldType = {
     const fmt = this.formatter
     return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
   },
+
+  // 🎯 Affordance Group System
+  affordance: {
+    group: 'editable-badge',
+    whenNotEditable: 'readonly-badge',
+  } as FieldTypeAffordance,
 }
 
 // Register with the global registry

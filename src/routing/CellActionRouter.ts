@@ -122,10 +122,11 @@ export class CellActionRouter {
    *
    * Priority:
    * 0. Check if column is editable (skip edit actions for non-editable columns)
-   * 1. Explicit edit trigger (data-edit-trigger="true")
-   * 2. Check if click is on content element (for content-click trigger)
-   * 3. Field interaction policy
-   * 4. Default to 'none' (selection only)
+   * 1. **NEW: Check data-affordance attribute (Affordance Group system)**
+   * 2. Explicit edit trigger (data-edit-trigger="true") [legacy]
+   * 3. Check if click is on content element (for content-click trigger) [legacy]
+   * 4. Field interaction policy [legacy]
+   * 5. Default to 'none' (selection only)
    */
   private determineAction(context: CellActionContext): CellAction {
     const { target, fieldPolicy, column } = context
@@ -133,13 +134,61 @@ export class CellActionRouter {
     // FIRST: Check if column is editable - non-editable columns can only navigate or do nothing
     if (column.editable === false) {
       fileLog.debug('Column not editable, skipping edit actions', { columnId: column.id })
-      // Still allow navigation for non-editable columns (e.g., clicking a link)
+      // Check for navigate affordance on non-editable columns (e.g., entity name link)
+      const navigateElement = (target as HTMLElement).closest('[data-affordance="navigate"]')
+      if (navigateElement) {
+        fileLog.debug('Navigate affordance found on non-editable column', {
+          element: (navigateElement as HTMLElement).tagName,
+        })
+        return 'navigate'
+      }
+      // Legacy fallback for data-action="navigate"
       const actionElement = (target as HTMLElement).closest('[data-action="navigate"]')
       if (actionElement) {
         return 'navigate'
       }
       return 'none'
     }
+
+    // ========================================
+    // NEW: Affordance Group System (Primary)
+    // ========================================
+    // Check for data-affordance attribute on clicked element or ancestors
+    const affordanceElement = (target as HTMLElement).closest('[data-affordance]')
+    if (affordanceElement) {
+      const affordance = affordanceElement.getAttribute('data-affordance')
+      const affordanceRole = affordanceElement.getAttribute('data-affordance-role')
+
+      fileLog.debug('Affordance attribute found', {
+        affordance,
+        affordanceRole,
+        element: (affordanceElement as HTMLElement).tagName,
+      })
+
+      // Map affordance values to actions
+      switch (affordance) {
+        case 'edit':
+          return 'edit'
+
+        case 'toggle':
+          // Toggle controls (booleans) edit on click
+          return 'edit'
+
+        case 'navigate':
+          return 'navigate'
+
+        case 'none':
+          return 'none'
+
+        default:
+          fileLog.debug('Unknown affordance value, falling through to legacy', { affordance })
+          // Fall through to legacy checks
+      }
+    }
+
+    // ========================================
+    // Legacy System (Backward Compatibility)
+    // ========================================
 
     // Check for explicit edit trigger (e.g., pencil icon with data-edit-trigger="true")
     const editTrigger = (target as HTMLElement).closest('[data-edit-trigger="true"]')
