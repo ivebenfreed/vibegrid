@@ -141,6 +141,9 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options'> {
   // Primary field marker (uses entity-name field type with pencil icon)
   isPrimaryField?: boolean
 
+  // Column visibility
+  hidden?: boolean // Hide column by default (can be shown via column visibility toggle)
+
   // Additional text renderer options
   minLength?: number
   pattern?: string

@@ -121,6 +121,7 @@ export class CellActionRouter {
    * Determine what action to take based on context
    *
    * Priority:
+   * 0. Check if column is editable (skip edit actions for non-editable columns)
    * 1. Explicit edit trigger (data-edit-trigger="true")
    * 2. Check if click is on content element (for content-click trigger)
    * 3. Field interaction policy
@@ -128,6 +129,17 @@ export class CellActionRouter {
    */
   private determineAction(context: CellActionContext): CellAction {
     const { target, fieldPolicy, column } = context
+
+    // FIRST: Check if column is editable - non-editable columns can only navigate or do nothing
+    if (column.editable === false) {
+      fileLog.debug('Column not editable, skipping edit actions', { columnId: column.id })
+      // Still allow navigation for non-editable columns (e.g., clicking a link)
+      const actionElement = (target as HTMLElement).closest('[data-action="navigate"]')
+      if (actionElement) {
+        return 'navigate'
+      }
+      return 'none'
+    }
 
     // Check for explicit edit trigger (e.g., pencil icon with data-edit-trigger="true")
     const editTrigger = (target as HTMLElement).closest('[data-edit-trigger="true"]')
