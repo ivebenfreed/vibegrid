@@ -24,6 +24,63 @@ function getBasicColumns<T = any>(): Column<T>[] {
   return []
 }
 
+/**
+ * Enrich columns with pre-computed field types and formatters
+ *
+ * This enables the fast path in ModularCellBridge.createCell() which checks
+ * for column.formatter to skip the legacy path.
+ *
+ * Used for:
+ * - Platform User columns (admin schema, not DataForge)
+ * - Any custom schema that bypasses generateColumnsFromEntity()
+ */
+export function enrichColumnsWithFieldTypes<T = any>(columns: Column<T>[]): Column<T>[] {
+  return columns.map((column) => {
+    // Skip if already enriched (has formatter)
+    if (column.formatter) {
+      return column
+    }
+
+    try {
+      // Create mock column for field type resolution
+      const mockColumn = {
+        id: column.id,
+        field: column.field,
+        cellType: column.cellType,
+        type: column.cellType || 'text',
+        options: column.options || [],
+        hasOptions: (column.options?.length || 0) > 0,
+        editable: column.editable,
+        isPrimaryField: (column as any).isPrimaryField,
+      } as any
+
+      const fieldTypeInstance = fieldTypeRegistry.getFieldType(mockColumn)
+      const formatter = fieldTypeInstance?.formatter?.format?.bind(fieldTypeInstance.formatter)
+      const editor = fieldTypeInstance?.editor
+
+      fileLog.debug('🚀 [ENRICH] Pre-computed field type for column', {
+        columnId: column.id,
+        cellType: column.cellType,
+        hasFormatter: !!formatter,
+        hasEditor: !!editor,
+      })
+
+      return {
+        ...column,
+        fieldType: fieldTypeInstance,
+        formatter: formatter,
+        editorInstance: editor,
+      }
+    } catch (error) {
+      fileLog.warn('⚠️ [ENRICH] Failed to enrich column, using original', {
+        columnId: column.id,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      return column
+    }
+  })
+}
+
 function deriveTargetEntityFromField(fieldName: string | undefined): string | null {
   if (!fieldName) return null
   const base = fieldName
@@ -86,7 +143,8 @@ export async function generateColumnsFromEntitySchema<T = any>(
   if (entityType === 'PlatformUser') {
     fileLog.debug('🔑 Using platform user schema (system entity)', { entityType })
     const { platformUserColumns } = await import('@/features/admin/schemas/platform-user-schema')
-    return platformUserColumns as any
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(platformUserColumns) as any
   }
 
   // Check if schema registry is ready

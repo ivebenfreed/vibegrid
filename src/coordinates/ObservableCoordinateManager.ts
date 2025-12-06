@@ -63,7 +63,10 @@ export class ObservableCoordinateManager {
     })
 
     // Initialize version from coordinator
-    this.version = this.coordinator.getVersion()
+    // Must use runInAction since this is an observable mutation in constructor
+    runInAction(() => {
+      this.version = this.coordinator.getVersion()
+    })
   }
 
   // ====================================
