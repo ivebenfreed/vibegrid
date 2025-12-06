@@ -44,7 +44,7 @@ interface TimeScaleHeaderProps {
   width: number
 }
 
-const TimeScaleHeader = observer(function TimeScaleHeader({
+function TimeScaleHeader({
   startDate,
   endDate,
   pixelsPerDay,
@@ -104,7 +104,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 
   return (
     <div
-      className="relative border-b bg-muted/50 flex-shrink-0"
+      className="relative border-b bg-muted/50 flex-shrink-0 sticky top-0 z-20"
       style={{ height: HEADER_HEIGHT, width }}
     >
       {markers.map((marker, i) => (
@@ -121,7 +121,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
       ))}
     </div>
   )
-})
+}
 
 // ====================================
 // GANTT BAR
@@ -129,18 +129,68 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 
 interface GanttBarProps {
   bar: BarPosition
+  isPreview?: boolean
+  isDragging?: boolean
   onClick?: (rowId: string) => void
-  rowIndex?: number
+  onDragStart?: (barId: string, mode: 'move' | 'resize-start' | 'resize-end', startX: number) => void
 }
 
-const GanttBar = observer(function GanttBar({ bar, onClick }: GanttBarProps) {
+const HANDLE_WIDTH = 8 // Width of resize handles in pixels
+
+function GanttBar({
+  bar,
+  isPreview = false,
+  isDragging = false,
+  onClick,
+  onDragStart,
+}: GanttBarProps) {
+  // Handle pointer down on the bar body (move operation)
+  const handleBodyPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return // Only left mouse button
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'move', e.clientX)
+  }
+
+  // Handle pointer down on left edge (resize start)
+  const handleLeftHandlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'resize-start', e.clientX)
+  }
+
+  // Handle pointer down on right edge (resize end)
+  const handleRightHandlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'resize-end', e.clientX)
+  }
+
+  // Don't allow click during drag
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    onClick?.(bar.rowId)
+  }
+
+  // Determine if bar is too narrow to fit text inside
+  // Use text length to estimate needed width (~7px per character + padding)
+  const estimatedTextWidth = bar.label.length * 7 + 24
+  const isNarrowBar = bar.width < estimatedTextWidth
+
   return (
     <div
       className={cn(
-        'absolute rounded cursor-pointer transition-colors',
-        'flex items-center px-2 text-xs text-white truncate',
-        'shadow-sm',
-        BAR_COLORS.default,
+        'absolute rounded transition-colors select-none',
+        'flex items-center text-xs',
+        'shadow-sm group',
+        isPreview ? 'opacity-70 border-2 border-dashed border-primary' : BAR_COLORS.default,
+        isDragging && !isPreview && 'opacity-40',
       )}
       style={{
         left: bar.left,
@@ -148,13 +198,51 @@ const GanttBar = observer(function GanttBar({ bar, onClick }: GanttBarProps) {
         width: bar.width,
         height: bar.height,
       }}
-      onClick={() => onClick?.(bar.rowId)}
+      onClick={handleClick}
       title={`${bar.label}\n${bar.startDate.toLocaleDateString()} - ${bar.endDate.toLocaleDateString()}`}
     >
-      {bar.width > 60 && <span className="truncate">{bar.label}</span>}
+      {/* Left resize handle */}
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 cursor-ew-resize',
+          'opacity-0 group-hover:opacity-100 hover:bg-white/30',
+          'rounded-l transition-opacity',
+        )}
+        style={{ width: HANDLE_WIDTH }}
+        onPointerDown={handleLeftHandlePointerDown}
+      />
+
+      {/* Bar body (for move) */}
+      <div
+        className="flex-1 h-full flex items-center cursor-grab active:cursor-grabbing overflow-visible"
+        onPointerDown={handleBodyPointerDown}
+      >
+        {/* Label - inside bar for wide bars, overflow right for narrow bars */}
+        <span
+          className={cn(
+            'whitespace-nowrap text-xs pointer-events-none',
+            isNarrowBar
+              ? 'absolute left-full ml-2 text-foreground/80' // Overflow to right
+              : 'px-2 text-white truncate w-full text-center', // Inside bar
+          )}
+        >
+          {bar.label}
+        </span>
+      </div>
+
+      {/* Right resize handle */}
+      <div
+        className={cn(
+          'absolute right-0 top-0 bottom-0 cursor-ew-resize',
+          'opacity-0 group-hover:opacity-100 hover:bg-white/30',
+          'rounded-r transition-opacity',
+        )}
+        style={{ width: HANDLE_WIDTH }}
+        onPointerDown={handleRightHandlePointerDown}
+      />
     </div>
   )
-})
+}
 
 // ====================================
 // TODAY LINE
@@ -165,7 +253,7 @@ interface TodayLineProps {
   height: number
 }
 
-const TodayLine = observer(function TodayLine({ position, height }: TodayLineProps) {
+function TodayLine({ position, height }: TodayLineProps) {
   return (
     <div
       className="absolute w-0.5 bg-red-500 z-10 pointer-events-none"
@@ -178,7 +266,7 @@ const TodayLine = observer(function TodayLine({ position, height }: TodayLinePro
       <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
     </div>
   )
-})
+}
 
 // ====================================
 // MAIN COMPONENT
@@ -197,7 +285,7 @@ export const GanttTimeline = observer(function GanttTimeline({
   const tableCoreStore = useTableCoreStore()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies, scrollLeft, scrollTop } = ganttViewStore
+  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies, scrollLeft, scrollTop, dragState } = ganttViewStore
 
   // Get actual row count from table (matches table view exactly)
   const rowCount = tableCoreStore.processedRows.length
@@ -225,6 +313,48 @@ export const GanttTimeline = observer(function GanttTimeline({
     }
   }, [scrollLeft, scrollTop])
 
+  // ====================================
+  // DRAG HANDLING
+  // ====================================
+
+  // Start drag on a bar
+  const handleDragStart = useCallback(
+    (barId: string, mode: 'move' | 'resize-start' | 'resize-end', startX: number) => {
+      ganttViewStore.startDrag(barId, mode, startX)
+    },
+    [ganttViewStore],
+  )
+
+  // Global pointer move handler during drag
+  useEffect(() => {
+    if (!dragState.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      ganttViewStore.updateDrag(e.clientX)
+    }
+
+    const handlePointerUp = () => {
+      ganttViewStore.endDrag()
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        ganttViewStore.cancelDrag()
+      }
+    }
+
+    // Add global listeners
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [dragState.isDragging, ganttViewStore])
+
   logger.debug('GanttTimeline render', {
     barCount: barPositions.length,
     dependencyCount: dependencies.length,
@@ -233,6 +363,7 @@ export const GanttTimeline = observer(function GanttTimeline({
     zoomLevel: timeScale.zoomLevel,
     scrollLeft,
     scrollTop,
+    isDragging: dragState.isDragging,
   })
 
   return (
@@ -283,9 +414,24 @@ export const GanttTimeline = observer(function GanttTimeline({
         )}
 
         {/* Render bars */}
-        {barPositions.map((bar, index) => (
-          <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} rowIndex={index} />
+        {barPositions.map((bar) => (
+          <GanttBar
+            key={bar.rowId}
+            bar={bar}
+            isDragging={dragState.isDragging && dragState.barId === bar.rowId}
+            onClick={onBarClick}
+            onDragStart={handleDragStart}
+          />
         ))}
+
+        {/* Preview bar during drag */}
+        {dragState.isDragging && dragState.previewBar && (
+          <GanttBar
+            key="preview-bar"
+            bar={dragState.previewBar}
+            isPreview={true}
+          />
+        )}
 
         {/* Dependency arrows */}
         {dependencies.length > 0 && (

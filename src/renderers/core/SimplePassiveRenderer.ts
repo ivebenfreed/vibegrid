@@ -843,7 +843,7 @@ export class SimplePassiveRenderer {
         // Use offset-based row finding for variable-height rows
         const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
         const endRowIndex = Math.min(
-          rowCount - 1,
+          rowCount, // Note: end is EXCLUSIVE, so use rowCount not rowCount-1
           this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) +
             1,
         )
@@ -870,6 +870,7 @@ export class SimplePassiveRenderer {
     )
 
     // HYDRATION OBSERVER: Re-render when grid becomes fully hydrated (for late-arriving data)
+    // CRITICAL: fireImmediately ensures initial render happens if data is already loaded
     reaction(
       () => this.initStore.isFullyHydrated,
       (isHydrated) => {
@@ -881,6 +882,7 @@ export class SimplePassiveRenderer {
           this.renderBody()
         }
       },
+      { fireImmediately: true },
     )
 
     fileLog.debug('✅ Focused observers initialized')

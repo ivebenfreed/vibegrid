@@ -20,8 +20,10 @@ import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { FilterConfig, GroupConfig, SortConfig } from '../types'
+import type { GanttViewStore, ZoomLevel, GanttFieldMapping } from './GanttViewStore'
 import type { InteractionStore } from './InteractionStore'
 import type { GroupRowOrderConfig, TableCoreStore } from './TableCoreStore'
+import type { ViewModeStore, ViewMode } from './ViewModeStore'
 import type { VisualStateStore } from './VisualStateStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'PersistenceStore'])
@@ -48,6 +50,16 @@ export interface SerializableGroupConfig {
 }
 
 /**
+ * Gantt view preferences
+ */
+export interface GanttPreferences {
+  zoomLevel: ZoomLevel
+  cutoffWidth: number
+  viewMode: ViewMode
+  fieldMapping?: GanttFieldMapping
+}
+
+/**
  * Complete persisted preferences structure
  */
 export interface VibeGridPreferences {
@@ -67,6 +79,9 @@ export interface VibeGridPreferences {
   groupRowOrders: Record<string, GroupRowOrderConfig>
   flatRowOrder: string[]
 
+  // Gantt preferences
+  gantt?: GanttPreferences
+
   // Metadata
   entityType: string
   lastUpdated: string
@@ -85,6 +100,8 @@ export class PersistenceStore implements IStore {
   private visualStateStore: VisualStateStore | null = null
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setInteractionStore()
   private interactionStore: InteractionStore | null = null
+  private ganttViewStore: GanttViewStore | null = null
+  private viewModeStore: ViewModeStore | null = null
 
   private entityType: string
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned in constructor
@@ -134,6 +151,14 @@ export class PersistenceStore implements IStore {
 
   setInteractionStore(store: InteractionStore): void {
     this.interactionStore = store
+  }
+
+  setGanttViewStore(store: GanttViewStore): void {
+    this.ganttViewStore = store
+  }
+
+  setViewModeStore(store: ViewModeStore): void {
+    this.viewModeStore = store
   }
 
   // ====================================
@@ -255,6 +280,43 @@ export class PersistenceStore implements IStore {
       return null
     }
 
+    // Validate Gantt preferences if present
+    let gantt: GanttPreferences | undefined
+    if (prefs.gantt && typeof prefs.gantt === 'object') {
+      const validZoomLevels = ['day', 'week', 'month', 'quarter']
+      const validViewModes = ['table', 'gantt']
+
+      // Validate field mapping if present
+      let fieldMapping: GanttFieldMapping | undefined
+      if (prefs.gantt.fieldMapping && typeof prefs.gantt.fieldMapping === 'object') {
+        fieldMapping = {
+          startField: typeof prefs.gantt.fieldMapping.startField === 'string'
+            ? prefs.gantt.fieldMapping.startField
+            : 'start_date',
+          endField: typeof prefs.gantt.fieldMapping.endField === 'string'
+            ? prefs.gantt.fieldMapping.endField
+            : 'end_date',
+          labelField: typeof prefs.gantt.fieldMapping.labelField === 'string'
+            ? prefs.gantt.fieldMapping.labelField
+            : 'name',
+        }
+      }
+
+      gantt = {
+        zoomLevel: validZoomLevels.includes(prefs.gantt.zoomLevel)
+          ? prefs.gantt.zoomLevel
+          : 'week',
+        cutoffWidth:
+          typeof prefs.gantt.cutoffWidth === 'number' && prefs.gantt.cutoffWidth >= 200
+            ? prefs.gantt.cutoffWidth
+            : 400,
+        viewMode: validViewModes.includes(prefs.gantt.viewMode)
+          ? prefs.gantt.viewMode
+          : 'table',
+        fieldMapping,
+      }
+    }
+
     return {
       columnWidths: this.validateRecord(prefs.columnWidths, 'number'),
       columnOrder: this.validateArray(prefs.columnOrder, 'string'),
@@ -264,6 +326,7 @@ export class PersistenceStore implements IStore {
       groupConfig: prefs.groupConfig || null,
       groupRowOrders: this.validateRecord(prefs.groupRowOrders, 'object'),
       flatRowOrder: this.validateArray(prefs.flatRowOrder, 'string'),
+      gantt,
       entityType: this.entityType,
       lastUpdated: prefs.lastUpdated || new Date().toISOString(),
     }
@@ -310,8 +373,35 @@ export class PersistenceStore implements IStore {
       }
     }
 
+    // Apply Gantt preferences
+    if (prefs.gantt) {
+      if (this.ganttViewStore) {
+        this.ganttViewStore.setZoomLevel(prefs.gantt.zoomLevel)
+        // Apply field mapping if present
+        if (prefs.gantt.fieldMapping) {
+          this.ganttViewStore.setFieldMapping(prefs.gantt.fieldMapping)
+        }
+        logger.info('Applied Gantt preferences', {
+          zoomLevel: prefs.gantt.zoomLevel,
+          fieldMapping: prefs.gantt.fieldMapping,
+        })
+      }
+      if (this.viewModeStore) {
+        this.viewModeStore.setCutoffWidth(prefs.gantt.cutoffWidth)
+        // Only restore view mode if it was gantt (don't force gantt mode)
+        if (prefs.gantt.viewMode === 'gantt') {
+          this.viewModeStore.setMode('gantt')
+        }
+        logger.info('Applied Gantt view preferences', {
+          cutoffWidth: prefs.gantt.cutoffWidth,
+          viewMode: prefs.gantt.viewMode,
+        })
+      }
+    }
+
     logger.info('✅ Applied loaded preferences to stores', {
       entityType: this.entityType,
+      hasGanttPrefs: !!prefs.gantt,
     })
   }
 
@@ -378,8 +468,37 @@ export class PersistenceStore implements IStore {
       ),
     )
 
+    // Watch Gantt stores if available
+    if (this.ganttViewStore && this.viewModeStore) {
+      this.disposers.add(
+        reaction(
+          () => ({
+            zoomLevel: this.ganttViewStore!.zoomLevel,
+            cutoffWidth: this.viewModeStore!.cutoffWidth,
+            viewMode: this.viewModeStore!.mode,
+            fieldMapping: this.ganttViewStore!.fieldMapping,
+          }),
+          (data) => {
+            logger.debug('[PERSIST] 🔥 Gantt reaction fired - changes detected', {
+              zoomLevel: data.zoomLevel,
+              cutoffWidth: data.cutoffWidth,
+              viewMode: data.viewMode,
+              fieldMapping: data.fieldMapping,
+            })
+            this.debouncedSave()
+          },
+          {
+            name: 'PersistenceStore.watchGantt',
+            delay: 100,
+          },
+        ),
+      )
+      logger.info('✅ Gantt auto-save reaction set up')
+    }
+
     logger.info('✅ Auto-save reactions set up', {
       entityType: this.entityType,
+      hasGanttWatcher: !!this.ganttViewStore && !!this.viewModeStore,
     })
   }
 
@@ -414,6 +533,17 @@ export class PersistenceStore implements IStore {
     }
 
     try {
+      // Build Gantt preferences if stores are available
+      let gantt: GanttPreferences | undefined
+      if (this.ganttViewStore && this.viewModeStore) {
+        gantt = {
+          zoomLevel: this.ganttViewStore.zoomLevel,
+          cutoffWidth: this.viewModeStore.cutoffWidth,
+          viewMode: this.viewModeStore.mode,
+          fieldMapping: this.ganttViewStore.fieldMapping,
+        }
+      }
+
       const prefs: VibeGridPreferences = {
         // From TableCoreStore
         groupRowOrders: this.tableCoreStore.groupRowOrders,
@@ -428,6 +558,9 @@ export class PersistenceStore implements IStore {
 
         // Convert GroupConfig (with Set) to serializable version (with Array)
         groupConfig: this.serializeGroupConfig(this.visualStateStore.groupConfig),
+
+        // Gantt preferences
+        gantt,
 
         // Metadata
         entityType: this.entityType,
@@ -456,6 +589,8 @@ export class PersistenceStore implements IStore {
         hasColumnVisibility: Object.keys(prefs.columnVisibility || {}).length > 0,
         hasGroupConfig: !!prefs.groupConfig,
         groupConfigFields: prefs.groupConfig?.fields?.length || 0,
+        hasGantt: !!prefs.gantt,
+        ganttZoom: prefs.gantt?.zoomLevel,
         timestamp: prefs.lastUpdated,
       })
     } catch (error) {
@@ -564,6 +699,17 @@ export class PersistenceStore implements IStore {
       return null
     }
 
+    // Build Gantt preferences if stores are available
+    let gantt: GanttPreferences | undefined
+    if (this.ganttViewStore && this.viewModeStore) {
+      gantt = {
+        zoomLevel: this.ganttViewStore.zoomLevel,
+        cutoffWidth: this.viewModeStore.cutoffWidth,
+        viewMode: this.viewModeStore.mode,
+        fieldMapping: this.ganttViewStore.fieldMapping,
+      }
+    }
+
     return {
       groupRowOrders: this.tableCoreStore.groupRowOrders,
       flatRowOrder: this.tableCoreStore.flatRowOrder,
@@ -573,6 +719,7 @@ export class PersistenceStore implements IStore {
       sortBy: this.visualStateStore.sortBy,
       filters: this.visualStateStore.filters,
       groupConfig: this.serializeGroupConfig(this.visualStateStore.groupConfig),
+      gantt,
       entityType: this.entityType,
       lastUpdated: new Date().toISOString(),
     }

@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
+import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { GanttTimeline } from './components/GanttTimeline'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
@@ -261,6 +262,16 @@ function VibeGridInnerBase(props: VibeGridProps) {
     })
     editingStore.setCollection(collection)
   }, [collection, editingStore, entityType])
+
+  // Set TanStack DB collection on GanttViewStore for bar drag persistence
+  useEffect(() => {
+    if (!ganttViewStore || !collection) return
+    logger.info('Setting TanStack DB collection on GanttViewStore', {
+      hasCollection: !!collection,
+      entityType,
+    })
+    ganttViewStore.setCollection(collection)
+  }, [collection, ganttViewStore, entityType])
 
   // ====================================
   // INITIALIZATION
