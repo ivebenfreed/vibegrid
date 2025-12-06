@@ -7,9 +7,11 @@
  * - Date field mapping (start/end fields)
  */
 
-import { action, computed, makeObservable, observable } from 'mobx'
+import { action, computed, makeObservable, observable, reaction } from 'mobx'
+import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
+import type { DependencyMetadata } from '@/shared/types/dataforge'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -59,6 +61,13 @@ export interface GanttFieldMapping {
   labelField: string
 }
 
+export interface GanttDependency {
+  id: string
+  sourceEntityId: string
+  targetEntityId: string
+  dependencyType: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish'
+}
+
 // ====================================
 // CONSTANTS
 // ====================================
@@ -79,6 +88,9 @@ const DEFAULT_ROW_HEIGHT = 36
 export class GanttViewStore implements IStore {
   // Dependencies
   private tableCoreStore: TableCoreStore | null = null
+  private schemaRegistry: SchemaRegistryStore | null = null
+  private entityType: string = ''
+  private disposeSchemaReaction?: () => void
 
   // ====================================
   // OBSERVABLE STATE
@@ -100,6 +112,12 @@ export class GanttViewStore implements IStore {
   /** Today's date (for "today" line) */
   @observable today: Date = new Date()
 
+  /** Dependencies between entities */
+  @observable dependencies: GanttDependency[] = []
+
+  /** Raw dependency metadata from schema */
+  @observable dependencyMetadata: DependencyMetadata | null = null
+
   constructor() {
     makeObservable(this)
     logger.info('GanttViewStore initialized')
@@ -112,6 +130,77 @@ export class GanttViewStore implements IStore {
   setTableCoreStore(store: TableCoreStore): void {
     this.tableCoreStore = store
     logger.info('TableCoreStore injected into GanttViewStore')
+  }
+
+  /**
+   * Set schema registry and entity type for loading dependencies
+   * Sets up a reaction to automatically load dependencies when schema is ready
+   */
+  @action
+  setSchemaRegistry(registry: SchemaRegistryStore, entityType: string): void {
+    this.schemaRegistry = registry
+    this.entityType = entityType
+
+    // Dispose previous reaction if any
+    this.disposeSchemaReaction?.()
+
+    // Set up reaction to load dependencies when schema is ready
+    this.disposeSchemaReaction = reaction(
+      () => ({
+        isReady: registry.isReady,
+        schemas: registry.schemas,
+      }),
+      ({ isReady, schemas }) => {
+        if (isReady && schemas) {
+          this.loadDependenciesFromSchema()
+        }
+      },
+      { fireImmediately: true },
+    )
+
+    logger.info('SchemaRegistry injected into GanttViewStore', { entityType })
+  }
+
+  /**
+   * Load dependencies from the schema registry
+   */
+  @action
+  private loadDependenciesFromSchema(): void {
+    if (!this.schemaRegistry?.schemas || !this.entityType) return
+
+    const schema = this.schemaRegistry.schemas.byName[this.entityType]
+    if (!schema) {
+      logger.debug('Schema not found for entity type', { entityType: this.entityType })
+      return
+    }
+
+    const depMetadata = schema.dependencies
+    if (!depMetadata || !depMetadata.supportsDependencies) {
+      logger.debug('Entity type does not support dependencies', { entityType: this.entityType })
+      this.dependencyMetadata = null
+      this.dependencies = []
+      return
+    }
+
+    // Store raw metadata
+    this.dependencyMetadata = depMetadata
+
+    // Convert to GanttDependency format
+    const ganttDeps: GanttDependency[] = depMetadata.currentDependencies
+      .filter((dep) => dep.sourceEntityType === this.entityType)
+      .map((dep) => ({
+        id: dep.id,
+        sourceEntityId: dep.sourceEntityId,
+        targetEntityId: dep.targetEntityId,
+        dependencyType: dep.dependencyType,
+      }))
+
+    this.dependencies = ganttDeps
+    logger.info('Dependencies loaded from schema', {
+      entityType: this.entityType,
+      count: ganttDeps.length,
+      totalInMetadata: depMetadata.dependencyCount,
+    })
   }
 
   // ====================================
@@ -301,6 +390,12 @@ export class GanttViewStore implements IStore {
   }
 
   @action
+  setDependencies(deps: GanttDependency[]): void {
+    this.dependencies = deps
+    logger.info('Dependencies updated', { count: deps.length })
+  }
+
+  @action
   scrollToToday(): void {
     if (this.todayLinePosition !== null) {
       // Center today in viewport (assuming ~600px viewport)
@@ -344,6 +439,7 @@ export class GanttViewStore implements IStore {
   }
 
   dispose(): void {
+    this.disposeSchemaReaction?.()
     logger.info('GanttViewStore disposed')
   }
 }

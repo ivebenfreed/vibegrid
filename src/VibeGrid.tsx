@@ -20,6 +20,7 @@ import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { CutoffResizer } from './components/CutoffResizer'
 import { GanttTimeline } from './components/GanttTimeline'
+import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
@@ -500,9 +501,12 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
               onResizeEnd={handleResizeEnd}
               onReset={handleCutoffReset}
             />
-            {/* Right pane: Timeline */}
-            <div className="flex-1 h-full overflow-auto min-w-0">
-              <GanttTimeline />
+            {/* Right pane: Timeline with toolbar */}
+            <div className="flex-1 h-full flex flex-col min-w-0">
+              <GanttToolbar />
+              <div className="flex-1 overflow-auto">
+                <GanttTimeline />
+              </div>
             </div>
           </>
         )}

@@ -13,6 +13,7 @@ import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 import { useGanttViewStore } from '../stores/context'
 import type { BarPosition, ZoomLevel } from '../stores/GanttViewStore'
+import { DependencyArrowLayer } from './DependencyArrowLayer'
 
 const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 
@@ -194,13 +195,14 @@ export const GanttTimeline = observer(function GanttTimeline({
   const ganttViewStore = useGanttViewStore()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { timeScale, barPositions, todayLinePosition, timelineWidth } = ganttViewStore
+  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies } = ganttViewStore
 
   // Calculate total height based on number of rows
   const totalHeight = barPositions.length * ROW_HEIGHT
 
-  logger.debug('GanttTimeline render', {
+  logger.info('GanttTimeline render', {
     barCount: barPositions.length,
+    dependencyCount: dependencies.length,
     timelineWidth,
     totalHeight,
     zoomLevel: timeScale.zoomLevel,
@@ -243,6 +245,16 @@ export const GanttTimeline = observer(function GanttTimeline({
         {barPositions.map((bar) => (
           <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} />
         ))}
+
+        {/* Dependency arrows */}
+        {dependencies.length > 0 && (
+          <DependencyArrowLayer
+            dependencies={dependencies}
+            barPositions={barPositions}
+            width={timelineWidth}
+            height={totalHeight}
+          />
+        )}
 
         {/* Empty state */}
         {barPositions.length === 0 && (
