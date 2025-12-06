@@ -12,10 +12,12 @@ import { getLogger } from '@/shared/lib/logging'
 import { createVibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { EditingStore } from './EditingStore'
+import { GanttViewStore } from './GanttViewStore'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
+import { ViewModeStore } from './ViewModeStore'
 import { VirtualViewportStore } from './VirtualViewportStore'
 import { VisualStateStore } from './VisualStateStore'
 
@@ -33,6 +35,8 @@ export interface VibeGridStores {
   persistenceStore: PersistenceStore
   initStore: InitStore
   virtualViewportStore: VirtualViewportStore
+  viewModeStore: ViewModeStore
+  ganttViewStore: GanttViewStore
   coordinateManager: ObservableCoordinateManager
 }
 
@@ -94,6 +98,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const persistenceStore = new PersistenceStore(entityType, orgId)
     const initStore = new InitStore(tableId, entityType)
     const virtualViewportStore = new VirtualViewportStore()
+    const viewModeStore = new ViewModeStore()
+    const ganttViewStore = new GanttViewStore()
 
     // Set up dependency injection between stores
     // VisualStateStore needs CoordinateManager for layout tracking
@@ -136,6 +142,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     initStore.setInteractionStore(interactionStore)
     initStore.setPersistenceStore(persistenceStore)
 
+    // GanttViewStore needs TableCoreStore for row data
+    ganttViewStore.setTableCoreStore(tableCoreStore)
+
     // Initialize synchronously
     initStore.init().catch((error) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -160,6 +169,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       persistenceStore,
       initStore,
       virtualViewportStore,
+      viewModeStore,
+      ganttViewStore,
       coordinateManager,
     }
   }, [entityType, orgId, tableId])
@@ -179,6 +190,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.editingStore.dispose()
       stores.persistenceStore.dispose()
       stores.initStore.dispose()
+      stores.viewModeStore.dispose()
+      stores.ganttViewStore.dispose()
     }
   }, []) // Run cleanup only on unmount
 
@@ -245,4 +258,12 @@ export function useInitStore(): InitStore {
 
 export function useCoordinateManager(): ObservableCoordinateManager {
   return useVibeGridStores().coordinateManager
+}
+
+export function useViewModeStore(): ViewModeStore {
+  return useVibeGridStores().viewModeStore
+}
+
+export function useGanttViewStore(): GanttViewStore {
+  return useVibeGridStores().ganttViewStore
 }

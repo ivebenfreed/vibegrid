@@ -14,12 +14,14 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { autorun } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
-import { memo, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
 import { getLogger } from '@/shared/lib/logging'
+import { ActionsBar } from './components/ActionsBar'
+import { CutoffResizer } from './components/CutoffResizer'
+import { GanttTimeline } from './components/GanttTimeline'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
-import { ActionsBar } from './components/ActionsBar'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
@@ -89,6 +91,7 @@ interface VibeGridProps<T = any> {
   enableSorting?: boolean
   enableDragAndDrop?: boolean
   enableSelectionColumn?: boolean
+  enableGantt?: boolean
 }
 
 // ====================================
@@ -122,6 +125,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     enableFiltering = true,
     enableSorting = true,
     enableDragAndDrop = true,
+    enableGantt = false,
   } = props
 
   // ====================================
@@ -129,7 +133,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // ====================================
 
   const stores = useVibeGridStores()
-  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore } = stores
+  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore, viewModeStore } = stores
 
   // ====================================
   // TANSTACK DB INTEGRATION
@@ -382,6 +386,28 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   }
 
   // ====================================
+  // GANTT VIEW CALLBACKS
+  // ====================================
+
+  // Handle cutoff resize (updates MobX store)
+  const handleCutoffResize = useCallback(
+    (newWidth: number) => {
+      viewModeStore.setCutoffWidth(newWidth)
+    },
+    [viewModeStore],
+  )
+
+  // Handle resize end (could persist to localStorage/backend later)
+  const handleResizeEnd = useCallback(() => {
+    logger.debug('Cutoff resize ended', { width: viewModeStore.cutoffWidth })
+  }, [viewModeStore.cutoffWidth])
+
+  // Handle double-click reset
+  const handleCutoffReset = useCallback(() => {
+    viewModeStore.resetCutoffWidth()
+  }, [viewModeStore])
+
+  // ====================================
   // DERIVED STATE
   // ====================================
 
@@ -442,26 +468,44 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         <VibeGridXHeaderPure
           stores={stores}
           enableGrouping={enableGrouping}
+          enableGantt={enableGantt}
           entityName={entityType}
           orgId={orgId}
           createEntity={createEntity}
         />
       )}
 
-      {/* Main table container */}
-      <div className="flex-1" style={{ minHeight: 0 }}>
+      {/* Main content area - Table or Split Pane (Gantt) */}
+      {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
+      <div className="flex-1 flex flex-row overflow-hidden" style={{ minHeight: 0 }}>
+        {/* Table container - always rendered to maintain renderer attachment */}
         <div
           ref={containerRef}
-          className="vibegrid-pure-renderer h-full w-full"
+          className="vibegrid-pure-renderer h-full overflow-auto"
           data-testid={`vibegrid-pure-renderer-${tableId}`}
           data-vibegrid-container="true"
           style={{
-            width: '100%',
-            height: '100%',
+            width: enableGantt && viewModeStore.isGanttMode ? viewModeStore.cutoffWidth : '100%',
+            flexShrink: 0,
             position: 'relative',
             outline: 'none',
           }}
         />
+
+        {/* Gantt Mode: Resizer and Timeline pane */}
+        {enableGantt && viewModeStore.isGanttMode && (
+          <>
+            <CutoffResizer
+              onResize={(deltaX) => handleCutoffResize(viewModeStore.cutoffWidth + deltaX)}
+              onResizeEnd={handleResizeEnd}
+              onReset={handleCutoffReset}
+            />
+            {/* Right pane: Timeline */}
+            <div className="flex-1 h-full overflow-auto min-w-0">
+              <GanttTimeline />
+            </div>
+          </>
+        )}
 
         {/* Actions bar - appears when rows are selected */}
         {enableSelectionColumn && (rowActions || enableDelete) && (

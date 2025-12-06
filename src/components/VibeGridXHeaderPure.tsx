@@ -2,11 +2,14 @@
  * VibeGrid Header (MobX Version)
  *
  * Complete header with all child components migrated to MobX.
- * Includes: Entity Add, Grouping Config, and Column Visibility controls.
+ * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
+import { GanttChart, LayoutList } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
+import { Button } from '@/shared/components/ui/button'
+import { ButtonGroup } from '@/shared/components/ui/button-group'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
@@ -18,6 +21,7 @@ const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
   enableGrouping?: boolean
+  enableGantt?: boolean
   className?: string
   entityName?: string
   orgId?: string
@@ -27,12 +31,13 @@ interface VibeGridXHeaderPureProps {
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   stores,
   enableGrouping = false,
+  enableGantt = false,
   className = '',
   entityName,
   orgId,
   createEntity,
 }: VibeGridXHeaderPureProps) {
-  const { visualStateStore } = stores
+  const { visualStateStore, viewModeStore } = stores
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -47,6 +52,8 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       columnCount: visualStateStore.columns.length,
       hiddenColumnCount,
       enableGrouping,
+      enableGantt,
+      viewMode: viewModeStore.mode,
       entityName,
       hasOrgId: !!orgId,
       hasCreateEntity: !!createEntity,
@@ -73,7 +80,31 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       }}
     >
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium">Table View</span>
+        {/* View Mode Toggle - only show if gantt is enabled */}
+        {enableGantt ? (
+          <ButtonGroup>
+            <Button
+              variant={viewModeStore.isTableMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => viewModeStore.setMode('table')}
+              aria-pressed={viewModeStore.isTableMode}
+            >
+              <LayoutList className="size-4" />
+              Table
+            </Button>
+            <Button
+              variant={viewModeStore.isGanttMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => viewModeStore.setMode('gantt')}
+              aria-pressed={viewModeStore.isGanttMode}
+            >
+              <GanttChart className="size-4" />
+              Gantt
+            </Button>
+          </ButtonGroup>
+        ) : (
+          <span className="text-sm font-medium">Table View</span>
+        )}
         {hiddenColumnCount > 0 && (
           <span className="text-xs text-muted-foreground">
             ({hiddenColumnCount} columns hidden)
