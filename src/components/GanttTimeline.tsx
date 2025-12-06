@@ -8,10 +8,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import React, { useRef } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
-import { useGanttViewStore } from '../stores/context'
+import { useGanttViewStore, useTableCoreStore } from '../stores/context'
 import type { BarPosition, ZoomLevel } from '../stores/GanttViewStore'
 import { DependencyArrowLayer } from './DependencyArrowLayer'
 
@@ -21,8 +21,8 @@ const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 // CONSTANTS
 // ====================================
 
-const HEADER_HEIGHT = 50
-const ROW_HEIGHT = 36
+const HEADER_HEIGHT = 48 // Match table column header height (GRID_DIMENSIONS.HEADER_HEIGHT)
+const ROW_HEIGHT = 40 // Match table row height (GRID_DIMENSIONS.ROW_HEIGHT)
 
 // Colors for bars (can be based on status later)
 const BAR_COLORS = {
@@ -130,6 +130,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 interface GanttBarProps {
   bar: BarPosition
   onClick?: (rowId: string) => void
+  rowIndex?: number
 }
 
 const GanttBar = observer(function GanttBar({ bar, onClick }: GanttBarProps) {
@@ -193,25 +194,52 @@ export const GanttTimeline = observer(function GanttTimeline({
   onBarClick,
 }: GanttTimelineProps) {
   const ganttViewStore = useGanttViewStore()
+  const tableCoreStore = useTableCoreStore()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies } = ganttViewStore
+  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies, scrollLeft, scrollTop } = ganttViewStore
 
-  // Calculate total height based on number of rows
-  const totalHeight = barPositions.length * ROW_HEIGHT
+  // Get actual row count from table (matches table view exactly)
+  const rowCount = tableCoreStore.processedRows.length
 
-  logger.info('GanttTimeline render', {
+  // Calculate total height based on actual row count
+  const totalHeight = rowCount * ROW_HEIGHT
+
+  // Handle scroll events - save to MobX store
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget
+    ganttViewStore.setScrollPosition(target.scrollLeft, target.scrollTop)
+  }, [ganttViewStore])
+
+  // Restore scroll position from store on mount and when values change programmatically
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    // Only update if different (avoid infinite loop)
+    if (Math.abs(container.scrollLeft - scrollLeft) > 1) {
+      container.scrollLeft = scrollLeft
+    }
+    if (Math.abs(container.scrollTop - scrollTop) > 1) {
+      container.scrollTop = scrollTop
+    }
+  }, [scrollLeft, scrollTop])
+
+  logger.debug('GanttTimeline render', {
     barCount: barPositions.length,
     dependencyCount: dependencies.length,
     timelineWidth,
     totalHeight,
     zoomLevel: timeScale.zoomLevel,
+    scrollLeft,
+    scrollTop,
   })
 
   return (
     <div
       ref={containerRef}
       className={cn('h-full w-full overflow-auto', className)}
+      onScroll={handleScroll}
     >
       {/* Time scale header */}
       <TimeScaleHeader
@@ -231,9 +259,22 @@ export const GanttTimeline = observer(function GanttTimeline({
           minHeight: 400,
         }}
       >
-        {/* Grid lines (vertical) */}
+        {/* Row backgrounds (zebra striping) - matches table */}
         <div className="absolute inset-0 pointer-events-none">
-          {/* Could add vertical grid lines here based on zoom level */}
+          {Array.from({ length: rowCount }, (_, index) => (
+            <div
+              key={`row-bg-${index}`}
+              className={index % 2 === 0 ? 'bg-background' : 'bg-muted'}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: index * ROW_HEIGHT,
+                width: '100%',
+                height: ROW_HEIGHT,
+                borderBottom: '1px solid var(--border)',
+              }}
+            />
+          ))}
         </div>
 
         {/* Today line */}
@@ -242,8 +283,8 @@ export const GanttTimeline = observer(function GanttTimeline({
         )}
 
         {/* Render bars */}
-        {barPositions.map((bar) => (
-          <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} />
+        {barPositions.map((bar, index) => (
+          <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} rowIndex={index} />
         ))}
 
         {/* Dependency arrows */}

@@ -79,7 +79,7 @@ const ZOOM_PIXELS_PER_DAY: Record<ZoomLevel, number> = {
   quarter: 2,
 }
 
-const DEFAULT_ROW_HEIGHT = 36
+const DEFAULT_ROW_HEIGHT = 40 // Match GRID_DIMENSIONS.ROW_HEIGHT
 
 // ====================================
 // STORE
@@ -101,6 +101,9 @@ export class GanttViewStore implements IStore {
 
   /** Scroll offset of timeline (horizontal) */
   @observable scrollLeft: number = 0
+
+  /** Scroll offset of timeline (vertical) */
+  @observable scrollTop: number = 0
 
   /** Field mapping for bar dates */
   @observable fieldMapping: GanttFieldMapping = {
@@ -384,6 +387,17 @@ export class GanttViewStore implements IStore {
   }
 
   @action
+  setScrollTop(value: number): void {
+    this.scrollTop = Math.max(0, value)
+  }
+
+  @action
+  setScrollPosition(left: number, top: number): void {
+    this.scrollLeft = Math.max(0, left)
+    this.scrollTop = Math.max(0, top)
+  }
+
+  @action
   setFieldMapping(mapping: Partial<GanttFieldMapping>): void {
     this.fieldMapping = { ...this.fieldMapping, ...mapping }
     logger.info('Field mapping updated', { mapping: this.fieldMapping })
@@ -435,6 +449,7 @@ export class GanttViewStore implements IStore {
     logger.info('GanttViewStore reset')
     this.zoomLevel = 'week'
     this.scrollLeft = 0
+    this.scrollTop = 0
     this.today = new Date()
   }
 

@@ -1442,10 +1442,11 @@ export class SimplePassiveRenderer {
     this.container.innerHTML = ''
 
     // Create basic table structure
+    // NOTE: width/height are controlled by React (VibeGrid.tsx), not here
+    // This allows Gantt mode to set cutoffWidth via JSX
     this.container.style.position = 'relative'
     this.container.style.overflow = 'hidden'
-    this.container.style.width = '100%'
-    this.container.style.height = '100%'
+    this.container.style.userSelect = 'none'
 
     // Create main table container
     const table = this.createElement('div', 'vibegridx-table')

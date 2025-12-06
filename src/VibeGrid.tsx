@@ -11,16 +11,15 @@
  */
 
 import { useLiveQuery } from '@tanstack/react-db'
-import { autorun } from 'mobx'
+import { autorun, reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
-import { memo, useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { CutoffResizer } from './components/CutoffResizer'
 import { GanttTimeline } from './components/GanttTimeline'
-import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
@@ -99,7 +98,7 @@ interface VibeGridProps<T = any> {
 // INNER COMPONENT (Uses MobX stores from context)
 // ====================================
 
-const VibeGridInner = observer(<T extends Record<string, any> = any>(props: VibeGridProps<T>) => {
+function VibeGridInnerBase(props: VibeGridProps) {
   const {
     tableId,
     entityType,
@@ -134,7 +133,11 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
   // ====================================
 
   const stores = useVibeGridStores()
-  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore, viewModeStore } = stores
+  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore, viewModeStore, ganttViewStore } = stores
+
+  // Read observables at top level to ensure MobX tracking
+  const isGanttMode = enableGantt && viewModeStore.isGanttMode
+  const cutoffWidth = viewModeStore.cutoffWidth
 
   // ====================================
   // TANSTACK DB INTEGRATION
@@ -408,6 +411,55 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
     viewModeStore.resetCutoffWidth()
   }, [viewModeStore])
 
+  // Sync vertical scroll between table (VisualStateStore) and Gantt (GanttViewStore)
+  // This ensures both panes scroll together vertically
+  useEffect(() => {
+    if (!isGanttMode) return
+
+    // Track which store initiated the scroll to avoid infinite loops
+    let scrollSource: 'table' | 'gantt' | null = null
+
+    // Table → Gantt: When table scrolls vertically, sync to Gantt
+    const disposeTableToGantt = reaction(
+      () => visualStateStore.scrollTop,
+      (tableScrollTop) => {
+        if (scrollSource === 'gantt') {
+          scrollSource = null
+          return
+        }
+        if (Math.abs(ganttViewStore.scrollTop - tableScrollTop) > 1) {
+          scrollSource = 'table'
+          ganttViewStore.setScrollTop(tableScrollTop)
+        }
+      },
+    )
+
+    // Gantt → Table: When Gantt scrolls vertically, sync to table
+    // IMPORTANT: We must scroll the actual DOM element, not just update the store
+    // The store update alone doesn't trigger DOM scroll which breaks virtual rendering
+    const disposeGanttToTable = reaction(
+      () => ganttViewStore.scrollTop,
+      (ganttScrollTop) => {
+        if (scrollSource === 'table') {
+          scrollSource = null
+          return
+        }
+        // Find the table viewport and scroll it directly
+        const viewport = containerRef.current?.querySelector('.vibegridx-viewport')
+        if (viewport && Math.abs(viewport.scrollTop - ganttScrollTop) > 1) {
+          scrollSource = 'gantt'
+          viewport.scrollTop = ganttScrollTop
+          // The DOM scroll event will update visualStateStore automatically
+        }
+      },
+    )
+
+    return () => {
+      disposeTableToGantt()
+      disposeGanttToTable()
+    }
+  }, [isGanttMode, visualStateStore, ganttViewStore])
+
   // ====================================
   // DERIVED STATE
   // ====================================
@@ -486,7 +538,7 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
           data-testid={`vibegrid-pure-renderer-${tableId}`}
           data-vibegrid-container="true"
           style={{
-            width: enableGantt && viewModeStore.isGanttMode ? viewModeStore.cutoffWidth : '100%',
+            width: isGanttMode ? cutoffWidth : '100%',
             flexShrink: 0,
             position: 'relative',
             outline: 'none',
@@ -494,19 +546,16 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
         />
 
         {/* Gantt Mode: Resizer and Timeline pane */}
-        {enableGantt && viewModeStore.isGanttMode && (
+        {isGanttMode && (
           <>
             <CutoffResizer
               onResize={(deltaX) => handleCutoffResize(viewModeStore.cutoffWidth + deltaX)}
               onResizeEnd={handleResizeEnd}
               onReset={handleCutoffReset}
             />
-            {/* Right pane: Timeline with toolbar */}
-            <div className="flex-1 h-full flex flex-col min-w-0">
-              <GanttToolbar />
-              <div className="flex-1 overflow-auto">
-                <GanttTimeline />
-              </div>
+            {/* Right pane: Timeline */}
+            <div className="flex-1 h-full overflow-auto min-w-0">
+              <GanttTimeline />
             </div>
           </>
         )}
@@ -527,23 +576,17 @@ const VibeGridInner = observer(<T extends Record<string, any> = any>(props: Vibe
       {/* Debug info in development - removed to avoid MobX tracking */}
     </div>
   )
-})
+}
 
-VibeGridInner.displayName = 'VibeGridInner'
-
-// Memoize to prevent unnecessary re-creations when parent re-renders
-const VibeGridInnerMemoized = memo(VibeGridInner)
+// Wrap with observer AFTER defining the function
+const VibeGridInner = observer(VibeGridInnerBase)
 
 // ====================================
 // MAIN COMPONENT (Provides store context)
 // ====================================
 
-export function VibeGrid<T extends Record<string, any> = any>(
-  props: VibeGridProps<T>,
-): React.ReactElement {
-  // Note: VibeGrid expects to be wrapped in VibeGridStoreProvider by the parent
-  // This allows for better control over store lifecycle from the parent component
-  return <VibeGridInnerMemoized {...props} />
+export function VibeGrid(props: VibeGridProps): React.ReactElement {
+  return <VibeGridInner {...props} />
 }
 
 export default VibeGrid
