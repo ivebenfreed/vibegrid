@@ -16,8 +16,10 @@ import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useRef } from 'react'
 import { membersCollection } from '@/shared/data/db/collections/member-collection'
+import { useDependencyCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
+import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { GanttTimeline } from './components/GanttTimeline'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
@@ -159,6 +161,37 @@ function VibeGridInnerBase(props: VibeGridProps) {
     status: membersStatus,
   } = useLiveQuery((q) => q.from({ members: membersCollection }))
 
+  // Get dependency collection for Gantt (only when enableGantt is true)
+  const dependencyCollection = useDependencyCollection(enableGantt ? entityType : '')
+
+  // Fetch dependencies reactively using TanStack DB live query
+  const { data: rawDependencies = [] } = useLiveQuery(
+    (q) => {
+      if (!dependencyCollection) return undefined
+      return q.from({ dep: dependencyCollection }).select(({ dep }: any) => ({ ...dep }))
+    },
+    [dependencyCollection],
+  )
+
+  // Sync dependencies to GanttViewStore for arrow rendering
+  useEffect(() => {
+    if (!ganttViewStore || !enableGantt) return
+
+    // Convert raw dependencies to GanttDependency format
+    const ganttDeps = rawDependencies.map((dep: any) => ({
+      id: dep.id,
+      sourceEntityId: dep.sourceEntityId,
+      targetEntityId: dep.targetEntityId,
+      dependencyType: dep.dependencyType || 'finish_to_start',
+    }))
+
+    ganttViewStore.setDependencies(ganttDeps)
+    logger.debug('Synced dependencies to GanttViewStore', {
+      count: ganttDeps.length,
+      entityType,
+    })
+  }, [rawDependencies, ganttViewStore, enableGantt, entityType])
+
   // Log members query status
   useEffect(() => {
     logger.info('[MEMBERS] useLiveQuery status', {
@@ -261,6 +294,87 @@ function VibeGridInnerBase(props: VibeGridProps) {
     })
     editingStore.setCollection(collection)
   }, [collection, editingStore, entityType])
+
+  // Set TanStack DB collection on GanttViewStore for bar drag persistence
+  useEffect(() => {
+    if (!ganttViewStore || !collection) return
+    logger.info('Setting TanStack DB collection on GanttViewStore', {
+      hasCollection: !!collection,
+      entityType,
+    })
+    ganttViewStore.setCollection(collection)
+  }, [collection, ganttViewStore, entityType])
+
+  // Set TanStack DB dependency collection on GanttViewStore for optimistic updates
+  useEffect(() => {
+    if (!ganttViewStore) return
+    logger.info('Setting TanStack DB dependency collection on GanttViewStore', {
+      hasDependencyCollection: !!dependencyCollection,
+      entityType,
+      enableGantt,
+    })
+    ganttViewStore.setDependencyCollection(dependencyCollection)
+  }, [dependencyCollection, ganttViewStore, entityType, enableGantt])
+
+  // Auto-detect status and progress fields for Gantt bar coloring
+  useEffect(() => {
+    if (!ganttViewStore || !enableGantt || !tableCoreStore) return
+
+    const columns = tableCoreStore.columns
+    if (!columns || columns.length === 0) return
+
+    // Find status field (look for 'status' in name or type)
+    const statusCol = columns.find((col: any) => {
+      const id = col.id?.toLowerCase() || ''
+      const name = (col.name || '').toLowerCase()
+      const type = (col.type || col.cellType || '').toLowerCase()
+      return id === 'status' || name === 'status' || type === 'status' || type === 'status_set'
+    })
+
+    // Find progress field (look for 'progress', 'percent', 'completion')
+    const progressCol = columns.find((col: any) => {
+      const id = col.id?.toLowerCase() || ''
+      const name = (col.name || '').toLowerCase()
+      return (
+        id.includes('progress') ||
+        id.includes('percent') ||
+        id.includes('completion') ||
+        name.includes('progress') ||
+        name.includes('percent') ||
+        name.includes('completion')
+      )
+    })
+
+    const updates: { statusField?: string; progressField?: string } = {}
+    if (statusCol && !ganttViewStore.fieldMapping.statusField) {
+      updates.statusField = statusCol.id
+
+      // Extract status color options from column editor metadata
+      const editorOptions = (statusCol as any).editor?.options || []
+      if (editorOptions.length > 0) {
+        const colorOptions = editorOptions
+          .filter((opt: any) => opt.value && opt.backgroundColor)
+          .map((opt: any) => ({
+            value: opt.value,
+            label: opt.label || opt.value,
+            color: opt.color || '#000000',
+            backgroundColor: opt.backgroundColor,
+          }))
+        if (colorOptions.length > 0) {
+          ganttViewStore.setStatusColorMap(colorOptions)
+          logger.info('Set status color map from schema', { count: colorOptions.length })
+        }
+      }
+    }
+    if (progressCol && !ganttViewStore.fieldMapping.progressField) {
+      updates.progressField = progressCol.id
+    }
+
+    if (Object.keys(updates).length > 0) {
+      logger.info('Auto-detected Gantt field mappings', updates)
+      ganttViewStore.setFieldMapping(updates)
+    }
+  }, [ganttViewStore, enableGantt, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
   // INITIALIZATION
@@ -555,7 +669,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
             />
             {/* Right pane: Timeline */}
             <div className="flex-1 h-full overflow-auto min-w-0">
-              <GanttTimeline />
+              <GanttTimeline
+                isLoading={isDataLoading}
+                selectedRowIds={interactionStore.selectedRows}
+                onBarClick={(rowId, isMulti) => interactionStore.selectRow(rowId, isMulti)}
+              />
             </div>
           </>
         )}

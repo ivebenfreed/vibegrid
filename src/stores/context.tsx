@@ -138,6 +138,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     persistenceStore.setTableCoreStore(tableCoreStore)
     persistenceStore.setVisualStateStore(visualStateStore)
     persistenceStore.setInteractionStore(interactionStore)
+    persistenceStore.setGanttViewStore(ganttViewStore)
+    persistenceStore.setViewModeStore(viewModeStore)
 
     // InitStore coordinates all stores
     initStore.setTableCoreStore(tableCoreStore)

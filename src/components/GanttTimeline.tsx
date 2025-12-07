@@ -12,8 +12,10 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 import { useGanttViewStore, useTableCoreStore } from '../stores/context'
-import type { BarPosition, ZoomLevel } from '../stores/GanttViewStore'
+import type { BarPosition, DependencyEdge, ZoomLevel } from '../stores/GanttViewStore'
 import { DependencyArrowLayer } from './DependencyArrowLayer'
+
+const NODE_SIZE = 12 // Size of dependency nodes in pixels
 
 const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 
@@ -24,13 +26,8 @@ const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 const HEADER_HEIGHT = 48 // Match table column header height (GRID_DIMENSIONS.HEADER_HEIGHT)
 const ROW_HEIGHT = 40 // Match table row height (GRID_DIMENSIONS.ROW_HEIGHT)
 
-// Colors for bars (can be based on status later)
-const BAR_COLORS = {
-  default: 'bg-primary/80 hover:bg-primary',
-  completed: 'bg-green-500/80 hover:bg-green-500',
-  blocked: 'bg-red-500/80 hover:bg-red-500',
-  active: 'bg-blue-500/80 hover:bg-blue-500',
-}
+// Default bar color class (when no status color is provided)
+const DEFAULT_BAR_CLASS = 'bg-primary/80 hover:bg-primary hover:shadow-md'
 
 // ====================================
 // TIME SCALE HEADER
@@ -44,7 +41,7 @@ interface TimeScaleHeaderProps {
   width: number
 }
 
-const TimeScaleHeader = observer(function TimeScaleHeader({
+function TimeScaleHeader({
   startDate,
   endDate,
   pixelsPerDay,
@@ -104,7 +101,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 
   return (
     <div
-      className="relative border-b bg-muted/50 flex-shrink-0"
+      className="relative border-b bg-muted/50 flex-shrink-0 sticky top-0 z-20"
       style={{ height: HEADER_HEIGHT, width }}
     >
       {markers.map((marker, i) => (
@@ -121,7 +118,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
       ))}
     </div>
   )
-})
+}
 
 // ====================================
 // GANTT BAR
@@ -129,32 +126,214 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 
 interface GanttBarProps {
   bar: BarPosition
-  onClick?: (rowId: string) => void
-  rowIndex?: number
+  isPreview?: boolean
+  isDragging?: boolean
+  isSelected?: boolean
+  isDependencyDragTarget?: boolean
+  onClick?: (rowId: string, isMulti: boolean) => void
+  onDragStart?: (barId: string, mode: 'move' | 'resize-start' | 'resize-end', startX: number) => void
+  onDependencyDragStart?: (barId: string, edge: DependencyEdge, x: number, y: number) => void
+  onDependencyNodeHover?: (barId: string, edge: DependencyEdge) => void
+  onDependencyNodeLeave?: () => void
 }
 
-const GanttBar = observer(function GanttBar({ bar, onClick }: GanttBarProps) {
+const HANDLE_WIDTH = 8 // Width of resize handles in pixels
+
+function GanttBar({
+  bar,
+  isPreview = false,
+  isDragging = false,
+  isSelected = false,
+  isDependencyDragTarget = false,
+  onClick,
+  onDragStart,
+  onDependencyDragStart,
+  onDependencyNodeHover,
+  onDependencyNodeLeave,
+}: GanttBarProps) {
+  // Handle pointer down on the bar body (move operation)
+  const handleBodyPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return // Only left mouse button
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'move', e.clientX)
+  }
+
+  // Handle pointer down on left edge (resize start)
+  const handleLeftHandlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'resize-start', e.clientX)
+  }
+
+  // Handle pointer down on right edge (resize end)
+  const handleRightHandlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDragStart?.(bar.rowId, 'resize-end', e.clientX)
+  }
+
+  // Handle dependency node drag start
+  const handleStartNodePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDependencyDragStart?.(bar.rowId, 'start', e.clientX, e.clientY)
+  }
+
+  const handleEndNodePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    onDependencyDragStart?.(bar.rowId, 'end', e.clientX, e.clientY)
+  }
+
+  // Handle dependency node hover (for drop target detection)
+  const handleStartNodeEnter = () => onDependencyNodeHover?.(bar.rowId, 'start')
+  const handleEndNodeEnter = () => onDependencyNodeHover?.(bar.rowId, 'end')
+  const handleNodeLeave = () => onDependencyNodeLeave?.()
+
+  // Don't allow click during drag
+  const handleClick = (e: React.MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    // Cmd/Ctrl+click for multi-select
+    const isMulti = e.metaKey || e.ctrlKey
+    onClick?.(bar.rowId, isMulti)
+  }
+
+  // Determine if bar is too narrow to fit text inside
+  // Use text length to estimate needed width (~7px per character + padding)
+  const estimatedTextWidth = bar.label.length * 7 + 24
+  const isNarrowBar = bar.width < estimatedTextWidth
+
+  // Use status color from schema if available, otherwise use default class
+  const hasStatusColor = !isPreview && bar.statusColor
+  const barClasses = cn(
+    'absolute rounded transition-all duration-150 select-none',
+    'flex items-center text-xs',
+    'shadow-sm group hover:z-10 hover:shadow-md',
+    isPreview && 'opacity-70 border-2 border-dashed border-primary',
+    !isPreview && !hasStatusColor && DEFAULT_BAR_CLASS,
+    isDragging && !isPreview && 'opacity-40',
+    isDependencyDragTarget && 'ring-2 ring-yellow-400 ring-offset-1',
+    isSelected && 'ring-2 ring-primary ring-offset-1 ring-offset-background shadow-lg',
+  )
+
   return (
     <div
-      className={cn(
-        'absolute rounded cursor-pointer transition-colors',
-        'flex items-center px-2 text-xs text-white truncate',
-        'shadow-sm',
-        BAR_COLORS.default,
-      )}
+      className={barClasses}
       style={{
         left: bar.left,
         top: bar.top + 4, // Center in row with padding
         width: bar.width,
         height: bar.height,
+        // Apply status color from schema metadata if available
+        ...(hasStatusColor && bar.statusColor && { backgroundColor: bar.statusColor }),
       }}
-      onClick={() => onClick?.(bar.rowId)}
+      onClick={handleClick}
       title={`${bar.label}\n${bar.startDate.toLocaleDateString()} - ${bar.endDate.toLocaleDateString()}`}
     >
-      {bar.width > 60 && <span className="truncate">{bar.label}</span>}
+      {/* Left dependency node (start) */}
+      <div
+        className={cn(
+          'absolute rounded-full bg-blue-500 border-2 border-white shadow-md cursor-crosshair',
+          'opacity-0 group-hover:opacity-100 hover:scale-125 transition-all z-20',
+        )}
+        style={{
+          width: NODE_SIZE,
+          height: NODE_SIZE,
+          left: -NODE_SIZE / 2,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        onPointerDown={handleStartNodePointerDown}
+        onPointerEnter={handleStartNodeEnter}
+        onPointerLeave={handleNodeLeave}
+        title="Drag to create dependency (from start)"
+      />
+
+      {/* Left resize handle */}
+      <div
+        className={cn(
+          'absolute left-0 top-0 bottom-0 cursor-ew-resize',
+          'opacity-0 group-hover:opacity-100 hover:bg-white/30',
+          'rounded-l transition-opacity',
+        )}
+        style={{ width: HANDLE_WIDTH, left: NODE_SIZE / 2 }}
+        onPointerDown={handleLeftHandlePointerDown}
+      />
+
+      {/* Progress fill (behind everything) */}
+      {bar.progress !== null && bar.progress > 0 && (
+        <div
+          className="absolute inset-0 bg-white/25 rounded pointer-events-none"
+          style={{ width: `${bar.progress}%` }}
+        />
+      )}
+
+      {/* Bar body (for move) */}
+      <div
+        className="flex-1 h-full flex items-center cursor-grab active:cursor-grabbing overflow-visible relative z-10"
+        onPointerDown={handleBodyPointerDown}
+      >
+        {/* Label - inside bar for wide bars, overflow right for narrow bars */}
+        <span
+          className={cn(
+            'whitespace-nowrap text-xs pointer-events-none',
+            isNarrowBar
+              ? 'absolute left-full ml-2 text-foreground' // Overflow to right - use theme foreground
+              : 'px-2 truncate w-full text-center', // Inside bar
+            // When inside bar without status color (default primary bg), use white text
+            !isNarrowBar && !hasStatusColor && 'text-white',
+          )}
+          style={
+            // When inside bar with status color, use dark text since status backgrounds are light
+            !isNarrowBar && hasStatusColor ? { color: '#374151' } : undefined
+          }
+        >
+          {bar.label}
+          {bar.progress !== null && ` (${Math.round(bar.progress)}%)`}
+        </span>
+      </div>
+
+      {/* Right resize handle */}
+      <div
+        className={cn(
+          'absolute top-0 bottom-0 cursor-ew-resize',
+          'opacity-0 group-hover:opacity-100 hover:bg-white/30',
+          'rounded-r transition-opacity',
+        )}
+        style={{ width: HANDLE_WIDTH, right: NODE_SIZE / 2 }}
+        onPointerDown={handleRightHandlePointerDown}
+      />
+
+      {/* Right dependency node (end) */}
+      <div
+        className={cn(
+          'absolute rounded-full bg-green-500 border-2 border-white shadow-md cursor-crosshair',
+          'opacity-0 group-hover:opacity-100 hover:scale-125 transition-all z-20',
+        )}
+        style={{
+          width: NODE_SIZE,
+          height: NODE_SIZE,
+          right: -NODE_SIZE / 2,
+          top: '50%',
+          transform: 'translateY(-50%)',
+        }}
+        onPointerDown={handleEndNodePointerDown}
+        onPointerEnter={handleEndNodeEnter}
+        onPointerLeave={handleNodeLeave}
+        title="Drag to create dependency (from end)"
+      />
     </div>
   )
-})
+}
 
 // ====================================
 // TODAY LINE
@@ -165,7 +344,7 @@ interface TodayLineProps {
   height: number
 }
 
-const TodayLine = observer(function TodayLine({ position, height }: TodayLineProps) {
+function TodayLine({ position, height }: TodayLineProps) {
   return (
     <div
       className="absolute w-0.5 bg-red-500 z-10 pointer-events-none"
@@ -178,7 +357,84 @@ const TodayLine = observer(function TodayLine({ position, height }: TodayLinePro
       <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
     </div>
   )
-})
+}
+
+// ====================================
+// DEPENDENCY DRAG LINE
+// ====================================
+
+interface DependencyDragLineProps {
+  sourceBar: BarPosition
+  sourceEdge: DependencyEdge
+  currentX: number
+  currentY: number
+  hasTarget: boolean
+}
+
+function DependencyDragLine({
+  sourceBar,
+  sourceEdge,
+  currentX,
+  currentY,
+  hasTarget,
+}: DependencyDragLineProps) {
+  // Calculate start point based on source edge
+  const startX = sourceEdge === 'start' ? sourceBar.left : sourceBar.left + sourceBar.width
+  const startY = sourceBar.top + sourceBar.height / 2 + 4 // +4 for the row padding
+
+  return (
+    <svg
+      className="absolute inset-0 pointer-events-none z-30"
+      style={{ overflow: 'visible' }}
+    >
+      {/* Main drag line */}
+      <line
+        x1={startX}
+        y1={startY}
+        x2={currentX}
+        y2={currentY}
+        stroke={hasTarget ? '#22c55e' : '#3b82f6'}
+        strokeWidth={2}
+        strokeDasharray={hasTarget ? 'none' : '5,5'}
+        markerEnd={hasTarget ? 'url(#arrow-valid)' : 'url(#arrow-drag)'}
+      />
+      {/* Arrow markers */}
+      <defs>
+        <marker
+          id="arrow-drag"
+          markerWidth="10"
+          markerHeight="10"
+          refX="9"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <path d="M0,0 L0,6 L9,3 z" fill="#3b82f6" />
+        </marker>
+        <marker
+          id="arrow-valid"
+          markerWidth="10"
+          markerHeight="10"
+          refX="9"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <path d="M0,0 L0,6 L9,3 z" fill="#22c55e" />
+        </marker>
+      </defs>
+      {/* Source indicator circle */}
+      <circle
+        cx={startX}
+        cy={startY}
+        r={6}
+        fill={sourceEdge === 'start' ? '#3b82f6' : '#22c55e'}
+        stroke="white"
+        strokeWidth={2}
+      />
+    </svg>
+  )
+}
 
 // ====================================
 // MAIN COMPONENT
@@ -186,18 +442,22 @@ const TodayLine = observer(function TodayLine({ position, height }: TodayLinePro
 
 interface GanttTimelineProps {
   className?: string
-  onBarClick?: (rowId: string) => void
+  isLoading?: boolean
+  selectedRowIds?: Set<string>
+  onBarClick?: (rowId: string, isMulti: boolean) => void
 }
 
 export const GanttTimeline = observer(function GanttTimeline({
   className,
+  isLoading = false,
+  selectedRowIds,
   onBarClick,
 }: GanttTimelineProps) {
   const ganttViewStore = useGanttViewStore()
   const tableCoreStore = useTableCoreStore()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies, scrollLeft, scrollTop } = ganttViewStore
+  const { timeScale, barPositions, todayLinePosition, timelineWidth, dependencies, scrollLeft, scrollTop, dragState, dependencyDragState } = ganttViewStore
 
   // Get actual row count from table (matches table view exactly)
   const rowCount = tableCoreStore.processedRows.length
@@ -210,6 +470,11 @@ export const GanttTimeline = observer(function GanttTimeline({
     const target = e.currentTarget
     ganttViewStore.setScrollPosition(target.scrollLeft, target.scrollTop)
   }, [ganttViewStore])
+
+  // Get container bounds for calculating relative positions
+  const getContainerBounds = useCallback(() => {
+    return containerRef.current?.getBoundingClientRect()
+  }, [])
 
   // Restore scroll position from store on mount and when values change programmatically
   useEffect(() => {
@@ -225,6 +490,178 @@ export const GanttTimeline = observer(function GanttTimeline({
     }
   }, [scrollLeft, scrollTop])
 
+  // ====================================
+  // KEYBOARD & WHEEL SHORTCUTS
+  // ====================================
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle if focused in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+      // +/= to zoom in, -/_ to zoom out
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault()
+        ganttViewStore.zoomIn()
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        ganttViewStore.zoomOut()
+      }
+      // 't' to scroll to today
+      else if (e.key === 't' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        ganttViewStore.scrollToToday()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [ganttViewStore])
+
+  // Ctrl+scroll wheel to zoom
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      // Only handle Ctrl+wheel (or Cmd+wheel on Mac)
+      if (!e.ctrlKey && !e.metaKey) return
+
+      e.preventDefault()
+
+      // Scroll up (negative deltaY) = zoom in, scroll down = zoom out
+      if (e.deltaY < 0) {
+        ganttViewStore.zoomIn()
+      } else if (e.deltaY > 0) {
+        ganttViewStore.zoomOut()
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [ganttViewStore])
+
+  // ====================================
+  // DRAG HANDLING (BAR MOVE/RESIZE)
+  // ====================================
+
+  // Start drag on a bar
+  const handleDragStart = useCallback(
+    (barId: string, mode: 'move' | 'resize-start' | 'resize-end', startX: number) => {
+      ganttViewStore.startDrag(barId, mode, startX)
+    },
+    [ganttViewStore],
+  )
+
+  // Global pointer move handler during drag
+  useEffect(() => {
+    if (!dragState.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      ganttViewStore.updateDrag(e.clientX)
+    }
+
+    const handlePointerUp = () => {
+      ganttViewStore.endDrag()
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        ganttViewStore.cancelDrag()
+      }
+    }
+
+    // Add global listeners
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [dragState.isDragging, ganttViewStore])
+
+  // ====================================
+  // DEPENDENCY DRAG HANDLING
+  // ====================================
+
+  // Start dependency drag from a bar edge
+  const handleDependencyDragStart = useCallback(
+    (barId: string, edge: DependencyEdge, x: number, y: number) => {
+      const bounds = getContainerBounds()
+      if (!bounds) return
+      // Convert to coordinates relative to container
+      const relX = x - bounds.left + scrollLeft
+      const relY = y - bounds.top + scrollTop - HEADER_HEIGHT
+      ganttViewStore.startDependencyDrag(barId, edge, relX, relY)
+    },
+    [ganttViewStore, getContainerBounds, scrollLeft, scrollTop],
+  )
+
+  // Track hover target for dependency drop
+  const handleDependencyNodeHover = useCallback(
+    (barId: string, edge: DependencyEdge) => {
+      if (!dependencyDragState.isDragging) return
+      ganttViewStore.updateDependencyDrag(
+        dependencyDragState.currentX,
+        dependencyDragState.currentY,
+        barId,
+        edge,
+      )
+    },
+    [ganttViewStore, dependencyDragState],
+  )
+
+  const handleDependencyNodeLeave = useCallback(() => {
+    if (!dependencyDragState.isDragging) return
+    ganttViewStore.updateDependencyDrag(
+      dependencyDragState.currentX,
+      dependencyDragState.currentY,
+      undefined,
+      undefined,
+    )
+  }, [ganttViewStore, dependencyDragState])
+
+  // Global pointer events for dependency drag
+  useEffect(() => {
+    if (!dependencyDragState.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const bounds = getContainerBounds()
+      if (!bounds) return
+      const relX = e.clientX - bounds.left + scrollLeft
+      const relY = e.clientY - bounds.top + scrollTop - HEADER_HEIGHT
+      ganttViewStore.updateDependencyDrag(
+        relX,
+        relY,
+        dependencyDragState.targetBarId ?? undefined,
+        dependencyDragState.targetEdge ?? undefined,
+      )
+    }
+
+    const handlePointerUp = () => {
+      ganttViewStore.endDependencyDrag()
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        ganttViewStore.cancelDependencyDrag()
+      }
+    }
+
+    document.addEventListener('pointermove', handlePointerMove)
+    document.addEventListener('pointerup', handlePointerUp)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [dependencyDragState.isDragging, dependencyDragState.targetBarId, dependencyDragState.targetEdge, ganttViewStore, getContainerBounds, scrollLeft, scrollTop])
+
   logger.debug('GanttTimeline render', {
     barCount: barPositions.length,
     dependencyCount: dependencies.length,
@@ -233,6 +670,7 @@ export const GanttTimeline = observer(function GanttTimeline({
     zoomLevel: timeScale.zoomLevel,
     scrollLeft,
     scrollTop,
+    isDragging: dragState.isDragging,
   })
 
   return (
@@ -283,9 +721,29 @@ export const GanttTimeline = observer(function GanttTimeline({
         )}
 
         {/* Render bars */}
-        {barPositions.map((bar, index) => (
-          <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} rowIndex={index} />
+        {barPositions.map((bar) => (
+          <GanttBar
+            key={bar.rowId}
+            bar={bar}
+            isDragging={dragState.isDragging && dragState.barId === bar.rowId}
+            isSelected={selectedRowIds?.has(bar.rowId) ?? false}
+            isDependencyDragTarget={dependencyDragState.isDragging && dependencyDragState.targetBarId === bar.rowId}
+            onClick={onBarClick}
+            onDragStart={handleDragStart}
+            onDependencyDragStart={handleDependencyDragStart}
+            onDependencyNodeHover={handleDependencyNodeHover}
+            onDependencyNodeLeave={handleDependencyNodeLeave}
+          />
         ))}
+
+        {/* Preview bar during drag */}
+        {dragState.isDragging && dragState.previewBar && (
+          <GanttBar
+            key="preview-bar"
+            bar={dragState.previewBar}
+            isPreview={true}
+          />
+        )}
 
         {/* Dependency arrows */}
         {dependencies.length > 0 && (
@@ -294,11 +752,41 @@ export const GanttTimeline = observer(function GanttTimeline({
             barPositions={barPositions}
             width={timelineWidth}
             height={totalHeight}
+            selectedDependencyId={ganttViewStore.selectedDependencyId}
+            onSelectDependency={(id) => ganttViewStore.selectDependency(id)}
+            onDeleteDependency={(id) => ganttViewStore.deleteDependency(id)}
           />
         )}
 
-        {/* Empty state */}
-        {barPositions.length === 0 && (
+        {/* Dependency drag line during creation */}
+        {dependencyDragState.isDragging && dependencyDragState.sourceBarId && (
+          (() => {
+            const sourceBar = barPositions.find((b) => b.rowId === dependencyDragState.sourceBarId)
+            if (!sourceBar || !dependencyDragState.sourceEdge) return null
+            return (
+              <DependencyDragLine
+                sourceBar={sourceBar}
+                sourceEdge={dependencyDragState.sourceEdge}
+                currentX={dependencyDragState.currentX}
+                currentY={dependencyDragState.currentY}
+                hasTarget={!!dependencyDragState.targetBarId}
+              />
+            )
+          })()
+        )}
+
+        {/* Loading state */}
+        {isLoading && barPositions.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span className="text-sm">Loading timeline...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Empty state (only show when not loading) */}
+        {!isLoading && barPositions.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
             No tasks with dates to display
           </div>

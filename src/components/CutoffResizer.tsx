@@ -5,7 +5,6 @@
  * Double-click resets to default width.
  */
 
-import { observer } from 'mobx-react-lite'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
@@ -31,7 +30,7 @@ interface CutoffResizerProps {
 // COMPONENT
 // ====================================
 
-export const CutoffResizer = observer(function CutoffResizer({
+export function CutoffResizer({
   onResize,
   onResizeEnd,
   onReset,
@@ -121,4 +120,4 @@ export const CutoffResizer = observer(function CutoffResizer({
       </div>
     </div>
   )
-})
+}

@@ -3,10 +3,11 @@
  *
  * Renders bezier curve arrows between Gantt bars to show dependencies.
  * Supports finish-to-start, start-to-start, finish-to-finish, start-to-finish.
+ * Click to select, Delete/Backspace to remove.
  */
 
 import { observer } from 'mobx-react-lite'
-import React from 'react'
+import React, { useCallback, useEffect } from 'react'
 import type { BarPosition } from '../stores/GanttViewStore'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -28,6 +29,9 @@ interface DependencyArrowLayerProps {
   barPositions: BarPosition[]
   width: number
   height: number
+  selectedDependencyId?: string | null
+  onSelectDependency?: (dependencyId: string | null) => void
+  onDeleteDependency?: (dependencyId: string) => void
 }
 
 // ====================================
@@ -37,7 +41,7 @@ interface DependencyArrowLayerProps {
 interface ArrowPath {
   id: string
   path: string
-  color: string
+  dependencyType: Dependency['dependencyType']
 }
 
 function calculateArrowPath(
@@ -111,9 +115,91 @@ function calculateArrowPath(
 }
 
 // ====================================
-// ARROW HEAD MARKER
+// DEPENDENCY TYPE COLORS
 // ====================================
 
+const DEPENDENCY_COLORS: Record<Dependency['dependencyType'], string> = {
+  finish_to_start: '#6366f1', // indigo (most common, default)
+  start_to_start: '#8b5cf6',  // violet
+  finish_to_finish: '#06b6d4', // cyan
+  start_to_finish: '#f59e0b',  // amber (rare)
+}
+
+// ====================================
+// ARROW HEAD MARKERS
+// ====================================
+
+const ArrowMarkers = () => (
+  <defs>
+    {/* Finish-to-Start (indigo) */}
+    <marker
+      id="arrowhead-fs"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_start} />
+    </marker>
+    {/* Start-to-Start (violet) */}
+    <marker
+      id="arrowhead-ss"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_start} />
+    </marker>
+    {/* Finish-to-Finish (cyan) */}
+    <marker
+      id="arrowhead-ff"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_finish} />
+    </marker>
+    {/* Start-to-Finish (amber) */}
+    <marker
+      id="arrowhead-sf"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_finish} />
+    </marker>
+    {/* Selected (red) */}
+    <marker
+      id="arrowhead-selected"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
+    </marker>
+  </defs>
+)
+
+function getArrowMarkerId(depType: Dependency['dependencyType']): string {
+  switch (depType) {
+    case 'finish_to_start': return 'arrowhead-fs'
+    case 'start_to_start': return 'arrowhead-ss'
+    case 'finish_to_finish': return 'arrowhead-ff'
+    case 'start_to_finish': return 'arrowhead-sf'
+    default: return 'arrowhead-fs'
+  }
+}
+
+// Legacy marker for backwards compatibility
 const ArrowMarker = () => (
   <defs>
     <marker
@@ -141,7 +227,41 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
   barPositions,
   width,
   height,
+  selectedDependencyId,
+  onSelectDependency,
+  onDeleteDependency,
 }: DependencyArrowLayerProps) {
+  // Handle keyboard delete
+  useEffect(() => {
+    if (!selectedDependencyId || !onDeleteDependency) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        onDeleteDependency(selectedDependencyId)
+      } else if (e.key === 'Escape') {
+        onSelectDependency?.(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedDependencyId, onDeleteDependency, onSelectDependency])
+
+  // Handle click on arrow
+  const handleArrowClick = useCallback(
+    (e: React.MouseEvent, dependencyId: string) => {
+      e.stopPropagation()
+      onSelectDependency?.(dependencyId)
+    },
+    [onSelectDependency],
+  )
+
+  // Handle click on background (deselect)
+  const handleBackgroundClick = useCallback(() => {
+    onSelectDependency?.(null)
+  }, [onSelectDependency])
+
   // Build lookup map for bar positions by rowId
   const barMap = new Map<string, BarPosition>()
   for (const bar of barPositions) {
@@ -173,42 +293,54 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
     arrows.push({
       id: dep.id,
       path,
-      color: 'text-muted-foreground',
+      dependencyType: dep.dependencyType,
     })
   }
 
-  logger.info('DependencyArrowLayer render', {
+  logger.debug('DependencyArrowLayer render', {
     dependencyCount: dependencies.length,
     arrowCount: arrows.length,
-    barCount: barPositions.length,
-    width,
-    height,
-    firstArrow: arrows[0],
+    selectedDependencyId,
   })
 
   if (arrows.length === 0) {
-    logger.warn('No arrows to render - dependencies may not match bar rowIds')
     return null
   }
 
   return (
     <svg
-      className="absolute inset-0 pointer-events-none overflow-visible"
+      className="absolute inset-0 overflow-visible pointer-events-none"
       style={{ width, height }}
-      aria-hidden="true"
     >
-      <ArrowMarker />
+      <ArrowMarkers />
       <g className="dependency-arrows">
-        {arrows.map((arrow) => (
-          <path
-            key={arrow.id}
-            d={arrow.path}
-            fill="none"
-            stroke="#6366f1"
-            strokeWidth={2}
-            markerEnd="url(#arrowhead)"
-          />
-        ))}
+        {arrows.map((arrow) => {
+          const isSelected = arrow.id === selectedDependencyId
+          const color = isSelected ? '#ef4444' : DEPENDENCY_COLORS[arrow.dependencyType]
+          const markerId = isSelected ? 'arrowhead-selected' : getArrowMarkerId(arrow.dependencyType)
+          return (
+            <g key={arrow.id}>
+              {/* Invisible wider path for easier clicking */}
+              <path
+                d={arrow.path}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={16}
+                className="cursor-pointer pointer-events-auto"
+                onClick={(e) => handleArrowClick(e, arrow.id)}
+              />
+              {/* Visible arrow */}
+              <path
+                d={arrow.path}
+                fill="none"
+                stroke={color}
+                strokeWidth={isSelected ? 3 : 2}
+                markerEnd={`url(#${markerId})`}
+                className="pointer-events-none transition-colors"
+              />
+            </g>
+          )
+        })}
       </g>
     </svg>
   )
