@@ -7,11 +7,14 @@
  * - Date field mapping (start/end fields)
  */
 
-import { action, computed, makeObservable, observable, reaction } from 'mobx'
+import { action, computed, makeObservable, observable, reaction, runInAction } from 'mobx'
+import type { Collection } from '@tanstack/db'
 import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
+import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
 import type { DependencyMetadata } from '@/shared/types/dataforge'
+import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -50,6 +53,14 @@ export interface TimeScale {
   zoomLevel: ZoomLevel
 }
 
+/** Status option with color metadata from schema */
+export interface StatusColorOption {
+  value: string
+  label: string
+  color: string
+  backgroundColor: string
+}
+
 export interface BarPosition {
   /** Row ID this bar belongs to */
   rowId: string
@@ -67,6 +78,12 @@ export interface BarPosition {
   endDate: Date
   /** Bar label (typically task title) */
   label: string
+  /** Progress percentage (0-100), null if not available */
+  progress: number | null
+  /** Status string for color coding, null if not available */
+  status: string | null
+  /** Background color for the bar (from status metadata) */
+  statusColor: string | null
 }
 
 export interface GanttFieldMapping {
@@ -76,6 +93,10 @@ export interface GanttFieldMapping {
   endField: string
   /** Field name for bar label */
   labelField: string
+  /** Field name for progress percentage (0-100), optional */
+  progressField?: string
+  /** Field name for status (for color coding), optional */
+  statusField?: string
 }
 
 export interface GanttDependency {
@@ -83,6 +104,26 @@ export interface GanttDependency {
   sourceEntityId: string
   targetEntityId: string
   dependencyType: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish'
+  /** Lag in days (positive = delay, negative = lead/overlap) */
+  lagDays?: number
+}
+
+export type DependencyEdge = 'start' | 'end'
+
+export interface DependencyDragState {
+  /** Is dependency drag currently active */
+  isDragging: boolean
+  /** Source bar ID */
+  sourceBarId: string | null
+  /** Which edge the drag started from */
+  sourceEdge: DependencyEdge | null
+  /** Current mouse position (relative to timeline container) */
+  currentX: number
+  currentY: number
+  /** Target bar ID if hovering over one */
+  targetBarId: string | null
+  /** Target edge if hovering over one */
+  targetEdge: DependencyEdge | null
 }
 
 // ====================================
@@ -108,7 +149,8 @@ export class GanttViewStore implements IStore {
   private schemaRegistry: SchemaRegistryStore | null = null
   private entityType: string = ''
   private disposeSchemaReaction?: () => void
-  private collection: any = null // TanStack DB collection for updates
+  private collection: any = null // TanStack DB collection for entity updates
+  private dependencyCollection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for dependencies
 
   // ====================================
   // OBSERVABLE STATE
@@ -140,6 +182,9 @@ export class GanttViewStore implements IStore {
     labelField: 'name',
   }
 
+  /** Status color options from schema (value -> color mapping) */
+  @observable statusColorMap: Map<string, StatusColorOption> = new Map()
+
   /** Today's date (for "today" line) */
   @observable today: Date = new Date()
 
@@ -148,6 +193,17 @@ export class GanttViewStore implements IStore {
 
   /** Raw dependency metadata from schema */
   @observable dependencyMetadata: DependencyMetadata | null = null
+
+  /** Drag state for creating new dependencies */
+  @observable dependencyDragState: DependencyDragState = {
+    isDragging: false,
+    sourceBarId: null,
+    sourceEdge: null,
+    currentX: 0,
+    currentY: 0,
+    targetBarId: null,
+    targetEdge: null,
+  }
 
   constructor() {
     makeObservable(this)
@@ -422,6 +478,35 @@ export class GanttViewStore implements IStore {
       const left = this.daysBetween(timelineStart, startDate) * this.pixelsPerDay
       const width = Math.max(this.daysBetween(startDate, effectiveEnd) * this.pixelsPerDay, 20) // Min 20px width
 
+      // Extract progress if field is configured
+      let progress: number | null = null
+      if (this.fieldMapping.progressField) {
+        const rawProgress = rowData[this.fieldMapping.progressField]
+        if (typeof rawProgress === 'number') {
+          progress = Math.max(0, Math.min(100, rawProgress))
+        } else if (typeof rawProgress === 'string') {
+          const parsed = parseFloat(rawProgress)
+          if (!isNaN(parsed)) {
+            progress = Math.max(0, Math.min(100, parsed))
+          }
+        }
+      }
+
+      // Extract status if field is configured
+      let status: string | null = null
+      let statusColor: string | null = null
+      if (this.fieldMapping.statusField) {
+        const rawStatus = rowData[this.fieldMapping.statusField]
+        if (rawStatus != null) {
+          status = String(rawStatus).toLowerCase()
+          // Look up color from status color map
+          const statusOption = this.statusColorMap.get(status)
+          if (statusOption) {
+            statusColor = statusOption.backgroundColor
+          }
+        }
+      }
+
       positions.push({
         rowId: row.id,
         left,
@@ -431,6 +516,9 @@ export class GanttViewStore implements IStore {
         startDate,
         endDate: effectiveEnd,
         label: String(rowData[this.fieldMapping.labelField] || ''),
+        progress,
+        status,
+        statusColor,
       })
 
       currentTop += DEFAULT_ROW_HEIGHT
@@ -516,6 +604,15 @@ export class GanttViewStore implements IStore {
   }
 
   @action
+  setStatusColorMap(options: StatusColorOption[]): void {
+    this.statusColorMap.clear()
+    for (const opt of options) {
+      this.statusColorMap.set(opt.value.toLowerCase(), opt)
+    }
+    logger.info('Status color map updated', { count: options.length })
+  }
+
+  @action
   scrollToToday(): void {
     if (this.todayLinePosition !== null) {
       // Center today in viewport (assuming ~600px viewport)
@@ -533,6 +630,23 @@ export class GanttViewStore implements IStore {
   setCollection(collection: any): void {
     this.collection = collection
     logger.info('Collection set on GanttViewStore')
+  }
+
+  /**
+   * Set TanStack DB collection for dependency CRUD with optimistic updates
+   *
+   * This enables:
+   * - Optimistic create: Immediate UI update when creating dependencies
+   * - Optimistic delete: Immediate UI update when deleting dependencies
+   * - Automatic sync: TanStack DB handles persistence and rollback on error
+   *
+   * @param collection - TanStack DB dependency collection from useDependencyCollection
+   */
+  setDependencyCollection(collection: Collection<any, any, any, any, any> | null): void {
+    this.dependencyCollection = collection
+    logger.info('Dependency collection set on GanttViewStore', {
+      hasCollection: !!collection,
+    })
   }
 
   // ====================================
@@ -646,8 +760,20 @@ export class GanttViewStore implements IStore {
     }
 
     // Capture values before clearing drag state
-    const newStartDate = previewBar.startDate.toISOString()
-    const newEndDate = previewBar.endDate.toISOString()
+    const newStartDate = previewBar.startDate
+    const newEndDate = previewBar.endDate
+
+    // Calculate cascade updates BEFORE clearing drag state (needs current bar positions)
+    const cascadeUpdates = calculateCascadeUpdates(
+      barId!,
+      newStartDate,
+      newEndDate,
+      this.dependencies,
+      (id) => {
+        const bar = this.barPositions.find((b) => b.rowId === id)
+        return bar ? { id: bar.rowId, startDate: bar.startDate, endDate: bar.endDate } : undefined
+      },
+    )
 
     // CRITICAL: Clear drag state BEFORE the update to prevent stale preview
     // The optimistic update from collection.update() may trigger re-sorting
@@ -660,28 +786,40 @@ export class GanttViewStore implements IStore {
         const updates: Record<string, string> = {}
 
         if (startChanged) {
-          updates[this.fieldMapping.startField] = newStartDate
+          updates[this.fieldMapping.startField] = newStartDate.toISOString()
         }
         if (endChanged) {
-          updates[this.fieldMapping.endField] = newEndDate
+          updates[this.fieldMapping.endField] = newEndDate.toISOString()
         }
 
         logger.info('Persisting bar drag changes', {
           barId,
           startChanged,
           endChanged,
-          newStart: newStartDate,
-          newEnd: newEndDate,
+          newStart: newStartDate.toISOString(),
+          newEnd: newEndDate.toISOString(),
+          cascadeCount: cascadeUpdates.length,
         })
 
+        // Update the dragged bar
         const tx = this.collection.update(barId, (draft: any) => {
           Object.assign(draft, updates)
           draft.updated_at = new Date().toISOString()
         })
 
-        // Wait for persistence (drag state already cleared)
-        await tx.isPersisted.promise
-        logger.info('Bar drag changes persisted', { barId })
+        // Apply cascade updates in parallel
+        const cascadePromises = cascadeUpdates.map((update) => {
+          const cascadeTx = this.collection.update(update.entityId, (draft: any) => {
+            draft[this.fieldMapping.startField] = update.newStartDate.toISOString()
+            draft[this.fieldMapping.endField] = update.newEndDate.toISOString()
+            draft.updated_at = new Date().toISOString()
+          })
+          return cascadeTx.isPersisted.promise
+        })
+
+        // Wait for all persistence
+        await Promise.all([tx.isPersisted.promise, ...cascadePromises])
+        logger.info('Bar drag changes persisted', { barId, cascadeCount: cascadeUpdates.length })
       } catch (error) {
         logger.error('Failed to persist bar drag changes', {
           barId,
@@ -707,6 +845,210 @@ export class GanttViewStore implements IStore {
       isDragging: false,
     }
     logger.debug('Drag cancelled/ended')
+  }
+
+  // ====================================
+  // DEPENDENCY DRAG ACTIONS
+  // ====================================
+
+  /**
+   * Start dragging from a bar edge to create a dependency
+   */
+  @action
+  startDependencyDrag(barId: string, edge: DependencyEdge, x: number, y: number): void {
+    this.dependencyDragState = {
+      isDragging: true,
+      sourceBarId: barId,
+      sourceEdge: edge,
+      currentX: x,
+      currentY: y,
+      targetBarId: null,
+      targetEdge: null,
+    }
+    logger.debug('Dependency drag started', { barId, edge, x, y })
+  }
+
+  /**
+   * Update dependency drag position and detect target
+   */
+  @action
+  updateDependencyDrag(x: number, y: number, targetBarId?: string, targetEdge?: DependencyEdge): void {
+    if (!this.dependencyDragState.isDragging) return
+
+    this.dependencyDragState.currentX = x
+    this.dependencyDragState.currentY = y
+    this.dependencyDragState.targetBarId = targetBarId || null
+    this.dependencyDragState.targetEdge = targetEdge || null
+  }
+
+  /**
+   * End dependency drag and create the dependency if valid
+   */
+  @action
+  async endDependencyDrag(): Promise<void> {
+    const { sourceBarId, sourceEdge, targetBarId, targetEdge } = this.dependencyDragState
+
+    // Validate we have a valid connection
+    if (!sourceBarId || !targetBarId || sourceBarId === targetBarId) {
+      logger.debug('Dependency drag ended without valid target', { sourceBarId, targetBarId })
+      this.cancelDependencyDrag()
+      return
+    }
+
+    // Determine dependency type based on edges
+    // For now, default to finish_to_start (most common)
+    // sourceEdge = 'end' means "from the end of source" (finish)
+    // targetEdge = 'start' means "to the start of target" (start)
+    let dependencyType: GanttDependency['dependencyType'] = 'finish_to_start'
+
+    if (sourceEdge === 'start' && targetEdge === 'start') {
+      dependencyType = 'start_to_start'
+    } else if (sourceEdge === 'end' && targetEdge === 'end') {
+      dependencyType = 'finish_to_finish'
+    } else if (sourceEdge === 'start' && targetEdge === 'end') {
+      dependencyType = 'start_to_finish'
+    }
+    // Default: sourceEdge === 'end' && targetEdge === 'start' => finish_to_start
+
+    // IMPORTANT: In our data model, "source depends_on target" means source WAITS for target.
+    // When user drags from bar A's end to bar B's start, they mean "B depends on A"
+    // (B cannot start until A finishes). So we SWAP the source/target:
+    // - successorId (the bar you dragged TO) becomes the source (the one that waits)
+    // - predecessorId (the bar you dragged FROM) becomes the target (must finish first)
+    const successorId = targetBarId // The bar that will WAIT (dragged TO)
+    const predecessorId = sourceBarId // The bar that must finish first (dragged FROM)
+
+    logger.info('Creating dependency', {
+      predecessorId,
+      successorId,
+      sourceEdge,
+      targetEdge,
+      dependencyType,
+    })
+
+    // Clear drag state before creating
+    this.cancelDependencyDrag()
+
+    // Create the dependency using TanStack DB collection for optimistic updates
+    if (this.dependencyCollection) {
+      // Use collection.insert() for automatic optimistic update + persistence
+      const tempId = `temp-dep-${Date.now()}`
+      const newRecord: DependencyRecord = {
+        id: tempId,
+        sourceEntityType: this.entityType,
+        sourceEntityId: successorId, // Successor = source (the one that depends/waits)
+        targetEntityType: this.entityType,
+        targetEntityId: predecessorId, // Predecessor = target (must complete first)
+        relationshipType: 'depends_on',
+        dependencyType,
+        createdAt: new Date().toISOString(),
+      }
+
+      logger.info('Creating dependency via TanStack DB collection (optimistic)', {
+        predecessorId,
+        successorId,
+        dependencyType,
+      })
+
+      const tx = this.dependencyCollection.insert(newRecord)
+
+      // Also update local dependencies for immediate arrow rendering
+      // (The live query from useLiveQuery will also update, but this ensures immediate feedback)
+      runInAction(() => {
+        const newDep: GanttDependency = {
+          id: tempId,
+          sourceEntityId: successorId,
+          targetEntityId: predecessorId,
+          dependencyType,
+        }
+        this.dependencies = [...this.dependencies, newDep]
+      })
+
+      // Wait for persistence and update with real ID
+      tx.isPersisted.promise
+        .then(() => {
+          logger.info('Dependency persisted successfully', { tempId })
+        })
+        .catch((error: any) => {
+          logger.error('Dependency creation failed, rolling back', {
+            error: error?.message || 'Unknown error',
+          })
+          // Remove the optimistic dependency on error
+          runInAction(() => {
+            this.dependencies = this.dependencies.filter((d) => d.id !== tempId)
+          })
+        })
+    } else {
+      // Fallback: no collection available, log warning
+      logger.warn('No dependency collection available - dependency not created')
+    }
+  }
+
+  /**
+   * Cancel dependency drag without creating
+   */
+  @action
+  cancelDependencyDrag(): void {
+    this.dependencyDragState = {
+      isDragging: false,
+      sourceBarId: null,
+      sourceEdge: null,
+      currentX: 0,
+      currentY: 0,
+      targetBarId: null,
+      targetEdge: null,
+    }
+    logger.debug('Dependency drag cancelled')
+  }
+
+  /**
+   * Selected dependency ID (for delete UI)
+   */
+  @observable selectedDependencyId: string | null = null
+
+  /**
+   * Select a dependency (for deletion or editing)
+   */
+  @action
+  selectDependency(dependencyId: string | null): void {
+    this.selectedDependencyId = dependencyId
+    logger.debug('Dependency selected', { dependencyId })
+  }
+
+  /**
+   * Delete a dependency by ID
+   */
+  @action
+  async deleteDependency(dependencyId: string): Promise<void> {
+    logger.info('Deleting dependency', { dependencyId })
+
+    // Optimistic removal from local state
+    const originalDeps = this.dependencies
+    this.dependencies = this.dependencies.filter((d) => d.id !== dependencyId)
+
+    // Clear selection if deleted
+    if (this.selectedDependencyId === dependencyId) {
+      this.selectedDependencyId = null
+    }
+
+    // Persist via collection
+    if (this.dependencyCollection) {
+      try {
+        const tx = this.dependencyCollection.delete(dependencyId)
+        await tx.isPersisted.promise
+        logger.info('Dependency deleted successfully', { dependencyId })
+      } catch (error: any) {
+        logger.error('Dependency deletion failed, rolling back', {
+          error: error?.message || 'Unknown error',
+        })
+        // Rollback on error
+        runInAction(() => {
+          this.dependencies = originalDeps
+        })
+      }
+    } else {
+      logger.warn('No dependency collection available - deletion not persisted')
+    }
   }
 
   // ====================================
@@ -802,6 +1144,7 @@ export class GanttViewStore implements IStore {
     this.scrollTop = 0
     this.today = new Date()
     this.cancelDrag()
+    this.cancelDependencyDrag()
   }
 
   dispose(): void {
