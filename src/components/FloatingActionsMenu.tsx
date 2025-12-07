@@ -131,11 +131,14 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
 
   return (
     <>
-      <DropdownMenu open={rowActionMenuState.isOpen} onOpenChange={(open) => {
-        if (!open) {
-          interactionStore.closeRowActionMenu()
-        }
-      }}>
+      <DropdownMenu
+        open={rowActionMenuState.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            interactionStore.closeRowActionMenu()
+          }
+        }}
+      >
         <DropdownMenuContent
           align="end"
           sideOffset={4}
@@ -184,7 +187,10 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancelDelete}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

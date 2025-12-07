@@ -65,30 +65,30 @@ function calculateArrowPath(
   switch (dependencyType) {
     case 'finish_to_start':
       // Arrow from END of source to START of target
-      startX = source.left + source.width + PADDING  // Past right edge
+      startX = source.left + source.width + PADDING // Past right edge
       startY = sourceCenter
-      endX = target.left - ARROW_HEAD_SPACE          // Before left edge
+      endX = target.left - ARROW_HEAD_SPACE // Before left edge
       endY = targetCenter
       break
     case 'start_to_start':
       // Arrow from START of source to START of target
-      startX = source.left - PADDING                 // Before left edge
+      startX = source.left - PADDING // Before left edge
       startY = sourceCenter
-      endX = target.left - ARROW_HEAD_SPACE          // Before left edge
+      endX = target.left - ARROW_HEAD_SPACE // Before left edge
       endY = targetCenter
       break
     case 'finish_to_finish':
       // Arrow from END of source to END of target
-      startX = source.left + source.width + PADDING  // Past right edge
+      startX = source.left + source.width + PADDING // Past right edge
       startY = sourceCenter
-      endX = target.left + target.width + ARROW_HEAD_SPACE  // Past right edge
+      endX = target.left + target.width + ARROW_HEAD_SPACE // Past right edge
       endY = targetCenter
       break
     case 'start_to_finish':
       // Arrow from START of source to END of target
-      startX = source.left - PADDING                 // Before left edge
+      startX = source.left - PADDING // Before left edge
       startY = sourceCenter
-      endX = target.left + target.width + ARROW_HEAD_SPACE  // Past right edge
+      endX = target.left + target.width + ARROW_HEAD_SPACE // Past right edge
       endY = targetCenter
       break
     default:
@@ -202,18 +202,8 @@ function getArrowMarkerId(depType: Dependency['dependencyType']): string {
 // Legacy marker for backwards compatibility
 const ArrowMarker = () => (
   <defs>
-    <marker
-      id="arrowhead"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
-      <polygon
-        points="0 0, 10 3.5, 0 7"
-        fill="#6366f1"
-      />
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
     </marker>
   </defs>
 )
@@ -277,8 +267,8 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
     // - dep.targetEntityId = B (the predecessor, must complete first)
     // For arrow visualization, we draw FROM predecessor TO successor
     // So we SWAP: arrow source = dep.target, arrow target = dep.source
-    const arrowSourceBar = barMap.get(dep.targetEntityId)  // predecessor
-    const arrowTargetBar = barMap.get(dep.sourceEntityId)  // successor
+    const arrowSourceBar = barMap.get(dep.targetEntityId) // predecessor
+    const arrowTargetBar = barMap.get(dep.sourceEntityId) // successor
 
     if (!arrowSourceBar || !arrowTargetBar) {
       logger.debug('Skipping dependency - missing bar', {

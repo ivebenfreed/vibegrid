@@ -9,7 +9,8 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useRef, useEffect } from 'react'
+import type React from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 import { CutoffResizer } from './CutoffResizer'
@@ -64,19 +65,22 @@ export const SplitPaneContainer = observer(function SplitPaneContainer({
   const rightPaneRef = useRef<HTMLDivElement>(null)
 
   // Handle resize delta from CutoffResizer
-  const handleResize = useCallback((deltaX: number) => {
-    const containerWidth = containerRef.current?.clientWidth ?? 1000
-    const effectiveMaxWidth = maxLeftWidth ?? containerWidth * 0.7
+  const handleResize = useCallback(
+    (deltaX: number) => {
+      const containerWidth = containerRef.current?.clientWidth ?? 1000
+      const effectiveMaxWidth = maxLeftWidth ?? containerWidth * 0.7
 
-    let newWidth = cutoffWidth + deltaX
+      let newWidth = cutoffWidth + deltaX
 
-    // Clamp to bounds
-    newWidth = Math.max(minLeftWidth, Math.min(newWidth, effectiveMaxWidth))
+      // Clamp to bounds
+      newWidth = Math.max(minLeftWidth, Math.min(newWidth, effectiveMaxWidth))
 
-    if (newWidth !== cutoffWidth) {
-      onCutoffResize(newWidth)
-    }
-  }, [cutoffWidth, onCutoffResize, minLeftWidth, maxLeftWidth])
+      if (newWidth !== cutoffWidth) {
+        onCutoffResize(newWidth)
+      }
+    },
+    [cutoffWidth, onCutoffResize, minLeftWidth, maxLeftWidth],
+  )
 
   // Sync vertical scroll between panes
   useEffect(() => {
@@ -116,33 +120,19 @@ export const SplitPaneContainer = observer(function SplitPaneContainer({
   return (
     <div
       ref={containerRef}
-      className={cn(
-        'flex flex-row overflow-hidden',
-        className
-      )}
+      className={cn('flex flex-row overflow-hidden', className)}
       style={{ height }}
     >
       {/* Left Pane (Table) */}
-      <div
-        ref={leftPaneRef}
-        className="flex-shrink-0 overflow-auto"
-        style={{ width: cutoffWidth }}
-      >
+      <div ref={leftPaneRef} className="flex-shrink-0 overflow-auto" style={{ width: cutoffWidth }}>
         {leftPane}
       </div>
 
       {/* Resizer */}
-      <CutoffResizer
-        onResize={handleResize}
-        onResizeEnd={onResizeEnd}
-        onReset={onReset}
-      />
+      <CutoffResizer onResize={handleResize} onResizeEnd={onResizeEnd} onReset={onReset} />
 
       {/* Right Pane (Timeline) */}
-      <div
-        ref={rightPaneRef}
-        className="flex-1 overflow-auto min-w-0"
-      >
+      <div ref={rightPaneRef} className="flex-1 overflow-auto min-w-0">
         {rightPane}
       </div>
     </div>

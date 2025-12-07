@@ -5,7 +5,9 @@
  * Double-click resets to default width.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { observer } from 'mobx-react-lite'
+import type React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -30,7 +32,7 @@ interface CutoffResizerProps {
 // COMPONENT
 // ====================================
 
-export function CutoffResizer({
+export const CutoffResizer = observer(function CutoffResizer({
   onResize,
   onResizeEnd,
   onReset,
@@ -51,15 +53,18 @@ export function CutoffResizer({
   }, [])
 
   // Handle double click - reset to default
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
 
-    if (onReset) {
-      onReset()
-      logger.debug('Resizer reset to default')
-    }
-  }, [onReset])
+      if (onReset) {
+        onReset()
+        logger.debug('Resizer reset to default')
+      }
+    },
+    [onReset],
+  )
 
   // Global mouse move/up handlers (attached when dragging)
   useEffect(() => {
@@ -105,7 +110,7 @@ export function CutoffResizer({
         'before:cursor-col-resize',
         // Active state
         isDragging && 'bg-primary/40',
-        className
+        className,
       )}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
@@ -120,4 +125,4 @@ export function CutoffResizer({
       </div>
     </div>
   )
-}
+})

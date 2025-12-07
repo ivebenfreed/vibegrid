@@ -1097,7 +1097,9 @@ body.vibegridx-dragging-active * {
   background: hsl(var(--popover));
   border: 2px solid hsl(var(--primary));
   border-radius: calc(var(--radius) + 2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.1);
   min-width: 320px;
   backdrop-filter: blur(12px);
 }

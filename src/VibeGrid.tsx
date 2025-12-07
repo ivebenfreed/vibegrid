@@ -135,7 +135,15 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // ====================================
 
   const stores = useVibeGridStores()
-  const { tableCoreStore, visualStateStore, interactionStore, editingStore, initStore, viewModeStore, ganttViewStore } = stores
+  const {
+    tableCoreStore,
+    visualStateStore,
+    interactionStore,
+    editingStore,
+    initStore,
+    viewModeStore,
+    ganttViewStore,
+  } = stores
 
   // Read observables at top level to ensure MobX tracking
   const isGanttMode = enableGantt && viewModeStore.isGanttMode
@@ -670,9 +678,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
             {/* Right pane: Timeline */}
             <div className="flex-1 h-full overflow-auto min-w-0">
               <GanttTimeline
-                isLoading={isDataLoading}
-                selectedRowIds={interactionStore.selectedRows}
-                onBarClick={(rowId, isMulti) => interactionStore.selectRow(rowId, isMulti)}
+                onBarClick={(rowId: string) => interactionStore.selectRow(rowId)}
               />
             </div>
           </>

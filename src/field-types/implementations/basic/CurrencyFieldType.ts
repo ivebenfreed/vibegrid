@@ -35,7 +35,9 @@ export class CurrencyRenderer implements CellRenderer {
     container.dataset.affordance = isEditable ? 'edit' : 'none'
     container.dataset.affordanceRole = 'content'
 
-    container.className = isEditable ? 'vibegridx-cell-currency-editable' : 'vibegridx-cell-currency'
+    container.className = isEditable
+      ? 'vibegridx-cell-currency-editable'
+      : 'vibegridx-cell-currency'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {

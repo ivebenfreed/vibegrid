@@ -1,6 +1,6 @@
 import { MoreVertical } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import React from 'react'
+import type React from 'react'
 import { useVibeGridStores } from '../stores/context'
 
 /**

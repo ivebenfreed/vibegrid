@@ -182,7 +182,7 @@ export class CellActionRouter {
 
         default:
           fileLog.debug('Unknown affordance value, falling through to legacy', { affordance })
-          // Fall through to legacy checks
+        // Fall through to legacy checks
       }
     }
 

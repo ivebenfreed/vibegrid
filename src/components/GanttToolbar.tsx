@@ -228,9 +228,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
       {dependencies.length > 0 && (
         <>
           <div className="w-px h-6 bg-border" />
-          <span className="text-xs text-muted-foreground">
-            {dependencies.length} dependencies
-          </span>
+          <span className="text-xs text-muted-foreground">{dependencies.length} dependencies</span>
         </>
       )}
     </div>
