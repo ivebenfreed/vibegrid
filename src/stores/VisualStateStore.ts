@@ -282,9 +282,8 @@ export class VisualStateStore implements IStore {
     // Use offset-based calculation for variable-height rows if available
     if (this.tableCoreStore?.findRowAtScrollPosition) {
       const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
-      // Note: end is EXCLUSIVE (used with slice()), so cap at rowCount not rowCount-1
       const endRowIndex = Math.min(
-        this.rowCount,
+        this.rowCount - 1,
         this.tableCoreStore.findRowAtScrollPosition(
           this.scrollTop + Math.max(this.viewportHeight, 400),
         ) + 1,

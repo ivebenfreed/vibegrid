@@ -17,7 +17,7 @@ import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
-import { ViewModeStore, type ViewMode } from './ViewModeStore'
+import { ViewModeStore } from './ViewModeStore'
 import { VirtualViewportStore } from './VirtualViewportStore'
 import { VisualStateStore } from './VisualStateStore'
 
@@ -45,8 +45,6 @@ export interface VibeGridStoreProviderProps {
   entityType: string
   orgId?: string
   tableId?: string
-  /** Default view mode - 'table' or 'gantt'. Useful for routes that should start in Gantt view. */
-  defaultViewMode?: ViewMode
 }
 
 // ====================================
@@ -73,7 +71,6 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   entityType,
   orgId,
   tableId = 'default',
-  defaultViewMode = 'table',
 }) => {
   const [initError, setInitError] = useState<string | null>(null)
 
@@ -101,7 +98,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const persistenceStore = new PersistenceStore(entityType, orgId)
     const initStore = new InitStore(tableId, entityType)
     const virtualViewportStore = new VirtualViewportStore()
-    const viewModeStore = new ViewModeStore(defaultViewMode)
+    const viewModeStore = new ViewModeStore()
     const ganttViewStore = new GanttViewStore()
 
     // Set up dependency injection between stores
@@ -181,7 +178,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       ganttViewStore,
       coordinateManager,
     }
-  }, [entityType, orgId, tableId, defaultViewMode])
+  }, [entityType, orgId, tableId])
 
   // Cleanup on unmount
   useEffect(() => {
