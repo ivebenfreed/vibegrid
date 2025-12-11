@@ -98,7 +98,7 @@ export const EntityListView = observer(() => {
       <>
         <Header>
           <TopNav links={[]} />
-          <div className="ms-auto flex items-center space-x-4">
+          <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4">
             <Search />
             <ThemeSwitch />
             <ConfigDrawer />
@@ -119,7 +119,7 @@ export const EntityListView = observer(() => {
       {/* Top Header Bar */}
       <Header>
         <TopNav links={[]} />
-        <div className="ms-auto flex items-center space-x-4">
+        <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4">
           <Search />
           <ThemeSwitch />
           <ConfigDrawer />
