@@ -211,7 +211,12 @@ export function useVibeGridData(
   const sortSnapshot = useMobxSnapshot(() => visualStateStore.sortBy)
 
   // Reactive query with filters applied
-  const { data: rawRows } = useLiveQuery(
+  // Use proper isLoading from useLiveQuery instead of computing manually
+  const {
+    data: rawRows,
+    isLoading: queryLoading,
+    status: queryStatus,
+  } = useLiveQuery(
     (q: any) => {
       if (!collection) return undefined
 
@@ -322,9 +327,21 @@ export function useVibeGridData(
   // RETURN RESULT
   // ====================================
 
+  // Log loading state for debugging
+  logger.debug('useVibeGridData loading state', {
+    entityType,
+    hasCollection: !!collection,
+    queryLoading,
+    queryStatus,
+    rowCount: sortedRows.length,
+    rawRowsUndefined: rawRows === undefined,
+  })
+
   return {
     rows: sortedRows,
-    isLoading: !collection || rawRows === undefined,
+    // Use proper isLoading from useLiveQuery - this reflects actual query state
+    // Previously used `rawRows === undefined` which became false too early (on empty [])
+    isLoading: !collection || queryLoading,
     collection,
     createEntity,
     updateEntity,

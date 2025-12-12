@@ -115,13 +115,8 @@ export class ScrollController {
           this.onScroll(scrollLeft, scrollTop)
         }
 
-        // ✅ PERFORMANCE: Reduced logging verbosity during scroll
-        fileLog.debug('Viewport scrolled', {
-          scrollLeft,
-          scrollTop,
-          viewportWidth: this.viewport.clientWidth,
-          viewportHeight: this.viewport.clientHeight,
-        })
+        // 🚀 PERF: Skip scroll logging - reading clientWidth/clientHeight causes forced reflows
+        // The layout reads happen AFTER MobX updates trigger DOM mutations = forced reflow!
 
         this.scrollRAF = null
       })

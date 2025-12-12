@@ -74,6 +74,7 @@ interface VisualState {
 
 // Import MobX store types
 import type { VibeGridStores } from '../../stores/context'
+import type { DebugStore } from '../../stores/DebugStore'
 import type { EditingStore } from '../../stores/EditingStore'
 import type { InitStore } from '../../stores/InitStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
@@ -108,12 +109,18 @@ export class SimplePassiveRenderer {
   private interactionStore: InteractionStore
   private editingStore: EditingStore
   private initStore: InitStore
+  private debugStore: DebugStore
   private entityType: string
 
   // Basic row management
   private activeRows: Map<string, HTMLElement> = new Map()
   private lastVisibleColumns: { start: number; end: number } | null = null
   private lastVisibleRows: { start: number; end: number } | null = null
+
+  // 🚀 ROW RECYCLING POOL: Reuse DOM elements instead of destroy/create
+  // This dramatically improves scroll performance by avoiding DOM creation overhead
+  private rowPool: HTMLElement[] = []
+  private readonly MAX_POOL_SIZE = 50 // Limit pool to prevent memory bloat
 
   // Visual state tracking for change detection
   private lastVisualState: VisualState | null = null
@@ -162,6 +169,7 @@ export class SimplePassiveRenderer {
   private columnOrderObserverDisposer: (() => void) | null = null
   private columnWidthsObserverDisposer: (() => void) | null = null // Add dedicated observer for column widths
   private virtualScrollObserverDisposer: (() => void) | null = null // Add dedicated observer for virtual scrolling
+  private horizontalScrollObserverDisposer: (() => void) | null = null // Column virtualization observer
   private interactionObserverDisposer: (() => void) | null = null
   private scrollObserverDisposer: (() => void) | null = null
   private dragSelectionObserverDisposer: (() => void) | null = null
@@ -214,6 +222,7 @@ export class SimplePassiveRenderer {
     this.interactionStore = options.stores.interactionStore
     this.editingStore = options.stores.editingStore
     this.initStore = options.stores.initStore
+    this.debugStore = options.stores.debugStore
     this.entityType = options.entityType
 
     fileLog.debug('✅ MobX stores assigned', {
@@ -830,7 +839,8 @@ export class SimplePassiveRenderer {
     //       }
     //     });
 
-    // VIRTUAL SCROLL OBSERVER: Incremental updates with variable-height support
+    // VIRTUAL SCROLL OBSERVER: Incremental updates with buffer-aware triggering
+    // Uses BUFFER_ROWS to prevent unnecessary renders during small scrolls
     this.virtualScrollObserverDisposer = reaction(
       () => this.visualStateStore.scrollTop,
       () => {
@@ -839,32 +849,86 @@ export class SimplePassiveRenderer {
         const scrollTop = this.visualStateStore.scrollTop
         const viewportHeight = this.visualStateStore.viewportHeight
         const rowCount = this.visualStateStore.rowCount
+        const buffer = GRID_DIMENSIONS.BUFFER_ROWS
 
-        // Use offset-based row finding for variable-height rows
-        const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
-        const endRowIndex = Math.min(
-          rowCount, // Note: end is EXCLUSIVE, so use rowCount not rowCount-1
-          this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) +
-            1,
+        // Calculate VISIBLE range (what user can see - no buffer)
+        const visibleStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
+        const visibleEnd = Math.min(
+          rowCount,
+          this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) + 1,
         )
 
-        const currentRowRange = { start: startRowIndex, end: endRowIndex }
-        const previousRowRange = this.lastVisibleRows || { start: -1, end: -1 }
+        // Calculate RENDER range (visible + buffer on both sides)
+        const renderStart = Math.max(0, visibleStart - buffer)
+        const renderEnd = Math.min(rowCount, visibleEnd + buffer)
 
-        // Only proceed if row range actually changed
-        const rowRangeChanged =
-          currentRowRange.start !== previousRowRange.start ||
-          currentRowRange.end !== previousRowRange.end
+        const currentRenderRange = { start: renderStart, end: renderEnd }
+        const previousRenderRange = this.lastVisibleRows || { start: -1, end: -1 }
 
-        if (rowRangeChanged) {
-          fileLog.debug('🚀 VIRTUAL SCROLL: Variable-height incremental update', {
+        // Only update if visible rows would extend beyond previously rendered buffer
+        // This prevents re-renders when scrolling within the buffered zone
+        const needsUpdate =
+          previousRenderRange.start === -1 || // Initial render
+          visibleStart < previousRenderRange.start || // Scrolled above rendered range
+          visibleEnd > previousRenderRange.end // Scrolled below rendered range
+
+        // Update debug metrics with current visible range (even if not re-rendering)
+        this.debugStore.updateVirtualScrollMetrics({
+          visibleRowStart: visibleStart,
+          visibleRowEnd: visibleEnd,
+          scrollTop,
+          viewportHeight,
+        })
+
+        if (needsUpdate) {
+          fileLog.debug('🚀 VIRTUAL SCROLL: Buffer-aware incremental update', {
             scrollTop,
-            currentRange: `${currentRowRange.start}-${currentRowRange.end}`,
-            previousRange: `${previousRowRange.start}-${previousRowRange.end}`,
+            visibleRange: `${visibleStart}-${visibleEnd}`,
+            renderRange: `${renderStart}-${renderEnd}`,
+            previousRenderRange: `${previousRenderRange.start}-${previousRenderRange.end}`,
+            reason: previousRenderRange.start === -1 ? 'initial' :
+                   visibleStart < previousRenderRange.start ? 'scrolled_up' : 'scrolled_down',
           })
 
-          this.updateVirtualRows(previousRowRange, currentRowRange)
-          this.lastVisibleRows = currentRowRange
+          // Update debug metrics with new rendered range
+          this.debugStore.updateVirtualScrollMetrics({
+            renderedRowStart: renderStart,
+            renderedRowEnd: renderEnd,
+          })
+
+          this.updateVirtualRows(previousRenderRange, currentRenderRange)
+          this.lastVisibleRows = currentRenderRange
+        }
+      },
+    )
+
+    // HORIZONTAL SCROLL OBSERVER: Column virtualization - immediate update, no debounce
+    // MobX computed values must be read inside reactive context, so capture them in the reaction
+    this.horizontalScrollObserverDisposer = reaction(
+      () => ({
+        scrollLeft: this.visualStateStore.scrollLeft,
+        columnRange: this.visualStateStore.visibleColumnRange,
+      }),
+      ({ columnRange: currentColumnRange }) => {
+        if (!this.observersEnabled) return
+
+        const previousColumnRange = this.lastVisibleColumns || { start: -1, end: -1 }
+
+        // Only update if column range changed (buffer prevents frequent updates)
+        const needsUpdate =
+          previousColumnRange.start === -1 || // Initial render
+          currentColumnRange.start !== previousColumnRange.start ||
+          currentColumnRange.end !== previousColumnRange.end
+
+        if (needsUpdate) {
+          fileLog.debug('🚀 HORIZONTAL SCROLL: Column virtualization update', {
+            previousColumnRange: `${previousColumnRange.start}-${previousColumnRange.end}`,
+            newColumnRange: `${currentColumnRange.start}-${currentColumnRange.end}`,
+          })
+
+          this.lastVisibleColumns = currentColumnRange
+          // For column changes, need full body re-render
+          this.renderBody()
         }
       },
     )
@@ -989,44 +1053,8 @@ export class SimplePassiveRenderer {
             this.visualStateStore.scrollLeft = scrollLeft
             this.visualStateStore.scrollTop = scrollTop
           })
-
-          // DEBUGGING: Log detailed width calculations during scroll
-          // Wrapped in runInAction to access MobX computed values in reactive context
-          runInAction(() => {
-            const viewport = this.viewport
-            const headerViewport = this.headerViewport
-
-            fileLog.debug('📜 SCROLL DEBUG - Width Calculations', {
-              scrollLeft,
-              scrollTop,
-              // Visual state geometry
-              visualStateTotalWidth: this.visualStateStore.geometry.totalWidth,
-              visualStateViewportWidth: this.visualStateStore.geometry.viewportWidth,
-              // Visible columns analysis
-              visibleColumnsCount: this.visualStateStore.visibleColumns.length,
-              columnLayouts: this.visualStateStore.visibleColumns.map((col: any) => ({
-                id: col.id,
-                width: col.width,
-                xOffset: col.xOffset,
-                visible: col.visible,
-              })),
-              // DOM dimensions
-              viewportClientWidth: viewport?.clientWidth,
-              viewportScrollWidth: viewport?.scrollWidth,
-              headerViewportClientWidth: headerViewport?.clientWidth,
-              headerViewportScrollWidth: headerViewport?.scrollWidth,
-              // Transform states
-              headerTransform: headerViewport?.style.transform,
-              // Scroll edge analysis
-              scrollRightEdge: scrollLeft + (viewport?.clientWidth || 0),
-              totalScrollableWidth: (viewport?.scrollWidth || 0) - (viewport?.clientWidth || 0),
-              scrollProgress: viewport?.scrollWidth
-                ? ((scrollLeft / (viewport.scrollWidth - viewport.clientWidth || 1)) * 100).toFixed(
-                    1,
-                  ) + '%'
-                : '0%',
-            })
-          })
+          // Note: Detailed scroll debugging removed for performance
+          // Re-enable via verbose logging if needed
         },
         keyboardNavController: this.keyboardNavController,
         selectionController: this.selectionController,
@@ -1305,11 +1333,22 @@ export class SimplePassiveRenderer {
     columns: any[],
     columnVisibility: Record<string, boolean>,
     baseOffset: number,
-  ): HTMLElement {
+    // PERF: Pre-computed values to avoid per-row recalculation
+    precomputed?: {
+      visibleColumns: any[]
+      columnLayouts: any[]
+      totalWidth: number
+    },
+  ): HTMLElement | null {
+    // Guard against undefined rows (race condition during data updates)
+    if (!row) {
+      fileLog.warn('⚠️ createRowElementByType called with undefined row', { rowIndex })
+      return null
+    }
     if (row.type === 'group' && this.domFactory) {
       return this.domFactory.createGroupHeaderElement(row, rowIndex)
     }
-    return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset)
+    return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset, precomputed)
   }
 
   private updateVirtualRows(
@@ -1318,18 +1357,40 @@ export class SimplePassiveRenderer {
   ): void {
     if (!this.bodyContainer || !this.bodyRenderer) return
 
+    const startTime = performance.now()
+
     const rows = this.tableCoreStore.processedRows
     const columns = this.tableCoreStore.columns
     const columnVisibility = this.visualStateStore.columnVisibility
     const visualState = this.visualStateStore
-    const allVisibleColumnLayouts = visualState.visibleColumns
+    // 🚀 PERF: Apply column virtualization - only render columns in viewport + buffer
+    const allVisibleColumns = visualState.visibleColumns
+    const columnRange = visualState.visibleColumnRange
+    const allVisibleColumnLayouts = allVisibleColumns.slice(columnRange.start, columnRange.end)
     const baseOffset = this.calculateBaseOffset()
+
+    // PERF: Pre-compute values ONCE instead of per-row
+    // This avoids repeated MobX computed property reads and array filtering
+    const visibleColumns = columns.filter((col) =>
+      allVisibleColumnLayouts.some((l) => l.id === col.id)
+    )
+    const totalWidth = visualState.geometry.totalWidth
+    const precomputed = {
+      visibleColumns,
+      columnLayouts: allVisibleColumnLayouts,
+      totalWidth,
+    }
 
     fileLog.debug('🚀 INCREMENTAL UPDATE: Virtual rows changed', {
       previousRange: `${previousRange.start}-${previousRange.end}`,
       currentRange: `${currentRange.start}-${currentRange.end}`,
       totalRows: rows.length,
       action: 'incremental_update',
+    })
+
+    // Update debug metrics with total data count
+    this.debugStore.updateVirtualScrollMetrics({
+      totalRowsInData: rows.length,
     })
 
     // If this is the first render (previous was -1 to -1), create all visible rows
@@ -1339,89 +1400,218 @@ export class SimplePassiveRenderer {
         count: currentRange.end - currentRange.start + 1,
       })
 
+      // Clear any stale entries in activeRows
+      this.activeRows.clear()
+
+      const fragment = document.createDocumentFragment()
       for (let i = currentRange.start; i < currentRange.end && i < rows.length; i++) {
+        const row = rows[i]
         const rowElement = this.createRowElementByType(
-          rows[i],
+          row,
           i,
           columns,
           columnVisibility,
           baseOffset,
+          precomputed, // PERF: Pass pre-computed values
         )
-        this.bodyContainer.appendChild(rowElement)
+        if (rowElement && row?.id) {
+          fragment.appendChild(rowElement)
+          this.activeRows.set(row.id, rowElement)
+        }
       }
+      this.bodyContainer.appendChild(fragment)
+
+      const duration = performance.now() - startTime
+      this.debugStore.recordRender(duration, currentRange.end - currentRange.start)
+
+      // Update all debug metrics for initial render
+      // Calculate truly visible rows from scroll position (not by subtracting buffer)
+      const scrollTop = this.visualStateStore.scrollTop
+      const viewportHeight = this.visualStateStore.viewportHeight
+      const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
+      const visibleStart = Math.floor(scrollTop / rowHeight)
+      const visibleEnd = Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / rowHeight))
+      this.debugStore.updateVirtualScrollMetrics({
+        visibleRowStart: visibleStart,
+        visibleRowEnd: visibleEnd,
+        renderedRowStart: currentRange.start,
+        renderedRowEnd: currentRange.end,
+        totalRowsInDOM: this.activeRows.size,
+        totalRowsInData: rows.length,
+        scrollTop,
+        viewportHeight,
+      })
       return
     }
 
-    // Remove rows that are no longer visible
+    // PROFILING: Track time spent in each phase
+    const removeStartTime = performance.now()
+    let rowsRemoved = 0
+    let rowsRecycled = 0
+
+    // 🚀 ROW RECYCLING: Instead of destroying rows, add them to the pool for reuse
+    // Remove rows that are no longer visible - ADD TO POOL instead of destroy
     if (currentRange.start > previousRange.start) {
       for (let i = previousRange.start; i < currentRange.start && i <= previousRange.end; i++) {
-        const rowElement = this.bodyContainer.querySelector(`[data-row-id="${rows[i]?.id}"]`)
-        if (rowElement) {
-          this.bodyContainer.removeChild(rowElement)
-          fileLog.debug('🗑️ REMOVED row', { rowIndex: i, rowId: rows[i]?.id })
+        const rowId = rows[i]?.id
+        if (rowId) {
+          const rowElement = this.activeRows.get(rowId)
+          if (rowElement) {
+            // Remove from DOM but keep for recycling
+            rowElement.remove()
+            this.activeRows.delete(rowId)
+            // Add to pool for reuse (if pool not full)
+            if (this.rowPool.length < this.MAX_POOL_SIZE) {
+              this.rowPool.push(rowElement)
+            }
+            rowsRemoved++
+          }
         }
       }
     }
 
     if (currentRange.end < previousRange.end) {
       for (let i = currentRange.end; i < previousRange.end && i < rows.length; i++) {
-        const rowElement = this.bodyContainer.querySelector(`[data-row-id="${rows[i]?.id}"]`)
-        if (rowElement) {
-          this.bodyContainer.removeChild(rowElement)
-          fileLog.debug('🗑️ REMOVED row', { rowIndex: i, rowId: rows[i]?.id })
+        const rowId = rows[i]?.id
+        if (rowId) {
+          const rowElement = this.activeRows.get(rowId)
+          if (rowElement) {
+            // Remove from DOM but keep for recycling
+            rowElement.remove()
+            this.activeRows.delete(rowId)
+            // Add to pool for reuse (if pool not full)
+            if (this.rowPool.length < this.MAX_POOL_SIZE) {
+              this.rowPool.push(rowElement)
+            }
+            rowsRemoved++
+          }
         }
       }
     }
 
-    // Add new rows that became visible
+    const removeTime = performance.now() - removeStartTime
+    const createStartTime = performance.now()
+    let rowsCreated = 0
+
+    // NOTE: Row creation limit removed - caused visual gaps (row deficits)
+    // Better to exceed 16ms occasionally than have missing rows
+    // Focus optimization on per-row time, not limiting row count
+
+    // Add new rows that became visible - TRY RECYCLING FIRST
     if (currentRange.start < previousRange.start) {
       // Insert new rows at the top in correct order
       const fragment = document.createDocumentFragment()
-      for (let i = currentRange.start; i < previousRange.start && i < rows.length; i++) {
-        const rowElement = this.createRowElementByType(
-          rows[i],
-          i,
-          columns,
-          columnVisibility,
-          baseOffset,
-        )
-        fragment.appendChild(rowElement)
-        fileLog.debug('➕ ADDED row (top)', {
-          rowIndex: i,
-          rowId: rows[i]?.id,
-          rowType: rows[i]?.type,
-        })
+      for (let i = previousRange.start - 1; i >= currentRange.start; i--) {
+        const row = rows[i]
+        if (!row) continue
+
+        let rowElement: HTMLElement | null = null
+
+        // 🚀 TRY RECYCLING: Reuse existing row from pool
+        if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+          const recycledRow = this.rowPool.pop()!
+          rowElement = this.bodyRenderer.recycleRowForNewData(
+            recycledRow,
+            row,
+            i,
+            columns,
+            precomputed,
+          )
+          rowsRecycled++
+        } else {
+          // Create new row (fallback or for group rows)
+          rowElement = this.createRowElementByType(
+            row,
+            i,
+            columns,
+            columnVisibility,
+            baseOffset,
+            precomputed,
+          )
+        }
+
+        if (rowElement && row?.id) {
+          // Prepend to fragment (reverse order since we're iterating backwards)
+          fragment.insertBefore(rowElement, fragment.firstChild)
+          this.activeRows.set(row.id, rowElement)
+          rowsCreated++
+        }
       }
       // Insert at the beginning of the container
-      this.bodyContainer.insertBefore(fragment, this.bodyContainer.firstChild)
+      if (fragment.childNodes.length > 0) {
+        this.bodyContainer.insertBefore(fragment, this.bodyContainer.firstChild)
+      }
     }
 
     if (currentRange.end > previousRange.end) {
       const fragment = document.createDocumentFragment()
       for (let i = previousRange.end; i < currentRange.end && i < rows.length; i++) {
-        const rowElement = this.createRowElementByType(
-          rows[i],
-          i,
-          columns,
-          columnVisibility,
-          baseOffset,
-        )
-        fragment.appendChild(rowElement)
-        fileLog.debug('➕ ADDED row (bottom)', {
-          rowIndex: i,
-          rowId: rows[i]?.id,
-          rowType: rows[i]?.type,
-        })
+        const row = rows[i]
+        if (!row) continue
+
+        let rowElement: HTMLElement | null = null
+
+        // 🚀 TRY RECYCLING: Reuse existing row from pool
+        if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+          const recycledRow = this.rowPool.pop()!
+          rowElement = this.bodyRenderer.recycleRowForNewData(
+            recycledRow,
+            row,
+            i,
+            columns,
+            precomputed,
+          )
+          rowsRecycled++
+        } else {
+          // Create new row (fallback or for group rows)
+          rowElement = this.createRowElementByType(
+            row,
+            i,
+            columns,
+            columnVisibility,
+            baseOffset,
+            precomputed,
+          )
+        }
+
+        if (rowElement && row?.id) {
+          fragment.appendChild(rowElement)
+          this.activeRows.set(row.id, rowElement)
+          rowsCreated++
+        }
       }
       // Append to the end of the container
-      this.bodyContainer.appendChild(fragment)
+      if (fragment.childNodes.length > 0) {
+        this.bodyContainer.appendChild(fragment)
+      }
     }
 
-    fileLog.debug('✅ INCREMENTAL UPDATE: Complete', {
-      previousRange: `${previousRange.start}-${previousRange.end}`,
-      currentRange: `${currentRange.start}-${currentRange.end}`,
-      totalRowsNow: this.bodyContainer.children.length,
-    })
+    const createTime = performance.now() - createStartTime
+
+    // Record render metrics
+    const duration = performance.now() - startTime
+
+    // Log breakdown if significant time spent
+    if (duration > 10) {
+      const recycleInfo = rowsRecycled > 0 ? ` | ♻️ recycled: ${rowsRecycled}` : ''
+      const poolInfo = ` | pool: ${this.rowPool.length}`
+      fileLog.warn(
+        `⏱️ RENDER: ${duration.toFixed(1)}ms total | ` +
+          `remove: ${removeTime.toFixed(1)}ms (${rowsRemoved} rows) | ` +
+          `create: ${createTime.toFixed(1)}ms (${rowsCreated} rows) | ` +
+          `${rowsCreated > 0 ? (createTime / rowsCreated).toFixed(2) : 'N/A'}ms/row` +
+          recycleInfo +
+          poolInfo,
+      )
+    }
+    // 🚀 PERF TEST: Completely skip debug updates to isolate forced reflow source
+    // If this fixes the reflows, the issue is in DebugOverlay React component
+    // const rowsChanged = Math.abs(currentRange.end - currentRange.start - (previousRange.end - previousRange.start))
+    // this.debugStore.recordRender(duration, rowsChanged)
+    // this.debugStore.updateVirtualScrollMetrics({ totalRowsInDOM: this.activeRows.size })
+
+    // 🚀 PERF TEST: Skip logging to isolate forced reflow source
+    // fileLog.debug('✅ INCREMENTAL UPDATE: Complete', { ... })
   }
 
   /**
@@ -1500,6 +1690,7 @@ export class SimplePassiveRenderer {
       right: 0;
       bottom: 0;
       overflow: auto;
+      contain: strict;
     `
 
     this.bodyContainer = this.createElement('div', 'vibegridx-body')
@@ -1508,6 +1699,8 @@ export class SimplePassiveRenderer {
       width: 100%;
       /* border: 2px solid red !important; */
       box-sizing: border-box;
+      contain: layout style paint;
+      will-change: contents;
     `
 
     this.viewport.appendChild(this.bodyContainer)
@@ -1638,8 +1831,9 @@ export class SimplePassiveRenderer {
     // PERFORMANCE FIX: Use DocumentFragment for batched DOM operations instead of innerHTML clearing
     const fragment = document.createDocumentFragment()
 
-    // Clear active rows in RowRenderer
+    // Clear active rows in RowRenderer AND our local tracking Map
     this.bodyRenderer.clearActiveRows()
+    this.activeRows.clear()
 
     // PERFORMANCE FIX: Clear body container more efficiently
     while (this.bodyContainer.firstChild) {
@@ -1683,9 +1877,11 @@ export class SimplePassiveRenderer {
       totalColumns: visualState.visibleColumns.length,
     })
 
-    // Get ALL visible columns from unified visual state (same as HeaderRenderer - no virtualization)
-    // This ensures header and body are always in sync after column reordering
-    const allVisibleColumnLayouts = visualState.visibleColumns
+    // 🚀 PERF: Apply column virtualization - only render columns in viewport + buffer
+    // Cells use absolute xOffset positioning, so they sync with header correctly
+    const allVisibleColumns = visualState.visibleColumns
+    const columnRange = visualState.visibleColumnRange
+    const allVisibleColumnLayouts = allVisibleColumns.slice(columnRange.start, columnRange.end)
 
     // Calculate base offset including drag column width for grouped mode
     const baseOffset = this.calculateBaseOffset()
@@ -1694,7 +1890,6 @@ export class SimplePassiveRenderer {
     const startX = baseOffset
 
     // Convert column layouts back to columns for compatibility with existing renderer
-    // Use ALL visible columns like HeaderRenderer to maintain sync after column reorder
     // CRITICAL: Enrich columns with actual widths from columnWidths state
     const virtualColumns = allVisibleColumnLayouts
       .map((layout) => {
@@ -1708,6 +1903,13 @@ export class SimplePassiveRenderer {
         }
       })
       .filter(Boolean)
+
+    // PERF: Pre-compute values ONCE for all rows in renderBody
+    const precomputed = {
+      visibleColumns: virtualColumns as any[],
+      columnLayouts: allVisibleColumnLayouts,
+      totalWidth: visualState.geometry.totalWidth,
+    }
 
     // Render only visible rows using RowRenderer
     visibleRows.forEach((row, visibleIndex) => {
@@ -1731,7 +1933,13 @@ export class SimplePassiveRenderer {
           virtualColumns,
           columnVisibility,
           startX,
+          precomputed, // PERF: Pass pre-computed values
         )
+      }
+
+      // Track in activeRows Map for O(1) lookups during scroll updates
+      if (row.id) {
+        this.activeRows.set(row.id, rowElement)
       }
 
       // PERFORMANCE FIX: Append to DocumentFragment instead of directly to DOM
@@ -1740,6 +1948,25 @@ export class SimplePassiveRenderer {
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
+
+    // Update debug metrics for initial render
+    // Calculate truly visible rows (without buffer) for accurate debug display
+    const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
+    const trulyVisibleStart = Math.floor(visualState.scrollTop / rowHeight)
+    const trulyVisibleEnd = Math.min(rows.length, Math.ceil((visualState.scrollTop + visualState.viewportHeight) / rowHeight))
+    this.debugStore.updateVirtualScrollMetrics({
+      visibleRowStart: trulyVisibleStart,
+      visibleRowEnd: trulyVisibleEnd,
+      renderedRowStart: startIndex,
+      renderedRowEnd: endIndex,
+      totalRowsInDOM: this.activeRows.size,
+      totalRowsInData: rows.length,
+      scrollTop: visualState.scrollTop,
+      viewportHeight: visualState.viewportHeight,
+    })
+
+    // Initialize lastVisibleRows for scroll observer
+    this.lastVisibleRows = { start: startIndex, end: endIndex }
 
     // Build complete coordinate mapping for all rows (needed for overlays)
     const newRows: any[] = []
@@ -2185,6 +2412,10 @@ export class SimplePassiveRenderer {
     if (this.virtualScrollObserverDisposer) {
       this.virtualScrollObserverDisposer()
       this.virtualScrollObserverDisposer = null
+    }
+    if (this.horizontalScrollObserverDisposer) {
+      this.horizontalScrollObserverDisposer()
+      this.horizontalScrollObserverDisposer = null
     }
     if (this.interactionObserverDisposer) {
       this.interactionObserverDisposer()

@@ -226,6 +226,8 @@ class ReactivePositionTracker {
   private updateThrottle = 100 // ~10fps max (further reduced to prevent forced reflows during initialization)
   private isUpdating = false
   private pendingUpdate = false
+  private scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  private readonly SCROLL_DEBOUNCE_MS = 150 // Only update 150ms after scroll stops
 
   /**
    * Initialize tracking on a table container
@@ -268,20 +270,47 @@ class ReactivePositionTracker {
 
   /**
    * Setup scroll listener for position tracking
+   *
+   * 🚀 PERF FIX: DISABLED scroll-based position tracking entirely!
+   *
+   * Why: Position tracking does querySelectorAll + getBoundingClientRect on every cell,
+   * causing 60-100ms forced reflows during scroll. This is only needed for overlay
+   * positioning during editing, not normal scrolling.
+   *
+   * Cell positions can be calculated mathematically from:
+   * - row position = rowIndex × ROW_HEIGHT
+   * - column position = sum of previous column widths
+   *
+   * Overlays that need positions should use:
+   * - computedCellPositions (mathematical calculation)
+   * - Or call requestPositionUpdate() explicitly when editing starts
    */
   private setupScrollListener(container: HTMLElement): void {
-    // Single scroll event listener that triggers position updates
+    // 🚀 PERF: NO scroll listener - positions are calculated mathematically
+    // Only resize needs to trigger an update (viewport dimensions change)
     this.scrollHandler = () => {
-      this.schedulePositionUpdate()
+      // Clear any pending update
+      if (this.scrollDebounceTimer) {
+        clearTimeout(this.scrollDebounceTimer)
+      }
+      // Schedule update after resize settles
+      this.scrollDebounceTimer = setTimeout(() => {
+        this.scrollDebounceTimer = null
+        this.schedulePositionUpdate()
+      }, this.SCROLL_DEBOUNCE_MS)
     }
 
-    // Listen to scroll events on the viewport container
-    container.addEventListener('scroll', this.scrollHandler, { passive: true })
-
-    // Also listen to window resize which affects viewport positions
+    // Only listen to resize, NOT scroll
     window.addEventListener('resize', this.scrollHandler, { passive: true })
 
-    fileLog.debug('✅ Scroll listener initialized')
+    fileLog.debug('✅ Position tracking initialized (resize only, no scroll listener)')
+  }
+
+  /**
+   * Request a position update explicitly (for overlay positioning during editing)
+   */
+  requestPositionUpdate(): void {
+    this.schedulePositionUpdate()
   }
 
   /**
@@ -553,8 +582,8 @@ class ReactivePositionTracker {
    * Cleanup all observers
    */
   cleanup(): void {
-    if (this.scrollHandler && tableContainer) {
-      tableContainer.removeEventListener('scroll', this.scrollHandler)
+    if (this.scrollHandler) {
+      // Only resize listener now (scroll listener removed for performance)
       window.removeEventListener('resize', this.scrollHandler)
       this.scrollHandler = null
     }
@@ -562,6 +591,12 @@ class ReactivePositionTracker {
     if (this.rafId) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
+    }
+
+    // Clean up debounce timer
+    if (this.scrollDebounceTimer) {
+      clearTimeout(this.scrollDebounceTimer)
+      this.scrollDebounceTimer = null
     }
 
     tableContainer = null

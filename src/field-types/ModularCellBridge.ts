@@ -25,6 +25,8 @@ export class ModularCellBridge {
   private cellFactory: CellFactory | null = null
   private relationshipDataManager: RelationshipDataManager
   private rollupCalculationManager: RollupCalculationManager
+  // PERF: Cache affordance attributes per column to avoid re-resolving for each cell
+  private affordanceCache: Map<string, Record<string, string>> = new Map()
 
   constructor() {
     this.relationshipDataManager = new RelationshipDataManager()
@@ -33,6 +35,45 @@ export class ModularCellBridge {
     fileLog.debug(
       '🚀 [FIELD-BRIDGE] ModularCellBridge created (CellFactory will be initialized lazily)',
     )
+  }
+
+  /**
+   * 🚀 PERF: Pre-compute affordances for all columns at initialization time
+   *
+   * This eliminates lazy affordance resolution during cell creation.
+   * Call this from VisualStateStore.initializeColumns() after columns are set.
+   */
+  precomputeAffordances(columns: Column[]): void {
+    const startTime = performance.now()
+    let precomputedCount = 0
+
+    for (const column of columns) {
+      // Skip if already cached
+      if (this.affordanceCache.has(column.id)) continue
+
+      // Only process columns with field types
+      if (column.fieldType) {
+        const resolved = affordanceResolver.resolve(column.fieldType, column as any)
+        const attrs = affordanceResolver.getDataAttributes(resolved)
+        this.affordanceCache.set(column.id, attrs.container)
+        precomputedCount++
+      }
+    }
+
+    fileLog.debug('🚀 [PERF] Pre-computed affordances at initialization', {
+      totalColumns: columns.length,
+      precomputedCount,
+      cacheSize: this.affordanceCache.size,
+      timeMs: (performance.now() - startTime).toFixed(2),
+    })
+  }
+
+  /**
+   * Clear affordance cache (call when columns change significantly)
+   */
+  clearAffordanceCache(): void {
+    this.affordanceCache.clear()
+    fileLog.debug('🧹 [PERF] Affordance cache cleared')
   }
 
   private ensureCellFactory(): void {
@@ -132,6 +173,9 @@ export class ModularCellBridge {
 
   /**
    * 🚀 FAST PATH: Create cell using pre-computed formatter
+   *
+   * PERF: Static styles are in CSS (.vibegridx-cell), only set dynamic left/width here.
+   * This eliminates style string parsing and reduces forced reflows.
    */
   private createCellFast(
     value: any,
@@ -139,7 +183,7 @@ export class ModularCellBridge {
     rowData: any,
     position: { rowIndex: number; columnIndex: number; xPosition?: number; width?: number },
   ): HTMLElement {
-    // Create container with proper VibeGrid structure (matching CellFactory)
+    // Create container with proper VibeGrid structure
     const container = document.createElement('div')
     container.className = 'vibegridx-cell'
     container.dataset.columnId = column.id
@@ -148,43 +192,31 @@ export class ModularCellBridge {
     // Get column width (fallback to 150px if not specified)
     const actualWidth = position.width ?? column.width ?? 150
 
-    // Apply VibeGrid-compatible positioning (matching CellFactory structure)
+    // PERF: Only set dynamic positioning values - static styles are in CSS
     if (position.xPosition !== undefined) {
-      container.style.cssText = `
-        position: absolute;
-        left: ${position.xPosition}px;
-        top: 0;
-        width: ${actualWidth}px;
-        height: 100%;
-        padding: 0 12px;
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-        overflow: hidden;
-        cursor: default;
-      `
+      // Absolute positioning (normal case)
+      container.style.left = position.xPosition + 'px'
+      container.style.width = actualWidth + 'px'
     } else {
-      container.style.cssText = `
-        flex: 0 0 ${actualWidth}px;
-        height: 100%;
-        padding: 0 12px;
-        display: flex;
-        align-items: center;
-        font-size: 14px;
-        overflow: hidden;
-        position: relative;
-        cursor: default;
-      `
+      // Flex positioning (fallback)
+      container.classList.add('vibegridx-cell--flex')
+      container.style.flexBasis = actualWidth + 'px'
     }
 
     // 🎯 Apply affordance system data attributes (critical for hover styles!)
-    // This matches what CellFactory.applyAffordanceAttributes() does
+    // PERF: Cache affordance attributes per column - same for all cells in column
     if (column.fieldType) {
-      const resolved = affordanceResolver.resolve(column.fieldType, column as any)
-      const attrs = affordanceResolver.getDataAttributes(resolved)
+      let cachedAttrs = this.affordanceCache.get(column.id)
+      if (!cachedAttrs) {
+        // Resolve once per column, cache for all cells
+        const resolved = affordanceResolver.resolve(column.fieldType, column as any)
+        const attrs = affordanceResolver.getDataAttributes(resolved)
+        cachedAttrs = attrs.container
+        this.affordanceCache.set(column.id, cachedAttrs)
+      }
 
-      // Apply container attributes for CSS hover selectors
-      for (const [key, attrValue] of Object.entries(attrs.container)) {
+      // Apply cached attributes for CSS hover selectors
+      for (const [key, attrValue] of Object.entries(cachedAttrs)) {
         container.setAttribute(key, attrValue)
       }
     }

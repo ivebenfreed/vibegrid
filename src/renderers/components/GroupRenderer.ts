@@ -41,20 +41,13 @@ export class GroupRenderer {
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header')
     rowElement.dataset.rowId = groupRow.id
     rowElement.dataset.groupId = groupRow.id
-    rowElement.style.cssText = `
-      position: absolute;
-      top: ${rowIndex * ROW_HEIGHT}px;
-      left: 0;
-      right: 0;
-      height: ${ROW_HEIGHT}px;
-      display: flex;
-      align-items: center;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
-      font-weight: 600;
-      padding-left: ${level * 20 + 12}px;
-      z-index: 1;
-    `
+    // PERF: Use transform for GPU-accelerated positioning
+    rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
+    rowElement.style.background = '#f8f9fa'
+    rowElement.style.borderBottom = '1px solid #e9ecef'
+    rowElement.style.fontWeight = '600'
+    rowElement.style.paddingLeft = `${level * 20 + 12}px`
+    rowElement.style.zIndex = '1'
 
     // Create expand/collapse button
     const expandButton = this.createElement('div', 'vibegridx-group-expand')

@@ -490,11 +490,77 @@ body.vibegridx-dragging-active * {
   /* box-shadow: inset 0 0 0 2px green; */
 }
 
-/* Rows */
+/* Rows - Static styles (dynamic transform set via JS for GPU acceleration) */
 .vibegridx-row {
+  position: absolute;
+  left: 0;
+  top: 0; /* Base position - actual Y via transform */
+  height: 40px; /* ROW_HEIGHT */
   display: flex;
+  align-items: center;
   background: hsl(var(--background));
   box-sizing: border-box;
+  contain: layout style paint; /* PERF: Full CSS containment */
+  will-change: transform; /* PERF: Hint for GPU layer */
+}
+
+/* Drag column - fixed width */
+.vibegridx-drag-column {
+  width: 30px; /* DRAG_COLUMN_WIDTH */
+  height: 40px; /* ROW_HEIGHT */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.vibegridx-drag-column--draggable {
+  cursor: grab;
+}
+
+/* Drag handle - hidden by default, shown on hover */
+.vibegridx-drag-handle {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.vibegridx-drag-column:hover .vibegridx-drag-handle {
+  opacity: 1;
+}
+
+/* Row header - fixed width */
+.vibegridx-row-header-cell {
+  width: 40px; /* ROW_HEADER_WIDTH */
+  height: 40px; /* ROW_HEIGHT */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Row header checkbox */
+.vibegridx-row-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Group row - similar to regular row but with different content */
+.vibegridx-group-row {
+  position: absolute;
+  left: 0;
+  height: 40px; /* ROW_HEIGHT */
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  background: hsl(var(--muted) / 0.5);
+  contain: layout style;
 }
 
 .vibegridx-row:hover {

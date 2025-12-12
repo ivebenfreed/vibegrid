@@ -2,9 +2,25 @@
    VIBEGRIDX CELL RENDERER STYLES
    ==================================== */
 
-/* Base Cell Container */
+/* Base Cell Container - Static positioning styles (dynamic left/width set via JS) */
 .vibegridx-cell {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  overflow: hidden;
+  cursor: default;
+  box-sizing: border-box;
   border-right: 1px solid var(--border) !important;
+}
+
+/* Flex-based cell variant (for non-absolute positioning) */
+.vibegridx-cell--flex {
+  position: relative;
+  flex: 0 0 auto;
 }
 
 .dark .vibegridx-cell {

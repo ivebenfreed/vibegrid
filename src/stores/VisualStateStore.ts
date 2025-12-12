@@ -17,7 +17,9 @@ import { action, computed, makeObservable, observable, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
+import { modularCellBridge } from '../field-types/ModularCellBridge'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
 import { assertInvariant } from '../utils/invariants'
@@ -263,26 +265,53 @@ export class VisualStateStore implements IStore {
 
   /**
    * Visible column range based on scroll position
-   * NOTE: Column virtualization is DISABLED to fix header/body sync issues
-   * Always render ALL columns
+   * 🚀 PERF: Column virtualization ENABLED - only render columns in viewport + buffer
+   * Cells use absolute xOffset positioning, so they sync with header correctly
    */
   @computed get visibleColumnRange(): { start: number; end: number } {
-    // DISABLED: Column virtualization
-    // Always render ALL columns to maintain sync between header and body
-    return {
-      start: 0,
-      end: this.visibleColumns.length,
+    const columns = this.visibleColumns
+    if (columns.length === 0) {
+      return { start: 0, end: 0 }
     }
+
+    const buffer = GRID_DIMENSIONS.BUFFER_COLUMNS // 2 columns buffer each side
+    const scrollLeft = this.scrollLeft
+    const viewportWidth = this.viewportWidth
+
+    // Find first visible column (whose right edge is past scrollLeft)
+    let start = 0
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i]
+      if (col.xOffset + col.width > scrollLeft) {
+        start = Math.max(0, i - buffer)
+        break
+      }
+    }
+
+    // Find last visible column (whose left edge is before scrollLeft + viewportWidth)
+    let end = columns.length
+    for (let i = start; i < columns.length; i++) {
+      const col = columns[i]
+      if (col.xOffset > scrollLeft + viewportWidth) {
+        end = Math.min(columns.length, i + buffer)
+        break
+      }
+    }
+
+    return { start, end }
   }
 
   /**
    * Visible row range based on scroll position (variable-height aware)
+   * INCLUDES BUFFER_ROWS for smooth scrolling (render rows before they're visible)
    */
   @computed get visibleRowRange(): { start: number; end: number } {
+    const buffer = GRID_DIMENSIONS.BUFFER_ROWS  // 10 rows buffer
+
     // Use offset-based calculation for variable-height rows if available
     if (this.tableCoreStore?.findRowAtScrollPosition) {
-      const startRowIndex = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
-      const endRowIndex = Math.min(
+      const visibleStart = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
+      const visibleEnd = Math.min(
         this.rowCount - 1,
         this.tableCoreStore.findRowAtScrollPosition(
           this.scrollTop + Math.max(this.viewportHeight, 400),
@@ -290,21 +319,18 @@ export class VisualStateStore implements IStore {
       )
 
       return {
-        start: startRowIndex,
-        end: endRowIndex,
+        start: Math.max(0, visibleStart - buffer),
+        end: Math.min(this.rowCount, visibleEnd + buffer),
       }
     }
 
     // Fallback to constant-height calculation if TableCoreStore not set
-    const startRowIndex = Math.floor(this.scrollTop / this.rowHeight)
-    const endRowIndex = Math.min(
-      this.rowCount,
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1,
-    )
+    const visibleStart = Math.floor(this.scrollTop / this.rowHeight)
+    const visibleEnd = Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
 
     return {
-      start: startRowIndex,
-      end: endRowIndex,
+      start: Math.max(0, visibleStart - buffer),
+      end: Math.min(this.rowCount, visibleEnd + buffer),
     }
   }
 
@@ -443,6 +469,10 @@ export class VisualStateStore implements IStore {
 
     // 🔧 FIX: Initialize coordinator with visible columns and actual widths
     this.updateCoordinatorWithCurrentLayout()
+
+    // 🚀 PERF: Pre-compute affordances for all columns at initialization time
+    // This eliminates lazy affordance resolution during cell creation
+    modularCellBridge.precomputeAffordances(columns)
 
     logger.info('Columns initialized (preserving loaded preferences)', {
       entityType,

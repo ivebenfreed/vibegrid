@@ -46,13 +46,13 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
   const hasCriticalErrors = criticalErrors.length > 0
 
   return (
-    <div className="relative bg-white" style={{ height, width }}>
+    <div className="relative bg-background" style={{ height, width }}>
       {/* Clean Table Skeleton */}
       <TableSkeleton columns={6} rows={8} />
 
       {/* Only show error indicator if there are critical errors */}
       {hasCriticalErrors && (
-        <div className="absolute top-4 right-4 flex items-center space-x-2 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-lg border shadow-sm">
+        <div className="absolute top-4 right-4 flex items-center space-x-2 bg-background/90 backdrop-blur-sm px-3 py-2 rounded-lg border shadow-sm">
           <AlertTriangle className="w-4 h-4 text-red-500" />
           <span className="text-sm text-red-600">Loading failed</span>
           <button
@@ -67,16 +67,16 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
 
       {/* Development Debug Panel (only if explicitly enabled) */}
       {showDetailedProgress && process.env.NODE_ENV === 'development' && (
-        <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg max-w-sm">
-          <div className="text-xs font-medium text-gray-700 mb-2">Debug Info:</div>
+        <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg max-w-sm">
+          <div className="text-xs font-medium text-muted-foreground mb-2">Debug Info:</div>
           <div className="space-y-1 text-xs max-h-32 overflow-y-auto">
             {Object.entries(initStore.hydrationState).map(([dependency, ready]) => (
               <div key={dependency} className="flex items-center justify-between">
-                <span className="text-gray-600">{dependency}</span>
+                <span className="text-muted-foreground">{dependency}</span>
                 {ready ? (
                   <CheckCircle className="w-3 h-3 text-green-500" />
                 ) : (
-                  <div className="w-3 h-3 bg-gray-300 rounded-full animate-pulse" />
+                  <div className="w-3 h-3 bg-muted rounded-full animate-pulse" />
                 )}
               </div>
             ))}

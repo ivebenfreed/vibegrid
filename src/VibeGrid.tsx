@@ -21,6 +21,7 @@ import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
+import { DebugOverlay } from './components/DebugOverlay'
 import { GanttTimeline } from './components/GanttTimeline'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
@@ -143,6 +144,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     initStore,
     viewModeStore,
     ganttViewStore,
+    debugStore,
   } = stores
 
   // Read observables at top level to ensure MobX tracking
@@ -228,20 +230,23 @@ function VibeGridInnerBase(props: VibeGridProps) {
       return
     }
 
-    // Always set rows (even if empty array)
-    tableCoreStore.setRows(rows || [])
+    // Always set rows (even if empty array) - but only when not loading
+    // This prevents setting empty rows before server data arrives
+    if (!isDataLoading) {
+      tableCoreStore.setRows(rows || [])
+    }
 
-    // Only mark as ready on FIRST load (not on subsequent updates)
-    // This prevents unnecessary React re-renders on optimistic updates
-    if (!stores.initStore.hydrationState.entityDataLoaded) {
+    // Only mark as ready on FIRST load when loading completes (not while still loading)
+    // This ensures the loading skeleton stays visible until actual data arrives
+    if (!stores.initStore.hydrationState.entityDataLoaded && !isDataLoading) {
       stores.initStore.markReady('entityDataLoaded')
       logger.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
-    } else {
+    } else if (!isDataLoading) {
       logger.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', {
         rowCount: rows?.length || 0,
       })
     }
-  }, [rows, tableCoreStore, stores])
+  }, [rows, isDataLoading, tableCoreStore, stores])
 
   // Initialize baseline snapshot when both schema AND data are ready
   // CRITICAL: This ensures baseline is created on initial load, not on first edit
@@ -637,6 +642,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
           <VibeGridLoadingOverlay initStore={initStore} height={height} width={width} />
         </div>
       )}
+
+      {/* Debug overlay - enable via console: __VIBEGRID_DEBUG__.enable() */}
+      {debugStore && <DebugOverlay debugStore={debugStore} />}
 
       {/* Header with menu components - Show as soon as columns are ready */}
       {shouldShowHeader && (

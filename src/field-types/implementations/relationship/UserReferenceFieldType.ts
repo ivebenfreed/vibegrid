@@ -5,7 +5,6 @@
  * user search, and proper relationship display. Integrates with RelationshipDataManager.
  */
 
-import { reaction } from 'mobx'
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import { getLogger } from '@/shared/lib/logging'
 import type { FieldTypeAffordance } from '../../../affordances/types'
@@ -148,10 +147,9 @@ export class UserDataLoader implements AsyncDataLoader {
 
 /**
  * User Reference Cell Renderer
+ * 🚀 PERF: Removed MobX reactions - data should be pre-loaded in TableCoreStore
  */
 export class UserReferenceRenderer implements CellRenderer {
-  private disposers: Array<() => void> = []
-
   constructor(private dataLoader: UserDataLoader) {}
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
@@ -202,49 +200,23 @@ export class UserReferenceRenderer implements CellRenderer {
     }
 
     // If it's a UUID, try to render immediately from membersData
+    // 🚀 PERF: Removed debug logging and MobX reactions from hot path
     const tableCore$ = tableCoreStore
     const userId = value
-
-    logger.debug('Rendering UserReference', {
-      userId,
-      hasTableCore: !!tableCore$,
-      hasMembersData: !!tableCore$?.membersData,
-      membersDataSize: tableCore$?.membersData?.size,
-      membersDataType: tableCore$?.membersData?.constructor?.name,
-    })
 
     if (tableCore$?.membersData && typeof tableCore$.membersData.get === 'function') {
       const user = tableCore$.membersData.get(userId)
       if (user) {
-        logger.debug('User found in membersData immediately', { userId, userName: user.name })
         container.innerHTML = this.createUserBadge(user, userId)
         return container
       }
     }
 
-    // Show loading state initially
-    container.textContent = 'Loading...'
-    container.style.opacity = '0.7'
-
-    // Setup MobX reaction to update when members data loads
-    const dispose = reaction(
-      () => {
-        const user = tableCore$?.membersData?.get(userId)
-        logger.debug('MobX reaction tracking', { userId, hasUser: !!user, userName: user?.name })
-        return user
-      },
-      (user) => {
-        if (user) {
-          logger.debug('MobX reaction fired - user loaded!', { userId, userName: user.name })
-          container.innerHTML = this.createUserBadge(user, userId)
-          container.style.opacity = '1'
-          dispose() // Stop watching after first update
-        }
-      },
-      { fireImmediately: true },
-    )
-
-    this.disposers.push(dispose)
+    // Fallback: Show truncated ID if user not found (no reactions, no async)
+    // User data should already be loaded by TableCoreStore
+    container.textContent = `User ${userId.slice(-4)}`
+    container.style.opacity = '0.6'
+    container.style.fontStyle = 'italic'
 
     return container
   }
