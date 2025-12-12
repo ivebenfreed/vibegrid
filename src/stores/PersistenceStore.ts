@@ -290,29 +290,28 @@ export class PersistenceStore implements IStore {
       let fieldMapping: GanttFieldMapping | undefined
       if (prefs.gantt.fieldMapping && typeof prefs.gantt.fieldMapping === 'object') {
         fieldMapping = {
-          startField: typeof prefs.gantt.fieldMapping.startField === 'string'
-            ? prefs.gantt.fieldMapping.startField
-            : 'start_date',
-          endField: typeof prefs.gantt.fieldMapping.endField === 'string'
-            ? prefs.gantt.fieldMapping.endField
-            : 'end_date',
-          labelField: typeof prefs.gantt.fieldMapping.labelField === 'string'
-            ? prefs.gantt.fieldMapping.labelField
-            : 'name',
+          startField:
+            typeof prefs.gantt.fieldMapping.startField === 'string'
+              ? prefs.gantt.fieldMapping.startField
+              : 'start_date',
+          endField:
+            typeof prefs.gantt.fieldMapping.endField === 'string'
+              ? prefs.gantt.fieldMapping.endField
+              : 'end_date',
+          labelField:
+            typeof prefs.gantt.fieldMapping.labelField === 'string'
+              ? prefs.gantt.fieldMapping.labelField
+              : 'name',
         }
       }
 
       gantt = {
-        zoomLevel: validZoomLevels.includes(prefs.gantt.zoomLevel)
-          ? prefs.gantt.zoomLevel
-          : 'week',
+        zoomLevel: validZoomLevels.includes(prefs.gantt.zoomLevel) ? prefs.gantt.zoomLevel : 'week',
         cutoffWidth:
           typeof prefs.gantt.cutoffWidth === 'number' && prefs.gantt.cutoffWidth >= 200
             ? prefs.gantt.cutoffWidth
             : 400,
-        viewMode: validViewModes.includes(prefs.gantt.viewMode)
-          ? prefs.gantt.viewMode
-          : 'table',
+        viewMode: validViewModes.includes(prefs.gantt.viewMode) ? prefs.gantt.viewMode : 'table',
         fieldMapping,
       }
     }

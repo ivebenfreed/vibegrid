@@ -7,7 +7,8 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import React, { useCallback, useEffect } from 'react'
+import type React from 'react'
+import { useCallback, useEffect } from 'react'
 import type { BarPosition } from '../stores/GanttViewStore'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -120,9 +121,9 @@ function calculateArrowPath(
 
 const DEPENDENCY_COLORS: Record<Dependency['dependencyType'], string> = {
   finish_to_start: '#6366f1', // indigo (most common, default)
-  start_to_start: '#8b5cf6',  // violet
+  start_to_start: '#8b5cf6', // violet
   finish_to_finish: '#06b6d4', // cyan
-  start_to_finish: '#f59e0b',  // amber (rare)
+  start_to_finish: '#f59e0b', // amber (rare)
 }
 
 // ====================================
@@ -132,47 +133,19 @@ const DEPENDENCY_COLORS: Record<Dependency['dependencyType'], string> = {
 const ArrowMarkers = () => (
   <defs>
     {/* Finish-to-Start (indigo) */}
-    <marker
-      id="arrowhead-fs"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
+    <marker id="arrowhead-fs" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_start} />
     </marker>
     {/* Start-to-Start (violet) */}
-    <marker
-      id="arrowhead-ss"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
+    <marker id="arrowhead-ss" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_start} />
     </marker>
     {/* Finish-to-Finish (cyan) */}
-    <marker
-      id="arrowhead-ff"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
+    <marker id="arrowhead-ff" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_finish} />
     </marker>
     {/* Start-to-Finish (amber) */}
-    <marker
-      id="arrowhead-sf"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
+    <marker id="arrowhead-sf" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_finish} />
     </marker>
     {/* Selected (red) */}
@@ -191,11 +164,16 @@ const ArrowMarkers = () => (
 
 function getArrowMarkerId(depType: Dependency['dependencyType']): string {
   switch (depType) {
-    case 'finish_to_start': return 'arrowhead-fs'
-    case 'start_to_start': return 'arrowhead-ss'
-    case 'finish_to_finish': return 'arrowhead-ff'
-    case 'start_to_finish': return 'arrowhead-sf'
-    default: return 'arrowhead-fs'
+    case 'finish_to_start':
+      return 'arrowhead-fs'
+    case 'start_to_start':
+      return 'arrowhead-ss'
+    case 'finish_to_finish':
+      return 'arrowhead-ff'
+    case 'start_to_finish':
+      return 'arrowhead-sf'
+    default:
+      return 'arrowhead-fs'
   }
 }
 
@@ -307,7 +285,9 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
         {arrows.map((arrow) => {
           const isSelected = arrow.id === selectedDependencyId
           const color = isSelected ? '#ef4444' : DEPENDENCY_COLORS[arrow.dependencyType]
-          const markerId = isSelected ? 'arrowhead-selected' : getArrowMarkerId(arrow.dependencyType)
+          const markerId = isSelected
+            ? 'arrowhead-selected'
+            : getArrowMarkerId(arrow.dependencyType)
           return (
             <g key={arrow.id}>
               {/* Invisible wider path for easier clicking */}

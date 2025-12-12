@@ -677,9 +677,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
             />
             {/* Right pane: Timeline */}
             <div className="flex-1 h-full overflow-auto min-w-0">
-              <GanttTimeline
-                onBarClick={(rowId: string) => interactionStore.selectRow(rowId)}
-              />
+              <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
             </div>
           </>
         )}

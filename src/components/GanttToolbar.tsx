@@ -13,11 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/shared/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Label } from '@/shared/components/ui/label'
 import { useGanttViewStore } from '../stores/context'
 import type { ZoomLevel } from '../stores/GanttViewStore'
@@ -31,13 +27,8 @@ const ZOOM_LEVELS: { value: ZoomLevel; label: string }[] = [
 
 export const GanttToolbar = observer(function GanttToolbar() {
   const ganttViewStore = useGanttViewStore()
-  const {
-    zoomLevel,
-    dependencies,
-    fieldMapping,
-    availableDateFields,
-    availableLabelFields,
-  } = ganttViewStore
+  const { zoomLevel, dependencies, fieldMapping, availableDateFields, availableLabelFields } =
+    ganttViewStore
 
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -138,9 +129,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.startField}
-                onValueChange={(value) =>
-                  ganttViewStore.setFieldMapping({ startField: value })
-                }
+                onValueChange={(value) => ganttViewStore.setFieldMapping({ startField: value })}
               >
                 <SelectTrigger id="start-field" className="h-8">
                   <SelectValue placeholder="Select field" />
@@ -168,9 +157,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.endField}
-                onValueChange={(value) =>
-                  ganttViewStore.setFieldMapping({ endField: value })
-                }
+                onValueChange={(value) => ganttViewStore.setFieldMapping({ endField: value })}
               >
                 <SelectTrigger id="end-field" className="h-8">
                   <SelectValue placeholder="Select field" />
@@ -198,9 +185,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.labelField}
-                onValueChange={(value) =>
-                  ganttViewStore.setFieldMapping({ labelField: value })
-                }
+                onValueChange={(value) => ganttViewStore.setFieldMapping({ labelField: value })}
               >
                 <SelectTrigger id="label-field" className="h-8">
                   <SelectValue placeholder="Select field" />

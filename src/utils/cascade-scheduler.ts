@@ -18,7 +18,11 @@ const logger = getLogger(['vibegrid', 'utils', 'cascade-scheduler'])
 // TYPES
 // ====================================
 
-export type DependencyType = 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish'
+export type DependencyType =
+  | 'finish_to_start'
+  | 'start_to_start'
+  | 'finish_to_finish'
+  | 'start_to_finish'
 
 export interface CascadeDependency {
   id: string
@@ -87,12 +91,7 @@ export function calculateCascadeUpdates(
       const successorBar = getBar(successorId)
       if (!successorBar) continue
 
-      const update = calculateSingleCascade(
-        dep,
-        predecessorStart,
-        predecessorEnd,
-        successorBar,
-      )
+      const update = calculateSingleCascade(dep, predecessorStart, predecessorEnd, successorBar)
 
       if (!update) continue
 

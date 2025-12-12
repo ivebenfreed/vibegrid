@@ -872,7 +872,12 @@ export class GanttViewStore implements IStore {
    * Update dependency drag position and detect target
    */
   @action
-  updateDependencyDrag(x: number, y: number, targetBarId?: string, targetEdge?: DependencyEdge): void {
+  updateDependencyDrag(
+    x: number,
+    y: number,
+    targetBarId?: string,
+    targetEdge?: DependencyEdge,
+  ): void {
     if (!this.dependencyDragState.isDragging) return
 
     this.dependencyDragState.currentX = x
