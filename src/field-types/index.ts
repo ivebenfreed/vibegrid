@@ -2,55 +2,21 @@
  * VibeGrid Field Types - Main Index
  *
  * Central export point for the modular field type system.
- * Imports all field type implementations to ensure they are registered.
+ *
+ * IMPORTANT: Field type implementations are NOT imported at module load time.
+ * They are lazily loaded when initializeFieldTypeSystem() or
+ * fieldTypeRegistry.ensureInitialized() is called.
+ *
+ * This prevents the ~45 field type registrations from running at app startup
+ * when no VibeGrid is being used.
  */
 
 import { getLogger } from '@/shared/lib/logging'
 
-// Import registry first before any field type implementations
-import { fieldTypeRegistry } from './FieldTypeRegistry'
-import { modularCellBridge } from './ModularCellBridge'
+// Core system exports - these are lightweight and safe to import eagerly
+export { FieldTypeRegistry, fieldTypeRegistry } from './FieldTypeRegistry'
+export { ModularCellBridge, modularCellBridge } from './ModularCellBridge'
 
-const fileLog = getLogger(['vibegrid', 'field-types', 'index'])
-
-// Import all field type implementations to register them early
-// Basic types
-import './implementations/basic/TextFieldType'
-import './implementations/basic/EntityNameFieldType' // Special renderer for name/title fields
-import './implementations/basic/TextAreaFieldType'
-import './implementations/basic/NumberFieldType'
-import './implementations/basic/DateFieldType'
-import './implementations/basic/BooleanFieldType'
-import './implementations/basic/SelectFieldType'
-import './implementations/basic/EmailFieldType'
-import './implementations/basic/UrlFieldType'
-import './implementations/basic/PhoneFieldType'
-import './implementations/basic/ColorFieldType'
-import './implementations/basic/CurrencyFieldType'
-import './implementations/basic/FileFieldType'
-import './implementations/basic/RatingFieldType'
-import './implementations/basic/SliderFieldType'
-import './implementations/basic/ImageFieldType'
-import './implementations/basic/MarkdownFieldType'
-
-// Relationship types
-import './implementations/relationship/UserReferenceFieldType'
-import './implementations/relationship/EntityReferenceFieldType'
-
-// Rollup types
-import './implementations/rollup/RollupCountFieldType'
-import './implementations/rollup/RollupSumFieldType'
-import './implementations/rollup/RollupAverageFieldType'
-import './implementations/rollup/RollupConcatFieldType'
-
-// Computed types
-import './implementations/computed/ComputedFieldTypes'
-
-export { CellFactory } from '../factories/CellFactory'
-// Manager exports
-export { RelationshipDataManager } from '../managers/RelationshipDataManager'
-export { RollupCalculationManager } from '../managers/RollupCalculationManager'
-export { SchemaAdapter } from '../schema/SchemaAdapter'
 // Type exports
 export type {
   AsyncDataLoader,
@@ -69,61 +35,32 @@ export type {
   ValidationResult,
   VibeGridFieldType,
 } from './FieldTypeRegistry'
-// Core system exports
-export { FieldTypeRegistry, fieldTypeRegistry } from './FieldTypeRegistry'
-export { ModularCellBridge, modularCellBridge } from './ModularCellBridge'
 
-// Import all field type implementations to register them
-// Basic field types
-import './implementations/basic/TextFieldType'
-import './implementations/basic/NumberFieldType'
-import './implementations/basic/DateFieldType'
-import './implementations/basic/BooleanFieldType'
-import './implementations/basic/SelectFieldType'
-import './implementations/basic/EmailFieldType'
-import './implementations/basic/UrlFieldType'
-import './implementations/basic/PhoneFieldType'
-import './implementations/basic/ColorFieldType'
-import './implementations/basic/CurrencyFieldType'
-import './implementations/basic/FileFieldType'
-import './implementations/basic/ImageFieldType'
-import './implementations/basic/RatingFieldType'
-import './implementations/basic/SliderFieldType'
-import './implementations/basic/TextAreaFieldType'
-import './implementations/basic/MarkdownFieldType'
+// Factory and manager exports
+export { CellFactory } from '../factories/CellFactory'
+export { RelationshipDataManager } from '../managers/RelationshipDataManager'
+export { RollupCalculationManager } from '../managers/RollupCalculationManager'
+export { SchemaAdapter } from '../schema/SchemaAdapter'
 
-// Relationship field types
-import './implementations/relationship/UserReferenceFieldType'
-import './implementations/relationship/EntityReferenceFieldType'
+const fileLog = getLogger(['vibegrid', 'field-types', 'index'])
 
-// Rollup field types
-import './implementations/rollup/RollupCountFieldType'
-import './implementations/rollup/RollupSumFieldType'
-import './implementations/rollup/RollupAverageFieldType'
-import './implementations/rollup/RollupConcatFieldType'
-
-// Computed field types
-import './implementations/computed/ComputedFieldTypes'
-
-// Field type implementations that will be added in future phases:
-// import './implementations/basic/UrlFieldType';
-// import './implementations/basic/PhoneFieldType';
-// import './implementations/basic/ColorFieldType';
-// import './implementations/basic/FileFieldType';
-// import './implementations/basic/CurrencyFieldType';
-// import './implementations/relationship/EntityReferenceFieldType';
-// import './implementations/rollup/RollupSumFieldType';
-// import './implementations/rollup/RollupAverageFieldType';
-// import './implementations/rollup/RollupConcatFieldType';
+// Import registry for initialization
+import { fieldTypeRegistry } from './FieldTypeRegistry'
+import { modularCellBridge } from './ModularCellBridge'
 
 /**
  * Initialize the modular field type system
  *
  * Call this function to ensure all field types are registered and ready to use.
+ * This triggers lazy loading of field type implementations.
+ *
+ * Safe to call multiple times - will only initialize once.
  */
-export function initializeFieldTypeSystem(): void {
+export async function initializeFieldTypeSystem(): Promise<void> {
   try {
-    // Field types are automatically registered via imports above
+    // Trigger lazy loading of all field types
+    await fieldTypeRegistry.ensureInitialized()
+
     const stats = fieldTypeRegistry.getRegisteredTypes()
 
     fileLog.debug('VibeGrid Modular Field Type System Initialized', {
@@ -182,5 +119,5 @@ export function getSystemStats() {
   return modularCellBridge.getStats()
 }
 
-// DON'T auto-initialize - will be called explicitly from VibeGrid hydration system
-// The fieldTypeRegistry is initialized when the individual field types are imported
+// Field type implementations are loaded lazily via fieldTypeRegistry.ensureInitialized()
+// Do NOT add static imports of field type files here - that defeats the lazy loading!

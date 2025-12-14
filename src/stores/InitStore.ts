@@ -19,6 +19,7 @@ import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 import type { InteractionStore } from './InteractionStore'
 import type { PersistenceStore } from './PersistenceStore'
 import type { TableCoreStore } from './TableCoreStore'
@@ -259,6 +260,13 @@ export class InitStore implements IStore {
     })
 
     try {
+      // Step 0: Initialize field types (lazy loaded for performance)
+      // This MUST happen before TableCoreStore.init() which needs field types for column generation
+      await fieldTypeRegistry.ensureInitialized()
+      logger.info('✅ Field types initialized', {
+        typeCount: fieldTypeRegistry.getRegisteredTypes().length,
+      })
+
       // Step 1: Initialize PersistenceStore first (loads saved preferences)
       if (this.persistenceStore) {
         await this.persistenceStore.init()

@@ -255,9 +255,104 @@ export interface VibeGridFieldType {
 
 /**
  * Central registry for all field types
+ *
+ * Supports lazy initialization - field types are only loaded when VibeGrid is actually used.
  */
 export class FieldTypeRegistry {
   private types = new Map<string, VibeGridFieldType>()
+  private _initialized = false
+  private _initPromise: Promise<void> | null = null
+
+  /**
+   * Check if field types have been initialized
+   */
+  get isInitialized(): boolean {
+    return this._initialized
+  }
+
+  /**
+   * Ensure field types are initialized before use.
+   * This triggers lazy loading of all field type implementations.
+   * Safe to call multiple times - will only initialize once.
+   */
+  async ensureInitialized(): Promise<void> {
+    if (this._initialized) {
+      return
+    }
+
+    // Deduplicate concurrent initialization calls
+    if (this._initPromise) {
+      return this._initPromise
+    }
+
+    this._initPromise = this._doInitialize()
+    await this._initPromise
+  }
+
+  /**
+   * Synchronous check + async init. Returns true if already initialized.
+   * Use this for render paths that can't be async.
+   */
+  initializeSync(): boolean {
+    if (this._initialized) {
+      return true
+    }
+
+    // Trigger async initialization but don't wait
+    this.ensureInitialized()
+    return false
+  }
+
+  private async _doInitialize(): Promise<void> {
+    fieldLog.info('🚀 [FIELD-REGISTRY] Starting lazy initialization of field types...')
+
+    try {
+      // Dynamic imports - only loaded when this method is called
+      await Promise.all([
+        // Basic types
+        import('./implementations/basic/TextFieldType'),
+        import('./implementations/basic/EntityNameFieldType'),
+        import('./implementations/basic/TextAreaFieldType'),
+        import('./implementations/basic/NumberFieldType'),
+        import('./implementations/basic/DateFieldType'),
+        import('./implementations/basic/BooleanFieldType'),
+        import('./implementations/basic/SelectFieldType'),
+        import('./implementations/basic/EmailFieldType'),
+        import('./implementations/basic/UrlFieldType'),
+        import('./implementations/basic/PhoneFieldType'),
+        import('./implementations/basic/ColorFieldType'),
+        import('./implementations/basic/CurrencyFieldType'),
+        import('./implementations/basic/FileFieldType'),
+        import('./implementations/basic/RatingFieldType'),
+        import('./implementations/basic/SliderFieldType'),
+        import('./implementations/basic/ImageFieldType'),
+        import('./implementations/basic/MarkdownFieldType'),
+
+        // Relationship types
+        import('./implementations/relationship/UserReferenceFieldType'),
+        import('./implementations/relationship/EntityReferenceFieldType'),
+
+        // Rollup types
+        import('./implementations/rollup/RollupCountFieldType'),
+        import('./implementations/rollup/RollupSumFieldType'),
+        import('./implementations/rollup/RollupAverageFieldType'),
+        import('./implementations/rollup/RollupConcatFieldType'),
+
+        // Computed types
+        import('./implementations/computed/ComputedFieldTypes'),
+      ])
+
+      this._initialized = true
+      fieldLog.info('✅ [FIELD-REGISTRY] Field types initialized', {
+        totalTypes: this.types.size,
+        types: Array.from(this.types.keys()),
+      })
+    } catch (error) {
+      fieldLog.error('❌ [FIELD-REGISTRY] Failed to initialize field types', { error })
+      this._initPromise = null // Allow retry
+      throw error
+    }
+  }
 
   /**
    * Register a field type

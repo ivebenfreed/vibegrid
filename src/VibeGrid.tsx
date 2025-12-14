@@ -147,6 +147,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     debugStore,
   } = stores
 
+  // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
+  // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
+
   // Read observables at top level to ensure MobX tracking
   const isGanttMode = enableGantt && viewModeStore.isGanttMode
   const cutoffWidth = viewModeStore.cutoffWidth
@@ -476,6 +479,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
     // Use MobX autorun to reactively trigger initialization when columns are ready
     // This allows us to avoid having visualStateStore.columns in React dependencies
+    // NOTE: Field types are already initialized by InitStore.initializeStores() before columns load
     const disposer = autorun(() => {
       // Read columns.length inside autorun to track it
       const hasColumns = visualStateStore.columns.length > 0

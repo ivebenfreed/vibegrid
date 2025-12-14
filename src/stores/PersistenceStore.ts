@@ -15,7 +15,7 @@
  * - This ensures loading happens BEFORE defaults are applied
  */
 
-import { makeObservable, reaction } from 'mobx'
+import { makeObservable, reaction, runInAction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
@@ -333,43 +333,48 @@ export class PersistenceStore implements IStore {
 
   /**
    * Apply loaded preferences to stores
+   * Uses runInAction() to comply with MobX strict mode
    */
   private applyLoadedPreferences(prefs: VibeGridPreferences): void {
-    // Apply to TableCoreStore
+    // Apply to TableCoreStore (wrapped in runInAction for MobX strict mode)
     if (this.tableCoreStore) {
-      if (Object.keys(prefs.groupRowOrders).length > 0) {
-        this.tableCoreStore.groupRowOrders = prefs.groupRowOrders
-      }
-      if (prefs.flatRowOrder.length > 0) {
-        this.tableCoreStore.flatRowOrder = prefs.flatRowOrder
-      }
+      runInAction(() => {
+        if (Object.keys(prefs.groupRowOrders).length > 0) {
+          this.tableCoreStore!.groupRowOrders = prefs.groupRowOrders
+        }
+        if (prefs.flatRowOrder.length > 0) {
+          this.tableCoreStore!.flatRowOrder = prefs.flatRowOrder
+        }
+      })
     }
 
-    // Apply to VisualStateStore
+    // Apply to VisualStateStore (wrapped in runInAction for MobX strict mode)
     if (this.visualStateStore) {
-      if (Object.keys(prefs.columnWidths).length > 0) {
-        this.visualStateStore.columnWidths = prefs.columnWidths
-      }
-      if (prefs.columnOrder.length > 0) {
-        this.visualStateStore.columnOrder = prefs.columnOrder
-      }
-      if (Object.keys(prefs.columnVisibility).length > 0) {
-        this.visualStateStore.columnVisibility = prefs.columnVisibility
-      }
-      if (prefs.sortBy.length > 0) {
-        this.visualStateStore.sortBy = prefs.sortBy
-      }
-      if (prefs.filters.length > 0) {
-        this.visualStateStore.filters = prefs.filters
-      }
-      if (prefs.groupConfig) {
-        // Convert serializable config back to runtime GroupConfig (with Set)
-        const runtimeGroupConfig: GroupConfig = {
-          ...prefs.groupConfig,
-          expandedGroups: new Set(prefs.groupConfig.expandedGroups || []),
+      runInAction(() => {
+        if (Object.keys(prefs.columnWidths).length > 0) {
+          this.visualStateStore!.columnWidths = prefs.columnWidths
         }
-        this.visualStateStore.groupConfig = runtimeGroupConfig
-      }
+        if (prefs.columnOrder.length > 0) {
+          this.visualStateStore!.columnOrder = prefs.columnOrder
+        }
+        if (Object.keys(prefs.columnVisibility).length > 0) {
+          this.visualStateStore!.columnVisibility = prefs.columnVisibility
+        }
+        if (prefs.sortBy.length > 0) {
+          this.visualStateStore!.sortBy = prefs.sortBy
+        }
+        if (prefs.filters.length > 0) {
+          this.visualStateStore!.filters = prefs.filters
+        }
+        if (prefs.groupConfig) {
+          // Convert serializable config back to runtime GroupConfig (with Set)
+          const runtimeGroupConfig: GroupConfig = {
+            ...prefs.groupConfig,
+            expandedGroups: new Set(prefs.groupConfig.expandedGroups || []),
+          }
+          this.visualStateStore!.groupConfig = runtimeGroupConfig
+        }
+      })
     }
 
     // Apply Gantt preferences
