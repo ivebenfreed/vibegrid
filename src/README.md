@@ -429,10 +429,11 @@ __VIBEGRID_LOGS__.debug()   // All logs
 
 ## 📚 Related Documentation
 
+- [UX Specification](./UX_SPEC.md) - Comprehensive interaction patterns and testing guide
 - [MobX Documentation](https://mobx.js.org/)
 - [DataForge Field Types](../../../server/domain/dataforge/fields/)
 - [Vibegrid Stores](./stores/)
-- [Testing with Chrome DevTools MCP](../../CLAUDE.md#browser-automation)
+- [Chrome DevTools Skill](../../../../.claude/skills/chrome-devtools/SKILL.md) - Browser automation for testing
 
 ---
 
