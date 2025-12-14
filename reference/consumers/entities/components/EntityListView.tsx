@@ -6,7 +6,7 @@
  */
 
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { PlusIcon } from 'lucide-react'
+import { Loader2, PlusIcon } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useState, useTransition } from 'react'
 import { ConfigDrawer } from '@/shared/components/config-drawer'
@@ -17,7 +17,8 @@ import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { Button } from '@/shared/components/ui/button'
-import { useEntityListData } from '@/shared/data/db/hooks/useEntityListData'
+import { Progress } from '@/shared/components/ui/progress'
+import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
@@ -55,8 +56,11 @@ export const EntityListView = observer(() => {
 
   // Note: Vibegrid handles its own virtualization/pagination
   // This config is just for compatibility with useEntityListData
-  const listResult = useEntityListData(entityName, {
+  // Uses streaming for STREAMING_ENTITIES (like BuildProject) for progressive loading
+  const listResult = useStreamingEntityListData(entityName, {
     pagination: { pageIndex: 0, pageSize: 1000 },
+    orderBy: 'created_at',
+    orderDirection: 'desc',
   })
 
   if (!listResult.isReady && listResult.rows.length === 0) {
@@ -136,10 +140,24 @@ export const EntityListView = observer(() => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{schema.entityName}</h1>
-            <p className="text-sm text-muted-foreground">
-              {listResult.pagination.total}{' '}
-              {listResult.pagination.total === 1 ? 'record' : 'records'}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                {listResult.pagination.total}{' '}
+                {listResult.pagination.total === 1 ? 'record' : 'records'}
+              </p>
+              {listResult.isStreaming && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Loading more...</span>
+                </div>
+              )}
+            </div>
+            {/* Streaming progress bar */}
+            {listResult.isStreaming && listResult.streamProgress.batches > 0 && (
+              <div className="mt-2 w-48">
+                <Progress value={undefined} className="h-1" />
+              </div>
+            )}
           </div>
           <Button
             onClick={() =>
