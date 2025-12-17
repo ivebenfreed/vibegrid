@@ -292,6 +292,7 @@ export class EditingStore implements IStore {
       return
     }
 
+<<<<<<< HEAD
     console.log(
       '🔥 UPDATE_PENDING_VALUE',
       JSON.stringify({
@@ -300,6 +301,13 @@ export class EditingStore implements IStore {
         newValue: value ?? 'null',
       }),
     )
+=======
+    console.log('🔥 UPDATE_PENDING_VALUE', JSON.stringify({
+      cellId: this.currentSession.cellId,
+      oldValue: this.currentSession.pendingValue ?? 'null',
+      newValue: value ?? 'null',
+    }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
     fileLog.debug('Updating pending value', {
       cellId: this.currentSession.cellId,
       oldValue: this.currentSession.pendingValue,
@@ -425,6 +433,7 @@ export class EditingStore implements IStore {
 
     // Clear session BEFORE async save (prevents double-commit)
     const sessionToSave = this.currentSession
+<<<<<<< HEAD
     console.log(
       '🔥 CLEARING SESSION in commitEdit',
       JSON.stringify({
@@ -436,6 +445,16 @@ export class EditingStore implements IStore {
         originalValue: this.currentSession?.originalValue ?? 'null',
       }),
     )
+=======
+    console.log('🔥 CLEARING SESSION in commitEdit', JSON.stringify({
+      cellId,
+      reason,
+      explicitValue: explicitValue ?? 'undefined',
+      finalValue: finalValue ?? 'null',
+      pendingValue: this.currentSession?.pendingValue ?? 'null',
+      originalValue: this.currentSession?.originalValue ?? 'null',
+    }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
     console.trace('🔥 COMMIT STACK TRACE')
     this.currentSession = null
     this.sessionReady = false
@@ -608,6 +627,7 @@ export class EditingStore implements IStore {
     // Get field name from column
     const field = session.column.field || columnId
 
+<<<<<<< HEAD
     console.log(
       '🔥 SAVE_TO_DATABASE CALLED',
       JSON.stringify({
@@ -618,6 +638,9 @@ export class EditingStore implements IStore {
         hasCollection: !!this.collection,
       }),
     )
+=======
+    console.log('🔥 SAVE_TO_DATABASE CALLED', JSON.stringify({ cellId, rowId, field, finalValue: finalValue ?? 'null', hasCollection: !!this.collection }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
 
     // Check if collection available
     if (!this.collection) {
@@ -635,6 +658,7 @@ export class EditingStore implements IStore {
     const currentData = this.collection.get(String(rowId))
     const currentValue = currentData?.[field]
 
+<<<<<<< HEAD
     console.log(
       '🔥 CHECKING VALUE CHANGE',
       JSON.stringify({
@@ -643,6 +667,9 @@ export class EditingStore implements IStore {
         isEqual: currentValue === finalValue,
       }),
     )
+=======
+    console.log('🔥 CHECKING VALUE CHANGE', JSON.stringify({ currentValue: currentValue ?? 'null', finalValue, isEqual: currentValue === finalValue }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
 
     // OPTIMIZATION: Skip update if value hasn't changed
     if (currentValue === finalValue) {
@@ -669,10 +696,14 @@ export class EditingStore implements IStore {
       console.log('🔥 UPDATE CALL RETURNED', tx)
 
       const localDuration = performance.now() - startTime
+<<<<<<< HEAD
       console.log(
         '🔥 OPTIMISTIC EDIT APPLIED',
         JSON.stringify({ rowId, field, finalValue, localDuration: localDuration.toFixed(1) }),
       )
+=======
+      console.log('🔥 OPTIMISTIC EDIT APPLIED', JSON.stringify({ rowId, field, finalValue, localDuration: localDuration.toFixed(1) }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
       fileLog.info('Optimistic edit applied to collection', {
         rowId,
         field,
@@ -699,10 +730,14 @@ export class EditingStore implements IStore {
         })
         .catch((error: any) => {
           const errorMessage = error instanceof Error ? error.message : String(error)
+<<<<<<< HEAD
           console.log(
             '🔥 EDIT PERSISTENCE FAILED',
             JSON.stringify({ rowId, field, finalValue, error: errorMessage }),
           )
+=======
+          console.log('🔥 EDIT PERSISTENCE FAILED', JSON.stringify({ rowId, field, finalValue, error: errorMessage }))
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
           fileLog.error('Edit persistence failed - TanStack DB auto-rollback', {
             rowId,
             field,

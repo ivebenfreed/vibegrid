@@ -106,8 +106,12 @@ export class EditingOverlay {
 
     // CRITICAL: Hide portal IMMEDIATELY to prevent flash at old position
     // This must happen before any other operations when transitioning between cells
+<<<<<<< HEAD
     const isTransition =
       this.currentCell &&
+=======
+    const isTransition = this.currentCell &&
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
       (this.currentCell.rowId !== cell.rowId || this.currentCell.columnId !== cell.columnId)
 
     if (isTransition) {
@@ -233,6 +237,7 @@ export class EditingOverlay {
       const columnType = column.cellType || column.type || ''
 
       // For date pickers, use larger height to avoid scrolling
+<<<<<<< HEAD
       const isDateType = [
         'date',
         'datetime',
@@ -240,6 +245,11 @@ export class EditingOverlay {
         'timestamp',
         'timestamptz',
       ].includes(columnType)
+=======
+      const isDateType = ['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(
+        columnType,
+      )
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
 
       // Only date pickers need a fixed width - other dropdowns auto-size to content
       const dropdownWidth = isDateType ? Math.max(position.width, 300) : 'auto'
@@ -255,8 +265,12 @@ export class EditingOverlay {
       // Position dropdown directly below cell using visual state coordinates
       this.portal.style.left = `${position.x}px`
       this.portal.style.top = `${position.y + position.height}px`
+<<<<<<< HEAD
       this.portal.style.width =
         typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
+=======
+      this.portal.style.width = typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
+>>>>>>> 1c3454d6f (fix(vibegrid): Cell display fixes, options resolution, and echo suppression (#172))
       this.portal.style.height = 'auto'
       this.portal.style.maxHeight = `${dropdownHeight}px`
       this.portal.style.padding = '4px'
