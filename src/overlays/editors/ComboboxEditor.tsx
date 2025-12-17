@@ -288,28 +288,39 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
     setHighlightedIndex(0)
   }, [filteredOptions])
 
+  // Determine if we should show search input (only for lists with many options)
+  const showSearch = options.length > 6
+
+  // Check if we have multiple groups with actual group names (not just "Other")
+  const hasMultipleGroups = React.useMemo(() => {
+    const groups = new Set(filteredOptions.map((o) => (o as any).group).filter(Boolean))
+    return groups.size > 1
+  }, [filteredOptions])
+
   return (
     <div className={cn('w-full h-full', className)}>
       <Command shouldFilter={false} className="border rounded-md shadow-lg bg-background">
-        <CommandInput
-          placeholder={searchPlaceholder}
-          value={searchValue}
-          onValueChange={setSearchValue}
-          autoFocus
-          className="border-none focus:ring-0"
-        />
-        <CommandList className="max-h-64 overflow-auto">
+        {showSearch && (
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onValueChange={setSearchValue}
+            autoFocus
+            className="border-none focus:ring-0"
+          />
+        )}
+        <CommandList className={cn(showSearch ? 'max-h-64' : 'max-h-fit', 'overflow-auto')}>
           {isLoadingOptions ? (
             <div className="p-4 text-center text-sm text-muted-foreground">Loading options...</div>
           ) : (
             <>
               <CommandEmpty>No results found.</CommandEmpty>
-              {/* Group options by their group property */}
+              {/* Group options only if there are multiple named groups */}
               {(() => {
                 // Group the filtered options
                 const grouped = filteredOptions.reduce(
                   (acc, option) => {
-                    const group = (option as any).group || 'Other'
+                    const group = (option as any).group || ''
                     if (!acc[group]) acc[group] = []
                     acc[group].push(option)
                     return acc
@@ -317,13 +328,20 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                   {} as Record<string, any[]>,
                 )
 
-                // Sort groups
-                const sortedGroups = Object.keys(grouped).sort()
+                // Sort groups (empty string first for ungrouped)
+                const sortedGroups = Object.keys(grouped).sort((a, b) => {
+                  if (a === '') return -1
+                  if (b === '') return 1
+                  return a.localeCompare(b)
+                })
 
-                // Render grouped options
+                // Render options - only show group headings if there are multiple named groups
                 return sortedGroups.map((groupName) => (
-                  <CommandGroup key={groupName} heading={groupName}>
-                    {grouped[groupName].map((option: any, groupIndex: any) => {
+                  <CommandGroup
+                    key={groupName || '__ungrouped__'}
+                    heading={hasMultipleGroups && groupName ? groupName : undefined}
+                  >
+                    {grouped[groupName].map((option: any) => {
                       const globalIndex = filteredOptions.findIndex((o) => o.value === option.value)
                       return (
                         <CommandItem
@@ -345,44 +363,55 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
                             globalIndex === highlightedIndex && 'bg-accent',
                           )}
                         >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4 flex-shrink-0',
-                              isMultiSelect
-                                ? selectedValues.includes(option.value)
-                                  ? 'opacity-100'
-                                  : 'opacity-0'
-                                : initialValue === option.value ||
-                                    (initialValue === null && option.value === '__null__')
+                          {/* Multi-select: checkmark on left */}
+                          {isMultiSelect && (
+                            <Check
+                              className={cn(
+                                'mr-2 h-4 w-4 flex-shrink-0',
+                                selectedValues.includes(option.value) ? 'opacity-100' : 'opacity-0',
+                              )}
+                            />
+                          )}
+                          {/* Option content */}
+                          <span className="flex-1">
+                            {option.value === '__null__' ? (
+                              <span className="text-muted-foreground italic">{option.label}</span>
+                            ) : (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap',
+                                  backgroundColor: option.backgroundColor || '#f3f4f6',
+                                  color: option.color || '#374151',
+                                  border: `1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'}`,
+                                }}
+                              >
+                                {option.icon && (
+                                  <span style={{ fontSize: '10px' }}>
+                                    {getOptionIconDisplay(option.icon)}
+                                  </span>
+                                )}
+                                {option.label}
+                              </span>
+                            )}
+                          </span>
+                          {/* Single-select: checkmark on right for alignment with cell content */}
+                          {!isMultiSelect && (
+                            <Check
+                              className={cn(
+                                'ml-2 h-4 w-4 flex-shrink-0 text-primary',
+                                initialValue === option.value ||
+                                  (initialValue === null && option.value === '__null__')
                                   ? 'opacity-100'
                                   : 'opacity-0',
-                            )}
-                          />
-                          {option.value === '__null__' ? (
-                            <span className="text-muted-foreground italic">{option.label}</span>
-                          ) : (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontWeight: '500',
-                                whiteSpace: 'nowrap',
-                                backgroundColor: option.backgroundColor || '#f3f4f6',
-                                color: option.color || '#374151',
-                                border: `1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'}`,
-                              }}
-                            >
-                              {option.icon && (
-                                <span style={{ fontSize: '10px' }}>
-                                  {getOptionIconDisplay(option.icon)}
-                                </span>
                               )}
-                              {option.label}
-                            </span>
+                            />
                           )}
                         </CommandItem>
                       )

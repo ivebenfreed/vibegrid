@@ -253,7 +253,7 @@ body.vibegridx-dragging-active * {
   opacity: 0.8;
   transform: none;
   transition: none;
-  text-transform: uppercase;
+  /* Removed text-transform: uppercase - use standard capitalization */
 }
 
 /* Column drag preview specific */
@@ -734,8 +734,10 @@ body.vibegridx-dragging-active * {
 }
 
 /* Dropdown editing indicator */
+/* Note: Do NOT add position: relative here - cells are position: absolute and changing
+   this causes the cell content to shift when editing starts */
 .vibegridx-cell-dropdown-editing {
-  position: relative;
+  /* Cell already has position: absolute - keep it unchanged */
 }
 
 .vibegridx-cell-dropdown-editing::after {

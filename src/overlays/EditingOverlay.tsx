@@ -104,6 +104,18 @@ export class EditingOverlay {
   ): void {
     if (!this.portal || !this.root) return
 
+    // CRITICAL: Hide portal IMMEDIATELY to prevent flash at old position
+    // This must happen before any other operations when transitioning between cells
+    const isTransition = this.currentCell &&
+      (this.currentCell.rowId !== cell.rowId || this.currentCell.columnId !== cell.columnId)
+
+    if (isTransition) {
+      // Hide immediately to prevent flash
+      this.portal.style.display = 'none'
+      // Clear old React content to prevent stale UI flash
+      this.root.render(null)
+    }
+
     // Re-append portal if it's not in DOM (canvas container might have been cleared)
     if (!this.portal.parentElement) {
       fileLog.debug('EditingOverlay: Re-appending portal to container')
@@ -121,7 +133,13 @@ export class EditingOverlay {
       firstChars: typeof value === 'string' ? value.substring(0, 50) + '...' : value,
       mode,
       immediate,
+      isTransition,
     })
+
+    // Restore cell content from previous edit (if any) before setting new cell
+    if (isTransition) {
+      this.restoreCellContent(this.currentCell!)
+    }
 
     // Store current state
     this.currentCell = cell
@@ -131,8 +149,8 @@ export class EditingOverlay {
     // Store cell ID on portal for tracking
     this.portal.setAttribute('data-cell-id', `${cell.rowId}:${cell.columnId}`)
 
-    // Position the portal
-    this.portal.style.display = 'block'
+    // Portal is hidden at this point (either from transition above or initial state)
+    // Will be shown after positioning AND rendering is complete
 
     fileLog.debug('EditingOverlay: Portal positioned with absolute coordinates', {
       position,
@@ -208,19 +226,18 @@ export class EditingOverlay {
       // Hide the cell content by adding a class to the cell
       this.hideCellContent(cell)
 
-      // No outline needed - canvas overlay handles the border
+      // NOTE: Portal visibility is set AFTER React render below
     } else if (isDropdownType) {
       // Dropdown editors: Use the position from visual state (single source of truth)
-      const dropdownWidth = Math.max(position.width, 300)
+      const columnType = column.cellType || column.type || ''
 
       // For date pickers, use larger height to avoid scrolling
-      const isDateType = [
-        'date',
-        'datetime',
-        'datetime-local',
-        'timestamp',
-        'timestamptz',
-      ].includes(column.cellType || column.type || '')
+      const isDateType = ['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(
+        columnType,
+      )
+
+      // Only date pickers need a fixed width - other dropdowns auto-size to content
+      const dropdownWidth = isDateType ? Math.max(position.width, 300) : 'auto'
       const dropdownHeight = isDateType ? 450 : 300 // Larger for date pickers
 
       fileLog.debug('EditingOverlay: Using visual state coordinates', {
@@ -233,7 +250,7 @@ export class EditingOverlay {
       // Position dropdown directly below cell using visual state coordinates
       this.portal.style.left = `${position.x}px`
       this.portal.style.top = `${position.y + position.height}px`
-      this.portal.style.width = `${dropdownWidth}px`
+      this.portal.style.width = typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
       this.portal.style.height = 'auto'
       this.portal.style.maxHeight = `${dropdownHeight}px`
       this.portal.style.padding = '4px'
@@ -246,46 +263,10 @@ export class EditingOverlay {
       this.portal.style.zIndex = '1001' // Above everything
       this.portal.style.overflow = 'auto'
 
-      // Check if dropdown would be cut off and adjust viewport if needed
-      // Use requestAnimationFrame to ensure viewport adjustment happens after positioning
-      requestAnimationFrame(() => {
-        const viewport =
-          (this.container.querySelector('.vibegridx-viewport') as HTMLElement) || this.container
-        if (!viewport) return
-
-        const viewportRect = viewport.getBoundingClientRect()
-        const dropdownBottom = position.y + position.height + dropdownHeight
-        const dropdownRight = position.x + dropdownWidth
-
-        // Calculate how much we need to scroll to fit the dropdown
-        const viewportVisibleBottom = viewport.scrollTop + viewportRect.height
-        const viewportVisibleRight = viewport.scrollLeft + viewportRect.width
-
-        // Scroll down if dropdown extends below visible area
-        if (dropdownBottom > viewportVisibleBottom) {
-          const scrollDown = Math.min(
-            dropdownBottom - viewportVisibleBottom + 40, // Extra 40px padding
-            viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight,
-          )
-          if (scrollDown > 0) {
-            viewport.scrollTop += scrollDown
-          }
-        }
-
-        // Scroll right if dropdown extends beyond visible area
-        if (dropdownRight > viewportVisibleRight) {
-          const scrollRight = Math.min(
-            dropdownRight - viewportVisibleRight + 40, // Extra 40px padding
-            viewport.scrollWidth - viewport.scrollLeft - viewport.clientWidth,
-          )
-          if (scrollRight > 0) {
-            viewport.scrollLeft += scrollRight
-          }
-        }
-      })
-
       // Add editing indicator to the original cell
       this.addEditingIndicatorToCell(cell, mode)
+
+      // NOTE: Portal visibility is set AFTER React render below
     } else {
       // Default behavior for other editors
       this.portal.style.left = `${position.x}px`
@@ -294,7 +275,7 @@ export class EditingOverlay {
       this.portal.style.height = `${position.height}px`
       this.portal.style.padding = '4px'
 
-      // No outline needed - canvas overlay handles the border
+      // NOTE: Portal visibility is set AFTER React render below
     }
 
     // Render the editor component using shadcn components
@@ -364,21 +345,36 @@ export class EditingOverlay {
 
     this.root.render(editorComponent)
 
-    // Force a synchronous flush to ensure content renders immediately
-    // This is necessary because React 18's concurrent features can delay renders
-    ;(this.root as any)._internalRoot?.containerInfo?.dispatchEvent?.(new Event('load'))
+    // CRITICAL: Show portal AFTER React has rendered to prevent flash
+    // Use queueMicrotask to ensure React's synchronous render has completed,
+    // then use requestAnimationFrame to ensure the browser has painted
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        if (this.portal && this.currentCell) {
+          // Only show if we're still editing the same cell
+          const currentCellId = `${this.currentCell.rowId}:${this.currentCell.columnId}`
+          const portalCellId = this.portal.getAttribute('data-cell-id')
 
-    // Use setTimeout to check portal contents after React has rendered
-    setTimeout(() => {
-      fileLog.debug('EditingOverlay: Portal contents after render (delayed check)', {
-        portalChildCount: this.portal?.childNodes.length || 0,
-        portalVisible: (this.portal?.offsetWidth ?? 0) > 0 && (this.portal?.offsetHeight ?? 0) > 0,
-        portalHTML: this.portal?.innerHTML?.substring(0, 100) || 'empty',
-        hasFirstChild: !!this.portal?.firstChild,
-        firstChildType: this.portal?.firstChild?.nodeType,
-        firstChildTag: (this.portal?.firstChild as any)?.tagName,
+          if (currentCellId === portalCellId) {
+            this.portal.style.display = 'block'
+
+            // Smooth scroll for dropdowns (after portal is visible)
+            if (isDropdownType) {
+              this.portal.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest',
+                inline: 'nearest',
+              })
+            }
+
+            fileLog.debug('EditingOverlay: Portal shown after render', {
+              cellId: currentCellId,
+              portalChildCount: this.portal.childNodes.length,
+            })
+          }
+        }
       })
-    }, 0)
+    })
   }
 
   public updateValue(value: any): void {

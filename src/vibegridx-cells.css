@@ -233,7 +233,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
-  text-transform: uppercase;
+  /* Removed text-transform: uppercase - use standard capitalization to match dropdown */
   letter-spacing: 0.025em;
   transition: all 0.2s ease;
 }
