@@ -999,7 +999,17 @@ export class BodyRenderer {
     ) as HTMLElement
 
     if (!cellElement) {
-      fileLog.warn('Cell element not found for update', { rowId, columnId })
+      // Debug: Check what cells exist for this row to understand the mismatch
+      const rowCells = this.container.querySelectorAll(`[data-row-id="${rowId}"]`)
+      const existingColumnIds = Array.from(rowCells)
+        .map((el) => el.getAttribute('data-column-id'))
+        .filter(Boolean)
+      fileLog.warn('Cell element not found for update', {
+        rowId: rowId.substring(0, 8),
+        columnId,
+        existingColumnIds: existingColumnIds.slice(0, 5), // First 5 to avoid spam
+        rowCellCount: rowCells.length,
+      })
       return false
     }
 
@@ -1057,6 +1067,9 @@ export class BodyRenderer {
     let updateCount = 0
     let failCount = 0
 
+    // Pre-compute visible column IDs once for all updates
+    const visibleColumnIds = new Set(this.visualStateStore.visibleColumns.map((c) => c.id))
+
     changedCells.forEach((columnIds, rowId) => {
       const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
       if (!row) {
@@ -1072,6 +1085,12 @@ export class BodyRenderer {
         if (!column) {
           fileLog.warn('Column not found for batch update', { rowId, columnId })
           failCount++
+          return
+        }
+
+        // Skip hidden columns - they don't have DOM elements rendered
+        if (!visibleColumnIds.has(columnId)) {
+          // Silent skip - hidden column data changed but no DOM update needed
           return
         }
 
