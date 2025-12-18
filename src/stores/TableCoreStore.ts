@@ -545,12 +545,10 @@ export class TableCoreStore implements IStore {
       }
 
       // LOOP-BACK PROTECTION: Check data-only hash first
+      // Server echo returns same data with only metadata (updatedAt) changed
+      // By comparing dataHash (excludes metadata), we skip redundant updates
       if (newSnap.dataHash === oldSnap.dataHash) {
-        // Only metadata changed (e.g., updatedAt from backend)
-        logger.debug('🔄 Loop-back protection activated', {
-          rowId,
-          note: 'Only metadata changed - treating as no-op',
-        })
+        // Only metadata changed - skip this row entirely
         continue
       }
 

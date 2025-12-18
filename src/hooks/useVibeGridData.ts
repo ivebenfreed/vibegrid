@@ -7,21 +7,26 @@
  * Architecture:
  * - MobX stores manage UI state (filters, sorting, grouping config)
  * - This hook converts that state into TanStack DB queries
- * - Returns rows data and mutation functions
+ * - Pushes data DIRECTLY to TableCoreStore.setRows() - no React effect bridge needed
  * - Optimistic updates handled automatically by TanStack DB
+ *
+ * IMPORTANT: This hook writes directly to MobX. The parent component should NOT
+ * use a useEffect to bridge rows to the store - that creates duplicate updates.
  *
  * Usage:
  * ```typescript
- * const { rows, isLoading, createEntity, updateEntity, deleteEntity } =
- *   useVibeGridData(entityType, tableCoreStore, visualStateStore)
+ * const { isLoading, createEntity, updateEntity, deleteEntity } =
+ *   useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore)
  * ```
  */
 
 import { eq } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
+import type { TableCoreStore } from '../stores/TableCoreStore'
+import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import type { FilterConfig, SortConfig } from '../types'
 import { useMobxSnapshot } from './useMobxSnapshot'
@@ -33,8 +38,6 @@ const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 // ====================================
 
 export interface VibeGridDataResult {
-  /** Filtered and sorted row data */
-  rows: any[]
   /** Loading state */
   isLoading: boolean
   /** TanStack DB collection instance */
@@ -195,13 +198,20 @@ function applySortingToRows(rows: any[], sortBy: SortConfig[]): any[] {
 /**
  * Integrate MobX stores with TanStack DB
  *
+ * This hook writes directly to TableCoreStore.setRows() when TanStack DB data changes.
+ * The parent component should NOT use a useEffect to bridge rows - that's handled here.
+ *
  * @param entityType - Entity type name (e.g., 'WorkTask')
+ * @param tableCoreStore - Store to write rows data to
  * @param visualStateStore - Store containing filters, sorting, grouping config
- * @returns Reactive data and CRUD mutations
+ * @param initStore - Store for tracking hydration state
+ * @returns Loading state and CRUD mutations (rows are pushed directly to tableCoreStore)
  */
 export function useVibeGridData(
   entityType: string,
+  tableCoreStore: TableCoreStore,
   visualStateStore: VisualStateStore,
+  initStore: InitStore,
 ): VibeGridDataResult {
   // Get TanStack DB collection (shared singleton)
   const collection = useEntityCollection(entityType)
@@ -209,6 +219,9 @@ export function useVibeGridData(
   // Get stable snapshots of MobX state for dependency tracking
   const filterSnapshot = useMobxSnapshot(() => visualStateStore.filters)
   const sortSnapshot = useMobxSnapshot(() => visualStateStore.sortBy)
+
+  // Track if initial data has been pushed to avoid duplicate markReady calls
+  const hasMarkedReadyRef = useRef(false)
 
   // Reactive query with filters applied
   // Use proper isLoading from useLiveQuery instead of computing manually
@@ -246,6 +259,44 @@ export function useVibeGridData(
     if (!rawRows) return []
     return applySortingToRows(rawRows, sortSnapshot)
   }, [rawRows, sortSnapshot])
+
+  // ====================================
+  // PUSH DATA DIRECTLY TO MOBX STORE
+  // ====================================
+  // This replaces the useEffect bridge in VibeGrid.tsx
+  // TanStack DB maintains stable references, so this only fires on actual data changes
+  const prevRowsRef = useRef<any[]>([])
+
+  useEffect(() => {
+    // Don't push data while loading
+    if (queryLoading) return
+
+    // OPTIMIZATION: Skip if rows array reference is the same (TanStack stable refs)
+    // This prevents duplicate updates when server echo returns same data
+    if (sortedRows === prevRowsRef.current) {
+      logger.debug('[useVibeGridData] ⏭️ Skipping setRows - same reference')
+      return
+    }
+    prevRowsRef.current = sortedRows
+
+    // Push rows directly to MobX store
+    // The store's setRows() has hash-based change detection that will
+    // skip redundant updates (e.g., server echo after optimistic update)
+    tableCoreStore.setRows(sortedRows)
+
+    // Mark entity data as loaded on first successful push
+    if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+      initStore.markReady('entityDataLoaded')
+      hasMarkedReadyRef.current = true
+      logger.info('[useVibeGridData] 📊 Entity data initially loaded', {
+        rowCount: sortedRows.length,
+      })
+    } else {
+      logger.debug('[useVibeGridData] 📊 Entity data updated', {
+        rowCount: sortedRows.length,
+      })
+    }
+  }, [sortedRows, queryLoading, tableCoreStore, initStore])
 
   // ====================================
   // CRUD MUTATIONS
@@ -338,9 +389,8 @@ export function useVibeGridData(
   })
 
   return {
-    rows: sortedRows,
-    // Use proper isLoading from useLiveQuery - this reflects actual query state
-    // Previously used `rawRows === undefined` which became false too early (on empty [])
+    // NOTE: rows are NOT returned - they're pushed directly to tableCoreStore.setRows()
+    // This avoids the need for a useEffect bridge in the parent component
     isLoading: !collection || queryLoading,
     collection,
     createEntity,

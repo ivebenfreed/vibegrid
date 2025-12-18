@@ -158,14 +158,16 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // TANSTACK DB INTEGRATION
   // ====================================
 
+  // NOTE: useVibeGridData now pushes rows directly to tableCoreStore.setRows()
+  // This eliminates the need for a useEffect bridge and prevents duplicate updates
+  // on server echo after optimistic updates
   const {
-    rows,
     isLoading: isDataLoading,
     collection,
     createEntity,
     updateEntity,
     deleteEntity,
-  } = useVibeGridData(entityType, visualStateStore)
+  } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore)
 
   // Fetch organization members for UserReference fields (automatic org context)
   const {
@@ -223,33 +225,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<SimplePassiveRenderer | null>(null)
 
-  // ====================================
-  // SYNC TANSTACK DB DATA → TABLECORE STORE
-  // ====================================
-
-  useEffect(() => {
-    if (!stores || !stores.initStore) {
-      logger.warn('[VGDEBUG] ⚠️ Stores not ready for entity data load')
-      return
-    }
-
-    // Always set rows (even if empty array) - but only when not loading
-    // This prevents setting empty rows before server data arrives
-    if (!isDataLoading) {
-      tableCoreStore.setRows(rows || [])
-    }
-
-    // Only mark as ready on FIRST load when loading completes (not while still loading)
-    // This ensures the loading skeleton stays visible until actual data arrives
-    if (!stores.initStore.hydrationState.entityDataLoaded && !isDataLoading) {
-      stores.initStore.markReady('entityDataLoaded')
-      logger.info('[VGDEBUG] 📊 Entity data initially loaded', { rowCount: rows?.length || 0 })
-    } else if (!isDataLoading) {
-      logger.debug('[VGDEBUG] 📊 Entity data updated (not initial load)', {
-        rowCount: rows?.length || 0,
-      })
-    }
-  }, [rows, isDataLoading, tableCoreStore, stores])
+  // NOTE: The old "SYNC TANSTACK DB DATA → TABLECORE STORE" useEffect has been removed.
+  // useVibeGridData now pushes directly to tableCoreStore.setRows() internally,
+  // which eliminates duplicate updates on server echo after optimistic updates.
 
   // Initialize baseline snapshot when both schema AND data are ready
   // CRITICAL: This ensures baseline is created on initial load, not on first edit
@@ -403,7 +381,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           tableId,
           entityType,
           storesReady: !!stores,
-          rowCount: rows?.length || 0,
+          rowCount: tableCoreStore?.processedRows?.length || 0,
         })
 
         // Check if stores are available
@@ -469,7 +447,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         logger.info('🎯 VibeGrid fully initialized', {
           entityType,
           tableId,
-          rowCount: rows?.length || 0,
+          rowCount: tableCoreStore?.processedRows?.length || 0,
         })
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'

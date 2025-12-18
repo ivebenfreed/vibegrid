@@ -5,33 +5,64 @@ import type { Column } from '../types'
 const logger = getLogger(['vibegrid', 'utils', 'hashing'])
 
 // Metadata columns excluded from change detection
+// Include both camelCase and snake_case variants since data may come in either format
 export const METADATA_COLUMNS = new Set([
   'updatedAt',
+  'updated_at',
   'createdAt',
+  'created_at',
   'version',
   'lastModifiedBy',
+  'last_modified_by',
   'lastModifiedAt',
+  'last_modified_at',
 ])
 
 /**
  * Normalize value to stable primitive representation based on field type
  * This prevents false positives from object reference changes
+ *
+ * KEY INSIGHT: TanStack DB optimistic updates send string IDs, but server echo
+ * returns resolved objects with {id, name, color, ...}. We must normalize both
+ * to the same ID to prevent false change detection.
  */
 export function normalizeValue(column: Column, value: any): any {
   if (value === null || value === undefined) return null
 
   const fieldType = column.fieldType?.type
+  // Cast to string to allow broader comparisons (strict union limits checking)
+  const cellType = column.cellType as string
 
-  // Reference fields: normalize to ID only
+  // UNIVERSAL OBJECT-WITH-ID NORMALIZATION
+  // Catches: status, select, option, user_reference, entity_reference, etc.
+  // This handles both string IDs (optimistic) and resolved objects (server echo)
+  // By normalizing {id: "x", name: "...", ...} to just "x", we ensure consistent hashing
+  if (typeof value === 'object' && !Array.isArray(value) && value.id) {
+    return value.id
+  }
+
+  // Reference fields: already handles objects above, this catches string IDs
   if (fieldType === 'user_reference' || fieldType === 'entity_reference') {
-    // Value might be ID (string) or resolved object { id, ... }
     if (typeof value === 'string') return value
-    if (typeof value === 'object' && value.id) return value.id
+    return null
+  }
+
+  // Status/Option fields: already handles objects above, this catches string IDs
+  if (fieldType === 'status' || fieldType === 'status_set' || fieldType === 'select' || fieldType === 'option') {
+    if (typeof value === 'string') return value
+    if (typeof value === 'object' && value?.value) return value.value
+    return null
+  }
+
+  // Also check cellType for select types (fallback if fieldType not set)
+  if (cellType === 'select' || cellType === 'single-select' || cellType === 'status') {
+    if (typeof value === 'string') return value
+    if (typeof value === 'object' && value?.value) return value.value
     return null
   }
 
   // Multi-reference fields: normalize to array of IDs
-  if (fieldType === 'multi_select' || fieldType === 'tags') {
+  if (fieldType === 'multi_select' || fieldType === 'tags' || cellType === 'select-multi' || cellType === 'multi-select') {
     if (!Array.isArray(value)) return []
     return value
       .map((v) => (typeof v === 'string' ? v : v?.id || null))
@@ -40,7 +71,7 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Dates: normalize to ISO string
-  if (fieldType === 'date' || fieldType === 'datetime-local') {
+  if (fieldType === 'date' || fieldType === 'datetime-local' || cellType === 'date' || cellType === 'datetime') {
     if (value instanceof Date) return value.toISOString()
     if (typeof value === 'string') return value
     return null
