@@ -721,6 +721,7 @@ export class MouseController {
       this.dragRowId = null
       this.dragRowGroupId = null
       this.isColumnResize = false
+      this.isFillDrag = false
       this.startPosition = { x: 0, y: 0 }
       fileLog.debug('🖱️ Drag state reset immediately', {
         isDragging: this.isDragging,

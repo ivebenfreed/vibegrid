@@ -78,44 +78,16 @@ export class ColumnResizeOverlayDOM {
       return
     }
 
-    let indicatorX: number
-    let overlayX: number
-    let scrollLeft: number
-
-    if (this.coordinateMapping && this.coordinateMapping.columns) {
-      const columnMapping = this.coordinateMapping.columns.find(
-        (col: any) => col.columnId === resizeState.columnId,
-      )
-
-      if (!columnMapping) {
-        fileLog.warn('[RESIZE-PREVIEW] ⚠️ Column not found in coordinate mapping', {
-          columnId: resizeState.columnId,
-          availableColumns: this.coordinateMapping.columns.map((col: any) => col.columnId),
-        })
-        const fallback = this.calculateFallbackPosition(resizeState)
-        if (!fallback) {
-          return
-        }
-        ;({ indicatorX, overlayX, scrollLeft } = fallback)
-      } else {
-        const baseWidth = resizeState.newWidth ?? columnMapping.width ?? 150
-        indicatorX = columnMapping.offset + baseWidth
-
-        const viewportElement =
-          (this.container.parentElement?.closest('.vibegridx-viewport') as HTMLElement) ??
-          (this.container.parentElement as HTMLElement) ??
-          null
-        scrollLeft = viewportElement?.scrollLeft ?? 0
-        overlayX = indicatorX - scrollLeft
-      }
-    } else {
-      fileLog.warn('[RESIZE-PREVIEW] ⚠️ No coordinate mapping available for resize preview')
-      const fallback = this.calculateFallbackPosition(resizeState)
-      if (!fallback) {
-        return
-      }
-      ;({ indicatorX, overlayX, scrollLeft } = fallback)
+    // ALWAYS use DOM-based position calculation
+    // The coordinate mapping can be stale (doesn't reflect column reorder/hide)
+    // DOM positions are always accurate since they reflect the actual rendered state
+    const position = this.calculateDOMPosition(resizeState)
+    if (!position) {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Could not calculate position from DOM')
+      return
     }
+
+    const { indicatorX, overlayX, scrollLeft } = position
 
     fileLog.debug('[RESIZE-PREVIEW] 📏 Column position from DOM', {
       columnId: resizeState.columnId,
@@ -161,9 +133,11 @@ export class ColumnResizeOverlayDOM {
   }
 
   /**
-   * Fallback position calculation using live DOM when coordinate mapping is unavailable
+   * Calculate position using live DOM elements
+   * This is the authoritative source since DOM always reflects actual rendered state
+   * (handles column reorder, hide, and scroll position correctly)
    */
-  private calculateFallbackPosition(
+  private calculateDOMPosition(
     resizeState: ColumnResizeState,
   ): { indicatorX: number; overlayX: number; scrollLeft: number } | null {
     const headerCell = document.querySelector(
@@ -171,7 +145,7 @@ export class ColumnResizeOverlayDOM {
     ) as HTMLElement | null
 
     if (!headerCell) {
-      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Fallback: header cell not found for column', {
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Header cell not found for column', {
         columnId: resizeState.columnId,
       })
       return null
@@ -181,7 +155,7 @@ export class ColumnResizeOverlayDOM {
     const headerRect = headerCell.getBoundingClientRect()
 
     if (!overlayRect) {
-      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Fallback: overlay container rect unavailable')
+      fileLog.warn('[RESIZE-PREVIEW] ⚠️ Overlay container rect unavailable')
       return null
     }
 
@@ -195,14 +169,6 @@ export class ColumnResizeOverlayDOM {
     const columnLeft = headerRect.left - overlayRect.left
     const overlayX = columnLeft + newWidth
     const indicatorX = overlayX + scrollLeft
-
-    fileLog.debug('[RESIZE-PREVIEW] 📏 Fallback position calculated', {
-      columnId: resizeState.columnId,
-      columnLeft,
-      overlayX,
-      indicatorX,
-      scrollLeft,
-    })
 
     return { indicatorX, overlayX, scrollLeft }
   }

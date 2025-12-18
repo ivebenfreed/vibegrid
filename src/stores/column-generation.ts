@@ -432,6 +432,8 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
     case 'date':
       return 'date'
     case 'datetime-local':
+    case 'timestamptz':
+    case 'datetime':
       return 'datetime'
 
     // Number types

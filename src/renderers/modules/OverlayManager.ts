@@ -971,9 +971,29 @@ export class OverlayManager {
     }
 
     const selectedCells = this.interactionStore.selectedCells
+
     if (selectedCells.size === 0) {
       fileLog.warn('📋 Fill skipped - no source cells selected')
       return
+    }
+
+    // CRITICAL: Expand selection IMMEDIATELY before any async operations
+    // This prevents race conditions where something else might reset selection
+    // while we're awaiting entity updates
+    if (fillCells.size > 0) {
+      runInAction(() => {
+        const newSelection = new Set([...selectedCells, ...fillCells])
+        this.interactionStore.selectedCells = newSelection
+        // CRITICAL FIX: Increment selectionVersion so SelectionOverlayController detects the change
+        // Without this, the version-based change detection will skip the update
+        this.interactionStore.selectionVersion++
+        fileLog.info('📋 Selection expanded IMMEDIATELY to include fill cells', {
+          originalCount: selectedCells.size,
+          fillCount: fillCells.size,
+          newSelectionCount: newSelection.size,
+          selectionVersion: this.interactionStore.selectionVersion,
+        })
+      })
     }
 
     const rows = this.getProcessedRows()
@@ -1104,19 +1124,8 @@ export class OverlayManager {
       totalAttempted: fillCells.size,
       patternLength,
     })
-
-    // Expand selection to include all filled cells (original + filled)
-    if (successCount > 0) {
-      runInAction(() => {
-        const newSelection = new Set([...selectedCells, ...fillCells])
-        this.interactionStore.selectedCells = newSelection
-        fileLog.info('📋 Selection expanded to include filled cells', {
-          originalCount: selectedCells.size,
-          filledCount: fillCells.size,
-          newSelectionCount: newSelection.size,
-        })
-      })
-    }
+    // NOTE: Selection was already expanded at the START of this method
+    // to prevent race conditions with async operations
   }
 
   /**

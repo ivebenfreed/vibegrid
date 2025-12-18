@@ -30,8 +30,27 @@ export class DateRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
 
-    // Handle null/undefined values with consistent empty state
-    if (value == null || value === '') {
+    // Handle null/undefined/empty values with consistent empty state
+    // Also catch empty objects {} which can come from database serialization issues
+    // AND detect TanStack DB proxy references that weren't dereferenced properly
+    const isEmptyOrInvalid =
+      value == null ||
+      value === '' ||
+      (typeof value === 'object' && !(value instanceof Date) && (
+        Object.keys(value).length === 0 || // Empty object {}
+        'path' in value || // TanStack DB proxy reference
+        'type' in value && value.type === 'ref' // TanStack DB ref marker
+      ))
+
+    if (isEmptyOrInvalid) {
+      fileLog.debug('DateRenderer: Invalid or empty value detected', {
+        columnId: column.id,
+        value,
+        valueType: typeof value,
+        isDate: value instanceof Date,
+        keys: typeof value === 'object' && value ? Object.keys(value) : [],
+      })
+
       if (column.editable === false) {
         container.className = 'vibegridx-cell-empty'
         container.textContent = ''
