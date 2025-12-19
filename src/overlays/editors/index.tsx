@@ -110,16 +110,13 @@ export function createEditor(props: EditorProps): React.ReactElement {
       return <TextEditor {...props} />
 
     case 'textarea':
-      return <TextEditor {...props} multiline />
-
-      // For longtext, use ModalTextEditor which opens the long text overlay
-      fileLog.debug('createEditor: Using ModalTextEditor for longtext')
-      return <ModalTextEditor {...props} editorType="longtext" />
-
+    case 'longtext':
     case 'richtext':
     case 'rich-text':
-      // For richtext, use ModalTextEditor which opens the rich text overlay
-      fileLog.debug('createEditor: Using ModalTextEditor for richtext')
+    case 'html':
+    case 'markdown':
+      // All multi-line/rich text types use ModalTextEditor for consistent editing
+      fileLog.debug('createEditor: Using ModalTextEditor for multi-line/rich text', { cellType })
       return <ModalTextEditor {...props} editorType="richtext" />
 
     case 'number':
