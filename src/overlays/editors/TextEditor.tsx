@@ -1,6 +1,9 @@
 import React from 'react'
+import { observer } from 'mobx-react-lite'
 import { getLogger } from '@/shared/lib/logging'
+import { useEditingStore } from '../../stores/context'
 import type { CellRef, Column } from '../../types'
+import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'TextEditor'])
 
@@ -15,7 +18,7 @@ interface TextEditorProps {
   multiline?: boolean
 }
 
-function TextEditorComponent({
+const TextEditorComponent = observer(function TextEditorComponent({
   cell,
   column,
   initialValue,
@@ -28,6 +31,10 @@ function TextEditorComponent({
   const [value, setValue] = React.useState(initialValue || '')
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null)
   const hasUserInteracted = React.useRef(false)
+
+  // Get validation errors from the EditingStore
+  const editingStore = useEditingStore()
+  const validationErrors = editingStore.validationErrors
 
   React.useEffect(() => {
     // Select text immediately on mount with a small delay to ensure proper focus
@@ -97,6 +104,7 @@ function TextEditorComponent({
 
   // Container style to match cell layout exactly
   const containerStyle: React.CSSProperties = {
+    position: 'relative', // For validation error positioning
     width: '100%',
     height: '100%',
     display: 'flex',
@@ -106,10 +114,11 @@ function TextEditorComponent({
   }
 
   // Input styles that match cell content exactly
+  const hasErrors = validationErrors.length > 0
   const inputStyle: React.CSSProperties = {
     width: '100%',
     height: multiline ? '100%' : 'auto',
-    border: 'none',
+    border: hasErrors ? '1px solid var(--destructive, #ef4444)' : 'none',
     outline: 'none',
     background: 'transparent',
     padding: '0 12px', // Match cell horizontal padding
@@ -167,6 +176,7 @@ function TextEditorComponent({
             e.stopPropagation()
           }}
         />
+        <ValidationErrorDisplay errors={validationErrors} />
       </div>
     )
   }
@@ -203,17 +213,12 @@ function TextEditorComponent({
           e.stopPropagation()
         }}
       />
+      <ValidationErrorDisplay errors={validationErrors} />
     </div>
   )
-}
-
-// Memoize the TextEditor to prevent re-renders when parent re-renders
-// Only re-render if cell ID changes or initialValue changes
-export const TextEditor = React.memo(TextEditorComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.cell.rowId === nextProps.cell.rowId &&
-    prevProps.cell.columnId === nextProps.cell.columnId &&
-    prevProps.initialValue === nextProps.initialValue &&
-    prevProps.multiline === nextProps.multiline
-  )
 })
+
+// Export the observer-wrapped component
+// Note: observer() already handles efficient updates based on MobX observables
+// We removed the React.memo wrapper since observer() provides its own optimization
+export const TextEditor = TextEditorComponent

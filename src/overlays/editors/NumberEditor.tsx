@@ -1,6 +1,9 @@
 import React from 'react'
+import { observer } from 'mobx-react-lite'
 import { Input } from '@/shared/components/ui/input'
+import { useEditingStore } from '../../stores/context'
 import type { CellRef, Column } from '../../types'
+import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 
 interface NumberEditorProps {
   cell: CellRef
@@ -10,7 +13,7 @@ interface NumberEditorProps {
   onCancel: () => void
 }
 
-export function NumberEditor({
+export const NumberEditor = observer(function NumberEditor({
   cell,
   column,
   initialValue,
@@ -18,6 +21,11 @@ export function NumberEditor({
   onCancel,
 }: NumberEditorProps) {
   const [value, setValue] = React.useState(initialValue?.toString() || '')
+
+  // Get validation errors from the EditingStore
+  const editingStore = useEditingStore()
+  const validationErrors = editingStore.validationErrors
+  const hasErrors = validationErrors.length > 0
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -66,16 +74,19 @@ export function NumberEditor({
   }
 
   return (
-    <Input
-      type="number"
-      value={value}
-      onChange={handleChange}
-      onKeyDown={handleKeyDown}
-      onBlur={handleBlur}
-      autoFocus
-      className="border-2 border-blue-500 shadow-lg"
-      placeholder={(column as any).placeholder}
-      step={column.type === 'number' ? 'any' : '1'}
-    />
+    <div style={{ position: 'relative', width: '100%' }}>
+      <Input
+        type="number"
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        autoFocus
+        className={`border-2 shadow-lg ${hasErrors ? 'border-destructive' : 'border-blue-500'}`}
+        placeholder={(column as any).placeholder}
+        step={column.type === 'number' ? 'any' : '1'}
+      />
+      <ValidationErrorDisplay errors={validationErrors} />
+    </div>
   )
-}
+})

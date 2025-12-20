@@ -13,6 +13,7 @@ import { RelationshipEditor } from './RelationshipEditor'
 import { SelectEditor } from './SelectEditor'
 import { SingleRelationshipEditor } from './SingleRelationshipEditor'
 import { TextEditor } from './TextEditor'
+import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'index'])
 
@@ -66,6 +67,7 @@ export {
   ReferenceMultiEditor,
   ModalTextEditor,
   RelationshipEditor,
+  ValidationErrorDisplay,
 }
 
 // Editor props interface
