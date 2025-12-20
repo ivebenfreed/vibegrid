@@ -23,9 +23,16 @@ import type {
  */
 export class UrlRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
-    const container = document.createElement('span')
     const isEditable = column.editable !== false
-    container.className = isEditable ? 'vibegridx-cell-url-editable' : 'vibegridx-cell-url'
+
+    // Create container (similar to EntityNameFieldType pattern)
+    const container = document.createElement('div')
+    container.className = 'vibegridx-cell-url'
+    container.style.display = 'flex'
+    container.style.alignItems = 'center'
+    container.style.gap = '8px'
+    container.style.width = '100%'
+    container.style.height = '100%'
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
@@ -41,20 +48,48 @@ export class UrlRenderer implements CellRenderer {
 
     // Format and validate URL
     const urlValue = this.formatValue(value, column)
-    container.textContent = this.truncateUrl(urlValue, column)
+
+    // Create text element (styled as a link)
+    const textElement = document.createElement('span')
+    textElement.className = 'vibegridx-url-text'
+    textElement.style.display = 'inline-block'
+    textElement.style.overflow = 'hidden'
+    textElement.style.textOverflow = 'ellipsis'
+    textElement.style.whiteSpace = 'nowrap'
+    textElement.style.maxWidth = '100%'
+    textElement.style.color = '#2563eb'
+    textElement.style.textDecoration = 'underline'
+    textElement.style.transition = 'text-decoration 0.2s'
+    textElement.textContent = this.truncateUrl(urlValue, column)
+    textElement.title = urlValue // Show full URL on hover
 
     // Add affordance for the navigate action (URL link)
-    container.dataset.affordance = 'navigate'
-    container.dataset.affordanceRole = 'link'
-
-    // Apply URL-specific styling
-    container.style.color = '#2563eb'
-    container.style.textDecoration = 'underline'
-    container.title = urlValue // Show full URL on hover
+    textElement.dataset.affordance = 'navigate'
+    textElement.dataset.affordanceRole = 'link'
 
     // Store URL href for coordinator to handle (no stopPropagation)
     if (this.isValidUrl(urlValue)) {
-      container.dataset.urlHref = urlValue
+      textElement.dataset.urlHref = urlValue
+    }
+
+    container.appendChild(textElement)
+
+    // Create pencil icon for editable URLs (hidden by default, shown on hover via CSS)
+    if (isEditable) {
+      const pencilIcon = document.createElement('span')
+      pencilIcon.className = 'vibegridx-url-edit-icon'
+      pencilIcon.innerHTML = '✏️'
+      pencilIcon.style.opacity = '0'
+      pencilIcon.style.transition = 'opacity 0.2s'
+      pencilIcon.style.fontSize = '14px'
+      pencilIcon.style.flexShrink = '0'
+      pencilIcon.title = 'Click to edit URL'
+
+      // Affordance data attributes for cursor/hover behavior
+      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.affordanceRole = 'icon'
+
+      container.appendChild(pencilIcon)
     }
 
     // Apply backend display metadata if available
@@ -66,25 +101,29 @@ export class UrlRenderer implements CellRenderer {
   }
 
   update(element: HTMLElement, value: any, column: EnhancedColumn): void {
-    element.className =
-      column.editable === false ? 'vibegridx-cell-url' : 'vibegridx-cell-url-editable'
+    const isEditable = column.editable !== false
 
     // Handle empty values with consistent empty state
     if (value == null || value === '') {
-      if (column.editable === false) {
+      if (!isEditable) {
         element.className = 'vibegridx-cell-empty'
         element.textContent = ''
       } else {
         element.className = 'vibegridx-cell-empty'
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
-    } else {
+      return
+    }
+
+    // Update the text element
+    const textElement = element.querySelector('.vibegridx-url-text') as HTMLSpanElement
+    if (textElement) {
       const urlValue = this.formatValue(value, column)
-      element.textContent = this.truncateUrl(urlValue, column)
-      element.title = urlValue
-      element.style.opacity = '1'
-      element.style.color = '#2563eb'
-      element.style.textDecoration = 'underline'
+      textElement.textContent = this.truncateUrl(urlValue, column)
+      textElement.title = urlValue
+      if (this.isValidUrl(urlValue)) {
+        textElement.dataset.urlHref = urlValue
+      }
     }
   }
 
@@ -449,7 +488,7 @@ export const UrlFieldType: VibeGridFieldType = {
 
   // 🎯 Affordance Group System
   affordance: {
-    group: 'link-only', // Navigate to URL
+    group: 'link-with-edit-icon', // Navigate to URL, edit via pencil icon
     whenNotEditable: 'link-only', // Still navigable when not editable
   } as FieldTypeAffordance,
 }

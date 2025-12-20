@@ -62,12 +62,12 @@ export class TextRenderer implements CellRenderer {
     container.textContent = displayValue
     container.title = displayValue // Tooltip for overflow text
 
-    // Apply common text overflow handling
+    // Single-line text overflow handling
     container.style.maxWidth = '100%'
     container.style.overflow = 'hidden'
+    container.style.display = 'block'
     container.style.textOverflow = 'ellipsis'
     container.style.whiteSpace = 'nowrap'
-    container.style.display = 'block'
 
     // Apply field-specific styling
     this.applyFieldTypeSpecificStyling(container, fieldType)
@@ -105,18 +105,9 @@ export class TextRenderer implements CellRenderer {
 
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || ''
-    return [
-      'text',
-      'string',
-      'email',
-      'url',
-      'phone',
-      'longtext',
-      'textarea',
-      'markdown',
-      'html',
-      'richtext',
-    ].includes(type)
+    // Single-line text types only - multi-line/rich text handled by MarkdownFieldType
+    // Note: 'url' has its own dedicated UrlFieldType with link-with-edit-icon affordance
+    return ['text', 'string', 'email', 'phone'].includes(type)
   }
 
   private formatValueByType(value: any, column: EnhancedColumn): string {
@@ -125,20 +116,10 @@ export class TextRenderer implements CellRenderer {
     const fieldType = (column.cellType || column.type || 'text') as string
     let strValue = String(value)
 
-    // For multi-line fields, convert to single line for display
-    if (['longtext', 'textarea', 'markdown', 'html', 'richtext'].includes(fieldType)) {
-      strValue = strValue.replace(/\s+/g, ' ').trim()
-    }
-
-    // Apply field-specific formatting
+    // Apply field-specific formatting for single-line types
     switch (fieldType) {
       case 'email':
         strValue = strValue.toLowerCase()
-        break
-      case 'url':
-        if (strValue && !strValue.match(/^https?:\/\//)) {
-          strValue = `${strValue}`
-        }
         break
       case 'phone':
         // Basic phone formatting could go here
@@ -165,19 +146,8 @@ export class TextRenderer implements CellRenderer {
         element.style.fontFamily = 'monospace'
         element.style.fontSize = '12px'
         break
-      case 'url':
-        element.style.color = '#2563eb'
-        element.style.textDecoration = 'underline'
-        break
       case 'phone':
         element.style.fontFamily = 'monospace'
-        break
-      case 'textarea':
-      case 'markdown':
-      case 'html':
-      case 'richtext':
-        element.style.fontStyle = 'italic'
-        element.style.color = '#6b7280'
         break
     }
   }

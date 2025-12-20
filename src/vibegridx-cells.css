@@ -671,3 +671,20 @@
 .vibegridx-cell-entity-name:hover .vibegridx-entity-name-edit-icon {
   opacity: 0.6 !important;
 }
+
+/* URL Cell Styles */
+.vibegridx-cell-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* URL text link styling */
+.vibegridx-url-text {
+  cursor: pointer;
+}
+
+/* Pencil icon visibility on URL cell hover */
+.vibegridx-cell-url:hover .vibegridx-url-edit-icon {
+  opacity: 0.6 !important;
+}

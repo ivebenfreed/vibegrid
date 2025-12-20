@@ -581,7 +581,7 @@ body.vibegridx-dragging-active * {
   display: flex;
   align-items: center;
   font-size: 13px;
-  cursor: pointer;
+  cursor: default; /* Select affordance area - default cursor for cell container */
   color: hsl(var(--foreground));
   background: inherit;
 }

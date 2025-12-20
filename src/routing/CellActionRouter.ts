@@ -92,22 +92,33 @@ export class CellActionRouter {
       policy: fieldPolicy?.defaultAction,
     })
 
-    // 2. For navigate actions, invoke onCellClick callback
-    if (action === 'navigate' && this.onCellClick && row && column) {
-      fileLog.debug('Invoking onCellClick callback for navigation', {
-        rowId: row.id,
-        columnId: column.id,
-      })
-
-      const result = this.onCellClick(row.id, column.id)
-
-      // Check if callback prevented default
-      if (result === 'handled' || nativeEvent.defaultPrevented) {
-        fileLog.debug('Navigation prevented by callback', {
-          result,
-          defaultPrevented: nativeEvent.defaultPrevented,
-        })
+    // 2. For navigate actions, check for URL href first, then invoke onCellClick callback
+    if (action === 'navigate') {
+      // Check if this is a URL navigation (external link)
+      const urlHref = (target as HTMLElement).closest('[data-url-href]')?.getAttribute('data-url-href')
+      if (urlHref) {
+        fileLog.debug('Opening external URL', { urlHref })
+        window.open(urlHref, '_blank', 'noopener,noreferrer')
         return
+      }
+
+      // Otherwise, invoke onCellClick callback for entity navigation
+      if (this.onCellClick && row && column) {
+        fileLog.debug('Invoking onCellClick callback for navigation', {
+          rowId: row.id,
+          columnId: column.id,
+        })
+
+        const result = this.onCellClick(row.id, column.id)
+
+        // Check if callback prevented default
+        if (result === 'handled' || nativeEvent.defaultPrevented) {
+          fileLog.debug('Navigation prevented by callback', {
+            result,
+            defaultPrevented: nativeEvent.defaultPrevented,
+          })
+          return
+        }
       }
     }
 
