@@ -254,7 +254,9 @@ export class BodyRenderer {
     // PERF: Use pre-computed values if available, otherwise fall back to computing
     // This avoids repeated MobX computed property reads and array filtering for each row
     const columnLayouts = precomputed?.columnLayouts ?? this.visualStateStore.visibleColumns
-    const visibleColumnsOnly = precomputed?.visibleColumns ?? columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
+    const visibleColumnsOnly =
+      precomputed?.visibleColumns ??
+      columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
     // PERF: Create layout lookup map ONCE per row instead of O(n) find() per column
     // This changes from O(columns * layouts) to O(columns + layouts)
@@ -1214,10 +1216,9 @@ export class BodyRenderer {
         checkbox.dataset.rowId = newRow.id
         // Update checkbox state based on selection
         const allVisibleColumns = this.visualStateStore.visibleColumns
-        const isSelected = this.interactionStore.getRowCheckboxStates(
-          [newRow],
-          allVisibleColumns,
-        ).get(newRow.id) || false
+        const isSelected =
+          this.interactionStore.getRowCheckboxStates([newRow], allVisibleColumns).get(newRow.id) ||
+          false
         checkbox.checked = isSelected
       } else {
         // Update row number
@@ -1228,14 +1229,14 @@ export class BodyRenderer {
     // 5. Update drag column
     const dragColumn = rowElement.querySelector('.vibegridx-drag-column')
     if (dragColumn) {
-      (dragColumn as HTMLElement).dataset.rowId = newRow.id
+      ;(dragColumn as HTMLElement).dataset.rowId = newRow.id
     }
 
     // 6. Update cells - this is the main performance win
     const columnLayouts = precomputed?.columnLayouts ?? this.visualStateStore.visibleColumns
-    const visibleColumnsOnly = precomputed?.visibleColumns ?? columns.filter((col) =>
-      columnLayouts.some((l) => l.id === col.id)
-    )
+    const visibleColumnsOnly =
+      precomputed?.visibleColumns ??
+      columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
     // Get all cells in the row
     const cells = rowElement.querySelectorAll('.vibegridx-cell')
@@ -1265,12 +1266,7 @@ export class BodyRenderer {
   /**
    * 🚀 PERF: Fast cell content update without recreating DOM
    */
-  private updateCellContentFast(
-    cell: HTMLElement,
-    value: any,
-    column: any,
-    rowData: any,
-  ): void {
+  private updateCellContentFast(cell: HTMLElement, value: any, column: any, rowData: any): void {
     // Clear existing content
     cell.innerHTML = ''
 

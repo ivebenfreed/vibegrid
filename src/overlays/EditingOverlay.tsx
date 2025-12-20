@@ -106,7 +106,8 @@ export class EditingOverlay {
 
     // CRITICAL: Hide portal IMMEDIATELY to prevent flash at old position
     // This must happen before any other operations when transitioning between cells
-    const isTransition = this.currentCell &&
+    const isTransition =
+      this.currentCell &&
       (this.currentCell.rowId !== cell.rowId || this.currentCell.columnId !== cell.columnId)
 
     if (isTransition) {
@@ -232,9 +233,13 @@ export class EditingOverlay {
       const columnType = column.cellType || column.type || ''
 
       // For date pickers, use larger height to avoid scrolling
-      const isDateType = ['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(
-        columnType,
-      )
+      const isDateType = [
+        'date',
+        'datetime',
+        'datetime-local',
+        'timestamp',
+        'timestamptz',
+      ].includes(columnType)
 
       // Only date pickers need a fixed width - other dropdowns auto-size to content
       const dropdownWidth = isDateType ? Math.max(position.width, 300) : 'auto'
@@ -250,7 +255,8 @@ export class EditingOverlay {
       // Position dropdown directly below cell using visual state coordinates
       this.portal.style.left = `${position.x}px`
       this.portal.style.top = `${position.y + position.height}px`
-      this.portal.style.width = typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
+      this.portal.style.width =
+        typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
       this.portal.style.height = 'auto'
       this.portal.style.maxHeight = `${dropdownHeight}px`
       this.portal.style.padding = '4px'

@@ -36,11 +36,11 @@ export class DateRenderer implements CellRenderer {
     const isEmptyOrInvalid =
       value == null ||
       value === '' ||
-      (typeof value === 'object' && !(value instanceof Date) && (
-        Object.keys(value).length === 0 || // Empty object {}
-        'path' in value || // TanStack DB proxy reference
-        'type' in value && value.type === 'ref' // TanStack DB ref marker
-      ))
+      (typeof value === 'object' &&
+        !(value instanceof Date) &&
+        (Object.keys(value).length === 0 || // Empty object {}
+          'path' in value || // TanStack DB proxy reference
+          ('type' in value && value.type === 'ref'))) // TanStack DB ref marker
 
     if (isEmptyOrInvalid) {
       fileLog.debug('DateRenderer: Invalid or empty value detected', {

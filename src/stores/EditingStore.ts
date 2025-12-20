@@ -292,11 +292,14 @@ export class EditingStore implements IStore {
       return
     }
 
-    console.log('🔥 UPDATE_PENDING_VALUE', JSON.stringify({
-      cellId: this.currentSession.cellId,
-      oldValue: this.currentSession.pendingValue ?? 'null',
-      newValue: value ?? 'null',
-    }))
+    console.log(
+      '🔥 UPDATE_PENDING_VALUE',
+      JSON.stringify({
+        cellId: this.currentSession.cellId,
+        oldValue: this.currentSession.pendingValue ?? 'null',
+        newValue: value ?? 'null',
+      }),
+    )
     fileLog.debug('Updating pending value', {
       cellId: this.currentSession.cellId,
       oldValue: this.currentSession.pendingValue,
@@ -422,14 +425,17 @@ export class EditingStore implements IStore {
 
     // Clear session BEFORE async save (prevents double-commit)
     const sessionToSave = this.currentSession
-    console.log('🔥 CLEARING SESSION in commitEdit', JSON.stringify({
-      cellId,
-      reason,
-      explicitValue: explicitValue ?? 'undefined',
-      finalValue: valueToSave ?? 'null',
-      pendingValue: this.currentSession?.pendingValue ?? 'null',
-      originalValue: this.currentSession?.originalValue ?? 'null',
-    }))
+    console.log(
+      '🔥 CLEARING SESSION in commitEdit',
+      JSON.stringify({
+        cellId,
+        reason,
+        explicitValue: explicitValue ?? 'undefined',
+        finalValue: valueToSave ?? 'null',
+        pendingValue: this.currentSession?.pendingValue ?? 'null',
+        originalValue: this.currentSession?.originalValue ?? 'null',
+      }),
+    )
     console.trace('🔥 COMMIT STACK TRACE')
     this.currentSession = null
     this.sessionReady = false
@@ -602,7 +608,16 @@ export class EditingStore implements IStore {
     // Get field name from column
     const field = session.column.field || columnId
 
-    console.log('🔥 SAVE_TO_DATABASE CALLED', JSON.stringify({ cellId, rowId, field, finalValue: finalValue ?? 'null', hasCollection: !!this.collection }))
+    console.log(
+      '🔥 SAVE_TO_DATABASE CALLED',
+      JSON.stringify({
+        cellId,
+        rowId,
+        field,
+        finalValue: finalValue ?? 'null',
+        hasCollection: !!this.collection,
+      }),
+    )
 
     // Check if collection available
     if (!this.collection) {
@@ -620,7 +635,14 @@ export class EditingStore implements IStore {
     const currentData = this.collection.get(String(rowId))
     const currentValue = currentData?.[field]
 
-    console.log('🔥 CHECKING VALUE CHANGE', JSON.stringify({ currentValue: currentValue ?? 'null', finalValue, isEqual: currentValue === finalValue }))
+    console.log(
+      '🔥 CHECKING VALUE CHANGE',
+      JSON.stringify({
+        currentValue: currentValue ?? 'null',
+        finalValue,
+        isEqual: currentValue === finalValue,
+      }),
+    )
 
     // OPTIMIZATION: Skip update if value hasn't changed
     if (currentValue === finalValue) {
@@ -647,7 +669,10 @@ export class EditingStore implements IStore {
       console.log('🔥 UPDATE CALL RETURNED', tx)
 
       const localDuration = performance.now() - startTime
-      console.log('🔥 OPTIMISTIC EDIT APPLIED', JSON.stringify({ rowId, field, finalValue, localDuration: localDuration.toFixed(1) }))
+      console.log(
+        '🔥 OPTIMISTIC EDIT APPLIED',
+        JSON.stringify({ rowId, field, finalValue, localDuration: localDuration.toFixed(1) }),
+      )
       fileLog.info('Optimistic edit applied to collection', {
         rowId,
         field,
@@ -674,7 +699,10 @@ export class EditingStore implements IStore {
         })
         .catch((error: any) => {
           const errorMessage = error instanceof Error ? error.message : String(error)
-          console.log('🔥 EDIT PERSISTENCE FAILED', JSON.stringify({ rowId, field, finalValue, error: errorMessage }))
+          console.log(
+            '🔥 EDIT PERSISTENCE FAILED',
+            JSON.stringify({ rowId, field, finalValue, error: errorMessage }),
+          )
           fileLog.error('Edit persistence failed - TanStack DB auto-rollback', {
             rowId,
             field,

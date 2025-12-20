@@ -306,7 +306,7 @@ export class VisualStateStore implements IStore {
    * INCLUDES BUFFER_ROWS for smooth scrolling (render rows before they're visible)
    */
   @computed get visibleRowRange(): { start: number; end: number } {
-    const buffer = GRID_DIMENSIONS.BUFFER_ROWS  // 10 rows buffer
+    const buffer = GRID_DIMENSIONS.BUFFER_ROWS // 10 rows buffer
 
     // Use offset-based calculation for variable-height rows if available
     if (this.tableCoreStore?.findRowAtScrollPosition) {
@@ -326,7 +326,8 @@ export class VisualStateStore implements IStore {
 
     // Fallback to constant-height calculation if TableCoreStore not set
     const visibleStart = Math.floor(this.scrollTop / this.rowHeight)
-    const visibleEnd = Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
+    const visibleEnd =
+      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
 
     return {
       start: Math.max(0, visibleStart - buffer),

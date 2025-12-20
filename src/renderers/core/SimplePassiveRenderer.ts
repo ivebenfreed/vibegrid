@@ -855,7 +855,8 @@ export class SimplePassiveRenderer {
         const visibleStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
         const visibleEnd = Math.min(
           rowCount,
-          this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) + 1,
+          this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) +
+            1,
         )
 
         // Calculate RENDER range (visible + buffer on both sides)
@@ -886,8 +887,12 @@ export class SimplePassiveRenderer {
             visibleRange: `${visibleStart}-${visibleEnd}`,
             renderRange: `${renderStart}-${renderEnd}`,
             previousRenderRange: `${previousRenderRange.start}-${previousRenderRange.end}`,
-            reason: previousRenderRange.start === -1 ? 'initial' :
-                   visibleStart < previousRenderRange.start ? 'scrolled_up' : 'scrolled_down',
+            reason:
+              previousRenderRange.start === -1
+                ? 'initial'
+                : visibleStart < previousRenderRange.start
+                  ? 'scrolled_up'
+                  : 'scrolled_down',
           })
 
           // Update debug metrics with new rendered range
@@ -1348,7 +1353,14 @@ export class SimplePassiveRenderer {
     if (row.type === 'group' && this.domFactory) {
       return this.domFactory.createGroupHeaderElement(row, rowIndex)
     }
-    return this.bodyRenderer!.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset, precomputed)
+    return this.bodyRenderer!.createRowElement(
+      row,
+      rowIndex,
+      columns,
+      columnVisibility,
+      baseOffset,
+      precomputed,
+    )
   }
 
   private updateVirtualRows(
@@ -1372,7 +1384,7 @@ export class SimplePassiveRenderer {
     // PERF: Pre-compute values ONCE instead of per-row
     // This avoids repeated MobX computed property reads and array filtering
     const visibleColumns = columns.filter((col) =>
-      allVisibleColumnLayouts.some((l) => l.id === col.id)
+      allVisibleColumnLayouts.some((l) => l.id === col.id),
     )
     const totalWidth = visualState.geometry.totalWidth
     const precomputed = {
@@ -1953,7 +1965,10 @@ export class SimplePassiveRenderer {
     // Calculate truly visible rows (without buffer) for accurate debug display
     const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
     const trulyVisibleStart = Math.floor(visualState.scrollTop / rowHeight)
-    const trulyVisibleEnd = Math.min(rows.length, Math.ceil((visualState.scrollTop + visualState.viewportHeight) / rowHeight))
+    const trulyVisibleEnd = Math.min(
+      rows.length,
+      Math.ceil((visualState.scrollTop + visualState.viewportHeight) / rowHeight),
+    )
     this.debugStore.updateVirtualScrollMetrics({
       visibleRowStart: trulyVisibleStart,
       visibleRowEnd: trulyVisibleEnd,

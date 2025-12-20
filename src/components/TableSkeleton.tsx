@@ -20,8 +20,7 @@ interface TableSkeletonProps {
 export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
   // Generate stable random widths once per render (not on every cell)
   const cellWidths = useMemo(
-    () =>
-      Array.from({ length: rows * columns }, () => `${Math.floor(Math.random() * 30 + 50)}%`),
+    () => Array.from({ length: rows * columns }, () => `${Math.floor(Math.random() * 30 + 50)}%`),
     [rows, columns],
   )
 

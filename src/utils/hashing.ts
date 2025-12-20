@@ -48,7 +48,12 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Status/Option fields: already handles objects above, this catches string IDs
-  if (fieldType === 'status' || fieldType === 'status_set' || fieldType === 'select' || fieldType === 'option') {
+  if (
+    fieldType === 'status' ||
+    fieldType === 'status_set' ||
+    fieldType === 'select' ||
+    fieldType === 'option'
+  ) {
     if (typeof value === 'string') return value
     if (typeof value === 'object' && value?.value) return value.value
     return null
@@ -62,7 +67,12 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Multi-reference fields: normalize to array of IDs
-  if (fieldType === 'multi_select' || fieldType === 'tags' || cellType === 'select-multi' || cellType === 'multi-select') {
+  if (
+    fieldType === 'multi_select' ||
+    fieldType === 'tags' ||
+    cellType === 'select-multi' ||
+    cellType === 'multi-select'
+  ) {
     if (!Array.isArray(value)) return []
     return value
       .map((v) => (typeof v === 'string' ? v : v?.id || null))
@@ -71,7 +81,12 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Dates: normalize to ISO string
-  if (fieldType === 'date' || fieldType === 'datetime-local' || cellType === 'date' || cellType === 'datetime') {
+  if (
+    fieldType === 'date' ||
+    fieldType === 'datetime-local' ||
+    cellType === 'date' ||
+    cellType === 'datetime'
+  ) {
     if (value instanceof Date) return value.toISOString()
     if (typeof value === 'string') return value
     return null
