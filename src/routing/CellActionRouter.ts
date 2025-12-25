@@ -95,7 +95,9 @@ export class CellActionRouter {
     // 2. For navigate actions, check for URL href first, then invoke onCellClick callback
     if (action === 'navigate') {
       // Check if this is a URL navigation (external link)
-      const urlHref = (target as HTMLElement).closest('[data-url-href]')?.getAttribute('data-url-href')
+      const urlHref = (target as HTMLElement)
+        .closest('[data-url-href]')
+        ?.getAttribute('data-url-href')
       if (urlHref) {
         fileLog.debug('Opening external URL', { urlHref })
         window.open(urlHref, '_blank', 'noopener,noreferrer')
