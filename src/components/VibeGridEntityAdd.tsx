@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select'
 import { Textarea } from '@/shared/components/ui/textarea'
+import { toast } from 'sonner'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
@@ -288,9 +289,10 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       setIsOpen(false)
     } catch (error) {
       fileLog.error('Error creating entity', { error })
-      // You could add a toast notification here
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      alert(`Error creating ${displayName}: ${errorMessage}`)
+      toast.error(`Error creating ${displayName}`, {
+        description: errorMessage,
+      })
     } finally {
       setIsSubmitting(false)
     }

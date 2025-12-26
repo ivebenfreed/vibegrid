@@ -8,6 +8,16 @@
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/shared/components/ui/alert-dialog'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
@@ -41,6 +51,7 @@ export function LongTextEditor({
 }: LongTextEditorProps) {
   const [value, setValue] = useState(initialValue || '')
   const [isDirty, setIsDirty] = useState(false)
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -109,11 +120,20 @@ export function LongTextEditor({
 
   const handleCancel = () => {
     if (isDirty) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
-      if (!confirmed) return
+      setShowDiscardDialog(true)
+      return
     }
 
     fileLog.debug('LongTextEditor cancelled', {
+      cellId: `${cell.rowId}:${cell.columnId}`,
+      isDirty,
+    })
+    onCancel()
+  }
+
+  const handleConfirmDiscard = () => {
+    setShowDiscardDialog(false)
+    fileLog.debug('LongTextEditor cancelled (discarded changes)', {
       cellId: `${cell.rowId}:${cell.columnId}`,
       isDirty,
     })
@@ -231,6 +251,26 @@ export function LongTextEditor({
           </button>
         </div>
       </div>
+
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to cancel?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDiscard}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>,
     portalTarget,
   )
