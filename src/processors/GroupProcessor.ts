@@ -242,7 +242,7 @@ export class GroupProcessor {
         id: groupId,
         field: fieldName,
         value: value,
-        displayValue: GroupProcessor.formatGroupValue(value, fieldName, columns),
+        displayValue: GroupProcessor.formatGroupValue(value, fieldName, columns, config),
         level: 0,
         rowCount: orderedChildren.length,
         totalCount: orderedChildren.length,
@@ -336,7 +336,7 @@ export class GroupProcessor {
           id: groupId,
           field: fieldName,
           value: value,
-          displayValue: GroupProcessor.formatGroupValue(value, fieldName, columns),
+          displayValue: GroupProcessor.formatGroupValue(value, fieldName, columns, config),
           level: fieldIndex,
           parentId: parentId,
           rowCount: groupRows.length,
@@ -598,13 +598,78 @@ export class GroupProcessor {
     return groupKey
   }
 
-  private static formatGroupValue(value: any, fieldName: string, columns: Column[]): string {
+  /**
+   * Relationship field types that require entity name resolution.
+   */
+  private static readonly RELATIONSHIP_FIELD_TYPES = [
+    'user_reference',
+    'custom_user_reference',
+    'entity_reference',
+    'custom_entity_reference',
+  ]
+
+  /**
+   * Check if a column is a relationship field.
+   */
+  private static isRelationshipField(column: Column | undefined): boolean {
+    if (!column?.cellType) return false
+    return GroupProcessor.RELATIONSHIP_FIELD_TYPES.includes(column.cellType as string)
+  }
+
+  /**
+   * Get the target entity type for a relationship field.
+   */
+  private static getTargetEntityType(column: Column): string {
+    const cellType = column.cellType as string
+    // For user references, target is always 'PlatformUser'
+    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
+      return 'PlatformUser'
+    }
+    // For entity references, get from column metadata
+    return column.relationshipEntityType || column.meta?.targetEntity || 'Entity'
+  }
+
+  private static formatGroupValue(
+    value: any,
+    fieldName: string,
+    columns: Column[],
+    config?: GroupConfig,
+  ): string {
+    // Find column definition for formatting hints
+    const column = columns.find((col) => col.field === fieldName || col.id === fieldName)
+
+    // Handle relationship fields with entity name resolution
+    if (GroupProcessor.isRelationshipField(column)) {
+      const targetEntityType = GroupProcessor.getTargetEntityType(column!)
+
+      if (value === null || value === undefined) {
+        // Use "(No [EntityType])" for null relationship values
+        return `(No ${targetEntityType})`
+      }
+
+      // Try to resolve entity name using the resolver
+      if (config?.relationshipNameResolver) {
+        const resolvedName = config.relationshipNameResolver(targetEntityType, String(value))
+        if (resolvedName) {
+          return resolvedName
+        }
+        // Fall back to showing the ID if not resolved yet
+        fileLog.debug('GroupProcessor: Relationship name not resolved, showing ID', {
+          fieldName,
+          targetEntityType,
+          entityId: value,
+        })
+      }
+
+      // Fall back to showing the ID (UUIDs truncated for readability)
+      const idStr = String(value)
+      return idStr.length > 8 ? `${idStr.substring(0, 8)}...` : idStr
+    }
+
+    // Handle null/undefined for non-relationship fields
     if (value === null || value === undefined) {
       return '(Empty)'
     }
-
-    // Find column definition for formatting hints
-    const column = columns.find((col) => col.field === fieldName || col.id === fieldName)
 
     if (column?.cellType === 'date' && value instanceof Date) {
       return value.toLocaleDateString()

@@ -34,6 +34,7 @@ import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
+import type { HierarchyStore } from './HierarchyStore'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
 import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/hashing'
 import { generateColumnsFromEntitySchema } from './column-generation'
@@ -268,6 +269,7 @@ export class TableCoreStore implements IStore {
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setVisualStateInputs()
   private visualStateInputs: VisualStateInputs | null = null
   private visualStateStore: VisualStateStore | null = null
+  private hierarchyStore: HierarchyStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for entity mutations
@@ -302,6 +304,15 @@ export class TableCoreStore implements IStore {
     if ('columns' in inputs && 'initializeColumns' in inputs) {
       this.visualStateStore = inputs as VisualStateStore
     }
+  }
+
+  /**
+   * Set hierarchy store for hierarchical data display.
+   * Called by parent component after store creation.
+   */
+  @action
+  setHierarchyStore(store: HierarchyStore): void {
+    this.hierarchyStore = store
   }
 
   /**
@@ -814,6 +825,15 @@ export class TableCoreStore implements IStore {
    */
   @computed
   get groupedOrOrderedRows(): any[] {
+    // Apply hierarchy if active (takes precedence over grouping)
+    if (this.hierarchyStore?.isHierarchyActive) {
+      const hierarchyRows = this.hierarchyStore.flattenedHierarchy
+      if (hierarchyRows.length > 0) {
+        logger.debug('Using hierarchical rows', { count: hierarchyRows.length })
+        return hierarchyRows
+      }
+    }
+
     const groupConfig = this.visualStateStore?.groupConfig || null
 
     // Apply grouping if configured

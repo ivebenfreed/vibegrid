@@ -26,6 +26,7 @@ import { GanttTimeline } from './components/GanttTimeline'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
+import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
 
@@ -95,6 +96,7 @@ interface VibeGridProps<T = any> {
   enableDragAndDrop?: boolean
   enableSelectionColumn?: boolean
   enableGantt?: boolean
+  enableHierarchy?: boolean
 }
 
 // ====================================
@@ -129,6 +131,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableSorting = true,
     enableDragAndDrop = true,
     enableGantt = false,
+    enableHierarchy = false,
   } = props
 
   // ====================================
@@ -144,6 +147,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     initStore,
     viewModeStore,
     ganttViewStore,
+    hierarchyStore,
     debugStore,
   } = stores
 
@@ -168,6 +172,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
     updateEntity,
     deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore)
+
+  // Load hierarchy relationships when hierarchy mode is enabled
+  useVibeGridHierarchy({
+    entityType,
+    hierarchyStore,
+    tableCoreStore,
+  })
 
   // Fetch organization members for UserReference fields (automatic org context)
   const {
@@ -634,6 +645,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           stores={stores}
           enableGrouping={enableGrouping}
           enableGantt={enableGantt}
+          enableHierarchy={enableHierarchy}
           entityName={entityType}
           orgId={orgId}
           createEntity={createEntity}

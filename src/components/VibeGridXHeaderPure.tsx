@@ -5,7 +5,7 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { GanttChart, LayoutList } from 'lucide-react'
+import { GanttChart, LayoutList, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
@@ -22,6 +22,7 @@ interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
   enableGrouping?: boolean
   enableGantt?: boolean
+  enableHierarchy?: boolean
   className?: string
   entityName?: string
   orgId?: string
@@ -32,12 +33,13 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   stores,
   enableGrouping = false,
   enableGantt = false,
+  enableHierarchy = false,
   className = '',
   entityName,
   orgId,
   createEntity,
 }: VibeGridXHeaderPureProps) {
-  const { visualStateStore, viewModeStore } = stores
+  const { visualStateStore, viewModeStore, hierarchyStore } = stores
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -105,6 +107,27 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         ) : (
           <span className="text-sm font-medium">Table View</span>
         )}
+
+        {/* Hierarchy Toggle */}
+        {enableHierarchy && (
+          <Button
+            variant={hierarchyStore.isHierarchyActive ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              if (hierarchyStore.isHierarchyActive) {
+                hierarchyStore.setHierarchyMode('none')
+              } else {
+                hierarchyStore.setHierarchyMode('self-ref')
+              }
+            }}
+            aria-pressed={hierarchyStore.isHierarchyActive}
+            title={hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'}
+          >
+            <Network className="size-4 mr-1" />
+            Hierarchy
+          </Button>
+        )}
+
         {hiddenColumnCount > 0 && (
           <span className="text-xs text-muted-foreground">
             ({hiddenColumnCount} columns hidden)

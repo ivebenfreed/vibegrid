@@ -14,6 +14,7 @@ import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinate
 import { DebugStore } from './DebugStore'
 import { EditingStore } from './EditingStore'
 import { GanttViewStore } from './GanttViewStore'
+import { HierarchyStore } from './HierarchyStore'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { PersistenceStore } from './PersistenceStore'
@@ -38,6 +39,7 @@ export interface VibeGridStores {
   virtualViewportStore: VirtualViewportStore
   viewModeStore: ViewModeStore
   ganttViewStore: GanttViewStore
+  hierarchyStore: HierarchyStore
   coordinateManager: ObservableCoordinateManager
   debugStore: DebugStore
 }
@@ -102,6 +104,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const virtualViewportStore = new VirtualViewportStore()
     const viewModeStore = new ViewModeStore()
     const ganttViewStore = new GanttViewStore()
+    const hierarchyStore = new HierarchyStore()
     const debugStore = new DebugStore()
 
     // Set up dependency injection between stores
@@ -116,6 +119,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
 
     // TableCoreStore needs VisualStateStore for filters, sorting, grouping
     tableCoreStore.setVisualStateInputs(visualStateStore)
+
+    // TableCoreStore needs HierarchyStore for hierarchical data display
+    tableCoreStore.setHierarchyStore(hierarchyStore)
 
     // TableCoreStore needs SchemaRegistry for column generation
     tableCoreStore.setSchemaRegistry(schemaRegistry)
@@ -179,6 +185,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       virtualViewportStore,
       viewModeStore,
       ganttViewStore,
+      hierarchyStore,
       coordinateManager,
       debugStore,
     }
@@ -201,6 +208,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.initStore.dispose()
       stores.viewModeStore.dispose()
       stores.ganttViewStore.dispose()
+      stores.hierarchyStore.dispose()
       stores.debugStore.dispose()
     }
   }, []) // Run cleanup only on unmount
@@ -280,4 +288,8 @@ export function useGanttViewStore(): GanttViewStore {
 
 export function useDebugStore(): DebugStore {
   return useVibeGridStores().debugStore
+}
+
+export function useHierarchyStore(): HierarchyStore {
+  return useVibeGridStores().hierarchyStore
 }

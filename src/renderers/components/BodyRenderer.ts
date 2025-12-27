@@ -13,6 +13,7 @@
 import { reaction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
+import type { HierarchyStore } from '../../stores/HierarchyStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableViewport$ } from '../../stores/pure-observables'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
@@ -34,6 +35,7 @@ export interface BodyRendererOptions {
   tableCoreStore: TableCoreStore
   interactionStore: InteractionStore
   visualStateStore: import('../../stores/VisualStateStore').VisualStateStore
+  hierarchyStore?: HierarchyStore
 
   domFactory: DOMElementFactory
   selectionController?: SelectionController
@@ -59,6 +61,7 @@ export class BodyRenderer {
   private tableCoreStore: TableCoreStore
   private interactionStore: InteractionStore
   private visualStateStore: import('../../stores/VisualStateStore').VisualStateStore
+  private hierarchyStore?: HierarchyStore
   private domFactory: DOMElementFactory
   private selectionController?: SelectionController
   private keyboardNavController?: KeyboardNavigationController
@@ -96,6 +99,7 @@ export class BodyRenderer {
     this.tableCoreStore = options.tableCoreStore
     this.interactionStore = options.interactionStore
     this.visualStateStore = options.visualStateStore
+    this.hierarchyStore = options.hierarchyStore
     this.domFactory = options.domFactory
     this.selectionController = options.selectionController
     this.keyboardNavController = options.keyboardNavController
@@ -250,6 +254,13 @@ export class BodyRenderer {
     // PERF: CSS handles all static styles
     const rowHeader = this.createRowHeader(row, rowIndex)
     rowElement.appendChild(rowHeader)
+
+    // Add hierarchy toggle column for hierarchical data rows
+    // Renders expand/collapse icons and provides indentation via level
+    if (this.hierarchyStore?.isHierarchyActive && row.type === 'data') {
+      const hierarchyToggle = this.createHierarchyToggle(row)
+      rowElement.appendChild(hierarchyToggle)
+    }
 
     // PERF: Use pre-computed values if available, otherwise fall back to computing
     // This avoids repeated MobX computed property reads and array filtering for each row
@@ -505,6 +516,66 @@ export class BodyRenderer {
     expandButton.appendChild(triangle)
 
     return expandButton
+  }
+
+  /**
+   * Create hierarchy toggle column for hierarchical data rows.
+   * Shows expand/collapse icons for rows with children and provides
+   * visual indentation based on hierarchy level.
+   */
+  private createHierarchyToggle(row: any): HTMLElement {
+    const level = row.level ?? 0
+    const isExpandable = row.isExpandable ?? false
+    const isExpanded = row.isExpanded ?? false
+    const rowId = row.id
+
+    const toggleColumn = this.createElement('div', 'vibegridx-hierarchy-toggle')
+    toggleColumn.style.cssText = `
+      width: ${24 + level * 16}px;
+      min-width: ${24 + level * 16}px;
+      height: ${ROW_HEIGHT}px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-left: ${level * 16}px;
+      flex-shrink: 0;
+    `
+    toggleColumn.dataset.rowId = rowId
+    toggleColumn.dataset.hierarchyLevel = String(level)
+
+    // Only show toggle icon if row has children
+    if (isExpandable) {
+      const toggle = this.createElement('span', 'vibegridx-hierarchy-icon')
+      toggle.innerHTML = isExpanded ? '▼' : '▶'
+      toggle.style.cssText = `
+        font-size: 10px;
+        color: #666;
+        cursor: pointer;
+        padding: 4px;
+        transition: transform 0.15s ease;
+        user-select: none;
+      `
+      toggle.dataset.rowId = rowId
+      toggle.dataset.action = 'toggle-hierarchy'
+
+      // Handle click to toggle expansion
+      toggle.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        if (this.hierarchyStore) {
+          this.hierarchyStore.toggleRowExpansion(rowId)
+          fileLog.debug('🔽 Hierarchy toggle clicked', {
+            rowId,
+            wasExpanded: isExpanded,
+          })
+        }
+      })
+
+      toggleColumn.appendChild(toggle)
+    }
+
+    return toggleColumn
   }
 
   /**
