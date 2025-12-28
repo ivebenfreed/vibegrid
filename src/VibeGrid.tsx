@@ -23,6 +23,7 @@ import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
 import { GanttTimeline } from './components/GanttTimeline'
+import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
@@ -677,9 +678,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
               onResizeEnd={handleResizeEnd}
               onReset={handleCutoffReset}
             />
-            {/* Right pane: Timeline */}
-            <div className="flex-1 h-full overflow-auto min-w-0">
-              <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
+            {/* Right pane: Timeline with toolbar */}
+            <div className="flex-1 h-full min-w-0 flex flex-col">
+              <GanttToolbar />
+              <div className="flex-1 overflow-auto">
+                <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
+              </div>
             </div>
           </>
         )}
