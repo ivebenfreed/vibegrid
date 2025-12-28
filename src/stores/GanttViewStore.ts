@@ -110,6 +110,19 @@ export interface GanttDependency {
 
 export type DependencyEdge = 'start' | 'end'
 
+// ====================================
+// GANTT SORT & FILTER TYPES
+// ====================================
+
+export type GanttSortField = 'start_date' | 'end_date' | 'duration' | 'name'
+export type GanttSortDirection = 'asc' | 'desc'
+export type GanttQuickFilter = 'all' | 'today' | 'overdue' | 'this_week' | 'has_dependencies'
+
+export interface GanttDateRangeFilter {
+  start: Date | null
+  end: Date | null
+}
+
 export interface DependencyDragState {
   /** Is dependency drag currently active */
   isDragging: boolean
@@ -204,6 +217,31 @@ export class GanttViewStore implements IStore {
     targetBarId: null,
     targetEdge: null,
   }
+
+  // ====================================
+  // GANTT-SPECIFIC SORT & FILTER STATE
+  // ====================================
+
+  /** Gantt sort field (independent of table sorting) */
+  @observable ganttSortField: GanttSortField = 'start_date'
+
+  /** Gantt sort direction */
+  @observable ganttSortDirection: GanttSortDirection = 'asc'
+
+  /** Active quick filter */
+  @observable activeQuickFilter: GanttQuickFilter = 'all'
+
+  /** Date range filter for Gantt view */
+  @observable dateRangeFilter: GanttDateRangeFilter = {
+    start: null,
+    end: null,
+  }
+
+  /** Whether to show critical path highlighting */
+  @observable showCriticalPath: boolean = false
+
+  /** Set of row IDs on the critical path */
+  @observable criticalPathIds: Set<string> = new Set()
 
   constructor() {
     makeObservable(this)
@@ -547,6 +585,138 @@ export class GanttViewStore implements IStore {
   }
 
   // ====================================
+  // COMPUTED: GANTT SORTED & FILTERED ROWS
+  // ====================================
+
+  /**
+   * Get rows sorted by Gantt-specific sort settings.
+   * This is independent of the table's sort order.
+   */
+  @computed
+  get ganttSortedRows(): any[] {
+    if (!this.tableCoreStore) return []
+
+    const rows = [...this.tableCoreStore.processedRows]
+    const { ganttSortField, ganttSortDirection } = this
+
+    return rows.sort((a, b) => {
+      const aData = a.data || a
+      const bData = b.data || b
+
+      let aValue: any
+      let bValue: any
+
+      switch (ganttSortField) {
+        case 'start_date':
+          aValue = this.parseDate(aData[this.fieldMapping.startField])?.getTime() ?? 0
+          bValue = this.parseDate(bData[this.fieldMapping.startField])?.getTime() ?? 0
+          break
+        case 'end_date':
+          aValue = this.parseDate(aData[this.fieldMapping.endField])?.getTime() ?? 0
+          bValue = this.parseDate(bData[this.fieldMapping.endField])?.getTime() ?? 0
+          break
+        case 'duration': {
+          const aStart = this.parseDate(aData[this.fieldMapping.startField])
+          const aEnd = this.parseDate(aData[this.fieldMapping.endField])
+          const bStart = this.parseDate(bData[this.fieldMapping.startField])
+          const bEnd = this.parseDate(bData[this.fieldMapping.endField])
+          aValue = aStart && aEnd ? this.daysBetween(aStart, aEnd) : 0
+          bValue = bStart && bEnd ? this.daysBetween(bStart, bEnd) : 0
+          break
+        }
+        case 'name':
+          aValue = String(aData[this.fieldMapping.labelField] || '').toLowerCase()
+          bValue = String(bData[this.fieldMapping.labelField] || '').toLowerCase()
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return ganttSortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return ganttSortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
+  /**
+   * Get rows filtered by Gantt-specific quick filter and date range.
+   * This builds on ganttSortedRows.
+   */
+  @computed
+  get ganttFilteredRows(): any[] {
+    let rows = this.ganttSortedRows
+
+    // Apply quick filter
+    if (this.activeQuickFilter !== 'all') {
+      rows = rows.filter((row) => this.matchesQuickFilter(row))
+    }
+
+    // Apply date range filter
+    if (this.dateRangeFilter.start || this.dateRangeFilter.end) {
+      rows = rows.filter((row) => this.matchesDateRange(row))
+    }
+
+    return rows
+  }
+
+  /**
+   * Check if a row matches the current quick filter
+   */
+  private matchesQuickFilter(row: any): boolean {
+    const data = row.data || row
+    const startDate = this.parseDate(data[this.fieldMapping.startField])
+    const endDate = this.parseDate(data[this.fieldMapping.endField])
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    switch (this.activeQuickFilter) {
+      case 'today':
+        // Task spans today
+        return startDate !== null && endDate !== null && startDate <= today && endDate >= today
+      case 'overdue':
+        // End date is before today
+        return endDate !== null && endDate < today
+      case 'this_week': {
+        // Task overlaps with this week
+        const weekEnd = new Date(today)
+        weekEnd.setDate(weekEnd.getDate() + 7)
+        return (
+          startDate !== null && endDate !== null && startDate <= weekEnd && endDate >= today
+        )
+      }
+      case 'has_dependencies':
+        // Row has at least one dependency
+        return this.dependencies.some(
+          (d) => d.sourceEntityId === row.id || d.targetEntityId === row.id,
+        )
+      default:
+        return true
+    }
+  }
+
+  /**
+   * Check if a row matches the date range filter
+   */
+  private matchesDateRange(row: any): boolean {
+    const data = row.data || row
+    const startDate = this.parseDate(data[this.fieldMapping.startField])
+    const endDate = this.parseDate(data[this.fieldMapping.endField])
+
+    // Row must have dates to be filtered
+    if (!startDate || !endDate) return false
+
+    const { start: filterStart, end: filterEnd } = this.dateRangeFilter
+
+    // If filter start is set, task must end on or after it
+    if (filterStart && endDate < filterStart) return false
+
+    // If filter end is set, task must start on or before it
+    if (filterEnd && startDate > filterEnd) return false
+
+    return true
+  }
+
+  // ====================================
   // ACTIONS
   // ====================================
 
@@ -617,6 +787,69 @@ export class GanttViewStore implements IStore {
     if (this.todayLinePosition !== null) {
       // Center today in viewport (assuming ~600px viewport)
       this.scrollLeft = Math.max(0, this.todayLinePosition - 300)
+    }
+  }
+
+  // ====================================
+  // GANTT SORT & FILTER ACTIONS
+  // ====================================
+
+  /**
+   * Set Gantt sort field and direction
+   * @param field - The field to sort by
+   * @param direction - Sort direction (optional, defaults to 'asc')
+   */
+  @action
+  setGanttSort(field: GanttSortField, direction?: GanttSortDirection): void {
+    this.ganttSortField = field
+    this.ganttSortDirection = direction ?? 'asc'
+    logger.info('Gantt sort updated', { field, direction: this.ganttSortDirection })
+  }
+
+  /**
+   * Set the active quick filter
+   */
+  @action
+  setQuickFilter(filter: GanttQuickFilter): void {
+    this.activeQuickFilter = filter
+    logger.info('Gantt quick filter updated', { filter })
+  }
+
+  /**
+   * Set the date range filter
+   */
+  @action
+  setDateRangeFilter(start: Date | null, end: Date | null): void {
+    this.dateRangeFilter = { start, end }
+    logger.info('Gantt date range filter updated', {
+      start: start?.toISOString() ?? null,
+      end: end?.toISOString() ?? null,
+    })
+  }
+
+  /**
+   * Clear all Gantt filters (reset to defaults)
+   */
+  @action
+  clearFilters(): void {
+    this.activeQuickFilter = 'all'
+    this.dateRangeFilter = { start: null, end: null }
+    logger.info('Gantt filters cleared')
+  }
+
+  /**
+   * Toggle critical path highlighting
+   */
+  @action
+  toggleCriticalPath(): void {
+    this.showCriticalPath = !this.showCriticalPath
+    if (this.showCriticalPath) {
+      // Critical path calculation will be implemented in a later task
+      // For now, just toggle the state
+      logger.info('Critical path enabled (algorithm pending)')
+    } else {
+      this.criticalPathIds.clear()
+      logger.info('Critical path disabled')
     }
   }
 
@@ -1150,6 +1383,13 @@ export class GanttViewStore implements IStore {
     this.today = new Date()
     this.cancelDrag()
     this.cancelDependencyDrag()
+    // Reset Gantt sort/filter state
+    this.ganttSortField = 'start_date'
+    this.ganttSortDirection = 'asc'
+    this.activeQuickFilter = 'all'
+    this.dateRangeFilter = { start: null, end: null }
+    this.showCriticalPath = false
+    this.criticalPathIds.clear()
   }
 
   dispose(): void {

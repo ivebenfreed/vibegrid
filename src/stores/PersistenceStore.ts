@@ -20,7 +20,14 @@ import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { FilterConfig, GroupConfig, SortConfig } from '../types'
-import type { GanttViewStore, ZoomLevel, GanttFieldMapping } from './GanttViewStore'
+import type {
+  GanttViewStore,
+  ZoomLevel,
+  GanttFieldMapping,
+  GanttSortField,
+  GanttSortDirection,
+  GanttQuickFilter,
+} from './GanttViewStore'
 import type { InteractionStore } from './InteractionStore'
 import type { GroupRowOrderConfig, TableCoreStore } from './TableCoreStore'
 import type { ViewModeStore, ViewMode } from './ViewModeStore'
@@ -50,6 +57,14 @@ export interface SerializableGroupConfig {
 }
 
 /**
+ * Serializable date range filter (for JSON persistence)
+ */
+export interface SerializableDateRangeFilter {
+  start: string | null // ISO date string
+  end: string | null
+}
+
+/**
  * Gantt view preferences
  */
 export interface GanttPreferences {
@@ -57,6 +72,11 @@ export interface GanttPreferences {
   cutoffWidth: number
   viewMode: ViewMode
   fieldMapping?: GanttFieldMapping
+  // Gantt-specific sort/filter state (separate from table sort)
+  ganttSortField?: GanttSortField
+  ganttSortDirection?: GanttSortDirection
+  activeQuickFilter?: GanttQuickFilter
+  dateRangeFilter?: SerializableDateRangeFilter
 }
 
 /**
@@ -285,6 +305,9 @@ export class PersistenceStore implements IStore {
     if (prefs.gantt && typeof prefs.gantt === 'object') {
       const validZoomLevels = ['day', 'week', 'month', 'quarter']
       const validViewModes = ['table', 'gantt']
+      const validSortFields = ['start_date', 'end_date', 'duration', 'name']
+      const validSortDirections = ['asc', 'desc']
+      const validQuickFilters = ['all', 'today', 'overdue', 'this_week', 'has_dependencies']
 
       // Validate field mapping if present
       let fieldMapping: GanttFieldMapping | undefined
@@ -305,6 +328,21 @@ export class PersistenceStore implements IStore {
         }
       }
 
+      // Validate date range filter if present
+      let dateRangeFilter: SerializableDateRangeFilter | undefined
+      if (prefs.gantt.dateRangeFilter && typeof prefs.gantt.dateRangeFilter === 'object') {
+        dateRangeFilter = {
+          start:
+            typeof prefs.gantt.dateRangeFilter.start === 'string'
+              ? prefs.gantt.dateRangeFilter.start
+              : null,
+          end:
+            typeof prefs.gantt.dateRangeFilter.end === 'string'
+              ? prefs.gantt.dateRangeFilter.end
+              : null,
+        }
+      }
+
       gantt = {
         zoomLevel: validZoomLevels.includes(prefs.gantt.zoomLevel) ? prefs.gantt.zoomLevel : 'week',
         cutoffWidth:
@@ -313,6 +351,17 @@ export class PersistenceStore implements IStore {
             : 400,
         viewMode: validViewModes.includes(prefs.gantt.viewMode) ? prefs.gantt.viewMode : 'table',
         fieldMapping,
+        // Gantt sort/filter state
+        ganttSortField: validSortFields.includes(prefs.gantt.ganttSortField)
+          ? prefs.gantt.ganttSortField
+          : undefined,
+        ganttSortDirection: validSortDirections.includes(prefs.gantt.ganttSortDirection)
+          ? prefs.gantt.ganttSortDirection
+          : undefined,
+        activeQuickFilter: validQuickFilters.includes(prefs.gantt.activeQuickFilter)
+          ? prefs.gantt.activeQuickFilter
+          : undefined,
+        dateRangeFilter,
       }
     }
 
@@ -385,9 +434,29 @@ export class PersistenceStore implements IStore {
         if (prefs.gantt.fieldMapping) {
           this.ganttViewStore.setFieldMapping(prefs.gantt.fieldMapping)
         }
+        // Apply Gantt sort/filter state if present
+        if (prefs.gantt.ganttSortField) {
+          this.ganttViewStore.setGanttSort(
+            prefs.gantt.ganttSortField,
+            prefs.gantt.ganttSortDirection,
+          )
+        }
+        if (prefs.gantt.activeQuickFilter) {
+          this.ganttViewStore.setQuickFilter(prefs.gantt.activeQuickFilter)
+        }
+        if (prefs.gantt.dateRangeFilter) {
+          this.ganttViewStore.setDateRangeFilter(
+            prefs.gantt.dateRangeFilter.start ? new Date(prefs.gantt.dateRangeFilter.start) : null,
+            prefs.gantt.dateRangeFilter.end ? new Date(prefs.gantt.dateRangeFilter.end) : null,
+          )
+        }
         logger.info('Applied Gantt preferences', {
           zoomLevel: prefs.gantt.zoomLevel,
           fieldMapping: prefs.gantt.fieldMapping,
+          ganttSortField: prefs.gantt.ganttSortField,
+          ganttSortDirection: prefs.gantt.ganttSortDirection,
+          activeQuickFilter: prefs.gantt.activeQuickFilter,
+          dateRangeFilter: prefs.gantt.dateRangeFilter,
         })
       }
       if (this.viewModeStore) {
@@ -481,6 +550,11 @@ export class PersistenceStore implements IStore {
             cutoffWidth: this.viewModeStore!.cutoffWidth,
             viewMode: this.viewModeStore!.mode,
             fieldMapping: this.ganttViewStore!.fieldMapping,
+            // Gantt-specific sort/filter state
+            ganttSortField: this.ganttViewStore!.ganttSortField,
+            ganttSortDirection: this.ganttViewStore!.ganttSortDirection,
+            activeQuickFilter: this.ganttViewStore!.activeQuickFilter,
+            dateRangeFilter: this.ganttViewStore!.dateRangeFilter,
           }),
           (data) => {
             logger.debug('[PERSIST] 🔥 Gantt reaction fired - changes detected', {
@@ -488,6 +562,10 @@ export class PersistenceStore implements IStore {
               cutoffWidth: data.cutoffWidth,
               viewMode: data.viewMode,
               fieldMapping: data.fieldMapping,
+              ganttSortField: data.ganttSortField,
+              ganttSortDirection: data.ganttSortDirection,
+              activeQuickFilter: data.activeQuickFilter,
+              dateRangeFilter: data.dateRangeFilter,
             })
             this.debouncedSave()
           },
@@ -540,11 +618,26 @@ export class PersistenceStore implements IStore {
       // Build Gantt preferences if stores are available
       let gantt: GanttPreferences | undefined
       if (this.ganttViewStore && this.viewModeStore) {
+        // Serialize date range filter (Date -> ISO string)
+        const dateRangeFilter = this.ganttViewStore.dateRangeFilter
+        const serializedDateRangeFilter: SerializableDateRangeFilter | undefined =
+          dateRangeFilter.start || dateRangeFilter.end
+            ? {
+                start: dateRangeFilter.start?.toISOString() ?? null,
+                end: dateRangeFilter.end?.toISOString() ?? null,
+              }
+            : undefined
+
         gantt = {
           zoomLevel: this.ganttViewStore.zoomLevel,
           cutoffWidth: this.viewModeStore.cutoffWidth,
           viewMode: this.viewModeStore.mode,
           fieldMapping: this.ganttViewStore.fieldMapping,
+          // Gantt-specific sort/filter state
+          ganttSortField: this.ganttViewStore.ganttSortField,
+          ganttSortDirection: this.ganttViewStore.ganttSortDirection,
+          activeQuickFilter: this.ganttViewStore.activeQuickFilter,
+          dateRangeFilter: serializedDateRangeFilter,
         }
       }
 
@@ -706,11 +799,26 @@ export class PersistenceStore implements IStore {
     // Build Gantt preferences if stores are available
     let gantt: GanttPreferences | undefined
     if (this.ganttViewStore && this.viewModeStore) {
+      // Serialize date range filter (Date -> ISO string)
+      const dateRangeFilter = this.ganttViewStore.dateRangeFilter
+      const serializedDateRangeFilter: SerializableDateRangeFilter | undefined =
+        dateRangeFilter.start || dateRangeFilter.end
+          ? {
+              start: dateRangeFilter.start?.toISOString() ?? null,
+              end: dateRangeFilter.end?.toISOString() ?? null,
+            }
+          : undefined
+
       gantt = {
         zoomLevel: this.ganttViewStore.zoomLevel,
         cutoffWidth: this.viewModeStore.cutoffWidth,
         viewMode: this.viewModeStore.mode,
         fieldMapping: this.ganttViewStore.fieldMapping,
+        // Gantt-specific sort/filter state
+        ganttSortField: this.ganttViewStore.ganttSortField,
+        ganttSortDirection: this.ganttViewStore.ganttSortDirection,
+        activeQuickFilter: this.ganttViewStore.activeQuickFilter,
+        dateRangeFilter: serializedDateRangeFilter,
       }
     }
 

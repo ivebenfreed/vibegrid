@@ -159,6 +159,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     // GanttViewStore needs SchemaRegistry for loading dependencies
     ganttViewStore.setSchemaRegistry(schemaRegistry, entityType)
 
+    // ViewModeStore needs GanttViewStore for auto-sort on Gantt activation
+    viewModeStore.setGanttViewStore(ganttViewStore)
+
     // Initialize synchronously
     initStore.init().catch((error) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'

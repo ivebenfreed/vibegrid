@@ -5,9 +5,10 @@
  * Gantt mode enables the split pane layout with timeline rendering.
  */
 
-import { action, computed, makeObservable, observable } from 'mobx'
+import { action, computed, makeObservable, observable, reaction } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
+import type { GanttViewStore } from './GanttViewStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'ViewModeStore'])
 
@@ -45,9 +46,41 @@ export class ViewModeStore implements IStore {
    */
   readonly maxCutoffWidthPercent: number = 0.7
 
+  /**
+   * Reference to GanttViewStore for auto-sort on activation
+   */
+  private ganttViewStore: GanttViewStore | null = null
+
+  /**
+   * Disposer for the auto-sort reaction
+   */
+  private disposeAutoSortReaction?: () => void
+
   constructor() {
     makeObservable(this)
     logger.info('ViewModeStore initialized')
+  }
+
+  /**
+   * Set the GanttViewStore reference for auto-sort on activation
+   */
+  setGanttViewStore(store: GanttViewStore): void {
+    this.ganttViewStore = store
+
+    // Set up reaction to auto-sort when entering Gantt mode
+    this.disposeAutoSortReaction?.()
+    this.disposeAutoSortReaction = reaction(
+      () => this.isGanttMode,
+      (isGantt) => {
+        if (isGantt && this.ganttViewStore) {
+          // Auto-sort by start date ascending when entering Gantt mode
+          this.ganttViewStore.setGanttSort('start_date', 'asc')
+          logger.info('Auto-sorted Gantt by start_date on activation')
+        }
+      },
+    )
+
+    logger.info('GanttViewStore injected into ViewModeStore')
   }
 
   // ====================================
@@ -132,7 +165,7 @@ export class ViewModeStore implements IStore {
   }
 
   dispose(): void {
+    this.disposeAutoSortReaction?.()
     logger.info('ViewModeStore disposed')
-    // No cleanup needed - no reactions or subscriptions
   }
 }

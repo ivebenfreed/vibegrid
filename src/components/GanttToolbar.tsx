@@ -3,7 +3,7 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { Minus, Plus, RotateCcw, Calendar, Settings2 } from 'lucide-react'
+import { Minus, Plus, RotateCcw, Calendar, Settings2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -16,7 +16,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Label } from '@/shared/components/ui/label'
 import { useGanttViewStore } from '../stores/context'
-import type { ZoomLevel } from '../stores/GanttViewStore'
+import type { ZoomLevel, GanttSortField } from '../stores/GanttViewStore'
 
 const ZOOM_LEVELS: { value: ZoomLevel; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -25,10 +25,24 @@ const ZOOM_LEVELS: { value: ZoomLevel; label: string }[] = [
   { value: 'quarter', label: 'Quarter' },
 ]
 
+const SORT_OPTIONS: { value: GanttSortField; label: string }[] = [
+  { value: 'start_date', label: 'Start Date' },
+  { value: 'end_date', label: 'End Date' },
+  { value: 'duration', label: 'Duration' },
+  { value: 'name', label: 'Name' },
+]
+
 export const GanttToolbar = observer(function GanttToolbar() {
   const ganttViewStore = useGanttViewStore()
-  const { zoomLevel, dependencies, fieldMapping, availableDateFields, availableLabelFields } =
-    ganttViewStore
+  const {
+    zoomLevel,
+    dependencies,
+    fieldMapping,
+    availableDateFields,
+    availableLabelFields,
+    ganttSortField,
+    ganttSortDirection,
+  } = ganttViewStore
 
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -96,6 +110,48 @@ export const GanttToolbar = observer(function GanttToolbar() {
       >
         <RotateCcw className="h-4 w-4" />
       </Button>
+
+      {/* Divider */}
+      <div className="w-px h-6 bg-border" />
+
+      {/* Sort controls */}
+      <div className="flex items-center gap-1">
+        <Select
+          value={ganttSortField}
+          onValueChange={(value) => ganttViewStore.setGanttSort(value as GanttSortField)}
+        >
+          <SelectTrigger className="w-28 h-8">
+            <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            ganttViewStore.setGanttSort(
+              ganttSortField,
+              ganttSortDirection === 'asc' ? 'desc' : 'asc',
+            )
+          }
+          title={ganttSortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
+          className="px-2"
+        >
+          {ganttSortDirection === 'asc' ? (
+            <ArrowUp className="h-4 w-4" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
 
       {/* Divider */}
       <div className="w-px h-6 bg-border" />
