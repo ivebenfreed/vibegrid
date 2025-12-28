@@ -253,14 +253,22 @@ export const GanttTimeline = observer(function GanttTimeline({
         )}
 
         {/* Render bars */}
-        {barPositions.map((bar) => (
-          <GanttBar
-            key={bar.rowId}
-            bar={bar}
-            onClick={onBarClick}
-            isCritical={showCriticalPath && criticalPathIds.has(bar.rowId)}
-          />
-        ))}
+        {barPositions.map((bar) => {
+          // Get row data for dynamic shape lookup
+          const row = tableCoreStore.processedRows.find((r) => r.id === bar.rowId)
+          const rowData = row?.data || row || {}
+          const shape = ganttViewStore.getBarShapeForRow(rowData as Record<string, unknown>)
+
+          return (
+            <GanttBar
+              key={bar.rowId}
+              bar={bar}
+              onClick={onBarClick}
+              isCritical={showCriticalPath && criticalPathIds.has(bar.rowId)}
+              shape={shape}
+            />
+          )
+        })}
 
         {/* Dependency arrows */}
         {dependencies.length > 0 && (

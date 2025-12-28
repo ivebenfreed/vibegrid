@@ -111,6 +111,20 @@ export interface GanttDependency {
 
 export type DependencyEdge = 'start' | 'end'
 
+/**
+ * Gantt display configuration from entity schema's business_metadata.gantt
+ */
+export interface GanttMetadata {
+  /** Default bar shape for all entities of this type */
+  barShape?: 'bar' | 'diamond' | 'circle' | 'arrow'
+  /** Field name to determine shape dynamically per entity */
+  barShapeField?: string
+  /** Field name for progress percentage */
+  progressField?: string
+  /** Whether to show progress bar */
+  showProgress?: boolean
+}
+
 // ====================================
 // GANTT SORT & FILTER TYPES
 // ====================================
@@ -243,6 +257,9 @@ export class GanttViewStore implements IStore {
 
   /** Set of row IDs on the critical path */
   @observable criticalPathIds: Set<string> = new Set()
+
+  /** Gantt metadata from entity schema */
+  @observable ganttMetadata: GanttMetadata | null = null
 
   constructor() {
     makeObservable(this)
@@ -855,6 +872,42 @@ export class GanttViewStore implements IStore {
     }
   }
 
+  /**
+   * Set Gantt metadata from entity schema's business_metadata
+   */
+  @action
+  setGanttMetadata(metadata: GanttMetadata | null): void {
+    this.ganttMetadata = metadata
+    logger.info('Gantt metadata updated', { metadata })
+  }
+
+  /**
+   * Get the bar shape for a specific row
+   * Checks: 1) dynamic field value, 2) static config, 3) default 'rectangle'
+   */
+  getBarShapeForRow(rowData: Record<string, unknown>): 'rectangle' | 'diamond' | 'circle' {
+    if (!this.ganttMetadata) return 'rectangle'
+
+    // Check dynamic field first
+    if (this.ganttMetadata.barShapeField) {
+      const fieldValue = rowData[this.ganttMetadata.barShapeField]
+      if (typeof fieldValue === 'string') {
+        const shape = fieldValue.toLowerCase()
+        if (shape === 'diamond' || shape === 'milestone') return 'diamond'
+        if (shape === 'circle' || shape === 'event') return 'circle'
+      }
+    }
+
+    // Fall back to static config
+    if (this.ganttMetadata.barShape) {
+      const shape = this.ganttMetadata.barShape
+      if (shape === 'diamond') return 'diamond'
+      if (shape === 'circle') return 'circle'
+    }
+
+    return 'rectangle'
+  }
+
   // ====================================
   // COLLECTION (for entity updates)
   // ====================================
@@ -1392,6 +1445,7 @@ export class GanttViewStore implements IStore {
     this.dateRangeFilter = { start: null, end: null }
     this.showCriticalPath = false
     this.criticalPathIds.clear()
+    this.ganttMetadata = null
   }
 
   dispose(): void {
