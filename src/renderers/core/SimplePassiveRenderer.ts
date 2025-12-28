@@ -1649,9 +1649,9 @@ export class SimplePassiveRenderer {
     this.container.innerHTML = ''
 
     // Create basic table structure
+    // Note: width is controlled by React inline styles for Gantt mode support
     this.container.style.position = 'relative'
     this.container.style.overflow = 'hidden'
-    this.container.style.width = '100%'
     this.container.style.height = '100%'
 
     // Create main table container

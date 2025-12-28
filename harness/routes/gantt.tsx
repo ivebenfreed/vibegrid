@@ -14,6 +14,9 @@ export const Route = createFileRoute('/_authenticated/debug/gantt')({
 
 function DebugGanttPage() {
   const [entityType] = useState('GanttDemo')
+  const [viewMode, setViewMode] = useState<'table' | 'gantt'>('gantt')
+
+  console.log('[DEBUG] DebugGanttPage render, viewMode:', viewMode)
 
   return (
     <>
@@ -47,7 +50,8 @@ function DebugGanttPage() {
                 enableGrouping={false}
                 enableFiltering={true}
                 enableSorting={true}
-                enableGantt={true}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
               />
             </VibeGridStoreProvider>
           </div>
