@@ -33,6 +33,10 @@ interface DependencyArrowLayerProps {
   selectedDependencyId?: string | null
   onSelectDependency?: (dependencyId: string | null) => void
   onDeleteDependency?: (dependencyId: string) => void
+  /** Whether critical path highlighting is enabled */
+  showCriticalPath?: boolean
+  /** Set of row IDs on the critical path */
+  criticalPathIds?: Set<string>
 }
 
 // ====================================
@@ -43,6 +47,8 @@ interface ArrowPath {
   id: string
   path: string
   dependencyType: Dependency['dependencyType']
+  /** Whether this arrow is on the critical path */
+  isCritical: boolean
 }
 
 function calculateArrowPath(
@@ -159,6 +165,17 @@ const ArrowMarkers = () => (
     >
       <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
     </marker>
+    {/* Critical path (bright red) */}
+    <marker
+      id="arrowhead-critical"
+      markerWidth="10"
+      markerHeight="7"
+      refX="9"
+      refY="3.5"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
+    </marker>
   </defs>
 )
 
@@ -198,6 +215,8 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
   selectedDependencyId,
   onSelectDependency,
   onDeleteDependency,
+  showCriticalPath = false,
+  criticalPathIds = new Set(),
 }: DependencyArrowLayerProps) {
   // Handle keyboard delete
   useEffect(() => {
@@ -258,10 +277,18 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
     }
 
     const path = calculateArrowPath(arrowSourceBar, arrowTargetBar, dep.dependencyType)
+
+    // Arrow is on critical path if both connected tasks are on critical path
+    const isCritical =
+      showCriticalPath &&
+      criticalPathIds.has(dep.sourceEntityId) &&
+      criticalPathIds.has(dep.targetEntityId)
+
     arrows.push({
       id: dep.id,
       path,
       dependencyType: dep.dependencyType,
+      isCritical,
     })
   }
 
@@ -284,10 +311,25 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
       <g className="dependency-arrows">
         {arrows.map((arrow) => {
           const isSelected = arrow.id === selectedDependencyId
-          const color = isSelected ? '#ef4444' : DEPENDENCY_COLORS[arrow.dependencyType]
-          const markerId = isSelected
-            ? 'arrowhead-selected'
-            : getArrowMarkerId(arrow.dependencyType)
+          // Priority: selected > critical > normal
+          let color: string
+          let markerId: string
+          let strokeWidth: number
+
+          if (isSelected) {
+            color = '#ef4444'
+            markerId = 'arrowhead-selected'
+            strokeWidth = 3
+          } else if (arrow.isCritical) {
+            color = '#dc2626' // red-600 for critical path
+            markerId = 'arrowhead-critical'
+            strokeWidth = 3
+          } else {
+            color = DEPENDENCY_COLORS[arrow.dependencyType]
+            markerId = getArrowMarkerId(arrow.dependencyType)
+            strokeWidth = 2
+          }
+
           return (
             <g key={arrow.id}>
               {/* Invisible wider path for easier clicking */}
@@ -304,7 +346,7 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
                 d={arrow.path}
                 fill="none"
                 stroke={color}
-                strokeWidth={isSelected ? 3 : 2}
+                strokeWidth={strokeWidth}
                 markerEnd={`url(#${markerId})`}
                 className="pointer-events-none transition-colors"
               />

@@ -13,8 +13,9 @@ import { useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 import { useGanttViewStore, useTableCoreStore } from '../stores/context'
-import type { BarPosition, ZoomLevel } from '../stores/GanttViewStore'
+import type { ZoomLevel } from '../stores/GanttViewStore'
 import { DependencyArrowLayer } from './DependencyArrowLayer'
+import { GanttBar } from './GanttBar'
 
 const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 
@@ -24,14 +25,6 @@ const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 
 const HEADER_HEIGHT = 48 // Match table column header height (GRID_DIMENSIONS.HEADER_HEIGHT)
 const ROW_HEIGHT = 40 // Match table row height (GRID_DIMENSIONS.ROW_HEIGHT)
-
-// Colors for bars (can be based on status later)
-const BAR_COLORS = {
-  default: 'bg-primary/80 hover:bg-primary',
-  completed: 'bg-green-500/80 hover:bg-green-500',
-  blocked: 'bg-red-500/80 hover:bg-red-500',
-  active: 'bg-blue-500/80 hover:bg-blue-500',
-}
 
 // ====================================
 // TIME SCALE HEADER
@@ -121,39 +114,6 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
 })
 
 // ====================================
-// GANTT BAR
-// ====================================
-
-interface GanttBarProps {
-  bar: BarPosition
-  onClick?: (rowId: string) => void
-  rowIndex?: number
-}
-
-const GanttBar = observer(function GanttBar({ bar, onClick }: GanttBarProps) {
-  return (
-    <div
-      className={cn(
-        'absolute rounded cursor-pointer transition-colors',
-        'flex items-center px-2 text-xs text-white truncate',
-        'shadow-sm',
-        BAR_COLORS.default,
-      )}
-      style={{
-        left: bar.left,
-        top: bar.top + 4, // Center in row with padding
-        width: bar.width,
-        height: bar.height,
-      }}
-      onClick={() => onClick?.(bar.rowId)}
-      title={`${bar.label}\n${bar.startDate.toLocaleDateString()} - ${bar.endDate.toLocaleDateString()}`}
-    >
-      {bar.width > 60 && <span className="truncate">{bar.label}</span>}
-    </div>
-  )
-})
-
-// ====================================
 // TODAY LINE
 // ====================================
 
@@ -202,6 +162,8 @@ export const GanttTimeline = observer(function GanttTimeline({
     dependencies,
     scrollLeft,
     scrollTop,
+    showCriticalPath,
+    criticalPathIds,
   } = ganttViewStore
 
   // Get actual row count from table (matches table view exactly)
@@ -291,8 +253,13 @@ export const GanttTimeline = observer(function GanttTimeline({
         )}
 
         {/* Render bars */}
-        {barPositions.map((bar, index) => (
-          <GanttBar key={bar.rowId} bar={bar} onClick={onBarClick} rowIndex={index} />
+        {barPositions.map((bar) => (
+          <GanttBar
+            key={bar.rowId}
+            bar={bar}
+            onClick={onBarClick}
+            isCritical={showCriticalPath && criticalPathIds.has(bar.rowId)}
+          />
         ))}
 
         {/* Dependency arrows */}
@@ -302,6 +269,8 @@ export const GanttTimeline = observer(function GanttTimeline({
             barPositions={barPositions}
             width={timelineWidth}
             height={totalHeight}
+            showCriticalPath={showCriticalPath}
+            criticalPathIds={criticalPathIds}
           />
         )}
 

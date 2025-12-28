@@ -3,7 +3,7 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { Minus, Plus, RotateCcw, Calendar, Settings2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Minus, Plus, RotateCcw, Calendar, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Route } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -42,6 +42,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
     availableLabelFields,
     ganttSortField,
     ganttSortDirection,
+    showCriticalPath,
   } = ganttViewStore
 
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -152,6 +153,20 @@ export const GanttToolbar = observer(function GanttToolbar() {
           )}
         </Button>
       </div>
+
+      {/* Divider */}
+      <div className="w-px h-6 bg-border" />
+
+      {/* Critical path toggle */}
+      <Button
+        variant={showCriticalPath ? 'default' : 'ghost'}
+        size="sm"
+        onClick={() => ganttViewStore.toggleCriticalPath()}
+        title="Highlight critical path"
+      >
+        <Route className="h-4 w-4 mr-1" />
+        Critical Path
+      </Button>
 
       {/* Divider */}
       <div className="w-px h-6 bg-border" />

@@ -15,6 +15,7 @@ import { getLogger } from '@/shared/lib/logging'
 import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
 import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
+import { calculateCriticalPath } from '../utils/critical-path'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -844,9 +845,10 @@ export class GanttViewStore implements IStore {
   toggleCriticalPath(): void {
     this.showCriticalPath = !this.showCriticalPath
     if (this.showCriticalPath) {
-      // Critical path calculation will be implemented in a later task
-      // For now, just toggle the state
-      logger.info('Critical path enabled (algorithm pending)')
+      // Calculate critical path using forward/backward pass algorithm
+      const criticalIds = calculateCriticalPath(this.barPositions, this.dependencies)
+      this.criticalPathIds = new Set(criticalIds)
+      logger.info('Critical path calculated', { count: criticalIds.length })
     } else {
       this.criticalPathIds.clear()
       logger.info('Critical path disabled')
