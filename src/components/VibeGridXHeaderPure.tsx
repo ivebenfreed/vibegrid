@@ -122,7 +122,9 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               }
             }}
             aria-pressed={hierarchyStore.isHierarchyActive}
-            title={hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'}
+            title={
+              hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'
+            }
           >
             <Network className="size-4 mr-1" />
             Hierarchy

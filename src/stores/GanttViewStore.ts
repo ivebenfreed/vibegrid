@@ -152,6 +152,10 @@ export interface DependencyDragState {
   targetBarId: string | null
   /** Target edge if hovering over one */
   targetEdge: DependencyEdge | null
+  /** ID of dependency being edited (null = creating new) */
+  editingDependencyId: string | null
+  /** Which end of the dependency is being dragged ('source' or 'target') */
+  editingEnd: 'source' | 'target' | null
 }
 
 // ====================================
@@ -165,7 +169,7 @@ const ZOOM_PIXELS_PER_DAY: Record<ZoomLevel, number> = {
   quarter: 2,
 }
 
-const DEFAULT_ROW_HEIGHT = 36
+const DEFAULT_ROW_HEIGHT = 40 // Must match GRID_DIMENSIONS.ROW_HEIGHT and GanttTimeline ROW_HEIGHT
 
 // ====================================
 // STORE
@@ -231,6 +235,8 @@ export class GanttViewStore implements IStore {
     currentY: 0,
     targetBarId: null,
     targetEdge: null,
+    editingDependencyId: null,
+    editingEnd: null,
   }
 
   // ====================================
@@ -495,6 +501,7 @@ export class GanttViewStore implements IStore {
   get barPositions(): BarPosition[] {
     if (!this.tableCoreStore) return []
 
+    // Use table's processed rows - Gantt syncs to table state
     const rows = this.tableCoreStore.processedRows
     const positions: BarPosition[] = []
     const { start: timelineStart } = this.dateRange
@@ -568,7 +575,7 @@ export class GanttViewStore implements IStore {
         left,
         width,
         top: currentTop,
-        height: DEFAULT_ROW_HEIGHT - 8, // Padding
+        height: DEFAULT_ROW_HEIGHT - 8,
         startDate,
         endDate: effectiveEnd,
         label: String(rowData[this.fieldMapping.labelField] || ''),
@@ -698,9 +705,7 @@ export class GanttViewStore implements IStore {
         // Task overlaps with this week
         const weekEnd = new Date(today)
         weekEnd.setDate(weekEnd.getDate() + 7)
-        return (
-          startDate !== null && endDate !== null && startDate <= weekEnd && endDate >= today
-        )
+        return startDate !== null && endDate !== null && startDate <= weekEnd && endDate >= today
       }
       case 'has_dependencies':
         // Row has at least one dependency
@@ -1152,8 +1157,44 @@ export class GanttViewStore implements IStore {
       currentY: y,
       targetBarId: null,
       targetEdge: null,
+      editingDependencyId: null,
+      editingEnd: null,
     }
     logger.debug('Dependency drag started', { barId, edge, x, y })
+  }
+
+  /**
+   * Start editing an existing dependency by dragging one of its endpoints
+   * @param dependencyId - The dependency being edited
+   * @param editEnd - Which end is being dragged ('source' = arrow start, 'target' = arrow end)
+   * @param anchorBarId - The bar that stays fixed (the other end of the dependency)
+   * @param x - Starting X position
+   * @param y - Starting Y position
+   */
+  @action
+  startDependencyEdit(
+    dependencyId: string,
+    editEnd: 'source' | 'target',
+    anchorBarId: string,
+    x: number,
+    y: number,
+  ): void {
+    // When editing source, the anchor is the target (arrow points TO it)
+    // When editing target, the anchor is the source (arrow comes FROM it)
+    const anchorEdge: DependencyEdge = editEnd === 'source' ? 'start' : 'end'
+
+    this.dependencyDragState = {
+      isDragging: true,
+      sourceBarId: anchorBarId,
+      sourceEdge: anchorEdge,
+      currentX: x,
+      currentY: y,
+      targetBarId: null,
+      targetEdge: null,
+      editingDependencyId: dependencyId,
+      editingEnd: editEnd,
+    }
+    logger.debug('Dependency edit started', { dependencyId, editEnd, anchorBarId, x, y })
   }
 
   /**
@@ -1175,16 +1216,23 @@ export class GanttViewStore implements IStore {
   }
 
   /**
-   * End dependency drag and create the dependency if valid
+   * End dependency drag and create/update the dependency if valid
    */
   @action
   async endDependencyDrag(): Promise<void> {
-    const { sourceBarId, sourceEdge, targetBarId, targetEdge } = this.dependencyDragState
+    const { sourceBarId, sourceEdge, targetBarId, targetEdge, editingDependencyId, editingEnd } =
+      this.dependencyDragState
 
     // Validate we have a valid connection
     if (!sourceBarId || !targetBarId || sourceBarId === targetBarId) {
       logger.debug('Dependency drag ended without valid target', { sourceBarId, targetBarId })
       this.cancelDependencyDrag()
+      return
+    }
+
+    // Handle editing existing dependency
+    if (editingDependencyId && editingEnd) {
+      await this.updateDependencyConnection(editingDependencyId, editingEnd, targetBarId)
       return
     }
 
@@ -1290,8 +1338,96 @@ export class GanttViewStore implements IStore {
       currentY: 0,
       targetBarId: null,
       targetEdge: null,
+      editingDependencyId: null,
+      editingEnd: null,
     }
     logger.debug('Dependency drag cancelled')
+  }
+
+  /**
+   * Update an existing dependency connection (reassign source or target)
+   * @param dependencyId - The dependency being updated
+   * @param editEnd - Which end was dragged ('source' or 'target')
+   * @param newBarId - The new bar to connect to
+   */
+  @action
+  async updateDependencyConnection(
+    dependencyId: string,
+    editEnd: 'source' | 'target',
+    newBarId: string,
+  ): Promise<void> {
+    const existingDep = this.dependencies.find((d) => d.id === dependencyId)
+    if (!existingDep) {
+      logger.warn('Cannot update dependency - not found', { dependencyId })
+      this.cancelDependencyDrag()
+      return
+    }
+
+    // Determine new source/target based on which end was dragged
+    // In our data model: sourceEntityId = successor (waits), targetEntityId = predecessor (must finish first)
+    let newSourceEntityId: string
+    let newTargetEntityId: string
+
+    if (editEnd === 'source') {
+      // Dragging the arrow tail (source = successor)
+      newSourceEntityId = newBarId
+      newTargetEntityId = existingDep.targetEntityId
+    } else {
+      // Dragging the arrow head (target = predecessor)
+      newSourceEntityId = existingDep.sourceEntityId
+      newTargetEntityId = newBarId
+    }
+
+    // Prevent self-referencing dependency
+    if (newSourceEntityId === newTargetEntityId) {
+      logger.debug('Cannot create self-referencing dependency')
+      this.cancelDependencyDrag()
+      return
+    }
+
+    logger.info('Updating dependency connection', {
+      dependencyId,
+      editEnd,
+      oldSource: existingDep.sourceEntityId,
+      oldTarget: existingDep.targetEntityId,
+      newSource: newSourceEntityId,
+      newTarget: newTargetEntityId,
+    })
+
+    // Store original for rollback
+    const originalDeps = [...this.dependencies]
+
+    // Optimistic update
+    this.dependencies = this.dependencies.map((d) =>
+      d.id === dependencyId
+        ? { ...d, sourceEntityId: newSourceEntityId, targetEntityId: newTargetEntityId }
+        : d,
+    )
+
+    // Clear drag state
+    this.cancelDependencyDrag()
+
+    // Persist via collection
+    if (this.dependencyCollection) {
+      try {
+        const tx = this.dependencyCollection.update(dependencyId, (draft: any) => {
+          draft.sourceEntityId = newSourceEntityId
+          draft.targetEntityId = newTargetEntityId
+        })
+        await tx.isPersisted.promise
+        logger.info('Dependency connection updated successfully', { dependencyId })
+      } catch (error: any) {
+        logger.error('Dependency update failed, rolling back', {
+          error: error?.message || 'Unknown error',
+        })
+        // Rollback on error
+        runInAction(() => {
+          this.dependencies = originalDeps
+        })
+      }
+    } else {
+      logger.warn('No dependency collection available - update not persisted')
+    }
   }
 
   /**

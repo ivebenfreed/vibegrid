@@ -163,7 +163,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
   const isGanttMode = viewMode === 'gantt'
   const cutoffWidth = viewModeStore.cutoffWidth
 
-
   // ====================================
   // TANSTACK DB INTEGRATION
   // ====================================
@@ -659,6 +658,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
         />
       )}
 
+      {/* Gantt toolbar - spans full width above split pane */}
+      {isGanttMode && <GanttToolbar />}
+
       {/* Main content area - Table or Split Pane (Gantt) */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
       <div className="flex-1 flex flex-row overflow-hidden" style={{ minHeight: 0 }}>
@@ -684,12 +686,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
               onResizeEnd={handleResizeEnd}
               onReset={handleCutoffReset}
             />
-            {/* Right pane: Timeline with toolbar */}
-            <div className="flex-1 h-full min-w-0 flex flex-col">
-              <GanttToolbar />
-              <div className="flex-1 overflow-auto">
-                <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
-              </div>
+            {/* Right pane: Timeline */}
+            <div className="flex-1 h-full min-w-0 overflow-auto">
+              <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
             </div>
           </>
         )}

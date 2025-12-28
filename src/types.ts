@@ -359,10 +359,7 @@ export interface GroupAggregation {
  * Resolves entity names for relationship fields in group headers.
  * Returns the display name for an entity, or null if not found/loaded.
  */
-export type RelationshipNameResolver = (
-  targetEntityType: string,
-  entityId: string,
-) => string | null
+export type RelationshipNameResolver = (targetEntityType: string, entityId: string) => string | null
 
 // Group configuration for multi-level grouping
 export interface GroupConfig {

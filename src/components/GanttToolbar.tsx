@@ -1,9 +1,21 @@
 /**
  * GanttToolbar - Zoom and navigation controls for Gantt timeline
+ *
+ * Sort controls sync with table state via VisualStateStore
  */
 
 import { observer } from 'mobx-react-lite'
-import { Minus, Plus, RotateCcw, Calendar, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Route } from 'lucide-react'
+import {
+  Minus,
+  Plus,
+  RotateCcw,
+  Calendar,
+  Settings2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Route,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -15,8 +27,8 @@ import {
 } from '@/shared/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Label } from '@/shared/components/ui/label'
-import { useGanttViewStore } from '../stores/context'
-import type { ZoomLevel, GanttSortField } from '../stores/GanttViewStore'
+import { useGanttViewStore, useVisualStateStore } from '../stores/context'
+import type { ZoomLevel } from '../stores/GanttViewStore'
 
 const ZOOM_LEVELS: { value: ZoomLevel; label: string }[] = [
   { value: 'day', label: 'Day' },
@@ -25,30 +37,35 @@ const ZOOM_LEVELS: { value: ZoomLevel; label: string }[] = [
   { value: 'quarter', label: 'Quarter' },
 ]
 
-const SORT_OPTIONS: { value: GanttSortField; label: string }[] = [
+// Sort options map to table field names
+const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'start_date', label: 'Start Date' },
   { value: 'end_date', label: 'End Date' },
-  { value: 'duration', label: 'Duration' },
   { value: 'name', label: 'Name' },
 ]
 
 export const GanttToolbar = observer(function GanttToolbar() {
   const ganttViewStore = useGanttViewStore()
+  const visualStateStore = useVisualStateStore()
+
   const {
     zoomLevel,
     dependencies,
     fieldMapping,
     availableDateFields,
     availableLabelFields,
-    ganttSortField,
-    ganttSortDirection,
     showCriticalPath,
   } = ganttViewStore
+
+  // Get current sort from table state
+  const currentSort = visualStateStore?.sortBy?.[0]
+  const sortField = currentSort?.field || 'start_date'
+  const sortDirection = currentSort?.direction || 'asc'
 
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+    <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30 overflow-x-auto flex-shrink-0">
       {/* Zoom controls */}
       <div className="flex items-center gap-1">
         <Button
@@ -115,11 +132,13 @@ export const GanttToolbar = observer(function GanttToolbar() {
       {/* Divider */}
       <div className="w-px h-6 bg-border" />
 
-      {/* Sort controls */}
+      {/* Sort controls - syncs with table state */}
       <div className="flex items-center gap-1">
         <Select
-          value={ganttSortField}
-          onValueChange={(value) => ganttViewStore.setGanttSort(value as GanttSortField)}
+          value={sortField}
+          onValueChange={(field) => {
+            visualStateStore?.setSortBy([{ field, direction: sortDirection }])
+          }}
         >
           <SelectTrigger className="w-28 h-8">
             <ArrowUpDown className="h-3 w-3 mr-1 shrink-0" />
@@ -137,16 +156,14 @@ export const GanttToolbar = observer(function GanttToolbar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() =>
-            ganttViewStore.setGanttSort(
-              ganttSortField,
-              ganttSortDirection === 'asc' ? 'desc' : 'asc',
-            )
-          }
-          title={ganttSortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
+          onClick={() => {
+            const newDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+            visualStateStore?.setSortBy([{ field: sortField, direction: newDirection }])
+          }}
+          title={sortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
           className="px-2"
         >
-          {ganttSortDirection === 'asc' ? (
+          {sortDirection === 'asc' ? (
             <ArrowUp className="h-4 w-4" />
           ) : (
             <ArrowDown className="h-4 w-4" />

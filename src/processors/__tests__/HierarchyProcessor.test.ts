@@ -110,10 +110,7 @@ describe('HierarchyProcessor', () => {
     })
 
     it('handles orphan nodes with invalid parent references', () => {
-      const entities = [
-        createEntity('orphan', 'Orphan Task'),
-        createEntity('valid', 'Valid Task'),
-      ]
+      const entities = [createEntity('orphan', 'Orphan Task'), createEntity('valid', 'Valid Task')]
 
       // orphan references a non-existent parent
       const relationships = [createChildOfRelationship('orphan', 'non-existent-parent')]
@@ -128,10 +125,7 @@ describe('HierarchyProcessor', () => {
     })
 
     it('handles null parent (root nodes)', () => {
-      const entities = [
-        createEntity('root1', 'Root 1'),
-        createEntity('root2', 'Root 2'),
-      ]
+      const entities = [createEntity('root1', 'Root 1'), createEntity('root2', 'Root 2')]
 
       // No relationships - both are root nodes
       const relationships: HierarchyRelationship[] = []
@@ -233,10 +227,7 @@ describe('HierarchyProcessor', () => {
 
   describe('flattenToVirtualRows', () => {
     it('includes only visible rows based on expanded state', () => {
-      const entities = [
-        createEntity('parent', 'Parent'),
-        createEntity('child', 'Child'),
-      ]
+      const entities = [createEntity('parent', 'Parent'), createEntity('child', 'Child')]
 
       const relationships = [createChildOfRelationship('child', 'parent')]
 
@@ -255,10 +246,7 @@ describe('HierarchyProcessor', () => {
     })
 
     it('shows children when parent is expanded', () => {
-      const entities = [
-        createEntity('parent', 'Parent'),
-        createEntity('child', 'Child'),
-      ]
+      const entities = [createEntity('parent', 'Parent'), createEntity('child', 'Child')]
 
       const relationships = [createChildOfRelationship('child', 'parent')]
 
@@ -278,10 +266,7 @@ describe('HierarchyProcessor', () => {
     })
 
     it('sets correct isExpandable and isExpanded on VirtualRows', () => {
-      const entities = [
-        createEntity('parent', 'Parent'),
-        createEntity('child', 'Child'),
-      ]
+      const entities = [createEntity('parent', 'Parent'), createEntity('child', 'Child')]
 
       const relationships = [createChildOfRelationship('child', 'parent')]
 

@@ -3,11 +3,7 @@ import { calculateCriticalPath } from '../critical-path'
 import type { BarPosition, GanttDependency } from '../../stores/GanttViewStore'
 
 // Helper to create a bar position
-function createBar(
-  rowId: string,
-  startDays: number,
-  durationDays: number,
-): BarPosition {
+function createBar(rowId: string, startDays: number, durationDays: number): BarPosition {
   const startDate = new Date(2024, 0, 1 + startDays) // Jan 1, 2024 + offset
   const endDate = new Date(2024, 0, 1 + startDays + durationDays)
   return {
@@ -67,11 +63,7 @@ describe('calculateCriticalPath', () => {
   describe('simple chains', () => {
     it('finds critical path in linear chain', () => {
       // A -> B -> C (all on critical path)
-      const bars = [
-        createBar('A', 0, 3),
-        createBar('B', 3, 4),
-        createBar('C', 7, 2),
-      ]
+      const bars = [createBar('A', 0, 3), createBar('B', 3, 4), createBar('C', 7, 2)]
       const deps = [
         createDep('d1', 'B', 'A'), // B depends_on A
         createDep('d2', 'C', 'B'), // C depends_on B

@@ -200,10 +200,7 @@ export function calculateCriticalPath(
  * Topological sort using Kahn's algorithm
  * Returns empty array if cycle detected
  */
-function topologicalSort(
-  bars: BarPosition[],
-  predecessors: Map<string, string[]>,
-): string[] {
+function topologicalSort(bars: BarPosition[], predecessors: Map<string, string[]>): string[] {
   // Count incoming edges (number of predecessors)
   const inDegree = new Map<string, number>()
   for (const bar of bars) {

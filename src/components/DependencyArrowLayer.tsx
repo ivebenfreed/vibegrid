@@ -1,8 +1,8 @@
 /**
- * DependencyArrowLayer - SVG overlay for rendering dependency arrows
+ * DependencyArrowLayer - SVG overlay for rendering dependency lines
  *
- * Renders bezier curve arrows between Gantt bars to show dependencies.
- * Supports finish-to-start, start-to-start, finish-to-finish, start-to-finish.
+ * Renders clean orthogonal (right-angle) lines between Gantt bars.
+ * Connection type is shown by which end of the bar the line connects to.
  * Click to select, Delete/Backspace to remove.
  */
 
@@ -40,168 +40,168 @@ interface DependencyArrowLayerProps {
 }
 
 // ====================================
-// ARROW PATH CALCULATION
+// CONSTANTS
 // ====================================
 
-interface ArrowPath {
+const DEFAULT_COLOR = '#6b7280' // gray-500 - visible but not distracting
+const SELECTED_COLOR = '#ef4444' // red-500
+const CRITICAL_COLOR = '#dc2626' // red-600
+const DEFAULT_STROKE = 1.5
+const SELECTED_STROKE = 2.5
+const CORNER_RADIUS = 4 // Rounded corners on the orthogonal path
+const NODE_RADIUS = 4 // Connection point indicator size
+const NODE_STROKE = 1.5 // White border around nodes
+
+// ====================================
+// ORTHOGONAL PATH CALCULATION
+// ====================================
+
+interface LinePath {
   id: string
   path: string
-  dependencyType: Dependency['dependencyType']
-  /** Whether this arrow is on the critical path */
   isCritical: boolean
+  startX: number
+  startY: number
+  endX: number
+  endY: number
 }
 
-function calculateArrowPath(
+interface PathResult {
+  path: string
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+}
+
+const STUB_LENGTH = 12 // How far to extend before first turn
+
+/**
+ * Calculate orthogonal (right-angle) path between two bars
+ *
+ * Path structure:
+ * - Horizontal stub from bar connection point
+ * - Vertical segment connecting row centers (startY to endY)
+ * - Horizontal segment to target
+ *
+ * The vertical segment X position depends on dependency type and bar positions.
+ */
+function calculateOrthogonalPath(
   source: BarPosition,
   target: BarPosition,
   dependencyType: Dependency['dependencyType'],
-): string {
-  // Calculate start and end points based on dependency type
+): PathResult {
+  const startY = source.top + source.height / 2 + 4 // Row center
+  const endY = target.top + target.height / 2 + 4 // Row center
+  const r = CORNER_RADIUS
+
+  // Determine connection points based on dependency type
   let startX: number
-  let startY: number
   let endX: number
-  let endY: number
-
-  const sourceCenter = source.top + source.height / 2
-  const targetCenter = target.top + target.height / 2
-
-  // Padding values for arrow start/end points
-  const PADDING = 4
-  const ARROW_HEAD_SPACE = 10
 
   switch (dependencyType) {
     case 'finish_to_start':
-      // Arrow from END of source to START of target
-      startX = source.left + source.width + PADDING // Past right edge
-      startY = sourceCenter
-      endX = target.left - ARROW_HEAD_SPACE // Before left edge
-      endY = targetCenter
+      startX = source.left + source.width // Exit from end
+      endX = target.left // Enter at start
       break
     case 'start_to_start':
-      // Arrow from START of source to START of target
-      startX = source.left - PADDING // Before left edge
-      startY = sourceCenter
-      endX = target.left - ARROW_HEAD_SPACE // Before left edge
-      endY = targetCenter
+      startX = source.left // Exit from start
+      endX = target.left // Enter at start
       break
     case 'finish_to_finish':
-      // Arrow from END of source to END of target
-      startX = source.left + source.width + PADDING // Past right edge
-      startY = sourceCenter
-      endX = target.left + target.width + ARROW_HEAD_SPACE // Past right edge
-      endY = targetCenter
+      startX = source.left + source.width // Exit from end
+      endX = target.left + target.width // Enter at end
       break
     case 'start_to_finish':
-      // Arrow from START of source to END of target
-      startX = source.left - PADDING // Before left edge
-      startY = sourceCenter
-      endX = target.left + target.width + ARROW_HEAD_SPACE // Past right edge
-      endY = targetCenter
+      startX = source.left // Exit from start
+      endX = target.left + target.width // Enter at end
       break
     default:
-      // Default to finish_to_start
-      startX = source.left + source.width + PADDING
-      startY = sourceCenter
-      endX = target.left - ARROW_HEAD_SPACE
-      endY = targetCenter
+      startX = source.left + source.width
+      endX = target.left
   }
 
-  // Calculate bezier curve control points
-  const dx = endX - startX
-  const dy = endY - startY
+  // Same row - simple horizontal line
+  if (Math.abs(startY - endY) < 2) {
+    return {
+      path: `M ${startX} ${startY} L ${endX} ${endY}`,
+      startX,
+      startY,
+      endX,
+      endY,
+    }
+  }
 
-  // Use horizontal bezier for smoother curves
-  const controlOffset = Math.min(Math.abs(dx) * 0.5, 50)
+  const goingDown = endY > startY
 
-  const cx1 = startX + controlOffset
-  const cy1 = startY
-  const cx2 = endX - controlOffset
-  const cy2 = endY
+  // Calculate where the vertical segment should be
+  // For FS: vertical is to the right of both connection points
+  // For SS: vertical is to the left of both connection points
+  // For FF: vertical is to the right of both connection points
+  // For SF: vertical is to the left of source, right of target (or route around)
 
-  return `M ${startX} ${startY} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${endX} ${endY}`
-}
+  let vertX: number
 
-// ====================================
-// DEPENDENCY TYPE COLORS
-// ====================================
-
-const DEPENDENCY_COLORS: Record<Dependency['dependencyType'], string> = {
-  finish_to_start: '#6366f1', // indigo (most common, default)
-  start_to_start: '#8b5cf6', // violet
-  finish_to_finish: '#06b6d4', // cyan
-  start_to_finish: '#f59e0b', // amber (rare)
-}
-
-// ====================================
-// ARROW HEAD MARKERS
-// ====================================
-
-const ArrowMarkers = () => (
-  <defs>
-    {/* Finish-to-Start (indigo) */}
-    <marker id="arrowhead-fs" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_start} />
-    </marker>
-    {/* Start-to-Start (violet) */}
-    <marker id="arrowhead-ss" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_start} />
-    </marker>
-    {/* Finish-to-Finish (cyan) */}
-    <marker id="arrowhead-ff" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.finish_to_finish} />
-    </marker>
-    {/* Start-to-Finish (amber) */}
-    <marker id="arrowhead-sf" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill={DEPENDENCY_COLORS.start_to_finish} />
-    </marker>
-    {/* Selected (red) */}
-    <marker
-      id="arrowhead-selected"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
-      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444" />
-    </marker>
-    {/* Critical path (bright red) */}
-    <marker
-      id="arrowhead-critical"
-      markerWidth="10"
-      markerHeight="7"
-      refX="9"
-      refY="3.5"
-      orient="auto"
-    >
-      <polygon points="0 0, 10 3.5, 0 7" fill="#dc2626" />
-    </marker>
-  </defs>
-)
-
-function getArrowMarkerId(depType: Dependency['dependencyType']): string {
-  switch (depType) {
+  switch (dependencyType) {
     case 'finish_to_start':
-      return 'arrowhead-fs'
+      // Vertical line should be between the two connection points
+      // or to the right if target is before source
+      vertX = Math.max(startX, endX) + STUB_LENGTH
+      if (startX < endX) {
+        // Normal case: source ends before target starts
+        vertX = startX + STUB_LENGTH
+      }
+      break
     case 'start_to_start':
-      return 'arrowhead-ss'
+      // Vertical to the left of both starts
+      vertX = Math.min(startX, endX) - STUB_LENGTH
+      break
     case 'finish_to_finish':
-      return 'arrowhead-ff'
+      // Vertical to the right of both ends
+      vertX = Math.max(startX, endX) + STUB_LENGTH
+      break
     case 'start_to_finish':
-      return 'arrowhead-sf'
+      // Complex case - may need to route around
+      vertX = Math.min(startX, endX) - STUB_LENGTH
+      break
     default:
-      return 'arrowhead-fs'
+      vertX = startX + STUB_LENGTH
   }
-}
 
-// Legacy marker for backwards compatibility
-const ArrowMarker = () => (
-  <defs>
-    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
-    </marker>
-  </defs>
-)
+  // Build the path with rounded corners
+  let path = `M ${startX} ${startY}`
+
+  // Horizontal to vertical X position
+  const hDir = vertX > startX ? 1 : -1
+  path += ` L ${vertX - hDir * r} ${startY}`
+
+  // Corner 1: turn vertical
+  if (goingDown) {
+    path += ` Q ${vertX} ${startY} ${vertX} ${startY + r}`
+  } else {
+    path += ` Q ${vertX} ${startY} ${vertX} ${startY - r}`
+  }
+
+  // Vertical segment from row center to row center
+  if (goingDown) {
+    path += ` L ${vertX} ${endY - r}`
+  } else {
+    path += ` L ${vertX} ${endY + r}`
+  }
+
+  // Corner 2: turn horizontal toward target
+  const hDir2 = endX > vertX ? 1 : -1
+  if (goingDown) {
+    path += ` Q ${vertX} ${endY} ${vertX + hDir2 * r} ${endY}`
+  } else {
+    path += ` Q ${vertX} ${endY} ${vertX + hDir2 * r} ${endY}`
+  }
+
+  // Horizontal to target
+  path += ` L ${endX} ${endY}`
+
+  return { path, startX, startY, endX, endY }
+}
 
 // ====================================
 // MAIN COMPONENT
@@ -235,8 +235,8 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedDependencyId, onDeleteDependency, onSelectDependency])
 
-  // Handle click on arrow
-  const handleArrowClick = useCallback(
+  // Handle click on line
+  const handleLineClick = useCallback(
     (e: React.MouseEvent, dependencyId: string) => {
       e.stopPropagation()
       onSelectDependency?.(dependencyId)
@@ -244,111 +244,122 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
     [onSelectDependency],
   )
 
-  // Handle click on background (deselect)
-  const handleBackgroundClick = useCallback(() => {
-    onSelectDependency?.(null)
-  }, [onSelectDependency])
-
   // Build lookup map for bar positions by rowId
   const barMap = new Map<string, BarPosition>()
   for (const bar of barPositions) {
     barMap.set(bar.rowId, bar)
   }
 
-  // Calculate arrow paths
-  const arrows: ArrowPath[] = []
+  // Calculate line paths
+  const lines: LinePath[] = []
 
   for (const dep of dependencies) {
-    // IMPORTANT: In "A depends on B" relationship:
-    // - dep.sourceEntityId = A (the successor, waiting on dependency)
-    // - dep.targetEntityId = B (the predecessor, must complete first)
-    // For arrow visualization, we draw FROM predecessor TO successor
-    // So we SWAP: arrow source = dep.target, arrow target = dep.source
-    const arrowSourceBar = barMap.get(dep.targetEntityId) // predecessor
-    const arrowTargetBar = barMap.get(dep.sourceEntityId) // successor
+    // In "A depends on B": sourceEntityId = A (successor), targetEntityId = B (predecessor)
+    // Arrow goes FROM predecessor TO successor
+    const predecessorBar = barMap.get(dep.targetEntityId)
+    const successorBar = barMap.get(dep.sourceEntityId)
 
-    if (!arrowSourceBar || !arrowTargetBar) {
+    if (!predecessorBar || !successorBar) {
       logger.debug('Skipping dependency - missing bar', {
         depId: dep.id,
-        hasArrowSource: !!arrowSourceBar,
-        hasArrowTarget: !!arrowTargetBar,
+        hasPredecessor: !!predecessorBar,
+        hasSuccessor: !!successorBar,
       })
       continue
     }
 
-    const path = calculateArrowPath(arrowSourceBar, arrowTargetBar, dep.dependencyType)
+    const pathResult = calculateOrthogonalPath(predecessorBar, successorBar, dep.dependencyType)
 
-    // Arrow is on critical path if both connected tasks are on critical path
+    // Line is on critical path if both connected tasks are on critical path
     const isCritical =
       showCriticalPath &&
       criticalPathIds.has(dep.sourceEntityId) &&
       criticalPathIds.has(dep.targetEntityId)
 
-    arrows.push({
+    lines.push({
       id: dep.id,
-      path,
-      dependencyType: dep.dependencyType,
+      path: pathResult.path,
       isCritical,
+      startX: pathResult.startX,
+      startY: pathResult.startY,
+      endX: pathResult.endX,
+      endY: pathResult.endY,
     })
   }
 
   logger.debug('DependencyArrowLayer render', {
     dependencyCount: dependencies.length,
-    arrowCount: arrows.length,
+    lineCount: lines.length,
     selectedDependencyId,
   })
 
-  if (arrows.length === 0) {
+  if (lines.length === 0) {
     return null
   }
 
   return (
     <svg
       className="absolute inset-0 overflow-visible pointer-events-none"
-      style={{ width, height }}
+      style={{ width, height, zIndex: 5 }}
     >
-      <ArrowMarkers />
-      <g className="dependency-arrows">
-        {arrows.map((arrow) => {
-          const isSelected = arrow.id === selectedDependencyId
-          // Priority: selected > critical > normal
+      <g className="dependency-lines">
+        {lines.map((line) => {
+          const isSelected = line.id === selectedDependencyId
+
+          // Determine color and stroke width
           let color: string
-          let markerId: string
           let strokeWidth: number
 
           if (isSelected) {
-            color = '#ef4444'
-            markerId = 'arrowhead-selected'
-            strokeWidth = 3
-          } else if (arrow.isCritical) {
-            color = '#dc2626' // red-600 for critical path
-            markerId = 'arrowhead-critical'
-            strokeWidth = 3
+            color = SELECTED_COLOR
+            strokeWidth = SELECTED_STROKE
+          } else if (line.isCritical) {
+            color = CRITICAL_COLOR
+            strokeWidth = SELECTED_STROKE
           } else {
-            color = DEPENDENCY_COLORS[arrow.dependencyType]
-            markerId = getArrowMarkerId(arrow.dependencyType)
-            strokeWidth = 2
+            color = DEFAULT_COLOR
+            strokeWidth = DEFAULT_STROKE
           }
 
           return (
-            <g key={arrow.id}>
+            <g key={line.id} className="group">
               {/* Invisible wider path for easier clicking */}
               <path
-                d={arrow.path}
+                d={line.path}
                 fill="none"
                 stroke="transparent"
-                strokeWidth={16}
+                strokeWidth={12}
                 className="cursor-pointer pointer-events-auto"
-                onClick={(e) => handleArrowClick(e, arrow.id)}
+                onClick={(e) => handleLineClick(e, line.id)}
               />
-              {/* Visible arrow */}
+              {/* Visible line */}
               <path
-                d={arrow.path}
+                d={line.path}
                 fill="none"
                 stroke={color}
                 strokeWidth={strokeWidth}
-                markerEnd={`url(#${markerId})`}
+                strokeLinecap="round"
                 className="pointer-events-none transition-colors"
+              />
+              {/* Start connection point */}
+              <circle
+                cx={line.startX}
+                cy={line.startY}
+                r={NODE_RADIUS}
+                fill={color}
+                stroke="white"
+                strokeWidth={NODE_STROKE}
+                className="pointer-events-none"
+              />
+              {/* End connection point */}
+              <circle
+                cx={line.endX}
+                cy={line.endY}
+                r={NODE_RADIUS}
+                fill={color}
+                stroke="white"
+                strokeWidth={NODE_STROKE}
+                className="pointer-events-none"
               />
             </g>
           )

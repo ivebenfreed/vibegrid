@@ -3,7 +3,15 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { List, CalendarDays, AlertCircle, Calendar, GitBranch, CalendarRange, X } from 'lucide-react'
+import {
+  List,
+  CalendarDays,
+  AlertCircle,
+  Calendar,
+  GitBranch,
+  CalendarRange,
+  X,
+} from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Calendar as CalendarPicker } from '@/shared/components/ui/calendar'
@@ -48,9 +56,7 @@ export const GanttFilters = observer(function GanttFilters({ className }: GanttF
       : 'Date Range'
 
   return (
-    <div
-      className={cn('flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20', className)}
-    >
+    <div className={cn('flex items-center gap-2 px-3 py-1.5 border-b bg-muted/20', className)}>
       {/* Quick filter buttons */}
       <div className="flex items-center gap-1">
         {QUICK_FILTERS.map((filter) => {

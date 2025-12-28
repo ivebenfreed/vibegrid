@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import { getLogger } from '@/shared/lib/logging'
 import { useGanttViewStore, useTableCoreStore } from '../stores/context'
-import type { ZoomLevel } from '../stores/GanttViewStore'
+import type { DependencyEdge, DragMode, ZoomLevel } from '../stores/GanttViewStore'
 import { DependencyArrowLayer } from './DependencyArrowLayer'
 import { GanttBar } from './GanttBar'
 
@@ -138,6 +138,67 @@ const TodayLine = observer(function TodayLine({ position, height }: TodayLinePro
 })
 
 // ====================================
+// DEPENDENCY DRAG LINE
+// ====================================
+
+interface DependencyDragLineProps {
+  sourceBar: { left: number; top: number; width: number; height: number } | undefined
+  sourceEdge: DependencyEdge | null
+  currentX: number
+  currentY: number
+  hasTarget: boolean
+  containerRef: React.RefObject<HTMLDivElement | null>
+}
+
+function DependencyDragLine({
+  sourceBar,
+  sourceEdge,
+  currentX,
+  currentY,
+  hasTarget,
+  containerRef,
+}: DependencyDragLineProps) {
+  if (!sourceBar || !sourceEdge) return null
+
+  // Calculate start point based on source edge
+  const startX = sourceEdge === 'start' ? sourceBar.left : sourceBar.left + sourceBar.width
+  const startY = sourceBar.top + sourceBar.height / 2 + 4 // +4 for the row padding
+
+  // Convert screen coordinates to container-relative coordinates
+  // The SVG is inside the bars container which starts after the header
+  const containerRect = containerRef.current?.getBoundingClientRect()
+  const scrollLeft = containerRef.current?.scrollLeft || 0
+  const scrollTop = containerRef.current?.scrollTop || 0
+
+  // Subtract header height since SVG is positioned inside bars container (after header)
+  const endX = containerRect ? currentX - containerRect.left + scrollLeft : currentX
+  const endY = containerRect ? currentY - containerRect.top + scrollTop - HEADER_HEIGHT : currentY
+
+  // Matching style with DependencyArrowLayer
+  const color = hasTarget ? '#22c55e' : '#6b7280' // green when valid target, gray otherwise
+
+  return (
+    <svg className="absolute inset-0 pointer-events-none z-40" style={{ overflow: 'visible' }}>
+      {/* Simple line - no arrowhead */}
+      <line
+        x1={startX}
+        y1={startY}
+        x2={endX}
+        y2={endY}
+        stroke={color}
+        strokeWidth={1.5}
+        strokeDasharray={hasTarget ? 'none' : '4,4'}
+        strokeLinecap="round"
+      />
+      {/* Start node */}
+      <circle cx={startX} cy={startY} r={3} fill={color} />
+      {/* End node (follows cursor) */}
+      <circle cx={endX} cy={endY} r={hasTarget ? 5 : 3} fill={color} />
+    </svg>
+  )
+}
+
+// ====================================
 // MAIN COMPONENT
 // ====================================
 
@@ -164,7 +225,116 @@ export const GanttTimeline = observer(function GanttTimeline({
     scrollTop,
     showCriticalPath,
     criticalPathIds,
+    selectedDependencyId,
+    dragState,
+    dependencyDragState,
   } = ganttViewStore
+
+  // Dependency arrow handlers
+  const handleSelectDependency = useCallback(
+    (dependencyId: string | null) => {
+      ganttViewStore.selectDependency(dependencyId)
+    },
+    [ganttViewStore],
+  )
+
+  const handleDeleteDependency = useCallback(
+    (dependencyId: string) => {
+      ganttViewStore.deleteDependency(dependencyId)
+    },
+    [ganttViewStore],
+  )
+
+  // Bar drag handlers
+  const handleDragStart = useCallback(
+    (barId: string, mode: DragMode, startX: number) => {
+      ganttViewStore.startDrag(barId, mode, startX)
+    },
+    [ganttViewStore],
+  )
+
+  // Track pointer move and up during bar drag
+  useEffect(() => {
+    if (!dragState.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      ganttViewStore.updateDrag(e.clientX)
+    }
+
+    const handlePointerUp = () => {
+      ganttViewStore.endDrag()
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+    }
+  }, [dragState.isDragging, ganttViewStore])
+
+  // Dependency drag handlers
+  const handleDependencyDragStart = useCallback(
+    (barId: string, edge: DependencyEdge, x: number, y: number) => {
+      ganttViewStore.startDependencyDrag(barId, edge, x, y)
+    },
+    [ganttViewStore],
+  )
+
+  const handleDependencyNodeHover = useCallback(
+    (barId: string, edge: DependencyEdge) => {
+      if (dependencyDragState.isDragging && barId !== dependencyDragState.sourceBarId) {
+        ganttViewStore.updateDependencyDrag(
+          dependencyDragState.currentX,
+          dependencyDragState.currentY,
+          barId,
+          edge,
+        )
+      }
+    },
+    [ganttViewStore, dependencyDragState],
+  )
+
+  const handleDependencyNodeLeave = useCallback(() => {
+    if (dependencyDragState.isDragging) {
+      ganttViewStore.updateDependencyDrag(
+        dependencyDragState.currentX,
+        dependencyDragState.currentY,
+        undefined,
+        undefined,
+      )
+    }
+  }, [ganttViewStore, dependencyDragState])
+
+  // Track pointer move and up during dependency drag
+  useEffect(() => {
+    if (!dependencyDragState.isDragging) return
+
+    const handlePointerMove = (e: PointerEvent) => {
+      ganttViewStore.updateDependencyDrag(e.clientX, e.clientY)
+    }
+
+    const handlePointerUp = () => {
+      ganttViewStore.endDependencyDrag()
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        ganttViewStore.cancelDependencyDrag()
+      }
+    }
+
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', handlePointerUp)
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', handlePointerUp)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [dependencyDragState.isDragging, ganttViewStore])
 
   // Get actual row count from table (matches table view exactly)
   const rowCount = tableCoreStore.processedRows.length
@@ -258,6 +428,9 @@ export const GanttTimeline = observer(function GanttTimeline({
           const row = tableCoreStore.processedRows.find((r) => r.id === bar.rowId)
           const rowData = row?.data || row || {}
           const shape = ganttViewStore.getBarShapeForRow(rowData as Record<string, unknown>)
+          const isDragging = dragState.isDragging && dragState.barId === bar.rowId
+          const isDependencyDragTarget =
+            dependencyDragState.isDragging && dependencyDragState.targetBarId === bar.rowId
 
           return (
             <GanttBar
@@ -266,11 +439,42 @@ export const GanttTimeline = observer(function GanttTimeline({
               onClick={onBarClick}
               isCritical={showCriticalPath && criticalPathIds.has(bar.rowId)}
               shape={shape}
+              isDragging={isDragging}
+              onDragStart={handleDragStart}
+              onDependencyDragStart={handleDependencyDragStart}
+              onDependencyNodeHover={handleDependencyNodeHover}
+              onDependencyNodeLeave={handleDependencyNodeLeave}
+              isDependencyDragTarget={isDependencyDragTarget}
             />
           )
         })}
 
-        {/* Dependency arrows */}
+        {/* Preview bar during drag */}
+        {dragState.isDragging && dragState.previewBar && (
+          <div
+            className="absolute rounded bg-primary/60 border-2 border-dashed border-primary pointer-events-none z-30"
+            style={{
+              left: dragState.previewBar.left,
+              top: dragState.previewBar.top + 4,
+              width: dragState.previewBar.width,
+              height: dragState.previewBar.height,
+            }}
+          />
+        )}
+
+        {/* Dependency drag line */}
+        {dependencyDragState.isDragging && (
+          <DependencyDragLine
+            sourceBar={barPositions.find((b) => b.rowId === dependencyDragState.sourceBarId)}
+            sourceEdge={dependencyDragState.sourceEdge}
+            currentX={dependencyDragState.currentX}
+            currentY={dependencyDragState.currentY}
+            hasTarget={!!dependencyDragState.targetBarId}
+            containerRef={containerRef}
+          />
+        )}
+
+        {/* Dependency lines */}
         {dependencies.length > 0 && (
           <DependencyArrowLayer
             dependencies={dependencies}
@@ -279,6 +483,9 @@ export const GanttTimeline = observer(function GanttTimeline({
             height={totalHeight}
             showCriticalPath={showCriticalPath}
             criticalPathIds={criticalPathIds}
+            selectedDependencyId={selectedDependencyId}
+            onSelectDependency={handleSelectDependency}
+            onDeleteDependency={handleDeleteDependency}
           />
         )}
 
