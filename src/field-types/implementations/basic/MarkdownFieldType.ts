@@ -29,8 +29,9 @@ export class MarkdownRenderer implements CellRenderer {
     const text = String(value)
     const preview = this.createMarkdownPreview(text)
     container.innerHTML = preview
+    // Use line-clamp for proper 2-line truncation with ellipsis
     container.style.cssText =
-      'font-size: 12px; line-height: 1.3; max-height: 60px; overflow: hidden;'
+      'font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;'
 
     return container
   }
@@ -44,7 +45,9 @@ export class MarkdownRenderer implements CellRenderer {
   }
 
   canHandle(column: EnhancedColumn): boolean {
-    return ((column.cellType || column.type) as string) === 'markdown'
+    const type = (column.cellType || column.type) as string
+    // Issue #232: consolidated text field types - textarea/longtext now use this handler
+    return ['markdown', 'richtext', 'rich-text', 'html', 'textarea', 'longtext'].includes(type)
   }
 
   private createMarkdownPreview(markdown: string): string {
@@ -120,4 +123,8 @@ import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
 fieldTypeRegistry.register('markdown', MarkdownFieldType)
 fieldTypeRegistry.register('rich-text', MarkdownFieldType) // With hyphen
-fieldTypeRegistry.register('richtext', MarkdownFieldType) // Without hyphen
+fieldTypeRegistry.register('richtext', MarkdownFieldType) // Without hyphen (canonical)
+fieldTypeRegistry.register('html', MarkdownFieldType) // Raw HTML content
+// Issue #232: Consolidate text field types - textarea/longtext now use richtext
+fieldTypeRegistry.register('textarea', MarkdownFieldType) // deprecated: use richtext
+fieldTypeRegistry.register('longtext', MarkdownFieldType) // deprecated: use richtext

@@ -312,7 +312,7 @@ export class FieldTypeRegistry {
         // Basic types
         import('./implementations/basic/TextFieldType'),
         import('./implementations/basic/EntityNameFieldType'),
-        import('./implementations/basic/TextAreaFieldType'),
+        // TextAreaFieldType removed - consolidated into MarkdownFieldType (Issue #232)
         import('./implementations/basic/NumberFieldType'),
         import('./implementations/basic/DateFieldType'),
         import('./implementations/basic/BooleanFieldType'),
