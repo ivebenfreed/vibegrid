@@ -15,6 +15,7 @@ import { getLogger } from '@/shared/lib/logging'
 import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
 import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
+import { calculateCriticalPath } from '../utils/critical-path'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -110,6 +111,33 @@ export interface GanttDependency {
 
 export type DependencyEdge = 'start' | 'end'
 
+/**
+ * Gantt display configuration from entity schema's business_metadata.gantt
+ */
+export interface GanttMetadata {
+  /** Default bar shape for all entities of this type */
+  barShape?: 'bar' | 'diamond' | 'circle' | 'arrow'
+  /** Field name to determine shape dynamically per entity */
+  barShapeField?: string
+  /** Field name for progress percentage */
+  progressField?: string
+  /** Whether to show progress bar */
+  showProgress?: boolean
+}
+
+// ====================================
+// GANTT SORT & FILTER TYPES
+// ====================================
+
+export type GanttSortField = 'start_date' | 'end_date' | 'duration' | 'name'
+export type GanttSortDirection = 'asc' | 'desc'
+export type GanttQuickFilter = 'all' | 'today' | 'overdue' | 'this_week' | 'has_dependencies'
+
+export interface GanttDateRangeFilter {
+  start: Date | null
+  end: Date | null
+}
+
 export interface DependencyDragState {
   /** Is dependency drag currently active */
   isDragging: boolean
@@ -124,6 +152,10 @@ export interface DependencyDragState {
   targetBarId: string | null
   /** Target edge if hovering over one */
   targetEdge: DependencyEdge | null
+  /** ID of dependency being edited (null = creating new) */
+  editingDependencyId: string | null
+  /** Which end of the dependency is being dragged ('source' or 'target') */
+  editingEnd: 'source' | 'target' | null
 }
 
 // ====================================
@@ -137,7 +169,7 @@ const ZOOM_PIXELS_PER_DAY: Record<ZoomLevel, number> = {
   quarter: 2,
 }
 
-const DEFAULT_ROW_HEIGHT = 36
+const DEFAULT_ROW_HEIGHT = 40 // Must match GRID_DIMENSIONS.ROW_HEIGHT and GanttTimeline ROW_HEIGHT
 
 // ====================================
 // STORE
@@ -203,7 +235,37 @@ export class GanttViewStore implements IStore {
     currentY: 0,
     targetBarId: null,
     targetEdge: null,
+    editingDependencyId: null,
+    editingEnd: null,
   }
+
+  // ====================================
+  // GANTT-SPECIFIC SORT & FILTER STATE
+  // ====================================
+
+  /** Gantt sort field (independent of table sorting) */
+  @observable ganttSortField: GanttSortField = 'start_date'
+
+  /** Gantt sort direction */
+  @observable ganttSortDirection: GanttSortDirection = 'asc'
+
+  /** Active quick filter */
+  @observable activeQuickFilter: GanttQuickFilter = 'all'
+
+  /** Date range filter for Gantt view */
+  @observable dateRangeFilter: GanttDateRangeFilter = {
+    start: null,
+    end: null,
+  }
+
+  /** Whether to show critical path highlighting */
+  @observable showCriticalPath: boolean = false
+
+  /** Set of row IDs on the critical path */
+  @observable criticalPathIds: Set<string> = new Set()
+
+  /** Gantt metadata from entity schema */
+  @observable ganttMetadata: GanttMetadata | null = null
 
   constructor() {
     makeObservable(this)
@@ -439,6 +501,7 @@ export class GanttViewStore implements IStore {
   get barPositions(): BarPosition[] {
     if (!this.tableCoreStore) return []
 
+    // Use table's processed rows - Gantt syncs to table state
     const rows = this.tableCoreStore.processedRows
     const positions: BarPosition[] = []
     const { start: timelineStart } = this.dateRange
@@ -512,7 +575,7 @@ export class GanttViewStore implements IStore {
         left,
         width,
         top: currentTop,
-        height: DEFAULT_ROW_HEIGHT - 8, // Padding
+        height: DEFAULT_ROW_HEIGHT - 8,
         startDate,
         endDate: effectiveEnd,
         label: String(rowData[this.fieldMapping.labelField] || ''),
@@ -544,6 +607,136 @@ export class GanttViewStore implements IStore {
     const { start, end } = this.dateRange
     if (this.today < start || this.today > end) return null
     return this.daysBetween(start, this.today) * this.pixelsPerDay
+  }
+
+  // ====================================
+  // COMPUTED: GANTT SORTED & FILTERED ROWS
+  // ====================================
+
+  /**
+   * Get rows sorted by Gantt-specific sort settings.
+   * This is independent of the table's sort order.
+   */
+  @computed
+  get ganttSortedRows(): any[] {
+    if (!this.tableCoreStore) return []
+
+    const rows = [...this.tableCoreStore.processedRows]
+    const { ganttSortField, ganttSortDirection } = this
+
+    return rows.sort((a, b) => {
+      const aData = a.data || a
+      const bData = b.data || b
+
+      let aValue: any
+      let bValue: any
+
+      switch (ganttSortField) {
+        case 'start_date':
+          aValue = this.parseDate(aData[this.fieldMapping.startField])?.getTime() ?? 0
+          bValue = this.parseDate(bData[this.fieldMapping.startField])?.getTime() ?? 0
+          break
+        case 'end_date':
+          aValue = this.parseDate(aData[this.fieldMapping.endField])?.getTime() ?? 0
+          bValue = this.parseDate(bData[this.fieldMapping.endField])?.getTime() ?? 0
+          break
+        case 'duration': {
+          const aStart = this.parseDate(aData[this.fieldMapping.startField])
+          const aEnd = this.parseDate(aData[this.fieldMapping.endField])
+          const bStart = this.parseDate(bData[this.fieldMapping.startField])
+          const bEnd = this.parseDate(bData[this.fieldMapping.endField])
+          aValue = aStart && aEnd ? this.daysBetween(aStart, aEnd) : 0
+          bValue = bStart && bEnd ? this.daysBetween(bStart, bEnd) : 0
+          break
+        }
+        case 'name':
+          aValue = String(aData[this.fieldMapping.labelField] || '').toLowerCase()
+          bValue = String(bData[this.fieldMapping.labelField] || '').toLowerCase()
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return ganttSortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return ganttSortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+  }
+
+  /**
+   * Get rows filtered by Gantt-specific quick filter and date range.
+   * This builds on ganttSortedRows.
+   */
+  @computed
+  get ganttFilteredRows(): any[] {
+    let rows = this.ganttSortedRows
+
+    // Apply quick filter
+    if (this.activeQuickFilter !== 'all') {
+      rows = rows.filter((row) => this.matchesQuickFilter(row))
+    }
+
+    // Apply date range filter
+    if (this.dateRangeFilter.start || this.dateRangeFilter.end) {
+      rows = rows.filter((row) => this.matchesDateRange(row))
+    }
+
+    return rows
+  }
+
+  /**
+   * Check if a row matches the current quick filter
+   */
+  private matchesQuickFilter(row: any): boolean {
+    const data = row.data || row
+    const startDate = this.parseDate(data[this.fieldMapping.startField])
+    const endDate = this.parseDate(data[this.fieldMapping.endField])
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    switch (this.activeQuickFilter) {
+      case 'today':
+        // Task spans today
+        return startDate !== null && endDate !== null && startDate <= today && endDate >= today
+      case 'overdue':
+        // End date is before today
+        return endDate !== null && endDate < today
+      case 'this_week': {
+        // Task overlaps with this week
+        const weekEnd = new Date(today)
+        weekEnd.setDate(weekEnd.getDate() + 7)
+        return startDate !== null && endDate !== null && startDate <= weekEnd && endDate >= today
+      }
+      case 'has_dependencies':
+        // Row has at least one dependency
+        return this.dependencies.some(
+          (d) => d.sourceEntityId === row.id || d.targetEntityId === row.id,
+        )
+      default:
+        return true
+    }
+  }
+
+  /**
+   * Check if a row matches the date range filter
+   */
+  private matchesDateRange(row: any): boolean {
+    const data = row.data || row
+    const startDate = this.parseDate(data[this.fieldMapping.startField])
+    const endDate = this.parseDate(data[this.fieldMapping.endField])
+
+    // Row must have dates to be filtered
+    if (!startDate || !endDate) return false
+
+    const { start: filterStart, end: filterEnd } = this.dateRangeFilter
+
+    // If filter start is set, task must end on or after it
+    if (filterStart && endDate < filterStart) return false
+
+    // If filter end is set, task must start on or before it
+    if (filterEnd && startDate > filterEnd) return false
+
+    return true
   }
 
   // ====================================
@@ -618,6 +811,106 @@ export class GanttViewStore implements IStore {
       // Center today in viewport (assuming ~600px viewport)
       this.scrollLeft = Math.max(0, this.todayLinePosition - 300)
     }
+  }
+
+  // ====================================
+  // GANTT SORT & FILTER ACTIONS
+  // ====================================
+
+  /**
+   * Set Gantt sort field and direction
+   * @param field - The field to sort by
+   * @param direction - Sort direction (optional, defaults to 'asc')
+   */
+  @action
+  setGanttSort(field: GanttSortField, direction?: GanttSortDirection): void {
+    this.ganttSortField = field
+    this.ganttSortDirection = direction ?? 'asc'
+    logger.info('Gantt sort updated', { field, direction: this.ganttSortDirection })
+  }
+
+  /**
+   * Set the active quick filter
+   */
+  @action
+  setQuickFilter(filter: GanttQuickFilter): void {
+    this.activeQuickFilter = filter
+    logger.info('Gantt quick filter updated', { filter })
+  }
+
+  /**
+   * Set the date range filter
+   */
+  @action
+  setDateRangeFilter(start: Date | null, end: Date | null): void {
+    this.dateRangeFilter = { start, end }
+    logger.info('Gantt date range filter updated', {
+      start: start?.toISOString() ?? null,
+      end: end?.toISOString() ?? null,
+    })
+  }
+
+  /**
+   * Clear all Gantt filters (reset to defaults)
+   */
+  @action
+  clearFilters(): void {
+    this.activeQuickFilter = 'all'
+    this.dateRangeFilter = { start: null, end: null }
+    logger.info('Gantt filters cleared')
+  }
+
+  /**
+   * Toggle critical path highlighting
+   */
+  @action
+  toggleCriticalPath(): void {
+    this.showCriticalPath = !this.showCriticalPath
+    if (this.showCriticalPath) {
+      // Calculate critical path using forward/backward pass algorithm
+      const criticalIds = calculateCriticalPath(this.barPositions, this.dependencies)
+      this.criticalPathIds = new Set(criticalIds)
+      logger.info('Critical path calculated', { count: criticalIds.length })
+    } else {
+      this.criticalPathIds.clear()
+      logger.info('Critical path disabled')
+    }
+  }
+
+  /**
+   * Set Gantt metadata from entity schema's business_metadata
+   */
+  @action
+  setGanttMetadata(metadata: GanttMetadata | null): void {
+    this.ganttMetadata = metadata
+    logger.info('Gantt metadata updated', { metadata })
+  }
+
+  /**
+   * Get the bar shape for a specific row
+   * Checks: 1) dynamic field value, 2) static config, 3) default 'rectangle'
+   */
+  getBarShapeForRow(rowData: Record<string, unknown>): 'rectangle' | 'diamond' | 'circle' {
+    if (!this.ganttMetadata) return 'rectangle'
+
+    // Check dynamic field first
+    if (this.ganttMetadata.barShapeField) {
+      const fieldValue = rowData[this.ganttMetadata.barShapeField]
+      if (typeof fieldValue === 'string') {
+        const shape = fieldValue.toLowerCase()
+        if (shape === 'diamond' || shape === 'milestone') return 'diamond'
+        if (shape === 'circle' || shape === 'event') return 'circle'
+      }
+    }
+
+    // Fall back to static config
+    if (this.ganttMetadata.barShape) {
+      const shape = this.ganttMetadata.barShape
+      if (shape === 'diamond') return 'diamond'
+      if (shape === 'circle') return 'circle'
+    }
+
+    return 'rectangle'
   }
 
   // ====================================
@@ -864,8 +1157,44 @@ export class GanttViewStore implements IStore {
       currentY: y,
       targetBarId: null,
       targetEdge: null,
+      editingDependencyId: null,
+      editingEnd: null,
     }
     logger.debug('Dependency drag started', { barId, edge, x, y })
+  }
+
+  /**
+   * Start editing an existing dependency by dragging one of its endpoints
+   * @param dependencyId - The dependency being edited
+   * @param editEnd - Which end is being dragged ('source' = arrow start, 'target' = arrow end)
+   * @param anchorBarId - The bar that stays fixed (the other end of the dependency)
+   * @param x - Starting X position
+   * @param y - Starting Y position
+   */
+  @action
+  startDependencyEdit(
+    dependencyId: string,
+    editEnd: 'source' | 'target',
+    anchorBarId: string,
+    x: number,
+    y: number,
+  ): void {
+    // When editing source, the anchor is the target (arrow points TO it)
+    // When editing target, the anchor is the source (arrow comes FROM it)
+    const anchorEdge: DependencyEdge = editEnd === 'source' ? 'start' : 'end'
+
+    this.dependencyDragState = {
+      isDragging: true,
+      sourceBarId: anchorBarId,
+      sourceEdge: anchorEdge,
+      currentX: x,
+      currentY: y,
+      targetBarId: null,
+      targetEdge: null,
+      editingDependencyId: dependencyId,
+      editingEnd: editEnd,
+    }
+    logger.debug('Dependency edit started', { dependencyId, editEnd, anchorBarId, x, y })
   }
 
   /**
@@ -887,16 +1216,23 @@ export class GanttViewStore implements IStore {
   }
 
   /**
-   * End dependency drag and create the dependency if valid
+   * End dependency drag and create/update the dependency if valid
    */
   @action
   async endDependencyDrag(): Promise<void> {
-    const { sourceBarId, sourceEdge, targetBarId, targetEdge } = this.dependencyDragState
+    const { sourceBarId, sourceEdge, targetBarId, targetEdge, editingDependencyId, editingEnd } =
+      this.dependencyDragState
 
     // Validate we have a valid connection
     if (!sourceBarId || !targetBarId || sourceBarId === targetBarId) {
       logger.debug('Dependency drag ended without valid target', { sourceBarId, targetBarId })
       this.cancelDependencyDrag()
+      return
+    }
+
+    // Handle editing existing dependency
+    if (editingDependencyId && editingEnd) {
+      await this.updateDependencyConnection(editingDependencyId, editingEnd, targetBarId)
       return
     }
 
@@ -1002,8 +1338,96 @@ export class GanttViewStore implements IStore {
       currentY: 0,
       targetBarId: null,
       targetEdge: null,
+      editingDependencyId: null,
+      editingEnd: null,
     }
     logger.debug('Dependency drag cancelled')
+  }
+
+  /**
+   * Update an existing dependency connection (reassign source or target)
+   * @param dependencyId - The dependency being updated
+   * @param editEnd - Which end was dragged ('source' or 'target')
+   * @param newBarId - The new bar to connect to
+   */
+  @action
+  async updateDependencyConnection(
+    dependencyId: string,
+    editEnd: 'source' | 'target',
+    newBarId: string,
+  ): Promise<void> {
+    const existingDep = this.dependencies.find((d) => d.id === dependencyId)
+    if (!existingDep) {
+      logger.warn('Cannot update dependency - not found', { dependencyId })
+      this.cancelDependencyDrag()
+      return
+    }
+
+    // Determine new source/target based on which end was dragged
+    // In our data model: sourceEntityId = successor (waits), targetEntityId = predecessor (must finish first)
+    let newSourceEntityId: string
+    let newTargetEntityId: string
+
+    if (editEnd === 'source') {
+      // Dragging the arrow tail (source = successor)
+      newSourceEntityId = newBarId
+      newTargetEntityId = existingDep.targetEntityId
+    } else {
+      // Dragging the arrow head (target = predecessor)
+      newSourceEntityId = existingDep.sourceEntityId
+      newTargetEntityId = newBarId
+    }
+
+    // Prevent self-referencing dependency
+    if (newSourceEntityId === newTargetEntityId) {
+      logger.debug('Cannot create self-referencing dependency')
+      this.cancelDependencyDrag()
+      return
+    }
+
+    logger.info('Updating dependency connection', {
+      dependencyId,
+      editEnd,
+      oldSource: existingDep.sourceEntityId,
+      oldTarget: existingDep.targetEntityId,
+      newSource: newSourceEntityId,
+      newTarget: newTargetEntityId,
+    })
+
+    // Store original for rollback
+    const originalDeps = [...this.dependencies]
+
+    // Optimistic update
+    this.dependencies = this.dependencies.map((d) =>
+      d.id === dependencyId
+        ? { ...d, sourceEntityId: newSourceEntityId, targetEntityId: newTargetEntityId }
+        : d,
+    )
+
+    // Clear drag state
+    this.cancelDependencyDrag()
+
+    // Persist via collection
+    if (this.dependencyCollection) {
+      try {
+        const tx = this.dependencyCollection.update(dependencyId, (draft: any) => {
+          draft.sourceEntityId = newSourceEntityId
+          draft.targetEntityId = newTargetEntityId
+        })
+        await tx.isPersisted.promise
+        logger.info('Dependency connection updated successfully', { dependencyId })
+      } catch (error: any) {
+        logger.error('Dependency update failed, rolling back', {
+          error: error?.message || 'Unknown error',
+        })
+        // Rollback on error
+        runInAction(() => {
+          this.dependencies = originalDeps
+        })
+      }
+    } else {
+      logger.warn('No dependency collection available - update not persisted')
+    }
   }
 
   /**
@@ -1150,6 +1574,14 @@ export class GanttViewStore implements IStore {
     this.today = new Date()
     this.cancelDrag()
     this.cancelDependencyDrag()
+    // Reset Gantt sort/filter state
+    this.ganttSortField = 'start_date'
+    this.ganttSortDirection = 'asc'
+    this.activeQuickFilter = 'all'
+    this.dateRangeFilter = { start: null, end: null }
+    this.showCriticalPath = false
+    this.criticalPathIds.clear()
+    this.ganttMetadata = null
   }
 
   dispose(): void {

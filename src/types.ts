@@ -355,6 +355,12 @@ export interface GroupAggregation {
   displayValue: string
 }
 
+/**
+ * Resolves entity names for relationship fields in group headers.
+ * Returns the display name for an entity, or null if not found/loaded.
+ */
+export type RelationshipNameResolver = (targetEntityType: string, entityId: string) => string | null
+
 // Group configuration for multi-level grouping
 export interface GroupConfig {
   fields: GroupField[] // Multiple grouping fields
@@ -363,6 +369,8 @@ export interface GroupConfig {
   aggregations: AggregationConfig[]
   expandedGroups: Set<string> // Which groups are expanded
   colorScheme?: 'auto' | 'none' | 'custom'
+  /** Optional resolver for relationship field display names */
+  relationshipNameResolver?: RelationshipNameResolver
 }
 
 export interface GroupField {

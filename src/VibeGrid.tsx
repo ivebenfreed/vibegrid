@@ -23,9 +23,11 @@ import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
 import { GanttTimeline } from './components/GanttTimeline'
+import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
+import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
 
@@ -94,7 +96,11 @@ interface VibeGridProps<T = any> {
   enableSorting?: boolean
   enableDragAndDrop?: boolean
   enableSelectionColumn?: boolean
-  enableGantt?: boolean
+  enableHierarchy?: boolean
+
+  // Gantt view (props-based, no MobX toggle)
+  viewMode?: 'table' | 'gantt'
+  onViewModeChange?: (mode: 'table' | 'gantt') => void
 }
 
 // ====================================
@@ -128,7 +134,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableFiltering = true,
     enableSorting = true,
     enableDragAndDrop = true,
-    enableGantt = false,
+    enableHierarchy = false,
+    viewMode = 'table',
+    onViewModeChange,
   } = props
 
   // ====================================
@@ -144,14 +152,15 @@ function VibeGridInnerBase(props: VibeGridProps) {
     initStore,
     viewModeStore,
     ganttViewStore,
+    hierarchyStore,
     debugStore,
   } = stores
 
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
   // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
 
-  // Read observables at top level to ensure MobX tracking
-  const isGanttMode = enableGantt && viewModeStore.isGanttMode
+  // Props-based view mode (no MobX toggle)
+  const isGanttMode = viewMode === 'gantt'
   const cutoffWidth = viewModeStore.cutoffWidth
 
   // ====================================
@@ -169,6 +178,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
     deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore)
 
+  // Load hierarchy relationships when hierarchy mode is enabled
+  useVibeGridHierarchy({
+    entityType,
+    hierarchyStore,
+    tableCoreStore,
+  })
+
   // Fetch organization members for UserReference fields (automatic org context)
   const {
     data: members = [],
@@ -176,8 +192,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     status: membersStatus,
   } = useLiveQuery((q) => q.from({ members: membersCollection }))
 
-  // Get dependency collection for Gantt (only when enableGantt is true)
-  const dependencyCollection = useDependencyCollection(enableGantt ? entityType : '')
+  // Get dependency collection for Gantt (only when in gantt mode)
+  const dependencyCollection = useDependencyCollection(isGanttMode ? entityType : '')
 
   // Fetch dependencies reactively using TanStack DB live query
   const { data: rawDependencies = [] } = useLiveQuery(
@@ -190,7 +206,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Sync dependencies to GanttViewStore for arrow rendering
   useEffect(() => {
-    if (!ganttViewStore || !enableGantt) return
+    if (!ganttViewStore || !isGanttMode) return
 
     // Convert raw dependencies to GanttDependency format
     const ganttDeps = rawDependencies.map((dep: any) => ({
@@ -205,7 +221,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       count: ganttDeps.length,
       entityType,
     })
-  }, [rawDependencies, ganttViewStore, enableGantt, entityType])
+  }, [rawDependencies, ganttViewStore, isGanttMode, entityType])
 
   // Log members query status
   useEffect(() => {
@@ -305,14 +321,14 @@ function VibeGridInnerBase(props: VibeGridProps) {
     logger.info('Setting TanStack DB dependency collection on GanttViewStore', {
       hasDependencyCollection: !!dependencyCollection,
       entityType,
-      enableGantt,
+      isGanttMode,
     })
     ganttViewStore.setDependencyCollection(dependencyCollection)
-  }, [dependencyCollection, ganttViewStore, entityType, enableGantt])
+  }, [dependencyCollection, ganttViewStore, entityType, isGanttMode])
 
   // Auto-detect status and progress fields for Gantt bar coloring
   useEffect(() => {
-    if (!ganttViewStore || !enableGantt || !tableCoreStore) return
+    if (!ganttViewStore || !isGanttMode || !tableCoreStore) return
 
     const columns = tableCoreStore.columns
     if (!columns || columns.length === 0) return
@@ -368,7 +384,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       logger.info('Auto-detected Gantt field mappings', updates)
       ganttViewStore.setFieldMapping(updates)
     }
-  }, [ganttViewStore, enableGantt, tableCoreStore, tableCoreStore?.columns])
+  }, [ganttViewStore, isGanttMode, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
   // INITIALIZATION
@@ -633,12 +649,17 @@ function VibeGridInnerBase(props: VibeGridProps) {
         <VibeGridXHeaderPure
           stores={stores}
           enableGrouping={enableGrouping}
-          enableGantt={enableGantt}
+          viewMode={viewMode}
+          onViewModeChange={onViewModeChange}
+          enableHierarchy={enableHierarchy}
           entityName={entityType}
           orgId={orgId}
           createEntity={createEntity}
         />
       )}
+
+      {/* Gantt toolbar - spans full width above split pane */}
+      {isGanttMode && <GanttToolbar />}
 
       {/* Main content area - Table or Split Pane (Gantt) */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
@@ -666,7 +687,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
               onReset={handleCutoffReset}
             />
             {/* Right pane: Timeline */}
-            <div className="flex-1 h-full overflow-auto min-w-0">
+            <div className="flex-1 h-full min-w-0 overflow-auto">
               <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
             </div>
           </>

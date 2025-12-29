@@ -110,6 +110,7 @@ export class SimplePassiveRenderer {
   private editingStore: EditingStore
   private initStore: InitStore
   private debugStore: DebugStore
+  private hierarchyStore: import('../../stores/HierarchyStore').HierarchyStore
   private entityType: string
 
   // Basic row management
@@ -223,6 +224,7 @@ export class SimplePassiveRenderer {
     this.editingStore = options.stores.editingStore
     this.initStore = options.stores.initStore
     this.debugStore = options.stores.debugStore
+    this.hierarchyStore = options.stores.hierarchyStore
     this.entityType = options.entityType
 
     fileLog.debug('✅ MobX stores assigned', {
@@ -373,6 +375,7 @@ export class SimplePassiveRenderer {
       tableCoreStore: this.tableCoreStore,
       visualStateStore: this.visualStateStore,
       interactionStore: this.interactionStore,
+      hierarchyStore: this.hierarchyStore,
       domFactory: this.domFactory!,
       selectionController: this.selectionController!,
       keyboardNavController: this.keyboardNavController!,
@@ -1646,9 +1649,9 @@ export class SimplePassiveRenderer {
     this.container.innerHTML = ''
 
     // Create basic table structure
+    // Note: width is controlled by React inline styles for Gantt mode support
     this.container.style.position = 'relative'
     this.container.style.overflow = 'hidden'
-    this.container.style.width = '100%'
     this.container.style.height = '100%'
 
     // Create main table container

@@ -5,7 +5,7 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { GanttChart, LayoutList } from 'lucide-react'
+import { GanttChart, LayoutList, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
@@ -21,7 +21,9 @@ const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
   enableGrouping?: boolean
-  enableGantt?: boolean
+  viewMode?: 'table' | 'gantt'
+  onViewModeChange?: (mode: 'table' | 'gantt') => void
+  enableHierarchy?: boolean
   className?: string
   entityName?: string
   orgId?: string
@@ -31,13 +33,15 @@ interface VibeGridXHeaderPureProps {
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   stores,
   enableGrouping = false,
-  enableGantt = false,
+  viewMode = 'table',
+  onViewModeChange,
+  enableHierarchy = false,
   className = '',
   entityName,
   orgId,
   createEntity,
 }: VibeGridXHeaderPureProps) {
-  const { visualStateStore, viewModeStore } = stores
+  const { visualStateStore, hierarchyStore } = stores
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -52,8 +56,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       columnCount: visualStateStore.columns.length,
       hiddenColumnCount,
       enableGrouping,
-      enableGantt,
-      viewMode: viewModeStore.mode,
+      viewMode,
       entityName,
       hasOrgId: !!orgId,
       hasCreateEntity: !!createEntity,
@@ -80,23 +83,23 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       }}
     >
       <div className="flex items-center gap-2">
-        {/* View Mode Toggle - only show if gantt is enabled */}
-        {enableGantt ? (
+        {/* View Mode Toggle - only show if callback provided */}
+        {onViewModeChange ? (
           <ButtonGroup>
             <Button
-              variant={viewModeStore.isTableMode ? 'default' : 'outline'}
+              variant={viewMode === 'table' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => viewModeStore.setMode('table')}
-              aria-pressed={viewModeStore.isTableMode}
+              onClick={() => onViewModeChange('table')}
+              aria-pressed={viewMode === 'table'}
             >
               <LayoutList className="size-4" />
               Table
             </Button>
             <Button
-              variant={viewModeStore.isGanttMode ? 'default' : 'outline'}
+              variant={viewMode === 'gantt' ? 'default' : 'outline'}
               size="sm"
-              onClick={() => viewModeStore.setMode('gantt')}
-              aria-pressed={viewModeStore.isGanttMode}
+              onClick={() => onViewModeChange('gantt')}
+              aria-pressed={viewMode === 'gantt'}
             >
               <GanttChart className="size-4" />
               Gantt
@@ -105,6 +108,29 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         ) : (
           <span className="text-sm font-medium">Table View</span>
         )}
+
+        {/* Hierarchy Toggle */}
+        {enableHierarchy && (
+          <Button
+            variant={hierarchyStore.isHierarchyActive ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              if (hierarchyStore.isHierarchyActive) {
+                hierarchyStore.setHierarchyMode('none')
+              } else {
+                hierarchyStore.setHierarchyMode('self-ref')
+              }
+            }}
+            aria-pressed={hierarchyStore.isHierarchyActive}
+            title={
+              hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'
+            }
+          >
+            <Network className="size-4 mr-1" />
+            Hierarchy
+          </Button>
+        )}
+
         {hiddenColumnCount > 0 && (
           <span className="text-xs text-muted-foreground">
             ({hiddenColumnCount} columns hidden)
