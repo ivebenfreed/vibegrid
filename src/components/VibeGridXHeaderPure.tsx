@@ -5,13 +5,14 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { GanttChart, LayoutList, Network } from 'lucide-react'
+import { GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { ButtonGroup } from '@/shared/components/ui/button-group'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
+import type { ViewMode } from '../stores/ViewModeStore'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
 import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
@@ -21,8 +22,9 @@ const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
   enableGrouping?: boolean
-  viewMode?: 'table' | 'gantt'
-  onViewModeChange?: (mode: 'table' | 'gantt') => void
+  viewMode?: ViewMode
+  onViewModeChange?: (mode: ViewMode) => void
+  enableKanban?: boolean
   enableHierarchy?: boolean
   className?: string
   entityName?: string
@@ -35,6 +37,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableGrouping = false,
   viewMode = 'table',
   onViewModeChange,
+  enableKanban = false,
   enableHierarchy = false,
   className = '',
   entityName,
@@ -104,6 +107,17 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               <GanttChart className="size-4" />
               Gantt
             </Button>
+            {enableKanban && (
+              <Button
+                variant={viewMode === 'kanban' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onViewModeChange('kanban')}
+                aria-pressed={viewMode === 'kanban'}
+              >
+                <Kanban className="size-4" />
+                Kanban
+              </Button>
+            )}
           </ButtonGroup>
         ) : (
           <span className="text-sm font-medium">Table View</span>

@@ -7,6 +7,7 @@ import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
+import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
 
 export const Route = createFileRoute('/_authenticated/debug/gantt')({
   component: DebugGanttPage,
@@ -14,7 +15,7 @@ export const Route = createFileRoute('/_authenticated/debug/gantt')({
 
 function DebugGanttPage() {
   const [entityType] = useState('GanttDemo')
-  const [viewMode, setViewMode] = useState<'table' | 'gantt'>('gantt')
+  const [viewMode, setViewMode] = useState<ViewMode>('gantt')
 
   console.log('[DEBUG] DebugGanttPage render, viewMode:', viewMode)
 

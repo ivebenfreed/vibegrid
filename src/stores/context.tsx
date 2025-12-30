@@ -17,6 +17,7 @@ import { GanttViewStore } from './GanttViewStore'
 import { HierarchyStore } from './HierarchyStore'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
+import { KanbanViewStore } from './KanbanViewStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
 import { ViewModeStore } from './ViewModeStore'
@@ -39,6 +40,7 @@ export interface VibeGridStores {
   virtualViewportStore: VirtualViewportStore
   viewModeStore: ViewModeStore
   ganttViewStore: GanttViewStore
+  kanbanViewStore: KanbanViewStore
   hierarchyStore: HierarchyStore
   coordinateManager: ObservableCoordinateManager
   debugStore: DebugStore
@@ -104,6 +106,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const virtualViewportStore = new VirtualViewportStore()
     const viewModeStore = new ViewModeStore()
     const ganttViewStore = new GanttViewStore()
+    const kanbanViewStore = new KanbanViewStore()
     const hierarchyStore = new HierarchyStore()
     const debugStore = new DebugStore()
 
@@ -162,6 +165,9 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     // ViewModeStore needs GanttViewStore for auto-sort on Gantt activation
     viewModeStore.setGanttViewStore(ganttViewStore)
 
+    // KanbanViewStore needs TableCoreStore for row data
+    kanbanViewStore.setTableCoreStore(tableCoreStore)
+
     // Initialize synchronously
     initStore.init().catch((error) => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -188,6 +194,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       virtualViewportStore,
       viewModeStore,
       ganttViewStore,
+      kanbanViewStore,
       hierarchyStore,
       coordinateManager,
       debugStore,
@@ -211,6 +218,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.initStore.dispose()
       stores.viewModeStore.dispose()
       stores.ganttViewStore.dispose()
+      stores.kanbanViewStore.dispose()
       stores.hierarchyStore.dispose()
       stores.debugStore.dispose()
     }
@@ -287,6 +295,10 @@ export function useViewModeStore(): ViewModeStore {
 
 export function useGanttViewStore(): GanttViewStore {
   return useVibeGridStores().ganttViewStore
+}
+
+export function useKanbanViewStore(): KanbanViewStore {
+  return useVibeGridStores().kanbanViewStore
 }
 
 export function useDebugStore(): DebugStore {

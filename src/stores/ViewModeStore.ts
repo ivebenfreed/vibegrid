@@ -16,7 +16,7 @@ const logger = getLogger(['vibegrid', 'stores', 'ViewModeStore'])
 // TYPES
 // ====================================
 
-export type ViewMode = 'table' | 'gantt'
+export type ViewMode = 'table' | 'gantt' | 'kanban'
 
 // ====================================
 // STORE
@@ -101,6 +101,14 @@ export class ViewModeStore implements IStore {
   @computed
   get isTableMode(): boolean {
     return this.mode === 'table'
+  }
+
+  /**
+   * Is currently in kanban mode?
+   */
+  @computed
+  get isKanbanMode(): boolean {
+    return this.mode === 'kanban'
   }
 
   // ====================================

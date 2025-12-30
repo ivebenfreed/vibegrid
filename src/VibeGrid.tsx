@@ -24,12 +24,14 @@ import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
 import { GanttTimeline } from './components/GanttTimeline'
 import { GanttToolbar } from './components/GanttToolbar'
+import { KanbanBoard } from './components/kanban'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
+import type { ViewMode } from './stores/ViewModeStore'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -98,9 +100,10 @@ interface VibeGridProps<T = any> {
   enableSelectionColumn?: boolean
   enableHierarchy?: boolean
 
-  // Gantt view (props-based, no MobX toggle)
-  viewMode?: 'table' | 'gantt'
-  onViewModeChange?: (mode: 'table' | 'gantt') => void
+  // View mode (props-based, no MobX toggle)
+  viewMode?: ViewMode
+  onViewModeChange?: (mode: ViewMode) => void
+  enableKanban?: boolean
 }
 
 // ====================================
@@ -137,6 +140,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableHierarchy = false,
     viewMode = 'table',
     onViewModeChange,
+    enableKanban = false,
   } = props
 
   // ====================================
@@ -152,6 +156,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     initStore,
     viewModeStore,
     ganttViewStore,
+    kanbanViewStore,
     hierarchyStore,
     debugStore,
   } = stores
@@ -161,6 +166,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Props-based view mode (no MobX toggle)
   const isGanttMode = viewMode === 'gantt'
+  const isKanbanMode = viewMode === 'kanban'
+  const isTableMode = viewMode === 'table'
   const cutoffWidth = viewModeStore.cutoffWidth
 
   // ====================================
@@ -315,6 +322,16 @@ function VibeGridInnerBase(props: VibeGridProps) {
     ganttViewStore.setCollection(collection)
   }, [collection, ganttViewStore, entityType])
 
+  // Set TanStack DB collection on KanbanViewStore for card drag persistence
+  useEffect(() => {
+    if (!kanbanViewStore || !collection) return
+    logger.info('Setting TanStack DB collection on KanbanViewStore', {
+      hasCollection: !!collection,
+      entityType,
+    })
+    kanbanViewStore.setCollection(collection)
+  }, [collection, kanbanViewStore, entityType])
+
   // Set TanStack DB dependency collection on GanttViewStore for optimistic updates
   useEffect(() => {
     if (!ganttViewStore) return
@@ -385,6 +402,44 @@ function VibeGridInnerBase(props: VibeGridProps) {
       ganttViewStore.setFieldMapping(updates)
     }
   }, [ganttViewStore, isGanttMode, tableCoreStore, tableCoreStore?.columns])
+
+  // Auto-detect status field and colors for Kanban view
+  useEffect(() => {
+    if (!kanbanViewStore || !isKanbanMode || !tableCoreStore) return
+
+    const columns = tableCoreStore.columns
+    if (!columns || columns.length === 0) return
+
+    // Find status field (look for 'status' in name or type)
+    const statusCol = columns.find((col: any) => {
+      const id = col.id?.toLowerCase() || ''
+      const name = (col.name || '').toLowerCase()
+      const type = (col.type || col.cellType || '').toLowerCase()
+      return id === 'status' || name === 'status' || type === 'status' || type === 'status_set'
+    })
+
+    if (statusCol) {
+      // Set the group by field
+      kanbanViewStore.setGroupByField(statusCol.id)
+
+      // Extract status color options from column editor metadata
+      const editorOptions = (statusCol as any).editor?.options || []
+      if (editorOptions.length > 0) {
+        const colorOptions = editorOptions
+          .filter((opt: any) => opt.value && opt.backgroundColor)
+          .map((opt: any) => ({
+            value: opt.value,
+            label: opt.label || opt.value,
+            color: opt.color || '#000000',
+            backgroundColor: opt.backgroundColor,
+          }))
+        if (colorOptions.length > 0) {
+          kanbanViewStore.setStatusColorMap(colorOptions)
+          logger.info('Set Kanban status color map from schema', { count: colorOptions.length })
+        }
+      }
+    }
+  }, [kanbanViewStore, isKanbanMode, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
   // INITIALIZATION
@@ -651,6 +706,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           enableGrouping={enableGrouping}
           viewMode={viewMode}
           onViewModeChange={onViewModeChange}
+          enableKanban={enableKanban}
           enableHierarchy={enableHierarchy}
           entityName={entityType}
           orgId={orgId}
@@ -661,20 +717,23 @@ function VibeGridInnerBase(props: VibeGridProps) {
       {/* Gantt toolbar - spans full width above split pane */}
       {isGanttMode && <GanttToolbar />}
 
-      {/* Main content area - Table or Split Pane (Gantt) */}
+      {/* Main content area - Table, Split Pane (Gantt), or Kanban */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
       <div className="flex-1 flex flex-row overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Table container - always rendered to maintain renderer attachment */}
+        {/* Table container - ALWAYS rendered to maintain renderer attachment */}
+        {/* Hidden when in Kanban mode, but kept in DOM to preserve renderer state */}
         <div
           ref={containerRef}
           className="vibegrid-pure-renderer h-full overflow-auto"
           data-testid={`vibegrid-pure-renderer-${tableId}`}
           data-vibegrid-container="true"
           style={{
-            width: isGanttMode ? cutoffWidth : '100%',
+            width: isKanbanMode ? 0 : isGanttMode ? cutoffWidth : '100%',
             flexShrink: 0,
             position: 'relative',
             outline: 'none',
+            overflow: isKanbanMode ? 'hidden' : 'auto',
+            visibility: isKanbanMode ? 'hidden' : 'visible',
           }}
         />
 
@@ -693,8 +752,20 @@ function VibeGridInnerBase(props: VibeGridProps) {
           </>
         )}
 
-        {/* Actions bar - appears when rows are selected */}
-        {enableSelectionColumn && (rowActions || enableDelete) && (
+        {/* Kanban Mode: Full-width Kanban board */}
+        {isKanbanMode && (
+          <KanbanBoard
+            className="flex-1"
+            enableDragAndDrop={enableDragAndDrop}
+            onCardClick={(cardId) => {
+              logger.info('Kanban card clicked', { cardId })
+              // Could open detail view or trigger selection
+            }}
+          />
+        )}
+
+        {/* Actions bar - appears when rows are selected (not in Kanban mode) */}
+        {!isKanbanMode && enableSelectionColumn && (rowActions || enableDelete) && (
           <ActionsBar
             rowActions={rowActions}
             onRowAction={onRowAction}
