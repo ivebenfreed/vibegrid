@@ -80,6 +80,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   return (
     <div
       className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}
+      data-testid="vibegrid-header"
       style={{
         minHeight: '44px',
         flexShrink: 0,
@@ -94,6 +95,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               size="sm"
               onClick={() => onViewModeChange('table')}
               aria-pressed={viewMode === 'table'}
+              data-testid="view-mode-table"
             >
               <LayoutList className="size-4" />
               Table
@@ -103,6 +105,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               size="sm"
               onClick={() => onViewModeChange('gantt')}
               aria-pressed={viewMode === 'gantt'}
+              data-testid="view-mode-gantt"
             >
               <GanttChart className="size-4" />
               Gantt
@@ -113,6 +116,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
                 size="sm"
                 onClick={() => onViewModeChange('kanban')}
                 aria-pressed={viewMode === 'kanban'}
+                data-testid="view-mode-kanban"
               >
                 <Kanban className="size-4" />
                 Kanban
@@ -139,6 +143,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
             title={
               hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'
             }
+            data-testid="toggle-hierarchy"
           >
             <Network className="size-4 mr-1" />
             Hierarchy

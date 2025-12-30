@@ -1,12 +1,24 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { observer } from 'mobx-react-lite'
 import { VibeGrid } from '@/systems/vibegrid'
-import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
+import {
+  VibeGridStoreProvider,
+  useTableCoreStore,
+  useInitStore,
+} from '@/systems/vibegrid/stores/context'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { ProfileDropdown } from '@/shared/components/profile-dropdown'
+import { DataControls } from './_components/DataControls'
+import {
+  createSmallScenario,
+  getScenarioById,
+  type TestScenario,
+} from './_mock-data/scenarios'
+import { generateMockTask, type MockTask } from './_mock-data/generators'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
   component: DebugVibeGridPage,
@@ -14,11 +26,49 @@ export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
 
 function DebugVibeGridPage() {
   const [entityType] = useState('WorkTask')
-  const [_stats, setStats] = useState({
-    renders: 0,
-    selections: 0,
-    edits: 0,
-  })
+  const [useMockData, setUseMockData] = useState(false)
+  const [scenario, setScenario] = useState<TestScenario | null>(null)
+  const [mockTasks, setMockTasks] = useState<MockTask[]>([])
+
+  // Initialize with small scenario
+  useEffect(() => {
+    if (useMockData && !scenario) {
+      const initialScenario = createSmallScenario()
+      setScenario(initialScenario)
+      setMockTasks(initialScenario.tasks)
+    }
+  }, [useMockData, scenario])
+
+  const handleToggleMockData = useCallback((useMock: boolean) => {
+    setUseMockData(useMock)
+    if (useMock && !scenario) {
+      const initialScenario = createSmallScenario()
+      setScenario(initialScenario)
+      setMockTasks(initialScenario.tasks)
+    }
+  }, [scenario])
+
+  const handleScenarioChange = useCallback((newScenario: TestScenario) => {
+    setScenario(newScenario)
+    setMockTasks(newScenario.tasks)
+  }, [])
+
+  const handleAddRow = useCallback((task: MockTask) => {
+    setMockTasks((prev) => [...prev, task])
+  }, [])
+
+  const handleRemoveLastRow = useCallback(() => {
+    setMockTasks((prev) => prev.slice(0, -1))
+  }, [])
+
+  const handleRefreshData = useCallback(() => {
+    if (scenario) {
+      const refreshed = getScenarioById(scenario.id)
+      if (refreshed) {
+        setMockTasks(refreshed.tasks)
+      }
+    }
+  }, [scenario])
 
   return (
     <>
@@ -32,34 +82,57 @@ function DebugVibeGridPage() {
       <Main fluid>
         <div className="flex flex-col h-full w-full">
           <div className="pb-4">
-            <h2 className="text-2xl font-bold tracking-tight">VibeGrid POC</h2>
+            <h2 className="text-2xl font-bold tracking-tight">VibeGrid Testing</h2>
             <p className="text-muted-foreground">
-              Test VibeGrid with new MobX stores + TanStack DB architecture - {entityType}
+              {useMockData
+                ? 'Mock data mode - no database connection required'
+                : `Live data mode - ${entityType}`}
             </p>
           </div>
 
-          <div className="flex-1 w-full">
-            <VibeGridStoreProvider tableId="debug-grid-1" entityType={entityType}>
-              <VibeGrid
-                tableId="debug-grid-1"
-                entityType={entityType}
-                height={600}
-                enableSelectionColumn={true}
-                enableGrouping={true}
-                enableFiltering={true}
-                enableSorting={true}
-                onSelectionChange={(selections) => {
-                  setStats((s) => ({ ...s, selections: selections.size }))
-                }}
-                onEditingChange={(editing) => {
-                  if (editing) {
-                    setStats((s) => ({ ...s, edits: s.edits + 1 }))
-                  }
-                }}
-                onPerformanceUpdate={(_metrics) => {
-                  setStats((s) => ({ ...s, renders: s.renders + 1 }))
-                }}
-              />
+          {/* Data Controls */}
+          <div className="pb-4">
+            <DataControls
+              useMockData={useMockData}
+              onToggleMockData={handleToggleMockData}
+              scenario={scenario}
+              onScenarioChange={handleScenarioChange}
+              onAddRow={handleAddRow}
+              onRemoveLastRow={handleRemoveLastRow}
+              onRefreshData={handleRefreshData}
+              rowCount={useMockData ? mockTasks.length : 0}
+            />
+          </div>
+
+          <div className="flex-1 w-full" data-testid="vibegrid-container">
+            <VibeGridStoreProvider
+              tableId="debug-grid-1"
+              entityType={useMockData ? 'MockTask' : entityType}
+            >
+              {useMockData ? (
+                <MockDataInjector tasks={mockTasks}>
+                  <VibeGrid
+                    tableId="debug-grid-1"
+                    entityType="MockTask"
+                    height={600}
+                    enableSelectionColumn={true}
+                    enableGrouping={true}
+                    enableFiltering={true}
+                    enableSorting={true}
+                    skipDataFetching={true}
+                  />
+                </MockDataInjector>
+              ) : (
+                <VibeGrid
+                  tableId="debug-grid-1"
+                  entityType={entityType}
+                  height={600}
+                  enableSelectionColumn={true}
+                  enableGrouping={true}
+                  enableFiltering={true}
+                  enableSorting={true}
+                />
+              )}
             </VibeGridStoreProvider>
           </div>
         </div>
@@ -67,3 +140,29 @@ function DebugVibeGridPage() {
     </>
   )
 }
+
+/**
+ * Component that injects mock data into VibeGrid stores
+ */
+const MockDataInjector = observer(function MockDataInjector({
+  tasks,
+  children,
+}: {
+  tasks: MockTask[]
+  children: React.ReactNode
+}) {
+  const tableCoreStore = useTableCoreStore()
+  const initStore = useInitStore()
+
+  // Inject mock data into store whenever tasks change
+  useEffect(() => {
+    tableCoreStore.setRows(tasks)
+
+    // Mark as ready if not already
+    if (!initStore.hydrationState.entityDataLoaded) {
+      initStore.markReady('entityDataLoaded')
+    }
+  }, [tasks, tableCoreStore, initStore])
+
+  return <>{children}</>
+})

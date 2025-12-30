@@ -50,6 +50,11 @@ export interface VibeGridDataResult {
   deleteEntity: (id: string) => void
 }
 
+export interface VibeGridDataOptions {
+  /** Skip data fetching (for mock data mode) */
+  skip?: boolean
+}
+
 // ====================================
 // FILTER APPLICATION
 // ====================================
@@ -205,6 +210,7 @@ function applySortingToRows(rows: any[], sortBy: SortConfig[]): any[] {
  * @param tableCoreStore - Store to write rows data to
  * @param visualStateStore - Store containing filters, sorting, grouping config
  * @param initStore - Store for tracking hydration state
+ * @param options - Optional config (skip: true for mock data mode)
  * @returns Loading state and CRUD mutations (rows are pushed directly to tableCoreStore)
  */
 export function useVibeGridData(
@@ -212,7 +218,9 @@ export function useVibeGridData(
   tableCoreStore: TableCoreStore,
   visualStateStore: VisualStateStore,
   initStore: InitStore,
+  options?: VibeGridDataOptions,
 ): VibeGridDataResult {
+  const skip = options?.skip ?? false
   // Get TanStack DB collection (shared singleton)
   const collection = useEntityCollection(entityType)
 
@@ -225,12 +233,15 @@ export function useVibeGridData(
 
   // Reactive query with filters applied
   // Use proper isLoading from useLiveQuery instead of computing manually
+  // When skip=true, return undefined to bypass data fetching (for mock data mode)
   const {
     data: rawRows,
     isLoading: queryLoading,
     status: queryStatus,
   } = useLiveQuery(
     (q: any) => {
+      // Skip data fetching when in mock mode
+      if (skip) return undefined
       if (!collection) return undefined
 
       logger.debug('Running live query', {
@@ -251,7 +262,7 @@ export function useVibeGridData(
       // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
       return query.select(({ entity }: any) => ({ ...entity }))
     },
-    [collection, filterSnapshot, sortSnapshot],
+    [skip, collection, filterSnapshot, sortSnapshot],
   )
 
   // Apply client-side sorting to results
@@ -268,6 +279,9 @@ export function useVibeGridData(
   const prevRowsRef = useRef<any[]>([])
 
   useEffect(() => {
+    // Skip data push in mock mode (MockDataInjector handles this)
+    if (skip) return
+
     // Don't push data while loading
     if (queryLoading) return
 
@@ -296,7 +310,7 @@ export function useVibeGridData(
         rowCount: sortedRows.length,
       })
     }
-  }, [sortedRows, queryLoading, tableCoreStore, initStore])
+  }, [skip, sortedRows, queryLoading, tableCoreStore, initStore])
 
   // ====================================
   // CRUD MUTATIONS

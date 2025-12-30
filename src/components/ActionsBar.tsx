@@ -173,11 +173,11 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   return (
     <>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto" data-testid="vibegrid-actions-bar">
         <div className="flex items-center gap-3 px-4 py-3 bg-popover border border-border rounded-lg shadow-xl min-w-[320px]">
           {/* Selection count */}
           <div className="flex items-center gap-2 pr-3 border-r border-border">
-            <span className="text-sm font-medium">
+            <span className="text-sm font-medium" data-testid="selection-count">
               {selectedCount} {selectedCount === 1 ? 'row' : 'rows'} selected
             </span>
             <Button
@@ -186,6 +186,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
               onClick={handleClearSelection}
               className="h-6 w-6 p-0"
               disabled={isProcessing}
+              data-testid="clear-selection"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -202,6 +203,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
                   size="sm"
                   onClick={() => handleActionClick(action)}
                   disabled={isProcessing}
+                  data-testid={`action-${action.id}`}
                 >
                   {Icon && <Icon className="h-4 w-4 mr-2" />}
                   {action.label}
@@ -215,6 +217,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
                 size="sm"
                 onClick={handleDeleteClick}
                 disabled={isProcessing}
+                data-testid="action-delete"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete

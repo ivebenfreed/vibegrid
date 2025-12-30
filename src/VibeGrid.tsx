@@ -104,6 +104,9 @@ interface VibeGridProps<T = any> {
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
   enableKanban?: boolean
+
+  // Testing mode - skip TanStack DB data fetching (use with MockDataInjector)
+  skipDataFetching?: boolean
 }
 
 // ====================================
@@ -141,6 +144,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     viewMode = 'table',
     onViewModeChange,
     enableKanban = false,
+    skipDataFetching = false,
   } = props
 
   // ====================================
@@ -177,13 +181,16 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // NOTE: useVibeGridData now pushes rows directly to tableCoreStore.setRows()
   // This eliminates the need for a useEffect bridge and prevents duplicate updates
   // on server echo after optimistic updates
+  // When skipDataFetching=true, the hook returns no-op functions (for mock data mode)
   const {
     isLoading: isDataLoading,
     collection,
     createEntity,
     updateEntity,
     deleteEntity,
-  } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore)
+  } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
+    skip: skipDataFetching,
+  })
 
   // Load hierarchy relationships when hierarchy mode is enabled
   useVibeGridHierarchy({
