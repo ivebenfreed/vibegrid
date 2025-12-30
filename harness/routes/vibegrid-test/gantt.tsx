@@ -8,13 +8,15 @@
  */
 
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
+import {
+  MOCK_TASK_SCHEMA,
+  createMockSchemaRegistry,
+} from '@/shared/data/mock/mock-schema-registry'
 import {
   clearMockStorage,
-  createMockEntityCollection,
   type MockEntity,
   type MockDependency,
 } from '@/shared/data/db/collections/mock-collections'
@@ -26,13 +28,7 @@ import {
   type ScenarioName,
 } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/gantt')({
   beforeLoad: async () => {
@@ -45,12 +41,7 @@ export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/gantt'
 })
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'done', 'blocked'] as const
-const DEPENDENCY_TYPES = [
-  'finish_to_start',
-  'start_to_start',
-  'finish_to_finish',
-  'start_to_finish',
-] as const
+const DEPENDENCY_TYPES = ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'] as const
 
 /**
  * Generate a single mock task with random data
@@ -167,29 +158,9 @@ function MockVibeGridGantt() {
   const [customCount, setCustomCount] = useState(10)
   const [dataVersion, setDataVersion] = useState(0)
   const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasksForGantt(SCENARIOS.small.rowCount),
+    generateMockTasksForGantt(SCENARIOS.small.rowCount)
   )
   const [dependencies, setDependencies] = useState<MockDependency[]>([])
-
-  // Expose test state for E2E testing
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      ;(window as any).__VIBEGRID_TEST_STATE__ = {
-        mockData,
-        dependencies,
-        rowCount: mockData.length,
-        dependencyCount: dependencies.length,
-        scenario,
-        customCount,
-        dataVersion,
-      }
-    }
-    return () => {
-      if (import.meta.env.DEV) {
-        delete (window as any).__VIBEGRID_TEST_STATE__
-      }
-    }
-  }, [mockData, dependencies, scenario, customCount, dataVersion])
 
   // Create mock schema registry
   const mockSchemaRegistry = useMemo(() => {
@@ -198,11 +169,6 @@ function MockVibeGridGantt() {
 
   // Collection ID for localStorage
   const collectionId = `vibegrid-test-gantt`
-
-  // Create mock collection for TanStack DB integration
-  const mockCollection = useMemo(() => {
-    return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -271,8 +237,7 @@ function MockVibeGridGantt() {
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Gantt Test</h2>
             <p className="text-muted-foreground">
-              Test VibeGrid Gantt view with mock data - {mockData.length} rows,{' '}
-              {dependencies.length} dependencies
+              Test VibeGrid Gantt view with mock data - {mockData.length} rows, {dependencies.length} dependencies
             </p>
           </div>
 
@@ -300,7 +265,6 @@ function MockVibeGridGantt() {
               tableId={`mock-test-gantt-${dataVersion}`}
               entityType="MockTask"
               schemaRegistryOverride={mockSchemaRegistry}
-              collectionOverride={mockCollection}
             >
               <VibeGrid
                 tableId={`mock-test-gantt-${dataVersion}`}

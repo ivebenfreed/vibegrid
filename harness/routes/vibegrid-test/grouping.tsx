@@ -8,11 +8,17 @@
  */
 
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
-import { clearMockStorage, createMockEntityCollection, type MockEntity } from '@/shared/data/db/collections/mock-collections'
+import {
+  MOCK_TASK_SCHEMA,
+  createMockSchemaRegistry,
+} from '@/shared/data/mock/mock-schema-registry'
+import {
+  clearMockStorage,
+  type MockEntity,
+} from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import {
@@ -21,13 +27,7 @@ import {
   type ScenarioName,
 } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Label } from '@/shared/components/ui/label'
 import {
   Select,
@@ -159,28 +159,8 @@ function MockVibeGridGrouping() {
   const [hasHierarchy, setHasHierarchy] = useState(true)
   const [groupBy, setGroupBy] = useState('status')
   const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasksWithHierarchy(SCENARIOS.medium.rowCount),
+    generateMockTasksWithHierarchy(SCENARIOS.medium.rowCount)
   )
-
-  // Expose test state for E2E testing
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      ;(window as any).__VIBEGRID_TEST_STATE__ = {
-        mockData,
-        rowCount: mockData.length,
-        hasHierarchy,
-        groupBy,
-        scenario,
-        customCount,
-        dataVersion,
-      }
-    }
-    return () => {
-      if (import.meta.env.DEV) {
-        delete (window as any).__VIBEGRID_TEST_STATE__
-      }
-    }
-  }, [mockData, hasHierarchy, groupBy, scenario, customCount, dataVersion])
 
   // Create mock schema registry
   const mockSchemaRegistry = useMemo(() => {
@@ -190,11 +170,6 @@ function MockVibeGridGrouping() {
   // Collection ID for localStorage
   const collectionId = `vibegrid-test-grouping`
 
-  // Create mock collection for TanStack DB integration
-  const mockCollection = useMemo(() => {
-    return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
-
   // Add a new row
   const handleAddRow = useCallback(() => {
     const newTask = generateMockTask(mockData.length + 1)
@@ -203,31 +178,25 @@ function MockVibeGridGrouping() {
   }, [mockData.length])
 
   // Load a scenario
-  const handleLoadScenario = useCallback(
-    (newScenario: ScenarioName) => {
-      setScenario(newScenario)
-      const count = SCENARIOS[newScenario].rowCount
-      setCustomCount(count)
-      const newTasks = hasHierarchy
-        ? generateMockTasksWithHierarchy(count)
-        : Array.from({ length: count }, (_, i) => generateMockTask(i + 1))
-      setMockData(newTasks)
-      setDataVersion((v) => v + 1)
-    },
-    [hasHierarchy],
-  )
+  const handleLoadScenario = useCallback((newScenario: ScenarioName) => {
+    setScenario(newScenario)
+    const count = SCENARIOS[newScenario].rowCount
+    setCustomCount(count)
+    const newTasks = hasHierarchy
+      ? generateMockTasksWithHierarchy(count)
+      : Array.from({ length: count }, (_, i) => generateMockTask(i + 1))
+    setMockData(newTasks)
+    setDataVersion((v) => v + 1)
+  }, [hasHierarchy])
 
   // Generate custom count of rows
-  const handleGenerate = useCallback(
-    (count: number) => {
-      const newTasks = hasHierarchy
-        ? generateMockTasksWithHierarchy(count)
-        : Array.from({ length: count }, (_, i) => generateMockTask(i + 1))
-      setMockData(newTasks)
-      setDataVersion((v) => v + 1)
-    },
-    [hasHierarchy],
-  )
+  const handleGenerate = useCallback((count: number) => {
+    const newTasks = hasHierarchy
+      ? generateMockTasksWithHierarchy(count)
+      : Array.from({ length: count }, (_, i) => generateMockTask(i + 1))
+    setMockData(newTasks)
+    setDataVersion((v) => v + 1)
+  }, [hasHierarchy])
 
   // Clear all data
   const handleClear = useCallback(() => {
@@ -280,8 +249,7 @@ function MockVibeGridGrouping() {
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Grouping Test</h2>
             <p className="text-muted-foreground">
               Test VibeGrid grouping with mock data - {mockData.length} rows
-              {hasHierarchy &&
-                ` (${hierarchyStats.parents} parents, ${hierarchyStats.children} children)`}
+              {hasHierarchy && ` (${hierarchyStats.parents} parents, ${hierarchyStats.children} children)`}
             </p>
           </div>
 
@@ -310,7 +278,6 @@ function MockVibeGridGrouping() {
               tableId={`mock-test-grouping-${dataVersion}`}
               entityType="MockTask"
               schemaRegistryOverride={mockSchemaRegistry}
-              collectionOverride={mockCollection}
             >
               <VibeGrid
                 tableId={`mock-test-grouping-${dataVersion}`}

@@ -8,11 +8,17 @@
  */
 
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
-import { clearMockStorage, createMockEntityCollection, type MockEntity } from '@/shared/data/db/collections/mock-collections'
+import {
+  MOCK_TASK_SCHEMA,
+  createMockSchemaRegistry,
+} from '@/shared/data/mock/mock-schema-registry'
+import {
+  clearMockStorage,
+  type MockEntity,
+} from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import {
@@ -21,13 +27,7 @@ import {
   type ScenarioName,
 } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Switch } from '@/shared/components/ui/switch'
 import { Label } from '@/shared/components/ui/label'
 
@@ -117,7 +117,11 @@ function DragDropControls({
           />
           <Label htmlFor="fill-handle">Fill Handle</Label>
         </div>
-        <Button variant="outline" onClick={onShuffleRows} data-testid="shuffle-rows-button">
+        <Button
+          variant="outline"
+          onClick={onShuffleRows}
+          data-testid="shuffle-rows-button"
+        >
           Shuffle Rows
         </Button>
       </CardContent>
@@ -135,28 +139,8 @@ function MockVibeGridDragDrop() {
   const [enableRowDrag, setEnableRowDrag] = useState(true)
   const [enableFillHandle, setEnableFillHandle] = useState(true)
   const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasks(SCENARIOS.small.rowCount),
+    generateMockTasks(SCENARIOS.small.rowCount)
   )
-
-  // Expose test state for E2E testing
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      ;(window as any).__VIBEGRID_TEST_STATE__ = {
-        mockData,
-        rowCount: mockData.length,
-        enableRowDrag,
-        enableFillHandle,
-        scenario,
-        customCount,
-        dataVersion,
-      }
-    }
-    return () => {
-      if (import.meta.env.DEV) {
-        delete (window as any).__VIBEGRID_TEST_STATE__
-      }
-    }
-  }, [mockData, enableRowDrag, enableFillHandle, scenario, customCount, dataVersion])
 
   // Create mock schema registry
   const mockSchemaRegistry = useMemo(() => {
@@ -165,11 +149,6 @@ function MockVibeGridDragDrop() {
 
   // Collection ID for localStorage
   const collectionId = `vibegrid-test-drag-drop`
-
-  // Create mock collection for TanStack DB integration
-  const mockCollection = useMemo(() => {
-    return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -265,7 +244,6 @@ function MockVibeGridDragDrop() {
               tableId={`mock-test-drag-drop-${dataVersion}`}
               entityType="MockTask"
               schemaRegistryOverride={mockSchemaRegistry}
-              collectionOverride={mockCollection}
             >
               <VibeGrid
                 tableId={`mock-test-drag-drop-${dataVersion}`}
