@@ -43,7 +43,7 @@ export interface EditSession {
 
 export interface EditValidation {
   isValid: boolean
-  message?: string
+  errors: string[]
 }
 
 export type CommitReason = 'enter' | 'tab' | 'blur' | 'outside-click' | 'user-action'
@@ -132,6 +132,14 @@ export class EditingStore implements IStore {
   @computed
   get editValidation(): EditValidation | null {
     return this.currentSession?.validation ?? null
+  }
+
+  /**
+   * Current validation errors (empty array if valid or no validation yet)
+   */
+  @computed
+  get validationErrors(): string[] {
+    return this.currentSession?.validation?.errors ?? []
   }
 
   /**
@@ -379,6 +387,42 @@ export class EditingStore implements IStore {
       duration: `${Date.now() - this.currentSession.startTime}ms`,
     })
 
+    // VALIDATION: Validate using field type validator before saving
+    let valueToSave = finalValue
+    const fieldType = column.fieldType
+    if (fieldType?.validator) {
+      const validationResult = fieldType.validator.validate(finalValue, column)
+
+      if (!validationResult.valid) {
+        fileLog.warn('Validation failed - keeping editor open', {
+          cellId,
+          errors: validationResult.errors,
+          value: finalValue,
+        })
+
+        // Update session with validation errors
+        this.currentSession.validation = {
+          isValid: false,
+          errors: validationResult.errors,
+        }
+
+        // Increment version to trigger UI update
+        this.editingVersion++
+
+        // Don't clear session or save - keep editor open for user to fix
+        return
+      }
+
+      // Use transformed value if provided by validator (e.g., email lowercase)
+      if (validationResult.transformedValue !== undefined) {
+        valueToSave = validationResult.transformedValue
+        fileLog.debug('Using transformed value from validator', {
+          original: finalValue,
+          transformed: valueToSave,
+        })
+      }
+    }
+
     // Clear session BEFORE async save (prevents double-commit)
     const sessionToSave = this.currentSession
     console.log(
@@ -387,7 +431,7 @@ export class EditingStore implements IStore {
         cellId,
         reason,
         explicitValue: explicitValue ?? 'undefined',
-        finalValue: finalValue ?? 'null',
+        finalValue: valueToSave ?? 'null',
         pendingValue: this.currentSession?.pendingValue ?? 'null',
         originalValue: this.currentSession?.originalValue ?? 'null',
       }),
@@ -400,7 +444,7 @@ export class EditingStore implements IStore {
     this.editingVersion++
 
     // Save to database
-    await this.saveToDatabase(sessionToSave, finalValue)
+    await this.saveToDatabase(sessionToSave, valueToSave)
 
     fileLog.info('Edit committed successfully', { cellId, reason })
   }
@@ -677,21 +721,38 @@ export class EditingStore implements IStore {
   // ====================================
 
   /**
-   * Validate edit value
+   * Validate edit value using field type validator
+   * Can be used for real-time validation during typing
    *
-   * @param value Value to validate
+   * @param value Value to validate (defaults to current pending value)
    */
   @action
-  validateEdit(value: any): void {
+  validateEdit(value?: any): void {
     if (!this.currentSession) {
       fileLog.warn('validateEdit called but no active session')
       return
     }
 
-    // TODO: Implement field-specific validation
-    // For now, always valid
-    this.currentSession.validation = {
-      isValid: true,
+    const valueToValidate = value !== undefined ? value : this.currentSession.pendingValue
+    const { column } = this.currentSession
+    const fieldType = column.fieldType
+
+    if (fieldType?.validator) {
+      const validationResult = fieldType.validator.validate(valueToValidate, column)
+
+      this.currentSession.validation = {
+        isValid: validationResult.valid,
+        errors: validationResult.errors,
+      }
+
+      // Increment version to trigger UI update if validation state changed
+      this.editingVersion++
+    } else {
+      // No validator - always valid
+      this.currentSession.validation = {
+        isValid: true,
+        errors: [],
+      }
     }
   }
 
