@@ -53,6 +53,8 @@ export interface VibeGridDataResult {
 export interface VibeGridDataOptions {
   /** Skip data fetching (for mock data mode) */
   skip?: boolean
+  /** Collection override for mock testing (bypasses useEntityCollection) */
+  collectionOverride?: any
 }
 
 // ====================================
@@ -210,7 +212,7 @@ function applySortingToRows(rows: any[], sortBy: SortConfig[]): any[] {
  * @param tableCoreStore - Store to write rows data to
  * @param visualStateStore - Store containing filters, sorting, grouping config
  * @param initStore - Store for tracking hydration state
- * @param options - Optional config (skip: true for mock data mode)
+ * @param options - Optional config (skip: true for mock data mode, collectionOverride: for mock testing)
  * @returns Loading state and CRUD mutations (rows are pushed directly to tableCoreStore)
  */
 export function useVibeGridData(
@@ -221,8 +223,10 @@ export function useVibeGridData(
   options?: VibeGridDataOptions,
 ): VibeGridDataResult {
   const skip = options?.skip ?? false
-  // Get TanStack DB collection (shared singleton)
-  const collection = useEntityCollection(entityType)
+  const collectionOverride = options?.collectionOverride
+  // Get TanStack DB collection (shared singleton) or use override for mock testing
+  const apiCollection = useEntityCollection(entityType)
+  const collection = collectionOverride ?? apiCollection
 
   // Get stable snapshots of MobX state for dependency tracking
   const filterSnapshot = useMobxSnapshot(() => visualStateStore.filters)

@@ -138,7 +138,9 @@ export class BodyRenderer {
       () => {
         // Update all row checkboxes when selection changes
         this.updateAllRowCheckboxes()
-        fileLog.debug('📦 Checkbox states updated due to selection change')
+        // Update cell selection classes (for .vibegridx-selected)
+        this.updateAllCellSelectionClasses()
+        fileLog.debug('📦 Selection states updated due to selection change')
       },
     )
   }
@@ -776,6 +778,31 @@ export class BodyRenderer {
         const isRowSelected = checkboxStates.get(rowId) || false
         checkbox.checked = isRowSelected
       }
+    })
+  }
+
+  /**
+   * Update selection classes on all visible cells
+   * Called by selection reaction when selectedCells changes
+   */
+  updateAllCellSelectionClasses(): void {
+    const selectedCells = this.interactionStore.selectedCells
+
+    this.activeRows.forEach((rowElement, rowId) => {
+      // Find all data cells in this row (exclude drag handle, checkbox columns)
+      const cells = rowElement.querySelectorAll('.vibegridx-cell[data-column-id]')
+      cells.forEach((cellElement) => {
+        const columnId = cellElement.getAttribute('data-column-id')
+        if (columnId) {
+          const cellId = `${rowId}:${columnId}`
+          const isSelected = selectedCells.has(cellId)
+          if (isSelected) {
+            cellElement.classList.add('vibegridx-selected')
+          } else {
+            cellElement.classList.remove('vibegridx-selected')
+          }
+        }
+      })
     })
   }
 

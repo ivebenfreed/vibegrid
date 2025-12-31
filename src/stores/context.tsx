@@ -46,11 +46,35 @@ export interface VibeGridStores {
   debugStore: DebugStore
 }
 
+/**
+ * Minimal interface for mock schema registry support
+ * Matches the subset of SchemaRegistryStore used by VibeGrid stores
+ */
+export interface SchemaRegistryLike {
+  schemas: import('@/shared/types/dataforge').NormalizedEntitySchemas | null
+  isBootstrapping: boolean
+  isReady: boolean
+  getEntityArtifacts?(
+    entityName: string,
+  ): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
+}
+
 export interface VibeGridStoreProviderProps {
   children: React.ReactNode
   entityType: string
   orgId?: string
   tableId?: string
+  /**
+   * Override the schema registry for testing with mock data.
+   * When provided, bypasses useSchemaRegistry() and uses this directly.
+   */
+  schemaRegistryOverride?: SchemaRegistryLike
+  /**
+   * Override the TanStack DB collection for testing with mock data.
+   * When provided, bypasses useEntityCollection() and uses this directly.
+   * This allows VibeGrid to work with in-memory mock data instead of API calls.
+   */
+  collectionOverride?: any
 }
 
 // ====================================
@@ -58,6 +82,12 @@ export interface VibeGridStoreProviderProps {
 // ====================================
 
 const VibeGridStoreContext = createContext<VibeGridStores | null>(null)
+
+/**
+ * Context for collection override (used for mock testing)
+ * Separate from stores context because it's not a MobX store
+ */
+const VibeGridCollectionOverrideContext = createContext<any | null>(null)
 
 // ====================================
 // PROVIDER
@@ -77,11 +107,14 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   entityType,
   orgId,
   tableId = 'default',
+  schemaRegistryOverride,
+  collectionOverride,
 }) => {
   const [initError, setInitError] = useState<string | null>(null)
 
-  // Get schema registry from root store
-  const schemaRegistry = useSchemaRegistry()
+  // Get schema registry from root store, or use override for mock testing
+  const rootSchemaRegistry = useSchemaRegistry()
+  const schemaRegistry = schemaRegistryOverride ?? rootSchemaRegistry
 
   // Create and initialize stores once using useMemo
   const stores = useMemo(() => {
@@ -127,7 +160,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     tableCoreStore.setHierarchyStore(hierarchyStore)
 
     // TableCoreStore needs SchemaRegistry for column generation
-    tableCoreStore.setSchemaRegistry(schemaRegistry)
+    // Cast to any to allow mock schema registry (SchemaRegistryLike) to pass type check
+    tableCoreStore.setSchemaRegistry(schemaRegistry as any)
 
     // TableCoreStore needs CoordinateManager for row position tracking
     tableCoreStore.setCoordinateManager(coordinateManager)
@@ -160,7 +194,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     ganttViewStore.setTableCoreStore(tableCoreStore)
 
     // GanttViewStore needs SchemaRegistry for loading dependencies
-    ganttViewStore.setSchemaRegistry(schemaRegistry, entityType)
+    // Cast to any to allow mock schema registry (SchemaRegistryLike) to pass type check
+    ganttViewStore.setSchemaRegistry(schemaRegistry as any, entityType)
 
     // ViewModeStore needs GanttViewStore for auto-sort on Gantt activation
     viewModeStore.setGanttViewStore(ganttViewStore)
@@ -235,7 +270,14 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   }
 
   // Provide stores to children immediately (initialization happens in useMemo)
-  return <VibeGridStoreContext.Provider value={stores}>{children}</VibeGridStoreContext.Provider>
+  // Also provide collection override if specified (for mock testing)
+  return (
+    <VibeGridStoreContext.Provider value={stores}>
+      <VibeGridCollectionOverrideContext.Provider value={collectionOverride}>
+        {children}
+      </VibeGridCollectionOverrideContext.Provider>
+    </VibeGridStoreContext.Provider>
+  )
 }
 
 VibeGridStoreProvider.displayName = 'VibeGridStoreProvider'
@@ -307,4 +349,13 @@ export function useDebugStore(): DebugStore {
 
 export function useHierarchyStore(): HierarchyStore {
   return useVibeGridStores().hierarchyStore
+}
+
+/**
+ * Hook to access collection override from context
+ * Returns null if no override is provided (normal API-backed operation)
+ * Returns the override collection for mock testing scenarios
+ */
+export function useCollectionOverride(): any | null {
+  return useContext(VibeGridCollectionOverrideContext)
 }

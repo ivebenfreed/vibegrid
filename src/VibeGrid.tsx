@@ -30,7 +30,7 @@ import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-import { useVibeGridStores, VibeGridStoreProvider } from './stores/context'
+import { useVibeGridStores, VibeGridStoreProvider, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
 
 // Import VibeGrid CSS styles
@@ -178,6 +178,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // TANSTACK DB INTEGRATION
   // ====================================
 
+  // Get collection override from context (for mock testing)
+  const collectionOverride = useCollectionOverride()
+
   // NOTE: useVibeGridData now pushes rows directly to tableCoreStore.setRows()
   // This eliminates the need for a useEffect bridge and prevents duplicate updates
   // on server echo after optimistic updates
@@ -190,6 +193,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
     skip: skipDataFetching,
+    collectionOverride,
   })
 
   // Load hierarchy relationships when hierarchy mode is enabled

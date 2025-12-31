@@ -100,6 +100,85 @@ Only `project`, `task`, `activity` support dependencies
 4. **Cascade on date changes** - `calculateCascadeUpdates()` propagates changes
 5. **Cycle detection** - GraphService.detectCycles() prevents circular deps
 
+## Testing Patterns (Added 2025-12-31)
+
+### Mock Data Injection
+
+Use `collectionOverride` prop to inject mock data for testing:
+
+```typescript
+// In test component
+const testData = createMockScenario('drag-drop')
+
+<VibeGrid
+  tableId="test-tasks"
+  entityType="Task"
+  collectionOverride={testData}  // Bypasses API fetch
+/>
+```
+
+**Why:** Enables isolated E2E testing without database setup or API mocking.
+
+**Implementation:** `useVibeGridData.ts` checks for `collectionOverride` prop before fetching from API.
+
+### Cell Selection Class Updates (Bug Fix)
+
+**Problem:** Cell selection classes (`is-selected`, `is-range-selected`) weren't updating on click.
+
+**Root Cause:** `BodyRenderer.ts` MobX reaction only listened to `displayRows` changes, not `interactionStore.selectedCells`.
+
+**Fix:** Add `updateAllCellSelectionClasses()` call inside the reaction:
+
+```typescript
+reaction(
+  () => [
+    this.displayRows,
+    this.interactionStore.selectedCells,  // Add this!
+  ],
+  () => {
+    this.render()
+    this.updateAllCellSelectionClasses()  // Add this!
+  }
+)
+```
+
+**Learned from:** Session #466 - E2E tests failed because cell clicks worked but CSS classes didn't update.
+
+### E2E Test Locators
+
+**Use specific selectors** that avoid internal columns:
+
+```typescript
+// BAD: Catches drag handle column
+page.locator('.vibegridx-cell')
+
+// GOOD: Only data cells with row/column IDs
+page.locator('.vibegridx-cell[data-row-id][data-column-id]')
+```
+
+**Why:** VibeGrid has internal columns (drag handle, selection checkbox) that shouldn't be in tests.
+
+### Test State Inspection
+
+Debug routes expose `window.__VIBEGRID_TEST_STATE__` for test assertions:
+
+```typescript
+// In component
+useEffect(() => {
+  window.__VIBEGRID_TEST_STATE__ = {
+    selectedCells: Array.from(interactionStore.selectedCells),
+    rowCount: collection?.items.length || 0,
+    // ...
+  }
+}, [interactionStore.selectedCells])
+
+// In test
+const state = await page.evaluate(() => window.__VIBEGRID_TEST_STATE__)
+expect(state.selectedCells).toHaveLength(1)
+```
+
+**Learned from:** Session #466 - Need to verify internal state, not just DOM.
+
 ## Key Files
 
 - `VibeGrid.tsx` - Main component, props interface
@@ -108,3 +187,4 @@ Only `project`, `task`, `activity` support dependencies
 - `stores/GanttViewStore.ts` - Gantt state
 - `utils/cascade-scheduler.ts` - Date cascading
 - `components/DependencyArrowLayer.tsx` - SVG arrows
+- `renderers/components/BodyRenderer.ts` - Cell rendering, selection classes (LINE 29: MobX reaction)
