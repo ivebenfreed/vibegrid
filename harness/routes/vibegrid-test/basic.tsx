@@ -8,17 +8,11 @@
  */
 
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import {
-  MOCK_TASK_SCHEMA,
-  createMockSchemaRegistry,
-} from '@/shared/data/mock/mock-schema-registry'
-import {
-  clearMockStorage,
-  type MockEntity,
-} from '@/shared/data/db/collections/mock-collections'
+import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
+import { clearMockStorage, createMockEntityCollection, type MockEntity } from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import {
@@ -80,8 +74,26 @@ function MockVibeGridBasic() {
   const [customCount, setCustomCount] = useState(10)
   const [dataVersion, setDataVersion] = useState(0)
   const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasks(SCENARIOS.small.rowCount)
+    generateMockTasks(SCENARIOS.small.rowCount),
   )
+
+  // Expose test state for E2E testing
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      ;(window as any).__VIBEGRID_TEST_STATE__ = {
+        mockData,
+        rowCount: mockData.length,
+        scenario,
+        customCount,
+        dataVersion,
+      }
+    }
+    return () => {
+      if (import.meta.env.DEV) {
+        delete (window as any).__VIBEGRID_TEST_STATE__
+      }
+    }
+  }, [mockData, scenario, customCount, dataVersion])
 
   // Create mock schema registry
   const mockSchemaRegistry = useMemo(() => {
@@ -90,6 +102,12 @@ function MockVibeGridBasic() {
 
   // Collection ID for localStorage
   const collectionId = `vibegrid-test-basic`
+
+  // Create mock collection for TanStack DB integration
+  // This collection is passed to VibeGridStoreProvider to bypass API calls
+  const mockCollection = useMemo(() => {
+    return createMockEntityCollection(collectionId, mockData)
+  }, [collectionId, dataVersion]) // Recreate when data version changes
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -162,6 +180,7 @@ function MockVibeGridBasic() {
               tableId={`mock-test-${dataVersion}`}
               entityType="MockTask"
               schemaRegistryOverride={mockSchemaRegistry}
+              collectionOverride={mockCollection}
             >
               <VibeGrid
                 tableId={`mock-test-${dataVersion}`}

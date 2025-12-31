@@ -54,7 +54,9 @@ export interface SchemaRegistryLike {
   schemas: import('@/shared/types/dataforge').NormalizedEntitySchemas | null
   isBootstrapping: boolean
   isReady: boolean
-  getEntityArtifacts?(entityName: string): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
+  getEntityArtifacts?(
+    entityName: string,
+  ): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
 }
 
 export interface VibeGridStoreProviderProps {
@@ -67,6 +69,12 @@ export interface VibeGridStoreProviderProps {
    * When provided, bypasses useSchemaRegistry() and uses this directly.
    */
   schemaRegistryOverride?: SchemaRegistryLike
+  /**
+   * Override the TanStack DB collection for testing with mock data.
+   * When provided, bypasses useEntityCollection() and uses this directly.
+   * This allows VibeGrid to work with in-memory mock data instead of API calls.
+   */
+  collectionOverride?: any
 }
 
 // ====================================
@@ -74,6 +82,12 @@ export interface VibeGridStoreProviderProps {
 // ====================================
 
 const VibeGridStoreContext = createContext<VibeGridStores | null>(null)
+
+/**
+ * Context for collection override (used for mock testing)
+ * Separate from stores context because it's not a MobX store
+ */
+const VibeGridCollectionOverrideContext = createContext<any | null>(null)
 
 // ====================================
 // PROVIDER
@@ -94,6 +108,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   orgId,
   tableId = 'default',
   schemaRegistryOverride,
+  collectionOverride,
 }) => {
   const [initError, setInitError] = useState<string | null>(null)
 
@@ -255,7 +270,14 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   }
 
   // Provide stores to children immediately (initialization happens in useMemo)
-  return <VibeGridStoreContext.Provider value={stores}>{children}</VibeGridStoreContext.Provider>
+  // Also provide collection override if specified (for mock testing)
+  return (
+    <VibeGridStoreContext.Provider value={stores}>
+      <VibeGridCollectionOverrideContext.Provider value={collectionOverride}>
+        {children}
+      </VibeGridCollectionOverrideContext.Provider>
+    </VibeGridStoreContext.Provider>
+  )
 }
 
 VibeGridStoreProvider.displayName = 'VibeGridStoreProvider'
@@ -327,4 +349,13 @@ export function useDebugStore(): DebugStore {
 
 export function useHierarchyStore(): HierarchyStore {
   return useVibeGridStores().hierarchyStore
+}
+
+/**
+ * Hook to access collection override from context
+ * Returns null if no override is provided (normal API-backed operation)
+ * Returns the override collection for mock testing scenarios
+ */
+export function useCollectionOverride(): any | null {
+  return useContext(VibeGridCollectionOverrideContext)
 }

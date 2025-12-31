@@ -13,7 +13,9 @@ test.describe('VibeGrid Mock Routes', () => {
   test.describe('Basic Route', () => {
     test.beforeEach(async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-basic"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-basic"]', {
+        timeout: 15000,
+      })
     })
 
     test('renders basic route with mock data controls', async ({ authenticatedPage }) => {
@@ -60,7 +62,9 @@ test.describe('VibeGrid Mock Routes', () => {
       await page.locator('[data-testid="add-row-button"]').click()
 
       // Verify row count increased
-      await expect(page.locator('[data-testid="mock-data-controls"]')).toContainText(`${initialCount + 1} rows`)
+      await expect(page.locator('[data-testid="mock-data-controls"]')).toContainText(
+        `${initialCount + 1} rows`,
+      )
     })
 
     test('can clear all rows', async ({ authenticatedPage }) => {
@@ -84,7 +88,9 @@ test.describe('VibeGrid Mock Routes', () => {
   test.describe('Gantt Route', () => {
     test('renders gantt route with gantt controls', async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/gantt`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-gantt"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-gantt"]', {
+        timeout: 15000,
+      })
 
       const page = authenticatedPage
 
@@ -99,7 +105,9 @@ test.describe('VibeGrid Mock Routes', () => {
 
     test('can generate dependencies', async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/gantt`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-gantt"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-gantt"]', {
+        timeout: 15000,
+      })
 
       const page = authenticatedPage
 
@@ -107,14 +115,18 @@ test.describe('VibeGrid Mock Routes', () => {
       await page.locator('[data-testid="generate-dependencies-button"]').click()
 
       // Verify dependencies were created (text should show non-zero count)
-      await expect(page.locator('[data-testid="gantt-controls"]')).not.toContainText('0 dependencies')
+      await expect(page.locator('[data-testid="gantt-controls"]')).not.toContainText(
+        '0 dependencies',
+      )
     })
   })
 
   test.describe('Grouping Route', () => {
     test('renders grouping route with grouping controls', async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/grouping`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-grouping"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-grouping"]', {
+        timeout: 15000,
+      })
 
       const page = authenticatedPage
 
@@ -129,7 +141,9 @@ test.describe('VibeGrid Mock Routes', () => {
 
     test('can toggle hierarchy', async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/grouping`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-grouping"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-grouping"]', {
+        timeout: 15000,
+      })
 
       const page = authenticatedPage
 
@@ -137,14 +151,18 @@ test.describe('VibeGrid Mock Routes', () => {
       await page.locator('[data-testid="toggle-hierarchy-button"]').click()
 
       // Verify button text changed
-      await expect(page.locator('[data-testid="toggle-hierarchy-button"]')).toContainText('Hierarchy Off')
+      await expect(page.locator('[data-testid="toggle-hierarchy-button"]')).toContainText(
+        'Hierarchy Off',
+      )
     })
   })
 
   test.describe('Drag & Drop Route', () => {
     test('renders drag-drop route with controls', async ({ authenticatedPage }) => {
       await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/drag-drop`)
-      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-drag-drop"]', { timeout: 15000 })
+      await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-drag-drop"]', {
+        timeout: 15000,
+      })
 
       const page = authenticatedPage
 
