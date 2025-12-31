@@ -8,7 +8,13 @@
  */
 
 import { Button } from '@/shared/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/shared/components/ui/card'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import {
@@ -23,7 +29,10 @@ import { Plus, Trash2, RefreshCw, Download, RotateCcw } from 'lucide-react'
 // Scenario types
 export type ScenarioName = 'empty' | 'small' | 'medium' | 'large'
 
-export const SCENARIOS: Record<ScenarioName, { name: string; description: string; rowCount: number }> = {
+export const SCENARIOS: Record<
+  ScenarioName,
+  { name: string; description: string; rowCount: number }
+> = {
   empty: { name: 'Empty', description: 'No data - test empty states', rowCount: 0 },
   small: { name: 'Small', description: 'Few rows - quick interaction testing', rowCount: 10 },
   medium: { name: 'Medium', description: 'Moderate data - typical usage', rowCount: 50 },
@@ -128,27 +137,15 @@ export function MockDataControls({
 
         {/* Row Operations */}
         <div className="flex gap-2 ml-auto">
-          <Button
-            variant="outline"
-            onClick={onAddRow}
-            data-testid="add-row-button"
-          >
+          <Button variant="outline" onClick={onAddRow} data-testid="add-row-button">
             <Plus className="h-4 w-4 mr-1" />
             Add Row
           </Button>
-          <Button
-            variant="outline"
-            onClick={onClear}
-            data-testid="clear-button"
-          >
+          <Button variant="outline" onClick={onClear} data-testid="clear-button">
             <Trash2 className="h-4 w-4 mr-1" />
             Clear All
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onReset}
-            data-testid="reset-button"
-          >
+          <Button variant="destructive" onClick={onReset} data-testid="reset-button">
             <RotateCcw className="h-4 w-4 mr-1" />
             Reset
           </Button>

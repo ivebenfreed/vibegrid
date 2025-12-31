@@ -22,7 +22,8 @@ const DRAG_DROP_URL = `${BASE_URL}/debug/vibegrid-test/drag-drop`
 async function navigateAndWaitForGrid(page: import('@playwright/test').Page): Promise<boolean> {
   try {
     // Always navigate fresh to ensure consistent state
-    await page.goto(DRAG_DROP_URL, { waitUntil: 'networkidle', timeout: 20000 })
+    // Use 'domcontentloaded' for faster navigation, then wait for elements
+    await page.goto(DRAG_DROP_URL, { waitUntil: 'domcontentloaded', timeout: 15000 })
 
     // Wait for the test container
     await page.waitForSelector('[data-testid="vibegrid-test-drag-drop"]', {

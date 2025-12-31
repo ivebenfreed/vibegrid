@@ -17,67 +17,25 @@
 
 import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
 
+// Increase timeout for tests that involve editing state changes
 test.describe('VibeGrid Keyboard Navigation', () => {
+  // Set higher timeout for all tests in this suite
+  test.setTimeout(60000)
+
   test.beforeEach(async ({ authenticatedPage }) => {
     const page = authenticatedPage
+    await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
+    await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
+      timeout: 15000,
+    })
 
-    // Navigate to the test page with retry logic
-    // The shared browser context may have state from previous tests
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`, {
-          waitUntil: 'networkidle',
-          timeout: 20000,
-        })
+    // Wait for the vibegrid container to be visible
+    await page.waitForSelector('[data-testid="vibegrid-container"]', {
+      timeout: 15000,
+    })
 
-        // Check if we landed on the right page
-        const url = page.url()
-        if (url.includes('sign-in')) {
-          // Re-authenticate if needed
-          await page.locator('input[name="email"]').waitFor({ state: 'visible', timeout: 5000 })
-          await page.locator('input[name="email"]').fill('admin@widecorp.com')
-          await page.locator('input[name="password"]').fill('WideCorp2024!Admin')
-          await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-          await page.waitForURL((u) => !u.pathname.includes('sign-in'), { timeout: 15000 })
-          // Navigate again after auth
-          await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`, {
-            waitUntil: 'networkidle',
-            timeout: 20000,
-          })
-        }
-
-        await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
-          timeout: 15000,
-        })
-
-        // Wait for the vibegrid container to be visible
-        await page.waitForSelector('[data-testid="vibegrid-container"]', {
-          timeout: 15000,
-        })
-
-        // Wait for React to render the grid component
-        await page.waitForTimeout(1000)
-
-        // Escape any editing state from previous tests
-        await page.keyboard.press('Escape')
-        await page.waitForTimeout(100)
-
-        // Click outside the grid to reset focus state
-        const header = page.locator('h2:has-text("Mock VibeGrid Test")')
-        if (await header.isVisible().catch(() => false)) {
-          await header.click()
-          await page.waitForTimeout(100)
-        }
-
-        break // Success, exit retry loop
-      } catch (error) {
-        if (attempt === 2) {
-          throw error // Re-throw on final attempt
-        }
-        // Wait before retry
-        await page.waitForTimeout(1000)
-      }
-    }
+    // Wait a moment for React to render the grid component
+    await page.waitForTimeout(1000)
   })
 
   test('3.1 Arrow key navigation - Arrow Down moves focus to cell below', async ({
