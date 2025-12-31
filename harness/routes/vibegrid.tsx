@@ -13,11 +13,7 @@ import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { DataControls } from './_components/DataControls'
-import {
-  createSmallScenario,
-  getScenarioById,
-  type TestScenario,
-} from './_mock-data/scenarios'
+import { createSmallScenario, getScenarioById, type TestScenario } from './_mock-data/scenarios'
 import { generateMockTask, type MockTask } from './_mock-data/generators'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
@@ -39,14 +35,17 @@ function DebugVibeGridPage() {
     }
   }, [useMockData, scenario])
 
-  const handleToggleMockData = useCallback((useMock: boolean) => {
-    setUseMockData(useMock)
-    if (useMock && !scenario) {
-      const initialScenario = createSmallScenario()
-      setScenario(initialScenario)
-      setMockTasks(initialScenario.tasks)
-    }
-  }, [scenario])
+  const handleToggleMockData = useCallback(
+    (useMock: boolean) => {
+      setUseMockData(useMock)
+      if (useMock && !scenario) {
+        const initialScenario = createSmallScenario()
+        setScenario(initialScenario)
+        setMockTasks(initialScenario.tasks)
+      }
+    },
+    [scenario],
+  )
 
   const handleScenarioChange = useCallback((newScenario: TestScenario) => {
     setScenario(newScenario)

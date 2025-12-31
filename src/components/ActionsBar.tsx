@@ -173,7 +173,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   return (
     <>
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto" data-testid="vibegrid-actions-bar">
+      <div
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto"
+        data-testid="vibegrid-actions-bar"
+      >
         <div className="flex items-center gap-3 px-4 py-3 bg-popover border border-border rounded-lg shadow-xl min-w-[320px]">
           {/* Selection count */}
           <div className="flex items-center gap-2 pr-3 border-r border-border">

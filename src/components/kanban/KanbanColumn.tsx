@@ -6,9 +6,13 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import React, { useState } from 'react'
+import type React from 'react'
+import { useState } from 'react'
 import { cn } from '@/shared/lib/utils'
-import type { KanbanCard as KanbanCardType, KanbanColumn as KanbanColumnType } from '../../stores/KanbanViewStore'
+import type {
+  KanbanCard as KanbanCardType,
+  KanbanColumn as KanbanColumnType,
+} from '../../stores/KanbanViewStore'
 import { KanbanCard } from './KanbanCard'
 
 interface KanbanColumnProps {

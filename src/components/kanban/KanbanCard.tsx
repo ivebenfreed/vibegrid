@@ -7,7 +7,7 @@
 
 import { GripVertical } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import React from 'react'
+import type React from 'react'
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card'
 import { cn } from '@/shared/lib/utils'
 import type { KanbanCard as KanbanCardType } from '../../stores/KanbanViewStore'
@@ -69,24 +69,20 @@ export const KanbanCard = observer(function KanbanCard({
         aria-grabbed={enableDragAndDrop ? isDragging : undefined}
         aria-label={`Card: ${card.title}`}
       >
-      <CardHeader className="p-3 pb-1 flex flex-row items-start gap-2">
-        {enableDragAndDrop && (
-          <GripVertical
-            className="size-4 text-muted-foreground/50 mt-0.5 flex-shrink-0 cursor-grab"
-            aria-hidden="true"
-          />
+        <CardHeader className="p-3 pb-1 flex flex-row items-start gap-2">
+          {enableDragAndDrop && (
+            <GripVertical
+              className="size-4 text-muted-foreground/50 mt-0.5 flex-shrink-0 cursor-grab"
+              aria-hidden="true"
+            />
+          )}
+          <span className="text-sm font-medium leading-tight line-clamp-2">{card.title}</span>
+        </CardHeader>
+        {card.status && (
+          <CardContent className="p-3 pt-1">
+            <span className="text-xs text-muted-foreground capitalize">{card.status}</span>
+          </CardContent>
         )}
-        <span className="text-sm font-medium leading-tight line-clamp-2">
-          {card.title}
-        </span>
-      </CardHeader>
-      {card.status && (
-        <CardContent className="p-3 pt-1">
-          <span className="text-xs text-muted-foreground capitalize">
-            {card.status}
-          </span>
-        </CardContent>
-      )}
       </Card>
     </li>
   )

@@ -70,7 +70,9 @@ export const KanbanBoard = observer(function KanbanBoard({
 
   if (columns.length === 0) {
     return (
-      <div className={`vibegridx-kanban-board flex items-center justify-center h-full text-muted-foreground ${className}`}>
+      <div
+        className={`vibegridx-kanban-board flex items-center justify-center h-full text-muted-foreground ${className}`}
+      >
         <div className="text-center">
           <p className="text-lg font-medium">No status values found</p>
           <p className="text-sm">Add items with status values to see them in the Kanban board</p>
