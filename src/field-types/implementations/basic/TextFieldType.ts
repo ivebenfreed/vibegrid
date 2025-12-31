@@ -106,8 +106,7 @@ export class TextRenderer implements CellRenderer {
   canHandle(column: EnhancedColumn): boolean {
     const type = column.cellType || column.type || ''
     // Single-line text types only - multi-line/rich text handled by MarkdownFieldType
-    // Note: 'url' has its own dedicated UrlFieldType with link-with-edit-icon affordance
-    return ['text', 'string', 'email', 'phone'].includes(type)
+    return ['text', 'string', 'email', 'url', 'phone'].includes(type)
   }
 
   private formatValueByType(value: any, column: EnhancedColumn): string {
@@ -120,6 +119,11 @@ export class TextRenderer implements CellRenderer {
     switch (fieldType) {
       case 'email':
         strValue = strValue.toLowerCase()
+        break
+      case 'url':
+        if (strValue && !strValue.match(/^https?:\/\//)) {
+          strValue = `${strValue}`
+        }
         break
       case 'phone':
         // Basic phone formatting could go here
@@ -145,6 +149,10 @@ export class TextRenderer implements CellRenderer {
       case 'email':
         element.style.fontFamily = 'monospace'
         element.style.fontSize = '12px'
+        break
+      case 'url':
+        element.style.color = '#2563eb'
+        element.style.textDecoration = 'underline'
         break
       case 'phone':
         element.style.fontFamily = 'monospace'

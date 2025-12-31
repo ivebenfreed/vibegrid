@@ -8,16 +8,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/shared/components/ui/alert-dialog'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
@@ -73,11 +63,11 @@ export function RichTextEditor({
   onCancel,
   isOpen,
 }: RichTextEditorProps) {
-  const [htmlValue, setHtmlValue] = useState(initialValue || '')
   const [isDirty, setIsDirty] = useState(false)
-  const [showDiscardDialog, setShowDiscardDialog] = useState(false)
+  const [charCount, setCharCount] = useState(0)
   const editorRef = useRef<HTMLDivElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
+  const initialHtmlRef = useRef<string>('')
 
   // Convert plain text to HTML and vice versa
   const textToHtml = useCallback((text: string): string => {
@@ -104,8 +94,14 @@ export function RichTextEditor({
       // Check if initialValue is HTML or plain text
       const isHtml = /<[^>]*>/.test(initialValue)
       const htmlContent = isHtml ? initialValue : textToHtml(initialValue)
-      setHtmlValue(htmlContent)
+      initialHtmlRef.current = htmlContent
       setIsDirty(false)
+      setCharCount(htmlToText(htmlContent).length)
+
+      // Set initial content directly to DOM (avoids React re-render issues)
+      if (editorRef.current) {
+        editorRef.current.innerHTML = htmlContent
+      }
 
       fileLog.debug('RichTextEditor opened', {
         cellId: `${cell.rowId}:${cell.columnId}`,
@@ -113,7 +109,7 @@ export function RichTextEditor({
         isHtml,
       })
     }
-  }, [isOpen, initialValue, cell.rowId, cell.columnId, textToHtml])
+  }, [isOpen, initialValue, cell.rowId, cell.columnId, textToHtml, htmlToText])
 
   // Focus editor when modal opens
   useEffect(() => {
@@ -163,14 +159,16 @@ export function RichTextEditor({
   const handleInput = () => {
     if (editorRef.current) {
       const newContent = editorRef.current.innerHTML
-      setHtmlValue(newContent)
-      setIsDirty(newContent !== (initialValue || ''))
+      // Update dirty tracking and character count (not the HTML content)
+      // This prevents cursor jumping caused by React re-rendering contentEditable
+      setIsDirty(newContent !== initialHtmlRef.current)
+      setCharCount(editorRef.current.textContent?.length || 0)
     }
   }
 
   const handleSave = () => {
     // Return the HTML content as-is, let the caller decide how to handle it
-    const content = editorRef.current?.innerHTML || htmlValue
+    const content = editorRef.current?.innerHTML || ''
     fileLog.debug('RichTextEditor saving', {
       cellId: `${cell.rowId}:${cell.columnId}`,
       contentLength: content.length,
@@ -181,20 +179,11 @@ export function RichTextEditor({
 
   const handleCancel = () => {
     if (isDirty) {
-      setShowDiscardDialog(true)
-      return
+      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
+      if (!confirmed) return
     }
 
     fileLog.debug('RichTextEditor cancelled', {
-      cellId: `${cell.rowId}:${cell.columnId}`,
-      isDirty,
-    })
-    onCancel()
-  }
-
-  const handleConfirmDiscard = () => {
-    setShowDiscardDialog(false)
-    fileLog.debug('RichTextEditor cancelled (discarded changes)', {
       cellId: `${cell.rowId}:${cell.columnId}`,
       isDirty,
     })
@@ -241,9 +230,8 @@ export function RichTextEditor({
 
   if (!isOpen) return null
 
-  const textLength = htmlToText(htmlValue).length
   const hasMaxLength = column.maxLength && column.maxLength > 0
-  const isOverLimit = !!(hasMaxLength && textLength > column.maxLength!)
+  const isOverLimit = !!(hasMaxLength && charCount > column.maxLength!)
 
   // Create portal to render outside the grid container
   const portalTarget = document.body
@@ -360,14 +348,13 @@ export function RichTextEditor({
 
         {/* Content Area */}
         <div className="flex-1 p-5 flex flex-col overflow-hidden">
-          {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Required for rich text editing */}
+          {/* Content is set via DOM in useEffect to avoid React re-render cursor issues */}
           <div
             ref={editorRef}
             contentEditable
             suppressContentEditableWarning
             onInput={handleInput}
             onKeyDown={handleKeyDown}
-            dangerouslySetInnerHTML={{ __html: htmlValue }}
             className={cn(
               'flex-1 min-h-[200px] max-h-[350px] border rounded p-3 text-sm font-inherit leading-relaxed outline-none overflow-auto',
               isOverLimit
@@ -381,11 +368,11 @@ export function RichTextEditor({
             <div>
               {hasMaxLength && (
                 <span className={isOverLimit ? 'text-destructive' : 'text-muted-foreground'}>
-                  {textLength.toLocaleString()} / {column.maxLength!.toLocaleString()} characters
+                  {charCount.toLocaleString()} / {column.maxLength!.toLocaleString()} characters
                   {isOverLimit && ' (over limit)'}
                 </span>
               )}
-              {!hasMaxLength && <span>{textLength.toLocaleString()} characters</span>}
+              {!hasMaxLength && <span>{charCount.toLocaleString()} characters</span>}
             </div>
             <div>Ctrl+Enter to save</div>
           </div>
@@ -415,26 +402,6 @@ export function RichTextEditor({
           </button>
         </div>
       </div>
-
-      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Are you sure you want to cancel?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDiscard}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Discard Changes
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>,
     portalTarget,
   )
