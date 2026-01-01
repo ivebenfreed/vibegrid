@@ -11,11 +11,16 @@
  * Tests will skip if no data cells are detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Clipboard', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Clipboard', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -30,12 +35,10 @@ test.describe('VibeGrid Clipboard', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('10.1 Copy cell (Ctrl+C) - cell value copied to clipboard', async ({
-    authenticatedPage,
+  it('10.1 Copy cell (Ctrl+C) - cell value copied to clipboard', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render (may take time due to API calls)
+        // Wait for cells to render (may take time due to API calls)
     // Use .vibegridx-cell class to exclude drag handle column
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
@@ -69,10 +72,8 @@ test.describe('VibeGrid Clipboard', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('10.4 Undo (Ctrl+Z) - edit reverted', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('10.4 Undo (Ctrl+Z) - edit reverted', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -121,10 +122,8 @@ test.describe('VibeGrid Clipboard', () => {
     // At minimum, verify the grid didn't break
   })
 
-  test('10.5 Redo (Ctrl+Y) - edit reapplied', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('10.5 Redo (Ctrl+Y) - edit reapplied', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -177,10 +176,8 @@ test.describe('VibeGrid Clipboard', () => {
     // At minimum, we verify the keyboard shortcut doesn't break the grid
   })
 
-  test('Copy multiple selected cells (Ctrl+C)', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells using data attributes, exclude drag handle column
+  it('Copy multiple selected cells (Ctrl+C)', async () => {
+        // Get cells using data attributes, exclude drag handle column
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -215,12 +212,10 @@ test.describe('VibeGrid Clipboard', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('Undo/Redo keyboard shortcuts do not break grid when no edits', async ({
-    authenticatedPage,
+  it('Undo/Redo keyboard shortcuts do not break grid when no edits', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 

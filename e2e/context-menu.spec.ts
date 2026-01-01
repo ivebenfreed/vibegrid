@@ -12,11 +12,16 @@
  * Tests will skip if no data cells are detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Context Menus', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Context Menus', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -31,10 +36,8 @@ test.describe('VibeGrid Context Menus', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('7.1 Cell context menu - right-click on cell', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('7.1 Cell context menu - right-click on cell', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -61,10 +64,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(pasteButton).toBeVisible()
   })
 
-  test('7.2 Header context menu - right-click on header', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for header cells to render
+  it('7.2 Header context menu - right-click on header', async () => {
+        // Wait for header cells to render
     const headerLocator = page.locator('.vibegridx-header-cell[data-column-id]')
     const headerCount = await headerLocator.count()
 
@@ -89,10 +90,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(copyButton).toBeVisible()
   })
 
-  test('7.3 Menu action execution - click menu option', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('7.3 Menu action execution - click menu option', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -125,10 +124,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('7.4 Menu dismiss - click outside menu', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('7.4 Menu dismiss - click outside menu', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -167,10 +164,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('Menu dismiss - press Escape key', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('Menu dismiss - press Escape key', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -200,10 +195,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('Context menu contains cell-specific actions', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('Context menu contains cell-specific actions', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -233,10 +226,8 @@ test.describe('VibeGrid Context Menus', () => {
     await expect(copyShortcut).toBeVisible()
   })
 
-  test('Multiple right-clicks replace context menu', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('Multiple right-clicks replace context menu', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 

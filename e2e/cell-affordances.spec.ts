@@ -13,11 +13,16 @@
  * Tests will skip if required elements are not detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Cell Affordances', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Cell Affordances', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -32,10 +37,8 @@ test.describe('VibeGrid Cell Affordances', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('12.1 Click padding = select (not edit)', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells with data attributes (exclude drag handle column)
+  it('12.1 Click padding = select (not edit)', async () => {
+        // Find cells with data attributes (exclude drag handle column)
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -71,10 +74,8 @@ test.describe('VibeGrid Cell Affordances', () => {
     expect(hasEditingClass).not.toContain('vibegridx-editing')
   })
 
-  test('12.2 Click content = affordance action triggered', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells that have content with affordance attributes
+  it('12.2 Click content = affordance action triggered', async () => {
+        // Find cells that have content with affordance attributes
     // Look for cells with data-affordance="edit" on their content
     const editableCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="edit"]',
@@ -140,10 +141,8 @@ test.describe('VibeGrid Cell Affordances', () => {
     }
   })
 
-  test('12.4 Toggle affordance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for cells with toggle affordance (boolean fields)
+  it('12.4 Toggle affordance', async () => {
+        // Look for cells with toggle affordance (boolean fields)
     // These have data-affordance="toggle" on the content element
     const toggleCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="toggle"]',
@@ -198,10 +197,8 @@ test.describe('VibeGrid Cell Affordances', () => {
     }
   })
 
-  test('Click on cell with no affordance = selection only', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells with data-affordance="none" or readonly cells
+  it('Click on cell with no affordance = selection only', async () => {
+        // Find cells with data-affordance="none" or readonly cells
     const readonlyCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="none"]',
     )
@@ -274,10 +271,8 @@ test.describe('VibeGrid Cell Affordances', () => {
     }
   })
 
-  test('Affordance respects non-editable column setting', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells that have data-editable="false"
+  it('Affordance respects non-editable column setting', async () => {
+        // Find cells that have data-editable="false"
     const nonEditableCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id][data-editable="false"]',
     )

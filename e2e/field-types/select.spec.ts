@@ -10,11 +10,14 @@
  * Affordance: 'edit' - clicking the badge opens a dropdown editor.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Select Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Select Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -56,10 +59,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     return selectCount > 0
   }
 
-  test('2.1 Select badge renders with correct styling', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('2.1 Select badge renders with correct styling', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -90,10 +91,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     expect(hasBackground || hasPadding).toBe(true)
   })
 
-  test('2.2 Click opens dropdown editor', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const selectBadge = page.locator(
+  it('2.2 Click opens dropdown editor', async () => {
+        const selectBadge = page.locator(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
     ).first()
 
@@ -115,10 +114,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('2.3 Select option updates badge', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const selectBadge = page.locator(
+  it('2.3 Select option updates badge', async () => {
+        const selectBadge = page.locator(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
     ).first()
 
@@ -173,10 +170,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     }
   })
 
-  test('2.4 Escape cancels without change', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const selectBadge = page.locator(
+  it('2.4 Escape cancels without change', async () => {
+        const selectBadge = page.locator(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
     ).first()
 
@@ -205,10 +200,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     expect(afterText).toBe(originalText)
   })
 
-  test('2.5 Status options show with colors', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which have all status variations
+  it('2.5 Status options show with colors', async () => {
+        // Load fixtures which have all status variations
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -244,10 +237,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     expect(hasExpectedStatus).toBe(true)
   })
 
-  test('2.6 Empty select shows edit placeholder', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for cells with empty state (Edit emoji hint)
+  it('2.6 Empty select shows edit placeholder', async () => {
+        // Look for cells with empty state (Edit emoji hint)
     const emptyCells = page.locator(
       '.vibegridx-cell[data-column-id="status"] .vibegridx-cell-empty',
     )
@@ -266,10 +257,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     expect(cellText).toContain('Edit')
   })
 
-  test('2.7 Read-only select shows no edit affordance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for non-editable select cells
+  it('2.7 Read-only select shows no edit affordance', async () => {
+        // Look for non-editable select cells
     const nonEditableCells = page.locator(
       '.vibegridx-cell[data-column-id="status"][data-editable="false"]',
     )
@@ -296,10 +285,8 @@ test.describe.serial('VibeGrid Select Field Type', () => {
     }
   })
 
-  test('2.8 Dropdown shows all options from schema', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const selectBadge = page.locator(
+  it('2.8 Dropdown shows all options from schema', async () => {
+        const selectBadge = page.locator(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
     ).first()
 

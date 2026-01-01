@@ -11,22 +11,24 @@
  * @spec planning/specs/466-vibegrid-e2e-testing-framework-with-pla.md
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Gantt', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/gantt`)
-    await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-gantt"]', {
+describe('VibeGrid Gantt', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    await page.goto(`${BASE_URL}/debug/vibegrid-test/gantt`)
+    await page.waitForSelector('[data-testid="vibegrid-test-gantt"]', {
       timeout: 15000,
     })
     // Wait for grid to render and data to load
-    await authenticatedPage.waitForTimeout(1000)
+    await page.waitForTimeout(1000)
   })
 
-  test('8.1 Gantt bar drag (move) - changes start/end dates', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Ensure we have data - the mock route starts with 10 rows
+  it('8.1 Gantt bar drag (move) - changes start/end dates', async () => {
+        // Ensure we have data - the mock route starts with 10 rows
     const controlsText = await page.locator('[data-testid="mock-data-controls"]').textContent()
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
@@ -105,10 +107,8 @@ test.describe('VibeGrid Gantt', () => {
     }
   })
 
-  test('8.2 Gantt bar resize - changes duration', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Ensure we have data
+  it('8.2 Gantt bar resize - changes duration', async () => {
+        // Ensure we have data
     const controlsText = await page.locator('[data-testid="mock-data-controls"]').textContent()
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
@@ -189,12 +189,10 @@ test.describe('VibeGrid Gantt', () => {
     }
   })
 
-  test('8.3 Dependency creation - drag from bar end to another bar', async ({
-    authenticatedPage,
+  it('8.3 Dependency creation - drag from bar end to another bar', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Ensure we have enough data - need at least 2 bars
+        // Ensure we have enough data - need at least 2 bars
     const controlsText = await page.locator('[data-testid="mock-data-controls"]').textContent()
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
@@ -295,12 +293,10 @@ test.describe('VibeGrid Gantt', () => {
     }
   })
 
-  test('8.5 Critical path toggle - highlights critical path bars', async ({
-    authenticatedPage,
+  it('8.5 Critical path toggle - highlights critical path bars', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Ensure we have data
+        // Ensure we have data
     const controlsText = await page.locator('[data-testid="mock-data-controls"]').textContent()
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
@@ -371,10 +367,8 @@ test.describe('VibeGrid Gantt', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('Critical path toggle updates button state', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for Gantt to load
+  it('Critical path toggle updates button state', async () => {
+        // Wait for Gantt to load
     const ganttControls = page.locator('[data-testid="gantt-controls"]')
     await expect(ganttControls).toBeVisible()
 
@@ -414,10 +408,8 @@ test.describe('VibeGrid Gantt', () => {
     expect(finalBg).toBe(initialBg)
   })
 
-  test('Gantt generates dependencies via button', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find controls
+  it('Gantt generates dependencies via button', async () => {
+        // Find controls
     const generateButton = page.locator('[data-testid="generate-dependencies-button"]')
     const clearButton = page.locator('[data-testid="clear-dependencies-button"]')
     const ganttControls = page.locator('[data-testid="gantt-controls"]')
@@ -441,10 +433,8 @@ test.describe('VibeGrid Gantt', () => {
     await expect(ganttControls).toContainText('0 dependencies')
   })
 
-  test('Gantt bars render with correct structure', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Ensure we have data
+  it('Gantt bars render with correct structure', async () => {
+        // Ensure we have data
     const controlsText = await page.locator('[data-testid="mock-data-controls"]').textContent()
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0

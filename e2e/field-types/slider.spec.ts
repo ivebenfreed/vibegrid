@@ -10,11 +10,14 @@
  * Affordance: 'toggle' - clicking opens a range slider editor.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Slider Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Slider Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -45,10 +48,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     return sliderCells
   }
 
-  test('5.1 Slider displays as progress bar', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const sliderCells = await findSliderCells(page)
+  it('5.1 Slider displays as progress bar', async () => {
+        const sliderCells = await findSliderCells(page)
     const cellCount = await sliderCells.count()
 
     if (cellCount === 0) {
@@ -71,10 +72,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     }
   })
 
-  test('5.2 Progress bar shows filled portion', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('5.2 Progress bar shows filled portion', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -99,10 +98,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     }
   })
 
-  test('5.3 0% progress shows empty bar', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "Progress 0%" entity
+  it('5.3 0% progress shows empty bar', async () => {
+        // Load fixtures which include "Progress 0%" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -136,10 +133,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     }
   })
 
-  test('5.4 100% progress shows full bar', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "Progress 100%" entity
+  it('5.4 100% progress shows full bar', async () => {
+        // Load fixtures which include "Progress 100%" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -173,10 +168,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     }
   })
 
-  test('5.5 Click opens slider editor', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const sliderElement = page.locator(
+  it('5.5 Click opens slider editor', async () => {
+        const sliderElement = page.locator(
       '.vibegridx-cell[data-column-id="progress"] [data-affordance="toggle"]',
     ).first()
 
@@ -221,10 +214,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('5.6 Drag slider changes value', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Click to enter edit mode
+  it('5.6 Drag slider changes value', async () => {
+        // Click to enter edit mode
     const sliderCell = page.locator('.vibegridx-cell-slider').first()
     if (!(await sliderCell.isVisible().catch(() => false))) {
       test.skip(true, 'No slider cell visible')
@@ -265,10 +256,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     expect(updatedValue).toBeDefined()
   })
 
-  test('5.7 Value respects min/max constraints', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Click to enter edit mode
+  it('5.7 Value respects min/max constraints', async () => {
+        // Click to enter edit mode
     const sliderCell = page.locator('.vibegridx-cell-slider').first()
     if (!(await sliderCell.isVisible().catch(() => false))) {
       test.skip(true, 'No slider cell visible')
@@ -298,10 +287,8 @@ test.describe.serial('VibeGrid Slider Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('5.8 Blue color for progress bar', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find a slider with some progress
+  it('5.8 Blue color for progress bar', async () => {
+        // Find a slider with some progress
     const sliderCells = page.locator('.vibegridx-cell-slider')
     const cellCount = await sliderCells.count()
 

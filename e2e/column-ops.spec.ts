@@ -11,11 +11,16 @@
  * Tests will skip if no data cells are detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Column Operations', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Column Operations', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -30,10 +35,8 @@ test.describe('VibeGrid Column Operations', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('6.1 Column resize - drag column border', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for header cells to render
+  it('6.1 Column resize - drag column border', async () => {
+        // Wait for header cells to render
     const headerCellLocator = page.locator('.vibegridx-header-cell[data-column-id]')
     const headerCellCount = await headerCellLocator.count()
 
@@ -88,10 +91,8 @@ test.describe('VibeGrid Column Operations', () => {
     expect(widthDifference).toBeGreaterThanOrEqual(20)
   })
 
-  test('6.2 Column reorder - drag column header', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for header cells to render
+  it('6.2 Column reorder - drag column header', async () => {
+        // Wait for header cells to render
     const headerCellLocator = page.locator('.vibegridx-header-cell[data-column-id]')
     const headerCellCount = await headerCellLocator.count()
 
@@ -153,10 +154,8 @@ test.describe('VibeGrid Column Operations', () => {
     await expect(secondHeaderCell).toBeVisible()
   })
 
-  test('6.3 Column visibility toggle - click visibility button', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for the column visibility dropdown trigger button
+  it('6.3 Column visibility toggle - click visibility button', async () => {
+        // Look for the column visibility dropdown trigger button
     // This is typically a "Columns" button with an icon
     const columnsButton = page.locator('button:has-text("Columns")')
 
@@ -277,10 +276,8 @@ test.describe('VibeGrid Column Operations', () => {
     expect(await page.locator('[role="menu"], [role="menuitem"]').count()).toBeGreaterThan(0)
   })
 
-  test('Column resize restores minimum width constraint', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for header cells to render
+  it('Column resize restores minimum width constraint', async () => {
+        // Wait for header cells to render
     const headerCellLocator = page.locator('.vibegridx-header-cell[data-column-id]')
     const headerCellCount = await headerCellLocator.count()
 
@@ -317,10 +314,8 @@ test.describe('VibeGrid Column Operations', () => {
     expect(finalBox!.width).toBeGreaterThanOrEqual(50)
   })
 
-  test('Resize handle shows visual feedback on hover', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for header cells to render
+  it('Resize handle shows visual feedback on hover', async () => {
+        // Wait for header cells to render
     const headerCellLocator = page.locator('.vibegridx-header-cell[data-column-id]')
     const headerCellCount = await headerCellLocator.count()
 

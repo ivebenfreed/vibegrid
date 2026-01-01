@@ -11,7 +11,9 @@
  * Tests will skip if no data cells are detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
 /**
  * Helper to detect if a column is in sorted state.
@@ -84,9 +86,12 @@ async function isSortedDesc(header: any): Promise<boolean> {
   })
 }
 
-test.describe('VibeGrid Sorting & Filtering', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Sorting & Filtering', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     // Navigate to the basic test route
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
@@ -110,10 +115,8 @@ test.describe('VibeGrid Sorting & Filtering', () => {
     await page.waitForTimeout(1500)
   })
 
-  test('5.1 Column sort ascending - click column header', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('5.1 Column sort ascending - click column header', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -173,10 +176,8 @@ test.describe('VibeGrid Sorting & Filtering', () => {
     await expect(page.locator('.vibegridx-cell[data-row-id]').first()).toBeVisible()
   })
 
-  test('5.2 Column sort descending - click header again', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('5.2 Column sort descending - click header again', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -229,10 +230,8 @@ test.describe('VibeGrid Sorting & Filtering', () => {
     await expect(page.locator('.vibegridx-cell[data-row-id]').first()).toBeVisible()
   })
 
-  test('5.3 Multi-column sort - Shift+click second column', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('5.3 Multi-column sort - Shift+click second column', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -291,10 +290,8 @@ test.describe('VibeGrid Sorting & Filtering', () => {
     await expect(page.locator('.vibegridx-cell[data-row-id]').first()).toBeVisible()
   })
 
-  test('Sort cycle - click to cycle through asc, desc, none', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('Sort cycle - click to cycle through asc, desc, none', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -364,10 +361,8 @@ test.describe('VibeGrid Sorting & Filtering', () => {
     expect(uniqueStates.size).toBeGreaterThanOrEqual(2)
   })
 
-  test('Sort indicator visibility on header', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render
+  it('Sort indicator visibility on header', async () => {
+        // Wait for cells to render
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 

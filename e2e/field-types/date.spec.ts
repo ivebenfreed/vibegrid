@@ -10,11 +10,14 @@
  * Affordance: 'edit' - clicking the badge opens a date input editor.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Date Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Date Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -56,10 +59,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     return dateInputCount > 0
   }
 
-  test('3.1 Date badge renders with formatted date', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateCells = await findDateCells(page)
+  it('3.1 Date badge renders with formatted date', async () => {
+        const dateCells = await findDateCells(page)
     const cellCount = await dateCells.count()
 
     if (cellCount === 0) {
@@ -91,15 +92,13 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     const badgeText = await dateBadge.textContent()
     const hasDatePattern =
       // Common date patterns: 2024-01-15, Jan 15, 2024, 01/15/2024, etc.
-      /\d{4}|\d{1,2}[/-]\d{1,2}|\w{3}\s+\d{1,2}/.test(badgeText || '')
+      /\d{4}|\d{1,2}[/-]\d{1,2}|\w{3}\s+\d{1,2}/.it(badgeText || '')
 
     expect(hasDatePattern).toBe(true)
   })
 
-  test('3.2 Date badge has correct styling', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateBadge = page.locator(
+  it('3.2 Date badge has correct styling', async () => {
+        const dateBadge = page.locator(
       '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
     ).first()
 
@@ -116,10 +115,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     expect(hasBackground || hasPadding).toBe(true)
   })
 
-  test('3.3 Click opens date picker', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateBadge = page.locator(
+  it('3.3 Click opens date picker', async () => {
+        const dateBadge = page.locator(
       '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
     ).first()
 
@@ -146,10 +143,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('3.4 Select date updates cell', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateBadge = page.locator(
+  it('3.4 Select date updates cell', async () => {
+        const dateBadge = page.locator(
       '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
     ).first()
 
@@ -198,10 +193,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     }
   })
 
-  test('3.5 Clear date shows empty state', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateBadge = page.locator(
+  it('3.5 Clear date shows empty state', async () => {
+        const dateBadge = page.locator(
       '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
     ).first()
 
@@ -247,10 +240,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     }
   })
 
-  test('3.6 Datetime field shows time component', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for created_at column (datetime type)
+  it('3.6 Datetime field shows time component', async () => {
+        // Look for created_at column (datetime type)
     const datetimeCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="created_at"]',
     )
@@ -281,10 +272,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     expect(badgeText?.length).toBeGreaterThan(0)
   })
 
-  test('3.7 Escape cancels date edit', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const dateBadge = page.locator(
+  it('3.7 Escape cancels date edit', async () => {
+        const dateBadge = page.locator(
       '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
     ).first()
 
@@ -318,10 +307,8 @@ test.describe.serial('VibeGrid Date Field Type', () => {
     expect(afterText).toBe(originalText)
   })
 
-  test('3.8 Read-only date shows no edit affordance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for non-editable date cells
+  it('3.8 Read-only date shows no edit affordance', async () => {
+        // Look for non-editable date cells
     const nonEditableCells = page.locator(
       '.vibegridx-cell[data-column-id="due_date"][data-editable="false"]',
     )

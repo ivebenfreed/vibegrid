@@ -10,11 +10,14 @@
  * Dragging fills values to adjacent cells.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Fill Handle', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Fill Handle', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -54,10 +57,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     return await cell.boundingBox()
   }
 
-  test('7.1 Fill handle visible on cell selection', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('7.1 Fill handle visible on cell selection', async () => {
+        // Select a cell
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -90,10 +91,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(handleVisible).toBe(true)
   })
 
-  test('7.2 Fill handle at bottom-right corner', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('7.2 Fill handle at bottom-right corner', async () => {
+        // Select a cell
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -136,10 +135,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(nearRight && nearBottom).toBe(true)
   })
 
-  test('7.3 Fill handle has crosshair cursor', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('7.3 Fill handle has crosshair cursor', async () => {
+        // Select a cell
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -167,10 +164,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(cursor).toBe('crosshair')
   })
 
-  test('7.4 Drag down fills values to cells below', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells to fill
+  it('7.4 Drag down fills values to cells below', async () => {
+        // Find cells to fill
     const sourceCells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="progress"]',
     )
@@ -236,10 +231,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(cell2Value).toBeDefined()
   })
 
-  test('7.5 Drag right fills values to cells right', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find a cell to start from
+  it('7.5 Drag right fills values to cells right', async () => {
+        // Find a cell to start from
     const sourceCell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="quantity"]',
     ).first()
@@ -303,10 +296,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(true).toBe(true)
   })
 
-  test('7.6 Fill preview shows during drag', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('7.6 Fill preview shows during drag', async () => {
+        // Select a cell
     const sourceCell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -358,10 +349,8 @@ test.describe.serial('VibeGrid Fill Handle', () => {
     expect(previewVisible || true).toBe(true) // Soft check
   })
 
-  test('7.7 Fill respects editable columns only', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Try to fill from an editable column
+  it('7.7 Fill respects editable columns only', async () => {
+        // Try to fill from an editable column
     const editableCell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="progress"]',
     ).first()

@@ -12,14 +12,16 @@
  * 4.3 Drag indicators - Start dragging, drop indicator shows target position
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
 const DRAG_DROP_URL = `${BASE_URL}/debug/vibegrid-test/drag-drop`
 
 /**
  * Helper to navigate and wait for page to be ready
  */
-async function navigateAndWaitForGrid(page: import('@playwright/test').Page): Promise<boolean> {
+async function navigateAndWaitForGrid(page: TestPage): Promise<boolean> {
   try {
     // Always navigate fresh to ensure consistent state
     // Use 'domcontentloaded' for faster navigation, then wait for elements
@@ -51,15 +53,24 @@ async function navigateAndWaitForGrid(page: import('@playwright/test').Page): Pr
   }
 }
 
-test.describe('VibeGrid Drag & Drop', () => {
-  test('4.1 Row reorder via drag - drag row handle to new position', async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage
+describe('VibeGrid Drag & Drop', () => {
+  let page: TestPage
 
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
+  })
+
+  afterEach(async () => {
+    if (page) {
+      await cleanupPage(page.unwrap())
+    }
+  })
+
+  it('4.1 Row reorder via drag - drag row handle to new position', async () => {
     // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -68,7 +79,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const rowCount = await rows.count()
 
     if (rowCount < 2) {
-      test.skip(true, 'Not enough rows for drag reorder test')
+      it.skip(true, 'Not enough rows for drag reorder test')
       return
     }
 
@@ -94,7 +105,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const targetBox = await secondRow.boundingBox()
 
     if (!handleBox || !targetBox) {
-      test.skip(true, 'Could not get bounding boxes for drag operation')
+      it.skip(true, 'Could not get bounding boxes for drag operation')
       return
     }
 
@@ -136,14 +147,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('4.2 Multi-row drag - select multiple rows and drag together', async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage
-
+  it('4.2 Multi-row drag - select multiple rows and drag together', async () => {
     // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -152,7 +159,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const checkboxCount = await checkboxLocator.count()
 
     if (checkboxCount < 3) {
-      test.skip(true, 'Not enough row checkboxes for multi-row drag test')
+      it.skip(true, 'Not enough row checkboxes for multi-row drag test')
       return
     }
 
@@ -161,7 +168,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const rowCount = await rows.count()
 
     if (rowCount < 3) {
-      test.skip(true, 'Not enough rows for multi-row drag test')
+      it.skip(true, 'Not enough rows for multi-row drag test')
       return
     }
 
@@ -199,7 +206,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const targetBox = await lastRow.boundingBox()
 
     if (!handleBox || !targetBox) {
-      test.skip(true, 'Could not get bounding boxes for multi-row drag')
+      it.skip(true, 'Could not get bounding boxes for multi-row drag')
       return
     }
 
@@ -221,14 +228,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('4.3 Drag indicators - drop indicator shows target position during drag', async ({
-    authenticatedPage,
-  }) => {
-    const page = authenticatedPage
-
+  it('4.3 Drag indicators - drop indicator shows target position during drag', async () => {
     // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -237,7 +240,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const rowCount = await rows.count()
 
     if (rowCount < 2) {
-      test.skip(true, 'Not enough rows to test drag indicators')
+      it.skip(true, 'Not enough rows to test drag indicators')
       return
     }
 
@@ -257,7 +260,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const targetBox = await targetRow.boundingBox()
 
     if (!handleBox || !targetBox) {
-      test.skip(true, 'Could not get bounding boxes for drag indicator test')
+      it.skip(true, 'Could not get bounding boxes for drag indicator test')
       return
     }
 
@@ -304,12 +307,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     // without throwing errors.
   })
 
-  test('Drag handle visibility on hover', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Navigate and wait for grid
+  it('Drag handle visibility on hover', async () => {
+        // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -336,12 +337,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     console.log('Drag handle exists:', handleExists)
   })
 
-  test('Drag column has correct width and structure', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Navigate and wait for grid
+  it('Drag column has correct width and structure', async () => {
+        // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -369,12 +368,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     }
   })
 
-  test('Row drag toggle control works', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Navigate and wait for grid
+  it('Row drag toggle control works', async () => {
+        // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -401,12 +398,10 @@ test.describe('VibeGrid Drag & Drop', () => {
     await expect(rowDragToggle).toBeChecked()
   })
 
-  test('Shuffle rows button randomizes row order', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Navigate and wait for grid
+  it('Shuffle rows button randomizes row order', async () => {
+        // Navigate and wait for grid
     if (!(await navigateAndWaitForGrid(page))) {
-      test.skip(true, 'Could not load drag-drop test page')
+      it.skip(true, 'Could not load drag-drop test page')
       return
     }
 
@@ -415,7 +410,7 @@ test.describe('VibeGrid Drag & Drop', () => {
     const rowCount = await rows.count()
 
     if (rowCount < 3) {
-      test.skip(true, 'Not enough rows to test shuffle')
+      it.skip(true, 'Not enough rows to test shuffle')
       return
     }
 

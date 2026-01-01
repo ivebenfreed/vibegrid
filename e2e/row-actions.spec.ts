@@ -20,28 +20,30 @@
  * We test the selection mechanism and ActionsBar visibility with existing config.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Row Actions', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
-    await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-basic"]', {
+describe('VibeGrid Row Actions', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
+    await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
     })
     // Wait for the vibegrid container to be visible
-    await authenticatedPage.waitForSelector('[data-testid="vibegrid-container"]', {
+    await page.waitForSelector('[data-testid="vibegrid-container"]', {
       timeout: 15000,
     })
     // Wait a moment for React to render the grid component
-    await authenticatedPage.waitForTimeout(1000)
+    await page.waitForTimeout(1000)
   })
 
-  test('9.1 Select rows for bulk action - ActionsBar appears with count', async ({
-    authenticatedPage,
+  it('9.1 Select rows for bulk action - ActionsBar appears with count', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Wait for row checkboxes to render
+        // Wait for row checkboxes to render
     const checkboxes = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await checkboxes.count()
 
@@ -115,10 +117,8 @@ test.describe('VibeGrid Row Actions', () => {
     }
   })
 
-  test('9.2 Bulk delete - Selected rows removed', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for row checkboxes to render
+  it('9.2 Bulk delete - Selected rows removed', async () => {
+        // Wait for row checkboxes to render
     const checkboxes = page.locator('.vibegridx-row-checkbox')
     const initialCheckboxCount = await checkboxes.count()
 
@@ -202,10 +202,8 @@ test.describe('VibeGrid Row Actions', () => {
     expect(checkedCount).toBe(0) // Selection cleared after bulk action
   })
 
-  test('Select all rows via header checkbox', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for checkboxes to render
+  it('Select all rows via header checkbox', async () => {
+        // Wait for checkboxes to render
     const rowCheckboxes = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await rowCheckboxes.count()
 
@@ -242,10 +240,8 @@ test.describe('VibeGrid Row Actions', () => {
     }
   })
 
-  test('Deselect all clears selection', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for checkboxes to render
+  it('Deselect all clears selection', async () => {
+        // Wait for checkboxes to render
     const rowCheckboxes = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await rowCheckboxes.count()
 

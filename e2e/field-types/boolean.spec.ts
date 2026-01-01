@@ -10,11 +10,14 @@
  * Affordance: 'toggle' - clicking the badge opens a dropdown editor.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Boolean Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Boolean Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -58,10 +61,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     return selectCount > 0
   }
 
-  test('1.1 Boolean badge renders correctly for true value', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('1.1 Boolean badge renders correctly for true value', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -94,10 +95,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     expect(hasTrueIndicator).toBe(true)
   })
 
-  test('1.2 Boolean badge renders correctly for false value', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('1.2 Boolean badge renders correctly for false value', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -134,10 +133,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     }
   })
 
-  test('1.3 Click on boolean badge enters edit mode', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const booleanCells = await findBooleanCells(page)
+  it('1.3 Click on boolean badge enters edit mode', async () => {
+        const booleanCells = await findBooleanCells(page)
     const cellCount = await booleanCells.count()
 
     if (cellCount === 0) {
@@ -177,10 +174,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('1.4 Select true option updates badge', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const toggleElement = page.locator(
+  it('1.4 Select true option updates badge', async () => {
+        const toggleElement = page.locator(
       '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
     ).first()
 
@@ -216,10 +211,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     }
   })
 
-  test('1.5 Select false option updates badge', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const toggleElement = page.locator(
+  it('1.5 Select false option updates badge', async () => {
+        const toggleElement = page.locator(
       '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
     ).first()
 
@@ -253,10 +246,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     }
   })
 
-  test('1.6 Escape cancels edit without changing value', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const toggleElement = page.locator(
+  it('1.6 Escape cancels edit without changing value', async () => {
+        const toggleElement = page.locator(
       '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
     ).first()
 
@@ -285,10 +276,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     expect(afterHtml).toBe(originalHtml)
   })
 
-  test('1.7 Click outside commits value (blur)', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const toggleElement = page.locator(
+  it('1.7 Click outside commits value (blur)', async () => {
+        const toggleElement = page.locator(
       '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
     ).first()
 
@@ -324,10 +313,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     expect(dropdownStillVisible).toBe(false)
   })
 
-  test('1.8 Read-only boolean shows no affordance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for non-editable boolean cells
+  it('1.8 Read-only boolean shows no affordance', async () => {
+        // Look for non-editable boolean cells
     const nonEditableCells = page.locator(
       '.vibegridx-cell[data-column-id="is_active"][data-editable="false"]',
     )
@@ -355,10 +342,8 @@ test.describe.serial('VibeGrid Boolean Field Type', () => {
     }
   })
 
-  test('1.9 Custom labels display correctly', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which use custom labels (Active/Inactive)
+  it('1.9 Custom labels display correctly', async () => {
+        // Load fixtures which use custom labels (Active/Inactive)
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()

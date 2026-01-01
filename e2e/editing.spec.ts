@@ -16,13 +16,16 @@
  * - Click edit icon: When element has data-edit-trigger="true"
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
 // Use serial mode to avoid parallel navigation issues
-test.describe
+describe
   .serial('VibeGrid Editing', () => {
-    test.beforeEach(async ({ authenticatedPage }) => {
-      const page = authenticatedPage
+    beforeEach(async () => {
+      const puppeteerPage = await getTestPage()
+      page = wrapPage(puppeteerPage)
 
       // Get current URL to see if we need to navigate
       const currentUrl = page.url()
@@ -127,10 +130,8 @@ test.describe
       return await isEditing(page)
     }
 
-    test('2.1 Start edit via double-click', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.1 Start edit via double-click', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -172,10 +173,8 @@ test.describe
       await page.waitForTimeout(200)
     })
 
-    test('2.2 Start edit via F2', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.2 Start edit via F2', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -224,10 +223,8 @@ test.describe
       await page.waitForTimeout(200)
     })
 
-    test('2.3 Start edit via Enter', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.3 Start edit via Enter', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -276,10 +273,8 @@ test.describe
       await page.waitForTimeout(200)
     })
 
-    test('2.4 Commit edit', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.4 Commit edit', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -310,10 +305,8 @@ test.describe
       expect(afterEditing).toBe(false)
     })
 
-    test('2.5 Cancel edit via Escape', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.5 Cancel edit via Escape', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -343,10 +336,8 @@ test.describe
       expect(afterEditing).toBe(false)
     })
 
-    test('2.6 Commit edit via blur', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('2.6 Commit edit via blur', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 
@@ -385,10 +376,8 @@ test.describe
       expect(afterEditing).toBe(false)
     })
 
-    test('Tab key commits edit and moves to next cell', async ({ authenticatedPage }) => {
-      const page = authenticatedPage
-
-      // Wait for cells to render
+    it('Tab key commits edit and moves to next cell', async () => {
+            // Wait for cells to render
       const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
       const cellCount = await cellLocator.count()
 

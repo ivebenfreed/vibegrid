@@ -10,11 +10,14 @@
  * TSV (tab-separated values) format for multi-cell paste.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Multi-Cell Paste', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Multi-Cell Paste', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -35,10 +38,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     await page.waitForTimeout(1500)
   })
 
-  test('8.1 Copy cell value with Ctrl+C', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell with content
+  it('8.1 Copy cell value with Ctrl+C', async () => {
+        // Select a cell with content
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -63,10 +64,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     expect(originalValue).toBeDefined()
   })
 
-  test('8.2 Paste single cell with Ctrl+V', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find source and target cells
+  it('8.2 Paste single cell with Ctrl+V', async () => {
+        // Find source and target cells
     const cells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     )
@@ -98,10 +97,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     expect(true).toBe(true)
   })
 
-  test('8.3 Cut removes value from source', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('8.3 Cut removes value from source', async () => {
+        // Select a cell
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -129,10 +126,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     expect(afterCutValue !== undefined).toBe(true)
   })
 
-  test('8.4 Multi-cell selection supports copy', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells to select
+  it('8.4 Multi-cell selection supports copy', async () => {
+        // Find cells to select
     const cells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     )
@@ -161,10 +156,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     expect(true).toBe(true)
   })
 
-  test('8.5 Paste respects column types', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a text cell
+  it('8.5 Paste respects column types', async () => {
+        // Select a text cell
     const textCell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()
@@ -199,10 +192,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     }
   })
 
-  test('8.6 Paste into multiple cells fills grid shape', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // This tests pasting TSV content into multiple cells
+  it('8.6 Paste into multiple cells fills grid shape', async () => {
+        // This tests pasting TSV content into multiple cells
     // First, select a range of cells
     const cells = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
@@ -230,10 +221,8 @@ test.describe.serial('VibeGrid Multi-Cell Paste', () => {
     expect(true).toBe(true)
   })
 
-  test('8.7 Undo paste with Ctrl+Z', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Select a cell
+  it('8.7 Undo paste with Ctrl+Z', async () => {
+        // Select a cell
     const cell = page.locator(
       '.vibegridx-cell[data-row-id][data-column-id="name"]',
     ).first()

@@ -10,11 +10,14 @@
  * Large datasets should scroll smoothly without rendering all rows.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Virtual Scrolling', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Virtual Scrolling', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -56,10 +59,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     return false
   }
 
-  test('9.1 Grid renders with virtual scrolling', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load a larger dataset
+  it('9.1 Grid renders with virtual scrolling', async () => {
+        // Load a larger dataset
     await loadLargeDataset(page, 100)
 
     // Count visible rows
@@ -72,10 +73,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(visibleCount).toBeLessThan(100) // Should not render all 100
   })
 
-  test('9.2 Row count matches data size', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Check test state for row count
+  it('9.2 Row count matches data size', async () => {
+        // Check test state for row count
     const testState = await page.evaluate(() => {
       return (window as any).__VIBEGRID_TEST_STATE__
     })
@@ -89,10 +88,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(testState.rowCount).toBeGreaterThan(0)
   })
 
-  test('9.3 Scroll maintains smooth performance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load larger dataset
+  it('9.3 Scroll maintains smooth performance', async () => {
+        // Load larger dataset
     const loaded = await loadLargeDataset(page, 200)
     if (!loaded) {
       test.skip(true, 'Could not load large dataset')
@@ -124,10 +121,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(visibleCount).toBeGreaterThan(0)
   })
 
-  test('9.4 Selection maintained after scroll', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load larger dataset
+  it('9.4 Selection maintained after scroll', async () => {
+        // Load larger dataset
     await loadLargeDataset(page, 100)
 
     // Find and select a cell
@@ -167,10 +162,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(stillSelected || true).toBe(true) // Soft check
   })
 
-  test('9.5 Scroll to bottom loads last rows', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load larger dataset
+  it('9.5 Scroll to bottom loads last rows', async () => {
+        // Load larger dataset
     const loaded = await loadLargeDataset(page, 100)
     if (!loaded) {
       test.skip(true, 'Could not load large dataset')
@@ -202,10 +195,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(rowId).toBeDefined()
   })
 
-  test('9.6 Keyboard navigation works with virtual scroll', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load dataset
+  it('9.6 Keyboard navigation works with virtual scroll', async () => {
+        // Load dataset
     await loadLargeDataset(page, 50)
 
     // Select first visible cell
@@ -233,10 +224,8 @@ test.describe.serial('VibeGrid Virtual Scrolling', () => {
     expect(selectedCount).toBeGreaterThan(0)
   })
 
-  test('9.7 DOM element count stays bounded', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load a large dataset
+  it('9.7 DOM element count stays bounded', async () => {
+        // Load a large dataset
     const loaded = await loadLargeDataset(page, 500)
     if (!loaded) {
       test.skip(true, 'Could not load large dataset')

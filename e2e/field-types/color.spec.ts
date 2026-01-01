@@ -10,11 +10,14 @@
  * Affordance: 'edit' - clicking opens a color picker.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Color Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Color Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -45,10 +48,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     return colorCells
   }
 
-  test('6.1 Color swatch renders with correct color', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('6.1 Color swatch renders with correct color', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -85,10 +86,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     expect(hasBackgroundColor).toBe(true)
   })
 
-  test('6.2 Hex value displays next to swatch', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures
+  it('6.2 Hex value displays next to swatch', async () => {
+        // Load fixtures
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -106,7 +105,7 @@ test.describe.serial('VibeGrid Color Field Type', () => {
         const cellText = await firstCell.textContent()
 
         // Should contain hex color like #ef4444
-        const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(cellText || '')
+        const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.it(cellText || '')
 
         // If no hex, might be rgb or color name - that's also valid
         expect(cellText?.length).toBeGreaterThan(0)
@@ -119,18 +118,16 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     const text = await colorText.textContent()
 
     // Should be a hex color or color name
-    const isHexColor = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(text || '')
-    const isColorName = /red|green|blue|yellow|orange|purple|pink|cyan/.test(
+    const isHexColor = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.it(text || '')
+    const isColorName = /red|green|blue|yellow|orange|purple|pink|cyan/.it(
       (text || '').toLowerCase(),
     )
 
     expect(isHexColor || isColorName || text?.length).toBeTruthy()
   })
 
-  test('6.3 Click opens color picker', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const colorElement = page.locator(
+  it('6.3 Click opens color picker', async () => {
+        const colorElement = page.locator(
       '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="edit"]',
     ).first()
 
@@ -176,10 +173,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('6.4 Select color updates swatch', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Click to enter edit mode
+  it('6.4 Select color updates swatch', async () => {
+        // Click to enter edit mode
     const colorCell = page.locator('.vibegridx-cell-color-editable').first()
     if (!(await colorCell.isVisible().catch(() => false))) {
       test.skip(true, 'No color cell visible')
@@ -224,10 +219,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     expect(hasNewColor).toBe(true)
   })
 
-  test('6.5 Swatch has correct dimensions', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const colorSwatch = page.locator('.vibegridx-color-swatch').first()
+  it('6.5 Swatch has correct dimensions', async () => {
+        const colorSwatch = page.locator('.vibegridx-color-swatch').first()
 
     if (!(await colorSwatch.isVisible().catch(() => false))) {
       test.skip(true, 'No color swatch visible')
@@ -243,10 +236,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     expect(hasWidth || hasHeight || style?.includes('px')).toBe(true)
   })
 
-  test('6.6 Swatch has border for visibility', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const colorSwatch = page.locator('.vibegridx-color-swatch').first()
+  it('6.6 Swatch has border for visibility', async () => {
+        const colorSwatch = page.locator('.vibegridx-color-swatch').first()
 
     if (!(await colorSwatch.isVisible().catch(() => false))) {
       test.skip(true, 'No color swatch visible')
@@ -260,10 +251,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     expect(hasBorder).toBe(true)
   })
 
-  test('6.7 Empty color shows edit placeholder', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "All Nulls Test" entity
+  it('6.7 Empty color shows edit placeholder', async () => {
+        // Load fixtures which include "All Nulls Test" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -288,10 +277,8 @@ test.describe.serial('VibeGrid Color Field Type', () => {
     expect(cellText).toContain('Edit')
   })
 
-  test('6.8 Read-only color shows no edit affordance', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Look for non-editable color cells
+  it('6.8 Read-only color shows no edit affordance', async () => {
+        // Look for non-editable color cells
     const nonEditableCells = page.locator(
       '.vibegridx-cell[data-column-id="priority_color"][data-editable="false"]',
     )

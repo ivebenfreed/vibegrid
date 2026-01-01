@@ -11,11 +11,16 @@
  * Tests will skip if no data cells are detected.
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Selection', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe('VibeGrid Selection', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -30,10 +35,8 @@ test.describe('VibeGrid Selection', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('1.1 Single cell selection - click cell padding', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells to render (may take time due to API calls)
+  it('1.1 Single cell selection - click cell padding', async () => {
+        // Wait for cells to render (may take time due to API calls)
     // Use .vibegridx-cell class to exclude drag handle column
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
@@ -59,10 +62,8 @@ test.describe('VibeGrid Selection', () => {
     await expect(selectedCells).toHaveCount(1)
   })
 
-  test('1.2 Row selection via checkbox', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for checkboxes to render
+  it('1.2 Row selection via checkbox', async () => {
+        // Wait for checkboxes to render
     const checkboxLocator = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await checkboxLocator.count()
 
@@ -93,10 +94,8 @@ test.describe('VibeGrid Selection', () => {
     expect(selectedCount).toBeGreaterThan(0)
   })
 
-  test('1.3 Multi-select with Ctrl', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells using data attributes, exclude drag handle column
+  it('1.3 Multi-select with Ctrl', async () => {
+        // Get cells using data attributes, exclude drag handle column
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -128,10 +127,8 @@ test.describe('VibeGrid Selection', () => {
     expect(count).toBeGreaterThanOrEqual(2)
   })
 
-  test('1.4 Range select with Shift', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find cells by row - use data attributes for reliability, exclude drag handle
+  it('1.4 Range select with Shift', async () => {
+        // Find cells by row - use data attributes for reliability, exclude drag handle
     const allCells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await allCells.count()
 
@@ -163,10 +160,8 @@ test.describe('VibeGrid Selection', () => {
     expect(finalCount).toBeGreaterThan(initialCount)
   })
 
-  test('1.5 Clear selection - click outside grid', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for cells, exclude drag handle column
+  it('1.5 Clear selection - click outside grid', async () => {
+        // Wait for cells, exclude drag handle column
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -195,10 +190,8 @@ test.describe('VibeGrid Selection', () => {
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
   })
 
-  test('Multi-row selection via checkboxes with Shift', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get checkboxes
+  it('Multi-row selection via checkboxes with Shift', async () => {
+        // Get checkboxes
     const checkboxes = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await checkboxes.count()
 
@@ -222,10 +215,8 @@ test.describe('VibeGrid Selection', () => {
     await expect(thirdCheckbox).toBeChecked()
   })
 
-  test('Deselect row by clicking checkbox again', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get checkboxes
+  it('Deselect row by clicking checkbox again', async () => {
+        // Get checkboxes
     const checkboxLocator = page.locator('.vibegridx-row-checkbox')
     const checkboxCount = await checkboxLocator.count()
 
@@ -244,10 +235,8 @@ test.describe('VibeGrid Selection', () => {
     await expect(firstCheckbox).not.toBeChecked()
   })
 
-  test('Single cell click clears multi-selection', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells, exclude drag handle column
+  it('Single cell click clears multi-selection', async () => {
+        // Get cells, exclude drag handle column
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 

@@ -15,15 +15,20 @@
  * 3.6 Escape from edit - Escape cancels editing
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
 // Increase timeout for tests that involve editing state changes
-test.describe('VibeGrid Keyboard Navigation', () => {
+describe('VibeGrid Keyboard Navigation', () => {
+  let page: TestPage
+
   // Set higher timeout for all tests in this suite
   test.setTimeout(60000)
 
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -38,12 +43,10 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     await page.waitForTimeout(1000)
   })
 
-  test('3.1 Arrow key navigation - Arrow Down moves focus to cell below', async ({
-    authenticatedPage,
+  it('3.1 Arrow key navigation - Arrow Down moves focus to cell below', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Get cells using data attributes, exclude drag handle column
+        // Get cells using data attributes, exclude drag handle column
     const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cellLocator.count()
 
@@ -89,12 +92,10 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     }
   })
 
-  test('3.2 Arrow Up/Left/Right - Arrow navigation in each direction', async ({
-    authenticatedPage,
+  it('3.2 Arrow Up/Left/Right - Arrow navigation in each direction', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Get cells
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -161,12 +162,10 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     }
   })
 
-  test('3.3 Tab navigation - Tab commits edit and moves to next cell', async ({
-    authenticatedPage,
+  it('3.3 Tab navigation - Tab commits edit and moves to next cell', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Get cells
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -231,12 +230,10 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     expect(newColumnId).not.toBe(editableCellColumnId)
   })
 
-  test('3.4 Shift+Tab - Shift+Tab commits edit and moves to previous cell', async ({
-    authenticatedPage,
+  it('3.4 Shift+Tab - Shift+Tab commits edit and moves to previous cell', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Get cells
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -292,12 +289,10 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     expect(columnAfterShiftTab).not.toBe(currentColumnId)
   })
 
-  test('3.5 Enter to edit - Enter starts editing on focused cell', async ({
-    authenticatedPage,
+  it('3.5 Enter to edit - Enter starts editing on focused cell', async ({
+    page,
   }) => {
-    const page = authenticatedPage
-
-    // Get cells that are editable (exclude selection column and non-editable columns)
+        // Get cells that are editable (exclude selection column and non-editable columns)
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -355,10 +350,8 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     }
   })
 
-  test('3.6 Escape from edit - Escape cancels editing', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells
+  it('3.6 Escape from edit - Escape cancels editing', async () => {
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -430,10 +423,8 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     }
   })
 
-  test('Arrow keys with Shift extend selection', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells
+  it('Arrow keys with Shift extend selection', async () => {
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -459,10 +450,8 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     expect(selectedCount).toBeGreaterThanOrEqual(2)
   })
 
-  test('Ctrl+A selects all cells', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells
+  it('Ctrl+A selects all cells', async () => {
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 
@@ -487,10 +476,8 @@ test.describe('VibeGrid Keyboard Navigation', () => {
     expect(selectedCount).toBeGreaterThan(1)
   })
 
-  test('Delete/Backspace on focused cell (when supported)', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Get cells
+  it('Delete/Backspace on focused cell (when supported)', async () => {
+        // Get cells
     const cells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = await cells.count()
 

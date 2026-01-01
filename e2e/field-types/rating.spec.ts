@@ -10,11 +10,14 @@
  * Affordance: 'toggle' - clicking directly on a star sets that rating.
  */
 
-import { test, expect, BASE_URL } from '../../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
+import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-test.describe.serial('VibeGrid Rating Field Type', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    const page = authenticatedPage
+describe.serial('VibeGrid Rating Field Type', () => {
+  beforeEach(async () => {
+    const puppeteerPage = await getTestPage()
+    page = wrapPage(puppeteerPage)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -45,10 +48,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     return ratingCells
   }
 
-  test('4.1 Rating displays correct number of stars', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures for deterministic values
+  it('4.1 Rating displays correct number of stars', async () => {
+        // Load fixtures for deterministic values
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -76,10 +77,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     expect(hasFilledStar || hasEmptyStar).toBe(true)
   })
 
-  test('4.2 3-star rating shows 3 filled + 2 empty', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "Rating 3 Stars" entity
+  it('4.2 3-star rating shows 3 filled + 2 empty', async () => {
+        // Load fixtures which include "Rating 3 Stars" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -123,10 +122,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     }
   })
 
-  test('4.3 5-star rating shows all filled', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "Rating 5 Stars" entity
+  it('4.3 5-star rating shows all filled', async () => {
+        // Load fixtures which include "Rating 5 Stars" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -164,10 +161,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     }
   })
 
-  test('4.4 0-star rating shows all empty', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Load fixtures which include "Rating 0 Stars" entity
+  it('4.4 0-star rating shows all empty', async () => {
+        // Load fixtures which include "Rating 0 Stars" entity
     const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
     if (await loadFixturesBtn.isVisible()) {
       await loadFixturesBtn.click()
@@ -200,10 +195,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     }
   })
 
-  test('4.5 Click on rating cell enters interactive mode', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const ratingElement = page.locator(
+  it('4.5 Click on rating cell enters interactive mode', async () => {
+        const ratingElement = page.locator(
       '.vibegridx-cell[data-column-id="rating"] [data-affordance="toggle"]',
     ).first()
 
@@ -253,10 +246,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('4.6 Click star sets rating value', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // First, try to enter edit mode
+  it('4.6 Click star sets rating value', async () => {
+        // First, try to enter edit mode
     const ratingCell = page.locator('.vibegridx-cell-rating').first()
     if (!(await ratingCell.isVisible().catch(() => false))) {
       test.skip(true, 'No rating cell visible')
@@ -307,10 +298,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     }
   })
 
-  test('4.7 Hover highlights stars', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    const ratingCell = page.locator('.vibegridx-cell-rating').first()
+  it('4.7 Hover highlights stars', async () => {
+        const ratingCell = page.locator('.vibegridx-cell-rating').first()
     if (!(await ratingCell.isVisible().catch(() => false))) {
       test.skip(true, 'No rating cell visible')
       return
@@ -343,10 +332,8 @@ test.describe.serial('VibeGrid Rating Field Type', () => {
     await page.waitForTimeout(200)
   })
 
-  test('4.8 Yellow color for filled stars', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Find a rating with filled stars
+  it('4.8 Yellow color for filled stars', async () => {
+        // Find a rating with filled stars
     const filledStar = page.locator('.vibegridx-cell-rating span').filter({
       hasText: '★',
     }).first()

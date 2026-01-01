@@ -13,22 +13,24 @@
  * - 11.4 Collapse all groups - Click Collapse All button
  */
 
-import { test, expect, BASE_URL } from '../fixtures/auth.fixture'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
+import { wrapPage, type TestPage } from '../setup/test-setup'
 
-test.describe('VibeGrid Grouping', () => {
-  test.beforeEach(async ({ authenticatedPage }) => {
-    await authenticatedPage.goto(`${BASE_URL}/debug/vibegrid-test/grouping`)
-    await authenticatedPage.waitForSelector('[data-testid="vibegrid-test-grouping"]', {
+describe('VibeGrid Grouping', () => {
+  let page: TestPage
+
+  beforeEach(async () => {
+    await page.goto(`${BASE_URL}/debug/vibegrid-test/grouping`)
+    await page.waitForSelector('[data-testid="vibegrid-test-grouping"]', {
       timeout: 15000,
     })
     // Wait for React to render the grid component
-    await authenticatedPage.waitForTimeout(1000)
+    await page.waitForTimeout(1000)
   })
 
-  test('11.1 Expand group - Click group expand arrow', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for vibegrid container to be ready
+  it('11.1 Expand group - Click group expand arrow', async () => {
+        // Wait for vibegrid container to be ready
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
 
     // Wait for group headers to render (grouping is enabled by default with status field)
@@ -84,10 +86,8 @@ test.describe('VibeGrid Grouping', () => {
     }
   })
 
-  test('11.2 Collapse group - Click expanded group arrow', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for vibegrid container
+  it('11.2 Collapse group - Click expanded group arrow', async () => {
+        // Wait for vibegrid container
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
 
     // Wait for group headers
@@ -143,10 +143,8 @@ test.describe('VibeGrid Grouping', () => {
     }
   })
 
-  test('11.3 Expand all groups - Click Expand All button', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for vibegrid container
+  it('11.3 Expand all groups - Click Expand All button', async () => {
+        // Wait for vibegrid container
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
 
     // Ensure grouping is enabled
@@ -199,10 +197,8 @@ test.describe('VibeGrid Grouping', () => {
     }
   })
 
-  test('11.4 Collapse all groups - Click Collapse All button', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for vibegrid container
+  it('11.4 Collapse all groups - Click Collapse All button', async () => {
+        // Wait for vibegrid container
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
 
     // Ensure grouping is enabled
@@ -252,10 +248,8 @@ test.describe('VibeGrid Grouping', () => {
     }
   })
 
-  test('Group header shows correct count and label', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for vibegrid container
+  it('Group header shows correct count and label', async () => {
+        // Wait for vibegrid container
     await expect(page.locator('[data-testid="vibegrid-container"]')).toBeVisible()
 
     // Ensure grouping is enabled
@@ -285,10 +279,8 @@ test.describe('VibeGrid Grouping', () => {
     expect(headerText).toMatch(/\(\d+\s*(items?|rows?)?\)/i)
   })
 
-  test('Can change group by field', async ({ authenticatedPage }) => {
-    const page = authenticatedPage
-
-    // Wait for controls
+  it('Can change group by field', async () => {
+        // Wait for controls
     await expect(page.locator('[data-testid="group-by-select"]')).toBeVisible()
 
     // Change group by field
