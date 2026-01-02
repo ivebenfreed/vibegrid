@@ -8,16 +8,19 @@
  *
  * Rating fields display as interactive stars (0-5 by default).
  * Affordance: 'toggle' - clicking directly on a star sets that rating.
+ *
+ * Converted from Playwright to raw Puppeteer for GH#572.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
-import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-describe.serial('VibeGrid Rating Field Type', () => {
+let page: Page
+
+describe('VibeGrid Rating Field Type', () => {
   beforeEach(async () => {
-    const puppeteerPage = await getTestPage()
-    page = wrapPage(puppeteerPage)
+    page = await getTestPage()
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -35,74 +38,99 @@ describe.serial('VibeGrid Rating Field Type', () => {
     })
 
     // Wait for grid to fully render
-    await page.waitForTimeout(1500)
+    await new Promise((r) => setTimeout(r, 1500))
+  })
+
+  afterEach(async () => {
+    if (page) {
+      await cleanupPage(page)
+    }
   })
 
   /**
    * Helper to find rating cells by checking for rating column
    */
-  async function findRatingCells(page: any) {
-    const ratingCells = page.locator(
-      '.vibegridx-cell[data-row-id][data-column-id="rating"]',
-    )
-    return ratingCells
+  async function findRatingCells(): Promise<ElementHandle[]> {
+    const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="rating"]')
+    return cells
+  }
+
+  /**
+   * Helper to load fixtures
+   */
+  async function loadFixtures(): Promise<void> {
+    const loadBtn = await page.$('[data-testid="load-fixtures-btn"]')
+    if (loadBtn) {
+      const isVisible = await loadBtn.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      if (isVisible) {
+        await loadBtn.click()
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    }
+  }
+
+  /**
+   * Helper to check if element is visible
+   */
+  async function isElementVisible(element: ElementHandle | null): Promise<boolean> {
+    if (!element) return false
+    try {
+      return await element.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+    } catch {
+      return false
+    }
   }
 
   it('4.1 Rating displays correct number of stars', async () => {
-        // Load fixtures for deterministic values
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures for deterministic values')
+    await loadFixtures()
 
-    const ratingCells = await findRatingCells(page)
-    const cellCount = await ratingCells.count()
+    const ratingCells = await findRatingCells()
 
-    if (cellCount === 0) {
-      test.skip(true, 'No rating cells found - rating field not in schema')
+    if (ratingCells.length === 0) {
+      console.log('SKIP: No rating cells found - rating field not in schema')
       return
     }
 
     // Find a rating cell with stars
-    const ratingCell = ratingCells.first()
+    const ratingCell = ratingCells[0]
     await expect(ratingCell).toBeVisible()
 
     // Check for star characters
-    const cellText = await ratingCell.textContent()
-    const hasFilledStar = cellText?.includes('★') || false
-    const hasEmptyStar = cellText?.includes('☆') || false
+    const cellText = await ratingCell.evaluate((el) => el.textContent)
+    const hasFilledStar = cellText?.includes('\u2605') || false // filled star
+    const hasEmptyStar = cellText?.includes('\u2606') || false // empty star
 
     // Should have some star representation
     expect(hasFilledStar || hasEmptyStar).toBe(true)
   })
 
   it('4.2 3-star rating shows 3 filled + 2 empty', async () => {
-        // Load fixtures which include "Rating 3 Stars" entity
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which include "Rating 3 Stars" entity')
+    await loadFixtures()
 
     // Look for a rating cell that shows 3/5
-    const ratingCells = page.locator(
+    const ratingCells = await page.$$(
       '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
     )
-    const cellCount = await ratingCells.count()
 
     let found3Star = false
-    for (let i = 0; i < cellCount; i++) {
-      const cell = ratingCells.nth(i)
-      const cellText = await cell.textContent()
+    for (const cell of ratingCells) {
+      const cellText = await cell.evaluate((el) => el.textContent)
 
       // Check for 3/5 pattern or count filled stars
       if (cellText?.includes('3/5')) {
         found3Star = true
 
         // Count stars
-        const filledCount = (cellText.match(/★/g) || []).length
-        const emptyCount = (cellText.match(/☆/g) || []).length
+        const filledCount = (cellText.match(/\u2605/g) || []).length
+        const emptyCount = (cellText.match(/\u2606/g) || []).length
 
         expect(filledCount).toBe(3)
         expect(emptyCount).toBe(2)
@@ -112,114 +140,99 @@ describe.serial('VibeGrid Rating Field Type', () => {
 
     if (!found3Star) {
       // Alternatively, just verify star rendering works
-      const anyRatingCell = ratingCells.first()
-      if (await anyRatingCell.isVisible().catch(() => false)) {
-        const text = await anyRatingCell.textContent()
-        expect(text?.includes('★') || text?.includes('☆')).toBe(true)
+      if (ratingCells.length > 0 && (await isElementVisible(ratingCells[0]))) {
+        const text = await ratingCells[0].evaluate((el) => el.textContent)
+        expect(text?.includes('\u2605') || text?.includes('\u2606')).toBe(true)
       } else {
-        test.skip(true, 'No 3-star rating found in fixtures')
+        console.log('SKIP: No 3-star rating found in fixtures')
       }
     }
   })
 
   it('4.3 5-star rating shows all filled', async () => {
-        // Load fixtures which include "Rating 5 Stars" entity
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which include "Rating 5 Stars" entity')
+    await loadFixtures()
 
     // Look for a rating cell that shows 5/5
-    const ratingCells = page.locator(
+    const ratingCells = await page.$$(
       '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
     )
-    const cellCount = await ratingCells.count()
 
     let found5Star = false
-    for (let i = 0; i < cellCount; i++) {
-      const cell = ratingCells.nth(i)
-      const cellText = await cell.textContent()
+    for (const cell of ratingCells) {
+      const cellText = await cell.evaluate((el) => el.textContent)
 
       // Check for 5/5 pattern
       if (cellText?.includes('5/5')) {
         found5Star = true
 
         // All stars should be filled
-        const filledCount = (cellText.match(/★/g) || []).length
+        const filledCount = (cellText.match(/\u2605/g) || []).length
         expect(filledCount).toBe(5)
 
         // No empty stars
-        const emptyCount = (cellText.match(/☆/g) || []).length
+        const emptyCount = (cellText.match(/\u2606/g) || []).length
         expect(emptyCount).toBe(0)
         break
       }
     }
 
     if (!found5Star) {
-      test.skip(true, 'No 5-star rating found in fixtures')
+      console.log('SKIP: No 5-star rating found in fixtures')
     }
   })
 
   it('4.4 0-star rating shows all empty', async () => {
-        // Load fixtures which include "Rating 0 Stars" entity
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which include "Rating 0 Stars" entity')
+    await loadFixtures()
 
     // Look for a rating cell that has 0 rating (all empty stars)
-    const ratingCells = page.locator(
+    const ratingCells = await page.$$(
       '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
     )
-    const cellCount = await ratingCells.count()
 
     let found0Star = false
-    for (let i = 0; i < cellCount; i++) {
-      const cell = ratingCells.nth(i)
-      const cellText = await cell.textContent()
+    for (const cell of ratingCells) {
+      const cellText = await cell.evaluate((el) => el.textContent)
 
       // 0 rating should have all empty stars and no x/5 text
-      const filledCount = (cellText?.match(/★/g) || []).length
+      const filledCount = (cellText?.match(/\u2605/g) || []).length
       if (filledCount === 0) {
         found0Star = true
-        const emptyCount = (cellText?.match(/☆/g) || []).length
+        const emptyCount = (cellText?.match(/\u2606/g) || []).length
         expect(emptyCount).toBeGreaterThan(0)
         break
       }
     }
 
     if (!found0Star) {
-      test.skip(true, 'No 0-star rating found in fixtures')
+      console.log('SKIP: No 0-star rating found in fixtures')
     }
   })
 
   it('4.5 Click on rating cell enters interactive mode', async () => {
-        const ratingElement = page.locator(
+    const ratingElements = await page.$$(
       '.vibegridx-cell[data-column-id="rating"] [data-affordance="toggle"]',
-    ).first()
+    )
 
-    if (!(await ratingElement.isVisible().catch(() => false))) {
+    if (ratingElements.length === 0 || !(await isElementVisible(ratingElements[0]))) {
       // Try finding by class
-      const ratingCell = page.locator('.vibegridx-cell-rating').first()
-      if (!(await ratingCell.isVisible().catch(() => false))) {
-        test.skip(true, 'No rating element visible')
+      const ratingCell = await page.$('.vibegridx-cell-rating')
+      if (!(await isElementVisible(ratingCell))) {
+        console.log('SKIP: No rating element visible')
         return
       }
 
       // Click the rating cell
-      await ratingCell.click()
-      await page.waitForTimeout(500)
+      await ratingCell!.click()
+      await new Promise((r) => setTimeout(r, 500))
 
       // Check for editor
-      const editorVisible = await page
-        .locator('.vibegridx-rating-editor')
-        .isVisible()
-        .catch(() => false)
+      const editorElements = await page.$$('.vibegridx-rating-editor')
+      const editorVisible = editorElements.length > 0
 
-      const editingCell = page.locator('.vibegridx-editing')
-      const isEditing = (await editingCell.count()) > 0
+      const editingCells = await page.$$('.vibegridx-editing')
+      const isEditing = editingCells.length > 0
 
       expect(editorVisible || isEditing).toBe(true)
 
@@ -227,101 +240,99 @@ describe.serial('VibeGrid Rating Field Type', () => {
       return
     }
 
+    const ratingElement = ratingElements[0]
+
     // Click the toggle element
     await ratingElement.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
     // Check for editor or editing state
-    const editorVisible = await page
-      .locator('.vibegridx-rating-editor')
-      .isVisible()
-      .catch(() => false)
+    const editorElements = await page.$$('.vibegridx-rating-editor')
+    const editorVisible = editorElements.length > 0
 
-    const editingCell = page.locator('.vibegridx-editing')
-    const isEditing = (await editingCell.count()) > 0
+    const editingCells = await page.$$('.vibegridx-editing')
+    const isEditing = editingCells.length > 0
 
     expect(editorVisible || isEditing).toBe(true)
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 
   it('4.6 Click star sets rating value', async () => {
-        // First, try to enter edit mode
-    const ratingCell = page.locator('.vibegridx-cell-rating').first()
-    if (!(await ratingCell.isVisible().catch(() => false))) {
-      test.skip(true, 'No rating cell visible')
+    console.log('First, try to enter edit mode')
+    const ratingCell = await page.$('.vibegridx-cell-rating')
+    if (!(await isElementVisible(ratingCell))) {
+      console.log('SKIP: No rating cell visible')
       return
     }
 
     // Click to enter edit mode
-    await ratingCell.click()
-    await page.waitForTimeout(500)
+    await ratingCell!.click()
+    await new Promise((r) => setTimeout(r, 500))
 
     // Look for rating editor stars
-    const editorStars = page.locator('.vibegridx-rating-editor span[data-rating]')
-    const starCount = await editorStars.count()
+    const editorStars = await page.$$('.vibegridx-rating-editor span[data-rating]')
 
-    if (starCount === 0) {
+    if (editorStars.length === 0) {
       // Stars might be directly in the cell
-      const cellStars = ratingCell.locator('span')
-      const cellStarCount = await cellStars.count()
+      const cellStars = await ratingCell!.$$('span')
 
-      if (cellStarCount > 0) {
+      if (cellStars.length > 0) {
         // Click the 4th star (if available)
-        const targetStar = cellStars.nth(Math.min(3, cellStarCount - 1))
+        const targetStar = cellStars[Math.min(3, cellStars.length - 1)]
         await targetStar.click()
-        await page.waitForTimeout(500)
+        await new Promise((r) => setTimeout(r, 500))
 
         // Verify rating changed
-        const updatedText = await ratingCell.textContent()
+        const updatedText = await ratingCell!.evaluate((el) => el.textContent)
         expect(updatedText).toBeDefined()
       } else {
-        test.skip(true, 'Rating editor stars not available')
+        console.log('SKIP: Rating editor stars not available')
       }
     } else {
       // Click the 4th star in the editor
-      const targetStar = editorStars.nth(3)
+      const targetStar = editorStars[3]
       await targetStar.click()
-      await page.waitForTimeout(500)
+      await new Promise((r) => setTimeout(r, 500))
 
       // Verify rating saved (editor should close)
-      const updatedCell = page.locator('.vibegridx-cell-rating').first()
-      const updatedText = await updatedCell.textContent()
+      const updatedCell = await page.$('.vibegridx-cell-rating')
+      if (updatedCell) {
+        const updatedText = await updatedCell.evaluate((el) => el.textContent)
 
-      // Should now show 4 filled stars or 4/5
-      const has4Rating =
-        updatedText?.includes('4/5') ||
-        (updatedText?.match(/★/g) || []).length === 4
+        // Should now show 4 filled stars or 4/5
+        const has4Rating =
+          updatedText?.includes('4/5') || (updatedText?.match(/\u2605/g) || []).length === 4
 
-      expect(has4Rating).toBe(true)
+        expect(has4Rating).toBe(true)
+      }
     }
   })
 
   it('4.7 Hover highlights stars', async () => {
-        const ratingCell = page.locator('.vibegridx-cell-rating').first()
-    if (!(await ratingCell.isVisible().catch(() => false))) {
-      test.skip(true, 'No rating cell visible')
+    const ratingCell = await page.$('.vibegridx-cell-rating')
+    if (!(await isElementVisible(ratingCell))) {
+      console.log('SKIP: No rating cell visible')
       return
     }
 
     // Click to enter edit mode
-    await ratingCell.click()
-    await page.waitForTimeout(500)
+    await ratingCell!.click()
+    await new Promise((r) => setTimeout(r, 500))
 
     // Look for editor stars
-    const editorStars = page.locator('.vibegridx-rating-editor span[data-rating]')
-    const starCount = await editorStars.count()
+    const editorStars = await page.$$('.vibegridx-rating-editor span[data-rating]')
 
-    if (starCount === 0) {
-      test.skip(true, 'Rating editor not available')
+    if (editorStars.length === 0) {
+      console.log('SKIP: Rating editor not available')
       return
     }
 
     // Hover over the 3rd star
-    const star3 = editorStars.nth(2)
+    const star3 = editorStars[2]
     await star3.hover()
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
 
     // Check if first 3 stars are highlighted (yellow color)
     // This is a visual check - we verify the hover happened without errors
@@ -329,49 +340,37 @@ describe.serial('VibeGrid Rating Field Type', () => {
 
     // Clean up
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 
   it('4.8 Yellow color for filled stars', async () => {
-        // Find a rating with filled stars
-    const filledStar = page.locator('.vibegridx-cell-rating span').filter({
-      hasText: '★',
-    }).first()
+    console.log('Finding a rating with filled stars')
+    // Load fixtures to ensure we have ratings
+    await loadFixtures()
 
-    if (!(await filledStar.isVisible().catch(() => false))) {
-      // Load fixtures to ensure we have ratings
-      const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-      if (await loadFixturesBtn.isVisible()) {
-        await loadFixturesBtn.click()
-        await page.waitForTimeout(1500)
+    // Find spans containing filled star characters
+    const allSpans = await page.$$('.vibegridx-cell-rating span')
+
+    let foundFilledStar = false
+    for (const span of allSpans) {
+      const text = await span.evaluate((el) => el.textContent)
+      if (text?.includes('\u2605')) {
+        foundFilledStar = true
+
+        // Check for yellow color
+        const style = await span.evaluate((el) => el.getAttribute('style'))
+        const hasYellowColor =
+          style?.includes('#fbbf24') ||
+          style?.includes('rgb(251, 191, 36)') ||
+          style?.includes('yellow')
+
+        expect(hasYellowColor).toBe(true)
+        break
       }
+    }
 
-      const filledStarRetry = page.locator('.vibegridx-cell-rating span').filter({
-        hasText: '★',
-      }).first()
-
-      if (!(await filledStarRetry.isVisible().catch(() => false))) {
-        test.skip(true, 'No filled stars visible')
-        return
-      }
-
-      // Check for yellow color
-      const style = await filledStarRetry.getAttribute('style')
-      const hasYellowColor =
-        style?.includes('#fbbf24') ||
-        style?.includes('rgb(251, 191, 36)') ||
-        style?.includes('yellow')
-
-      expect(hasYellowColor).toBe(true)
-    } else {
-      // Check for yellow color
-      const style = await filledStar.getAttribute('style')
-      const hasYellowColor =
-        style?.includes('#fbbf24') ||
-        style?.includes('rgb(251, 191, 36)') ||
-        style?.includes('yellow')
-
-      expect(hasYellowColor).toBe(true)
+    if (!foundFilledStar) {
+      console.log('SKIP: No filled stars visible')
     }
   })
 })

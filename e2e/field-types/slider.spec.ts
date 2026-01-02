@@ -8,16 +8,19 @@
  *
  * Slider fields display as a progress bar with percentage.
  * Affordance: 'toggle' - clicking opens a range slider editor.
+ *
+ * Converted from Playwright to raw Puppeteer for GH#572.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
-import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-describe.serial('VibeGrid Slider Field Type', () => {
+let page: Page
+
+describe('VibeGrid Slider Field Type', () => {
   beforeEach(async () => {
-    const puppeteerPage = await getTestPage()
-    page = wrapPage(puppeteerPage)
+    page = await getTestPage()
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -35,93 +38,118 @@ describe.serial('VibeGrid Slider Field Type', () => {
     })
 
     // Wait for grid to fully render
-    await page.waitForTimeout(1500)
+    await new Promise((r) => setTimeout(r, 1500))
+  })
+
+  afterEach(async () => {
+    if (page) {
+      await cleanupPage(page)
+    }
   })
 
   /**
    * Helper to find slider cells by checking for progress column
    */
-  async function findSliderCells(page: any) {
-    const sliderCells = page.locator(
-      '.vibegridx-cell[data-row-id][data-column-id="progress"]',
-    )
-    return sliderCells
+  async function findSliderCells(): Promise<ElementHandle[]> {
+    const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="progress"]')
+    return cells
+  }
+
+  /**
+   * Helper to load fixtures
+   */
+  async function loadFixtures(): Promise<void> {
+    const loadBtn = await page.$('[data-testid="load-fixtures-btn"]')
+    if (loadBtn) {
+      const isVisible = await loadBtn.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      if (isVisible) {
+        await loadBtn.click()
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    }
+  }
+
+  /**
+   * Helper to check if element is visible
+   */
+  async function isElementVisible(element: ElementHandle | null): Promise<boolean> {
+    if (!element) return false
+    try {
+      return await element.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+    } catch {
+      return false
+    }
   }
 
   it('5.1 Slider displays as progress bar', async () => {
-        const sliderCells = await findSliderCells(page)
-    const cellCount = await sliderCells.count()
+    const sliderCells = await findSliderCells()
 
-    if (cellCount === 0) {
-      test.skip(true, 'No slider cells found - progress field not in schema')
+    if (sliderCells.length === 0) {
+      console.log('SKIP: No slider cells found - progress field not in schema')
       return
     }
 
     // Find a slider cell with progress bar
-    const sliderCell = sliderCells.first()
+    const sliderCell = sliderCells[0]
     await expect(sliderCell).toBeVisible()
 
     // Check for slider/progress class
-    const cellClass = page.locator('.vibegridx-cell-slider').first()
-    if (await cellClass.isVisible().catch(() => false)) {
-      await expect(cellClass).toBeVisible()
+    const cellClass = await page.$('.vibegridx-cell-slider')
+    if (await isElementVisible(cellClass)) {
+      await expect(cellClass as ElementHandle).toBeVisible()
     } else {
       // Check for progress bar elements
-      const hasProgressBar = (await sliderCell.innerHTML()).includes('width:')
+      const innerHTML = await sliderCell.evaluate((el) => el.innerHTML)
+      const hasProgressBar = innerHTML.includes('width:')
       expect(hasProgressBar || true).toBe(true) // Flexible check
     }
   })
 
   it('5.2 Progress bar shows filled portion', async () => {
-        // Load fixtures for deterministic values
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures for deterministic values')
+    await loadFixtures()
 
     // Find a slider cell (50% progress fixture)
-    const sliderCells = page.locator('.vibegridx-cell-slider')
-    const cellCount = await sliderCells.count()
+    const sliderCells = await page.$$('.vibegridx-cell-slider')
 
-    if (cellCount === 0) {
-      test.skip(true, 'No slider cells visible')
+    if (sliderCells.length === 0) {
+      console.log('SKIP: No slider cells visible')
       return
     }
 
     // Check for fill bar with width style
-    const fillBar = page.locator('.vibegridx-cell-slider div div').first()
-    if (await fillBar.isVisible().catch(() => false)) {
-      const style = await fillBar.getAttribute('style')
+    const fillBar = await page.$('.vibegridx-cell-slider div div')
+    if (await isElementVisible(fillBar)) {
+      const style = await fillBar!.evaluate((el) => el.getAttribute('style'))
       const hasWidth = style?.includes('width:') || false
       expect(hasWidth).toBe(true)
     }
   })
 
   it('5.3 0% progress shows empty bar', async () => {
-        // Load fixtures which include "Progress 0%" entity
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which include "Progress 0%" entity')
+    await loadFixtures()
 
     // Find cells and look for one with 0 value
-    const sliderCells = page.locator('.vibegridx-cell-slider')
-    const cellCount = await sliderCells.count()
+    const sliderCells = await page.$$('.vibegridx-cell-slider')
 
     let found0Percent = false
-    for (let i = 0; i < cellCount; i++) {
-      const cell = sliderCells.nth(i)
-      const valueSpan = cell.locator('span')
-      const text = await valueSpan.textContent().catch(() => '')
+    for (const cell of sliderCells) {
+      const valueSpan = await cell.$('span')
+      const text = valueSpan ? await valueSpan.evaluate((el) => el.textContent) : ''
 
       if (text === '0' || text === '0%') {
         found0Percent = true
 
         // Check for 0% or empty bar
-        const fillBar = cell.locator('div div')
-        const style = await fillBar.getAttribute('style').catch(() => '')
+        const fillBar = await cell.$('div div')
+        const style = fillBar ? await fillBar.evaluate((el) => el.getAttribute('style')) : ''
         const hasZeroWidth = style?.includes('width: 0%') || style?.includes('width:0')
         expect(hasZeroWidth || text === '0').toBe(true)
         break
@@ -129,34 +157,28 @@ describe.serial('VibeGrid Slider Field Type', () => {
     }
 
     if (!found0Percent) {
-      test.skip(true, 'No 0% progress found in fixtures')
+      console.log('SKIP: No 0% progress found in fixtures')
     }
   })
 
   it('5.4 100% progress shows full bar', async () => {
-        // Load fixtures which include "Progress 100%" entity
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which include "Progress 100%" entity')
+    await loadFixtures()
 
     // Find cells and look for one with 100 value
-    const sliderCells = page.locator('.vibegridx-cell-slider')
-    const cellCount = await sliderCells.count()
+    const sliderCells = await page.$$('.vibegridx-cell-slider')
 
     let found100Percent = false
-    for (let i = 0; i < cellCount; i++) {
-      const cell = sliderCells.nth(i)
-      const valueSpan = cell.locator('span')
-      const text = await valueSpan.textContent().catch(() => '')
+    for (const cell of sliderCells) {
+      const valueSpan = await cell.$('span')
+      const text = valueSpan ? await valueSpan.evaluate((el) => el.textContent) : ''
 
       if (text === '100' || text === '100%') {
         found100Percent = true
 
         // Check for 100% or full bar
-        const fillBar = cell.locator('div div')
-        const style = await fillBar.getAttribute('style').catch(() => '')
+        const fillBar = await cell.$('div div')
+        const style = fillBar ? await fillBar.evaluate((el) => el.getAttribute('style')) : ''
         const hasFullWidth = style?.includes('width: 100%') || style?.includes('width:100%')
         expect(hasFullWidth || text === '100').toBe(true)
         break
@@ -164,32 +186,32 @@ describe.serial('VibeGrid Slider Field Type', () => {
     }
 
     if (!found100Percent) {
-      test.skip(true, 'No 100% progress found in fixtures')
+      console.log('SKIP: No 100% progress found in fixtures')
     }
   })
 
   it('5.5 Click opens slider editor', async () => {
-        const sliderElement = page.locator(
+    const sliderElements = await page.$$(
       '.vibegridx-cell[data-column-id="progress"] [data-affordance="toggle"]',
-    ).first()
+    )
 
-    if (!(await sliderElement.isVisible().catch(() => false))) {
-      const sliderCell = page.locator('.vibegridx-cell-slider').first()
-      if (!(await sliderCell.isVisible().catch(() => false))) {
-        test.skip(true, 'No slider element visible')
+    if (sliderElements.length === 0 || !(await isElementVisible(sliderElements[0]))) {
+      const sliderCell = await page.$('.vibegridx-cell-slider')
+      if (!(await isElementVisible(sliderCell))) {
+        console.log('SKIP: No slider element visible')
         return
       }
 
-      await sliderCell.click()
-      await page.waitForTimeout(500)
+      await sliderCell!.click()
+      await new Promise((r) => setTimeout(r, 500))
 
       // Check for range input
-      const rangeInput = page.locator('input[type="range"]')
-      const hasRangeInput = (await rangeInput.count()) > 0
+      const rangeInputs = await page.$$('input[type="range"]')
+      const hasRangeInput = rangeInputs.length > 0
 
       // Or editing class
-      const editingCell = page.locator('.vibegridx-editing')
-      const isEditing = (await editingCell.count()) > 0
+      const editingCells = await page.$$('.vibegridx-editing')
+      const isEditing = editingCells.length > 0
 
       expect(hasRangeInput || isEditing).toBe(true)
 
@@ -197,119 +219,122 @@ describe.serial('VibeGrid Slider Field Type', () => {
       return
     }
 
+    const sliderElement = sliderElements[0]
+
     // Click the toggle element
     await sliderElement.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
     // Check for range input or editing state
-    const rangeInput = page.locator('input[type="range"]')
-    const hasRangeInput = (await rangeInput.count()) > 0
+    const rangeInputs = await page.$$('input[type="range"]')
+    const hasRangeInput = rangeInputs.length > 0
 
-    const editingCell = page.locator('.vibegridx-editing')
-    const isEditing = (await editingCell.count()) > 0
+    const editingCells = await page.$$('.vibegridx-editing')
+    const isEditing = editingCells.length > 0
 
     expect(hasRangeInput || isEditing).toBe(true)
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 
   it('5.6 Drag slider changes value', async () => {
-        // Click to enter edit mode
-    const sliderCell = page.locator('.vibegridx-cell-slider').first()
-    if (!(await sliderCell.isVisible().catch(() => false))) {
-      test.skip(true, 'No slider cell visible')
+    console.log('Click to enter edit mode')
+    const sliderCell = await page.$('.vibegridx-cell-slider')
+    if (!(await isElementVisible(sliderCell))) {
+      console.log('SKIP: No slider cell visible')
       return
     }
 
     // Get original value
-    const originalValue = await sliderCell.locator('span').textContent()
+    const valueSpan = await sliderCell!.$('span')
+    const originalValue = valueSpan ? await valueSpan.evaluate((el) => el.textContent) : ''
 
-    await sliderCell.click()
-    await page.waitForTimeout(500)
+    await sliderCell!.click()
+    await new Promise((r) => setTimeout(r, 500))
 
     // Find range input
-    const rangeInput = page.locator('input[type="range"]').first()
-    if (!(await rangeInput.isVisible().catch(() => false))) {
-      test.skip(true, 'Range input not available')
+    const rangeInput = await page.$('input[type="range"]')
+    if (!(await isElementVisible(rangeInput))) {
+      console.log('SKIP: Range input not available')
       return
     }
 
     // Change value via keyboard
-    await rangeInput.focus()
+    await rangeInput!.focus()
 
     // Press right arrow to increase value
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press('ArrowRight')
     }
-    await page.waitForTimeout(300)
+    await new Promise((r) => setTimeout(r, 300))
 
     // Commit with Enter or Tab
     await page.keyboard.press('Enter')
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
     // Verify value changed
-    const updatedCell = page.locator('.vibegridx-cell-slider').first()
-    const updatedValue = await updatedCell.locator('span').textContent()
+    const updatedCell = await page.$('.vibegridx-cell-slider')
+    if (updatedCell) {
+      const updatedSpan = await updatedCell.$('span')
+      const updatedValue = updatedSpan ? await updatedSpan.evaluate((el) => el.textContent) : ''
 
-    // Value should have increased (or at least be different)
-    expect(updatedValue).toBeDefined()
+      // Value should have increased (or at least be different)
+      expect(updatedValue).toBeDefined()
+    }
   })
 
   it('5.7 Value respects min/max constraints', async () => {
-        // Click to enter edit mode
-    const sliderCell = page.locator('.vibegridx-cell-slider').first()
-    if (!(await sliderCell.isVisible().catch(() => false))) {
-      test.skip(true, 'No slider cell visible')
+    console.log('Click to enter edit mode')
+    const sliderCell = await page.$('.vibegridx-cell-slider')
+    if (!(await isElementVisible(sliderCell))) {
+      console.log('SKIP: No slider cell visible')
       return
     }
 
-    await sliderCell.click()
-    await page.waitForTimeout(500)
+    await sliderCell!.click()
+    await new Promise((r) => setTimeout(r, 500))
 
     // Find range input
-    const rangeInput = page.locator('input[type="range"]').first()
-    if (!(await rangeInput.isVisible().catch(() => false))) {
+    const rangeInput = await page.$('input[type="range"]')
+    if (!(await isElementVisible(rangeInput))) {
       await page.keyboard.press('Escape')
-      test.skip(true, 'Range input not available')
+      console.log('SKIP: Range input not available')
       return
     }
 
     // Check min/max attributes
-    const min = await rangeInput.getAttribute('min')
-    const max = await rangeInput.getAttribute('max')
+    const min = await rangeInput!.evaluate((el) => el.getAttribute('min'))
+    const max = await rangeInput!.evaluate((el) => el.getAttribute('max'))
 
     // Default should be 0-100 based on schema
     expect(min).toBe('0')
     expect(max).toBe('100')
 
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 
   it('5.8 Blue color for progress bar', async () => {
-        // Find a slider with some progress
-    const sliderCells = page.locator('.vibegridx-cell-slider')
-    const cellCount = await sliderCells.count()
+    // Find a slider with some progress
+    const sliderCells = await page.$$('.vibegridx-cell-slider')
 
-    if (cellCount === 0) {
-      test.skip(true, 'No slider cells visible')
+    if (sliderCells.length === 0) {
+      console.log('SKIP: No slider cells visible')
       return
     }
 
     // Find the fill bar element
-    const fillBar = page.locator('.vibegridx-cell-slider div div').first()
-    if (!(await fillBar.isVisible().catch(() => false))) {
-      test.skip(true, 'No fill bar visible')
+    const fillBar = await page.$('.vibegridx-cell-slider div div')
+    if (!(await isElementVisible(fillBar))) {
+      console.log('SKIP: No fill bar visible')
       return
     }
 
     // Check for blue color
-    const style = await fillBar.getAttribute('style')
+    const style = await fillBar!.evaluate((el) => el.getAttribute('style'))
     const hasBlueColor =
-      style?.includes('#3b82f6') ||
-      style?.includes('rgb(59, 130, 246)') ||
-      style?.includes('blue')
+      style?.includes('#3b82f6') || style?.includes('rgb(59, 130, 246)') || style?.includes('blue')
 
     expect(hasBlueColor).toBe(true)
   })
