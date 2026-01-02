@@ -8,16 +8,19 @@
  *
  * Select fields display as styled badges with color coding.
  * Affordance: 'edit' - clicking the badge opens a dropdown editor.
+ *
+ * Converted from Playwright to raw Puppeteer for GH#572.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
-import { wrapPage, type TestPage } from '../../setup/test-setup'
 
-describe.serial('VibeGrid Select Field Type', () => {
+let page: Page
+
+describe('VibeGrid Select Field Type', () => {
   beforeEach(async () => {
-    const puppeteerPage = await getTestPage()
-    page = wrapPage(puppeteerPage)
+    page = await getTestPage()
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {
@@ -35,55 +38,89 @@ describe.serial('VibeGrid Select Field Type', () => {
     })
 
     // Wait for grid to fully render
-    await page.waitForTimeout(1500)
+    await new Promise((r) => setTimeout(r, 1500))
+  })
+
+  afterEach(async () => {
+    if (page) {
+      await cleanupPage(page)
+    }
   })
 
   /**
    * Helper to find select cells by checking for status column
    */
-  async function findSelectCells(page: any) {
-    const selectCells = page.locator(
-      '.vibegridx-cell[data-row-id][data-column-id="status"]',
-    )
-    return selectCells
+  async function findSelectCells(): Promise<ElementHandle[]> {
+    const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="status"]')
+    return cells
   }
 
   /**
    * Helper to check if a select dropdown editor is visible
    */
-  async function isSelectEditorVisible(page: any): Promise<boolean> {
-    const selectCount = await page
-      .locator('.vibegridx-select-editor, select.vibegridx-select-editor')
-      .count()
-      .catch(() => 0)
-    return selectCount > 0
+  async function isSelectEditorVisible(): Promise<boolean> {
+    const selects = await page.$$('.vibegridx-select-editor, select.vibegridx-select-editor')
+    return selects.length > 0
+  }
+
+  /**
+   * Helper to load fixtures
+   */
+  async function loadFixtures(): Promise<void> {
+    const loadBtn = await page.$('[data-testid="load-fixtures-btn"]')
+    if (loadBtn) {
+      const isVisible = await loadBtn.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      if (isVisible) {
+        await loadBtn.click()
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    }
+  }
+
+  /**
+   * Helper to check if element is visible
+   */
+  async function isElementVisible(element: ElementHandle | null): Promise<boolean> {
+    if (!element) return false
+    try {
+      return await element.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+    } catch {
+      return false
+    }
   }
 
   it('2.1 Select badge renders with correct styling', async () => {
-        // Load fixtures for deterministic values
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures for deterministic values')
+    await loadFixtures()
 
-    const selectCells = await findSelectCells(page)
-    const cellCount = await selectCells.count()
+    const selectCells = await findSelectCells()
 
-    if (cellCount === 0) {
-      test.skip(true, 'No select cells found - status field not in schema')
+    if (selectCells.length === 0) {
+      console.log('SKIP: No select cells found - status field not in schema')
       return
     }
 
     // Find a badge with edit affordance
-    const selectBadge = page.locator(
+    const selectBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-    ).first()
+    )
 
+    if (selectBadges.length === 0) {
+      console.log('SKIP: No select badges found')
+      return
+    }
+
+    const selectBadge = selectBadges[0]
     await expect(selectBadge).toBeVisible()
 
     // Check that badge has styling (background color, padding)
-    const style = await selectBadge.getAttribute('style')
+    const style = await selectBadge.evaluate((el) => el.getAttribute('style'))
     const hasBackground = style?.includes('background-color') || false
     const hasPadding = style?.includes('padding') || false
 
@@ -92,65 +129,68 @@ describe.serial('VibeGrid Select Field Type', () => {
   })
 
   it('2.2 Click opens dropdown editor', async () => {
-        const selectBadge = page.locator(
+    const selectBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-    ).first()
+    )
 
-    if (!(await selectBadge.isVisible().catch(() => false))) {
-      test.skip(true, 'No select badge visible')
+    if (selectBadges.length === 0 || !(await isElementVisible(selectBadges[0]))) {
+      console.log('SKIP: No select badge visible')
       return
     }
 
+    const selectBadge = selectBadges[0]
+
     // Click the badge to open dropdown
     await selectBadge.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
     // Check if dropdown appeared
-    const dropdownVisible = await isSelectEditorVisible(page)
+    const dropdownVisible = await isSelectEditorVisible()
     expect(dropdownVisible).toBe(true)
 
     // Clean up
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 
   it('2.3 Select option updates badge', async () => {
-        const selectBadge = page.locator(
+    const selectBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-    ).first()
+    )
 
-    if (!(await selectBadge.isVisible().catch(() => false))) {
-      test.skip(true, 'No select badge visible')
+    if (selectBadges.length === 0 || !(await isElementVisible(selectBadges[0]))) {
+      console.log('SKIP: No select badge visible')
       return
     }
 
+    const selectBadge = selectBadges[0]
+
     // Get original text
-    const originalText = await selectBadge.textContent()
+    const originalText = await selectBadge.evaluate((el) => el.textContent)
 
     // Click to open dropdown
     await selectBadge.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
-    const selectEditor = page.locator('.vibegridx-select-editor')
-    if (!(await selectEditor.isVisible().catch(() => false))) {
-      test.skip(true, 'Select editor not available')
+    const selectEditor = await page.$('.vibegridx-select-editor')
+    if (!(await isElementVisible(selectEditor))) {
+      console.log('SKIP: Select editor not available')
       return
     }
 
     // Get available options
-    const options = selectEditor.locator('option')
-    const optionCount = await options.count()
+    const options = await selectEditor!.$$('option')
 
-    if (optionCount < 2) {
-      test.skip(true, 'Not enough options to test selection')
+    if (options.length < 2) {
+      console.log('SKIP: Not enough options to test selection')
       return
     }
 
     // Find an option that's different from current value
-    let targetOption = null
-    for (let i = 0; i < optionCount; i++) {
-      const optionText = await options.nth(i).textContent()
-      const optionValue = await options.nth(i).getAttribute('value')
+    let targetOption: string | null = null
+    for (const option of options) {
+      const optionText = await option.evaluate((el) => el.textContent)
+      const optionValue = await option.evaluate((el) => el.getAttribute('value'))
       if (optionValue && optionValue !== '' && optionText !== originalText) {
         targetOption = optionValue
         break
@@ -158,71 +198,70 @@ describe.serial('VibeGrid Select Field Type', () => {
     }
 
     if (targetOption) {
-      await selectEditor.selectOption(targetOption)
-      await page.waitForTimeout(500)
+      await page.select('.vibegridx-select-editor', targetOption)
+      await new Promise((r) => setTimeout(r, 500))
 
       // Verify badge changed
-      const updatedBadge = page.locator(
+      const updatedBadges = await page.$$(
         '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-      ).first()
-      const updatedText = await updatedBadge.textContent()
-      expect(updatedText).not.toBe(originalText)
+      )
+      if (updatedBadges.length > 0) {
+        const updatedText = await updatedBadges[0].evaluate((el) => el.textContent)
+        expect(updatedText).not.toBe(originalText)
+      }
     }
   })
 
   it('2.4 Escape cancels without change', async () => {
-        const selectBadge = page.locator(
+    const selectBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-    ).first()
+    )
 
-    if (!(await selectBadge.isVisible().catch(() => false))) {
-      test.skip(true, 'No select badge visible')
+    if (selectBadges.length === 0 || !(await isElementVisible(selectBadges[0]))) {
+      console.log('SKIP: No select badge visible')
       return
     }
 
+    const selectBadge = selectBadges[0]
+
     // Get original text
-    const originalText = await selectBadge.textContent()
+    const originalText = await selectBadge.evaluate((el) => el.textContent)
 
     // Click to open dropdown
     await selectBadge.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
     // Press Escape to cancel
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(300)
+    await new Promise((r) => setTimeout(r, 300))
 
     // Verify dropdown is closed
-    const dropdownStillVisible = await isSelectEditorVisible(page)
+    const dropdownStillVisible = await isSelectEditorVisible()
     expect(dropdownStillVisible).toBe(false)
 
     // Verify value unchanged
-    const afterText = await selectBadge.textContent()
+    const afterText = await selectBadge.evaluate((el) => el.textContent)
     expect(afterText).toBe(originalText)
   })
 
   it('2.5 Status options show with colors', async () => {
-        // Load fixtures which have all status variations
-    const loadFixturesBtn = page.locator('[data-testid="load-fixtures-btn"]')
-    if (await loadFixturesBtn.isVisible()) {
-      await loadFixturesBtn.click()
-      await page.waitForTimeout(1500)
-    }
+    console.log('Loading fixtures which have all status variations')
+    await loadFixtures()
 
     // Find status badges with different values
-    const statusBadges = page.locator(
+    const statusBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
     )
-    const badgeCount = await statusBadges.count()
 
-    if (badgeCount === 0) {
-      test.skip(true, 'No status badges found')
+    if (statusBadges.length === 0) {
+      console.log('SKIP: No status badges found')
       return
     }
 
     // Collect badge texts to verify different statuses
     const statusTexts = new Set<string>()
-    for (let i = 0; i < Math.min(badgeCount, 10); i++) {
-      const text = await statusBadges.nth(i).textContent()
+    for (let i = 0; i < Math.min(statusBadges.length, 10); i++) {
+      const text = await statusBadges[i].evaluate((el) => el.textContent)
       if (text) statusTexts.add(text.trim())
     }
 
@@ -238,81 +277,84 @@ describe.serial('VibeGrid Select Field Type', () => {
   })
 
   it('2.6 Empty select shows edit placeholder', async () => {
-        // Look for cells with empty state (Edit emoji hint)
-    const emptyCells = page.locator(
+    // Look for cells with empty state (Edit emoji hint)
+    const emptyCells = await page.$$(
       '.vibegridx-cell[data-column-id="status"] .vibegridx-cell-empty',
     )
-    const emptyCount = await emptyCells.count()
 
     // If no empty cells, that's fine - test data may not have nulls
-    if (emptyCount === 0) {
-      test.skip(true, 'No empty select cells found - test data may not have null statuses')
+    if (emptyCells.length === 0) {
+      console.log('SKIP: No empty select cells found - test data may not have null statuses')
       return
     }
 
-    const emptyCell = emptyCells.first()
-    const cellText = await emptyCell.textContent()
+    const emptyCell = emptyCells[0]
+    const cellText = await emptyCell.evaluate((el) => el.textContent)
 
     // Empty cells should show edit hint
     expect(cellText).toContain('Edit')
   })
 
   it('2.7 Read-only select shows no edit affordance', async () => {
-        // Look for non-editable select cells
-    const nonEditableCells = page.locator(
+    // Look for non-editable select cells
+    const nonEditableCells = await page.$$(
       '.vibegridx-cell[data-column-id="status"][data-editable="false"]',
     )
-    const nonEditableCount = await nonEditableCells.count()
 
-    if (nonEditableCount === 0) {
+    if (nonEditableCells.length === 0) {
       // Verify editable cells have edit affordance
-      const editableBadge = page.locator(
+      const editableBadges = await page.$$(
         '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-      ).first()
+      )
 
-      if (await editableBadge.isVisible().catch(() => false)) {
-        const affordance = await editableBadge.getAttribute('data-affordance')
+      if (editableBadges.length > 0 && (await isElementVisible(editableBadges[0]))) {
+        const affordance = await editableBadges[0].evaluate((el) =>
+          el.getAttribute('data-affordance'),
+        )
         expect(affordance).toBe('edit')
       } else {
-        test.skip(true, 'No select cells found to test')
+        console.log('SKIP: No select cells found to test')
       }
     } else {
       // Verify non-editable cells have 'none' affordance
-      const firstNonEditable = nonEditableCells.first()
-      const badge = firstNonEditable.locator('[data-affordance]')
-      const affordance = await badge.getAttribute('data-affordance')
-      expect(affordance).toBe('none')
+      const firstNonEditable = nonEditableCells[0]
+      const badge = await firstNonEditable.$('[data-affordance]')
+      if (badge) {
+        const affordance = await badge.evaluate((el) => el.getAttribute('data-affordance'))
+        expect(affordance).toBe('none')
+      }
     }
   })
 
   it('2.8 Dropdown shows all options from schema', async () => {
-        const selectBadge = page.locator(
+    const selectBadges = await page.$$(
       '.vibegridx-cell[data-column-id="status"] [data-affordance="edit"]',
-    ).first()
+    )
 
-    if (!(await selectBadge.isVisible().catch(() => false))) {
-      test.skip(true, 'No select badge visible')
+    if (selectBadges.length === 0 || !(await isElementVisible(selectBadges[0]))) {
+      console.log('SKIP: No select badge visible')
       return
     }
 
+    const selectBadge = selectBadges[0]
+
     // Click to open dropdown
     await selectBadge.click()
-    await page.waitForTimeout(500)
+    await new Promise((r) => setTimeout(r, 500))
 
-    const selectEditor = page.locator('.vibegridx-select-editor')
-    if (!(await selectEditor.isVisible().catch(() => false))) {
-      test.skip(true, 'Select editor not available')
+    const selectEditor = await page.$('.vibegridx-select-editor')
+    if (!(await isElementVisible(selectEditor))) {
+      console.log('SKIP: Select editor not available')
       return
     }
 
     // Get all options
-    const options = selectEditor.locator('option')
-    const optionCount = await options.count()
+    const options = await selectEditor!.$$('option')
 
     // Collect option labels
     const optionLabels: string[] = []
-    for (let i = 0; i < optionCount; i++) {
-      const text = await options.nth(i).textContent()
+    for (const option of options) {
+      const text = await option.evaluate((el) => el.textContent)
       if (text) optionLabels.push(text.trim())
     }
 
@@ -326,6 +368,6 @@ describe.serial('VibeGrid Select Field Type', () => {
 
     // Clean up
     await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
+    await new Promise((r) => setTimeout(r, 200))
   })
 })

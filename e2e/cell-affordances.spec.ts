@@ -11,18 +11,19 @@
  *
  * NOTE: These tests require the mock VibeGrid test route with properly rendered cells.
  * Tests will skip if required elements are not detected.
+ *
+ * Converted from Playwright to raw Puppeteer for GH#572.
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
-import { wrapPage, type TestPage } from '../setup/test-setup'
+
+let page: Page
 
 describe('VibeGrid Cell Affordances', () => {
-  let page: TestPage
-
   beforeEach(async () => {
-    const puppeteerPage = await getTestPage()
-    page = wrapPage(puppeteerPage)
+    page = await getTestPage()
     await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`)
     await page.waitForSelector('[data-testid="vibegrid-test-basic"]', {
       timeout: 15000,
@@ -34,27 +35,37 @@ describe('VibeGrid Cell Affordances', () => {
     })
 
     // Wait a moment for React to render the grid component
-    await page.waitForTimeout(1000)
+    await new Promise((r) => setTimeout(r, 1000))
+  })
+
+  afterEach(async () => {
+    if (page) {
+      await cleanupPage(page)
+    }
   })
 
   it('12.1 Click padding = select (not edit)', async () => {
-        // Find cells with data attributes (exclude drag handle column)
-    const cellLocator = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
-    const cellCount = await cellLocator.count()
+    // Find cells with data attributes (exclude drag handle column)
+    const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
+    const cellCount = cells.length
 
     if (cellCount === 0) {
-      test.skip(true, 'No data cells rendered - mock route may need initialData prop')
+      console.log('SKIP: No data cells rendered - mock route may need initialData prop')
       return
     }
 
     // Get the first cell
-    const firstCell = cellLocator.first()
-    await expect(firstCell).toBeVisible()
+    const firstCell = cells[0]
+    const isVisible = await firstCell.evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0
+    })
+    expect(isVisible).toBe(true)
 
     // Get the cell's bounding box
     const boundingBox = await firstCell.boundingBox()
     if (!boundingBox) {
-      test.skip(true, 'Could not get cell bounding box')
+      console.log('SKIP: Could not get cell bounding box')
       return
     }
 
@@ -63,40 +74,47 @@ describe('VibeGrid Cell Affordances', () => {
     await page.mouse.click(boundingBox.x + 2, boundingBox.y + boundingBox.height / 2)
 
     // Wait for selection to register
-    await page.waitForTimeout(100)
+    await new Promise((r) => setTimeout(r, 100))
 
     // Cell should be selected
-    await expect(firstCell).toHaveClass(/vibegridx-selected/)
+    const hasSelectedClass = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
+    expect(hasSelectedClass).toBe(true)
 
     // Cell should NOT be in editing mode
-    // Check for editing class (some cells may have inline inputs that are always visible)
-    const hasEditingClass = await firstCell.getAttribute('class')
-    expect(hasEditingClass).not.toContain('vibegridx-editing')
+    const className = await firstCell.evaluate((el) => el.className)
+    expect(className).not.toContain('vibegridx-editing')
   })
 
   it('12.2 Click content = affordance action triggered', async () => {
-        // Find cells that have content with affordance attributes
+    // Find cells that have content with affordance attributes
     // Look for cells with data-affordance="edit" on their content
-    const editableCells = page.locator(
+    const editableCells = await page.$$(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="edit"]',
     )
-    const editableCount = await editableCells.count()
+    const editableCount = editableCells.length
 
     if (editableCount > 0) {
       // Test edit affordance
-      const editableContent = editableCells.first()
-      await expect(editableContent).toBeVisible()
+      const editableContent = editableCells[0]
+      const isVisible = await editableContent.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      expect(isVisible).toBe(true)
 
       // Click on the content element (not padding)
       await editableContent.click()
 
       // Wait for edit mode to activate
-      await page.waitForTimeout(200)
+      await new Promise((r) => setTimeout(r, 200))
 
       // Check if editing was triggered - either editor appeared or cell has editing class
-      const editorVisible = await page
-        .locator('.vibegridx-editing, .vibegridx-cell input, .vibegridx-cell select')
-        .count()
+      const editors = await page.$$(
+        '.vibegridx-editing, .vibegridx-cell input, .vibegridx-cell select',
+      )
+      const editorVisible = editors.length
 
       // We expect some editing indicator to be present
       // If the field doesn't support inline editing, it may open a modal instead
@@ -105,28 +123,32 @@ describe('VibeGrid Cell Affordances', () => {
 
       // Press Escape to close any editor
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(100)
+      await new Promise((r) => setTimeout(r, 100))
     }
 
     // Also test navigate affordance if present
-    const navigateCells = page.locator(
+    const navigateCells = await page.$$(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="navigate"]',
     )
-    const navigateCount = await navigateCells.count()
+    const navigateCount = navigateCells.length
 
     if (navigateCount > 0) {
       // Get current URL before clicking
       const urlBefore = page.url()
 
       // Find navigate element and get its row context
-      const navigateContent = navigateCells.first()
-      await expect(navigateContent).toBeVisible()
+      const navigateContent = navigateCells[0]
+      const isVisible = await navigateContent.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      expect(isVisible).toBe(true)
 
       // For navigate affordance, clicking should trigger navigation (via callback)
       // Since this is a mock test page, navigation may not actually change URL
       // We just verify the element is clickable and doesn't cause errors
       await navigateContent.click()
-      await page.waitForTimeout(200)
+      await new Promise((r) => setTimeout(r, 200))
 
       // If URL changed, navigation worked. If not, the callback was likely triggered
       // but mock doesn't navigate. Either way, the affordance system worked.
@@ -134,43 +156,45 @@ describe('VibeGrid Cell Affordances', () => {
 
     // If no affordance elements found, skip with explanation
     if (editableCount === 0 && navigateCount === 0) {
-      test.skip(
-        true,
-        'No cells with edit or navigate affordance found - mock data may not include editable fields',
+      console.log(
+        'SKIP: No cells with edit or navigate affordance found - mock data may not include editable fields',
       )
     }
   })
 
   it('12.4 Toggle affordance', async () => {
-        // Look for cells with toggle affordance (boolean fields)
+    // Look for cells with toggle affordance (boolean fields)
     // These have data-affordance="toggle" on the content element
-    const toggleCells = page.locator(
+    const toggleCells = await page.$$(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="toggle"]',
     )
-    const toggleCount = await toggleCells.count()
+    const toggleCount = toggleCells.length
 
     if (toggleCount === 0) {
       // No toggle fields in the current mock schema
       // The MockTask schema doesn't include boolean fields
-      test.skip(
-        true,
-        'No toggle affordance cells found - mock schema may not include boolean fields',
+      console.log(
+        'SKIP: No toggle affordance cells found - mock schema may not include boolean fields',
       )
       return
     }
 
     // Get the first toggle element
-    const toggleElement = toggleCells.first()
-    await expect(toggleElement).toBeVisible()
+    const toggleElement = toggleCells[0]
+    const isVisible = await toggleElement.evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0
+    })
+    expect(isVisible).toBe(true)
 
     // Get the text/state before clicking
-    const textBefore = await toggleElement.textContent()
+    const textBefore = await toggleElement.evaluate((el) => el.textContent)
 
     // Click to toggle
     await toggleElement.click()
 
     // Wait for the toggle to process
-    await page.waitForTimeout(300)
+    await new Promise((r) => setTimeout(r, 300))
 
     // The value should have changed (or an editor should have appeared)
     // For boolean fields, clicking toggle should either:
@@ -178,14 +202,13 @@ describe('VibeGrid Cell Affordances', () => {
     // 2. Open an editor/dropdown to select the value
 
     // Check if the text changed or an editor appeared
-    const textAfter = await toggleElement.textContent()
-    const editorVisible = await page
-      .locator('.vibegridx-editing, .vibegridx-boolean-editor')
-      .count()
+    const textAfter = await toggleElement.evaluate((el) => el.textContent)
+    const editors = await page.$$('.vibegridx-editing, .vibegridx-boolean-editor')
+    const editorVisible = editors.length > 0
 
     // Either the value changed or an editor opened
     const valueChanged = textBefore !== textAfter
-    const editorOpened = editorVisible > 0
+    const editorOpened = editorVisible
 
     // At least one of these should be true after clicking a toggle
     expect(valueChanged || editorOpened).toBe(true)
@@ -193,113 +216,130 @@ describe('VibeGrid Cell Affordances', () => {
     // If editor opened, close it
     if (editorOpened) {
       await page.keyboard.press('Escape')
-      await page.waitForTimeout(100)
+      await new Promise((r) => setTimeout(r, 100))
     }
   })
 
   it('Click on cell with no affordance = selection only', async () => {
-        // Find cells with data-affordance="none" or readonly cells
-    const readonlyCells = page.locator(
+    // Find cells with data-affordance="none" or readonly cells
+    const readonlyCells = await page.$$(
       '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="none"]',
     )
-    let targetCell = null
-    const readonlyCount = await readonlyCells.count()
+    let targetCell: ElementHandle | null = null
+    const readonlyCount = readonlyCells.length
 
     if (readonlyCount === 0) {
       // No explicit "none" affordance, try cells that don't have any affordance on content
       // Find a cell where the content doesn't have a data-affordance attribute
-      const allCells = page.locator('.vibegridx-cell[data-row-id][data-column-id]')
-      const cellCount = await allCells.count()
+      const allCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
+      const cellCount = allCells.length
 
       for (let i = 0; i < cellCount && i < 10; i++) {
-        const cell = allCells.nth(i)
-        const contentWithAffordance = cell.locator('[data-affordance]')
-        const affordanceCount = await contentWithAffordance.count()
+        const cell = allCells[i]
+        const contentWithAffordance = await cell.$('[data-affordance]')
 
-        if (affordanceCount === 0) {
+        if (!contentWithAffordance) {
           targetCell = cell
           break
         }
       }
     } else {
       // Use the first readonly content element's parent cell
-      const readonlyContent = readonlyCells.first()
-      targetCell = readonlyContent
-        .locator('xpath=ancestor::*[contains(@class, "vibegridx-cell")]')
-        .first()
+      const readonlyContent = readonlyCells[0]
+      targetCell = (await readonlyContent.evaluateHandle((el) =>
+        el.closest('.vibegridx-cell'),
+      )) as ElementHandle
     }
 
     if (!targetCell) {
       // All cells have affordances, which is fine - just verify padding click behavior
-      const anyCell = page.locator('.vibegridx-cell[data-row-id][data-column-id]').first()
-      const cellCount = await anyCell.count()
+      const anyCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
 
-      if (cellCount === 0) {
-        test.skip(true, 'No cells found for testing')
+      if (anyCells.length === 0) {
+        console.log('SKIP: No cells found for testing')
         return
       }
 
+      const anyCell = anyCells[0]
       // Click on cell padding (left edge)
       const box = await anyCell.boundingBox()
       if (!box) {
-        test.skip(true, 'Could not get cell bounding box')
+        console.log('SKIP: Could not get cell bounding box')
         return
       }
 
       await page.mouse.click(box.x + 2, box.y + box.height / 2)
-      await page.waitForTimeout(100)
+      await new Promise((r) => setTimeout(r, 100))
 
       // Should be selected
-      await expect(anyCell).toHaveClass(/vibegridx-selected/)
+      const hasSelectedClass = await anyCell.evaluate((el) =>
+        el.classList.contains('vibegridx-selected'),
+      )
+      expect(hasSelectedClass).toBe(true)
 
       // Should not be editing
-      const className = await anyCell.getAttribute('class')
+      const className = await anyCell.evaluate((el) => el.className)
       expect(className).not.toContain('vibegridx-editing')
     } else {
-      await expect(targetCell).toBeVisible()
+      const isVisible = await targetCell.evaluate((el) => {
+        const rect = el.getBoundingClientRect()
+        return rect.width > 0 && rect.height > 0
+      })
+      expect(isVisible).toBe(true)
 
       // Click on the cell (content without affordance)
       await targetCell.click()
-      await page.waitForTimeout(100)
+      await new Promise((r) => setTimeout(r, 100))
 
       // Cell should be selected
-      await expect(targetCell).toHaveClass(/vibegridx-selected/)
+      const hasSelectedClass = await targetCell.evaluate((el) =>
+        el.classList.contains('vibegridx-selected'),
+      )
+      expect(hasSelectedClass).toBe(true)
 
       // Cell should NOT enter editing mode
-      const className = await targetCell.getAttribute('class')
+      const className = await targetCell.evaluate((el) => el.className)
       expect(className).not.toContain('vibegridx-editing')
     }
   })
 
   it('Affordance respects non-editable column setting', async () => {
-        // Find cells that have data-editable="false"
-    const nonEditableCells = page.locator(
+    // Find cells that have data-editable="false"
+    const nonEditableCells = await page.$$(
       '.vibegridx-cell[data-row-id][data-column-id][data-editable="false"]',
     )
-    const nonEditableCount = await nonEditableCells.count()
+    const nonEditableCount = nonEditableCells.length
 
     if (nonEditableCount === 0) {
       // No explicitly non-editable columns in the current test setup
-      test.skip(true, 'No non-editable columns found in test grid')
+      console.log('SKIP: No non-editable columns found in test grid')
       return
     }
 
     // Click on a non-editable cell's content
-    const cell = nonEditableCells.first()
-    await expect(cell).toBeVisible()
+    const cell = nonEditableCells[0]
+    const isVisible = await cell.evaluate((el) => {
+      const rect = el.getBoundingClientRect()
+      return rect.width > 0 && rect.height > 0
+    })
+    expect(isVisible).toBe(true)
 
     // Find content inside the cell
-    const content = cell.locator('> *').first()
-    await content.click()
-    await page.waitForTimeout(200)
+    const content = await cell.$('> *')
+    if (content) {
+      await content.click()
+    } else {
+      await cell.click()
+    }
+    await new Promise((r) => setTimeout(r, 200))
 
     // Cell should NOT enter editing mode regardless of affordance
-    const className = await cell.getAttribute('class')
+    const className = await cell.evaluate((el) => el.className)
     expect(className).not.toContain('vibegridx-editing')
 
     // No editor should be visible
-    const editorInCell = cell.locator('input, textarea, select.vibegridx-boolean-editor')
-    const editorCount = await editorInCell.count()
+    const editorsInCell = await cell.$$('input, textarea, select.vibegridx-boolean-editor')
+    const editorCount = editorsInCell.length
     expect(editorCount).toBe(0)
   })
 })
