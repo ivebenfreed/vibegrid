@@ -281,9 +281,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         })
       }
 
-      // Get width from centralized defaults
+      // Get width from field override OR centralized defaults
       const defaults = COLUMN_DEFAULTS[cellType as CellType] || COLUMN_DEFAULTS.text
-      const width = defaults.width
+      const width = (safeFieldDef as any).display?.width ?? defaults.width
 
       // Determine if field should be editable
       const isEditable =
@@ -452,6 +452,8 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
       return 'longtext'
     case 'rich-text':
       return 'rich-text'
+    case 'markdown':
+      return 'markdown'
 
     // Boolean types
     case 'boolean':
@@ -469,10 +471,16 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
     // Rich data types
     case 'file':
       return 'file'
+    case 'image':
+      return 'image'
     case 'currency':
       return 'currency'
     case 'color':
       return 'color'
+    case 'rating':
+      return 'rating'
+    case 'slider':
+      return 'slider'
 
     // Selection types - UNIFIED MAPPING
     case 'single-select':

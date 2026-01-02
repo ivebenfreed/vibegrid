@@ -40,7 +40,9 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
   description: 'Test entity with all field types for E2E testing',
   fields: [
     // ============================================
-    // TEXT FIELDS
+    // HIGH-PRIORITY E2E TEST FIELDS (FIRST for visibility)
+    // These are the fields with E2E test files - show them first!
+    // Narrow widths (80-100px) so all 16 columns fit on screen
     // ============================================
     {
       name: 'name',
@@ -48,13 +50,80 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
       label: 'Name',
       required: true,
       description: 'Basic text field (entity name)',
+      display: { width: 120 },
     },
+    {
+      name: 'is_active',
+      type: 'boolean',
+      label: 'Active',
+      required: false,
+      description: 'Boolean toggle - E2E: boolean.spec.ts',
+      display: {
+        width: 70,
+        trueLabel: 'Active',
+        falseLabel: 'Inactive',
+      },
+    },
+    {
+      name: 'status',
+      type: 'select',
+      label: 'Status',
+      required: false,
+      description: 'Single-select dropdown - E2E: select.spec.ts',
+      options: STATUS_OPTIONS as unknown as Array<{ value: string; label: string }>,
+      display: { width: 100 },
+    },
+    {
+      name: 'due_date',
+      type: 'date',
+      label: 'Due',
+      required: false,
+      description: 'Date picker - E2E: date.spec.ts',
+      display: { width: 100 },
+    },
+    {
+      name: 'rating',
+      type: 'rating',
+      label: 'Rating',
+      required: false,
+      description: 'Star rating (0-5) - E2E: rating.spec.ts',
+      validation: {
+        min: 0,
+        max: 5,
+      },
+      display: { width: 100 },
+    },
+    {
+      name: 'progress',
+      type: 'slider',
+      label: 'Progress',
+      required: false,
+      description: 'Slider 0-100% - E2E: slider.spec.ts',
+      validation: {
+        min: 0,
+        max: 100,
+      },
+      display: { width: 100 },
+    },
+    {
+      name: 'priority_color',
+      type: 'color',
+      label: 'Color',
+      required: false,
+      description: 'Color picker with swatch - E2E: color.spec.ts',
+      display: { width: 70 },
+    },
+
+    // ============================================
+    // REMAINING TEXT FIELDS (narrower for test fixture)
+    // ============================================
     {
       name: 'description',
       type: 'markdown',
-      label: 'Description',
+      label: 'Desc',
       required: false,
       description: 'Markdown text with preview',
+      display: { width: 100 },
     },
     {
       name: 'email',
@@ -62,6 +131,7 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
       label: 'Email',
       required: false,
       description: 'Email with mailto link',
+      display: { width: 120 },
     },
     {
       name: 'phone',
@@ -69,17 +139,19 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
       label: 'Phone',
       required: false,
       description: 'Phone with tel link',
+      display: { width: 100 },
     },
     {
       name: 'website',
       type: 'url',
-      label: 'Website',
+      label: 'URL',
       required: false,
       description: 'URL with external link',
+      display: { width: 100 },
     },
 
     // ============================================
-    // NUMERIC FIELDS
+    // REMAINING NUMERIC FIELDS
     // ============================================
     {
       name: 'amount',
@@ -87,101 +159,47 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
       label: 'Amount',
       required: false,
       description: 'Currency with symbol and formatting',
+      display: { width: 90 },
     },
     {
       name: 'quantity',
       type: 'number',
-      label: 'Quantity',
+      label: 'Qty',
       required: false,
       description: 'Plain number',
-    },
-    {
-      name: 'rating',
-      type: 'rating',
-      label: 'Rating',
-      required: false,
-      description: 'Star rating (0-5)',
-      validation: {
-        min: 0,
-        max: 5,
-      },
-    },
-    {
-      name: 'progress',
-      type: 'slider',
-      label: 'Progress',
-      required: false,
-      description: 'Slider 0-100%',
-      validation: {
-        min: 0,
-        max: 100,
-      },
+      display: { width: 60 },
     },
 
     // ============================================
-    // DATE/TIME FIELDS
+    // REMAINING DATE/TIME FIELDS
     // ============================================
-    {
-      name: 'due_date',
-      type: 'date',
-      label: 'Due Date',
-      required: false,
-      description: 'Date picker',
-    },
     {
       name: 'created_at',
       type: 'datetime',
-      label: 'Created At',
+      label: 'Created',
       required: false,
       description: 'Date and time picker',
+      display: { width: 120 },
     },
 
     // ============================================
-    // CHOICE FIELDS
-    // ============================================
-    {
-      name: 'status',
-      type: 'select',
-      label: 'Status',
-      required: false,
-      description: 'Single-select dropdown',
-      options: STATUS_OPTIONS as unknown as Array<{ value: string; label: string }>,
-    },
-    {
-      name: 'is_active',
-      type: 'boolean',
-      label: 'Active',
-      required: false,
-      description: 'Boolean toggle',
-      display: {
-        trueLabel: 'Active',
-        falseLabel: 'Inactive',
-      },
-    },
-    {
-      name: 'priority_color',
-      type: 'color',
-      label: 'Color',
-      required: false,
-      description: 'Color picker with swatch',
-    },
-
-    // ============================================
-    // FILE FIELDS (display only for E2E)
+    // FILE FIELDS
     // ============================================
     {
       name: 'attachment',
       type: 'file',
-      label: 'Attachment',
+      label: 'File',
       required: false,
       description: 'File attachment',
+      display: { width: 80 },
     },
     {
       name: 'avatar',
       type: 'image',
-      label: 'Avatar',
+      label: 'Img',
       required: false,
       description: 'Image thumbnail',
+      display: { width: 60 },
     },
 
     // ============================================
@@ -190,11 +208,12 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
     {
       name: 'parent_id',
       type: 'text',
-      label: 'Parent ID',
+      label: 'Parent',
       required: false,
       description: 'For hierarchy testing',
+      display: { width: 80 },
     },
-  ] as FieldDefinition[],
+  ] as unknown as FieldDefinition[],  // Cast via unknown to allow display.width overrides
   createdAt: new Date().toISOString(),
   dependencies: {
     supportsDependencies: false,

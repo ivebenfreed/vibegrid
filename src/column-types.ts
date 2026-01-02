@@ -82,6 +82,7 @@ export type CellType =
   | 'textarea' // Multi-line text input
   | 'rich-text'
   | 'rich_text' // DataForge variant
+  | 'markdown' // Markdown text
   | 'number'
   | 'integer'
   | 'decimal'
@@ -108,6 +109,9 @@ export type CellType =
   | 'currency'
   | 'color'
   | 'json' // JSON field type
+  // Interactive types
+  | 'rating' // Star rating
+  | 'slider' // Slider/progress bar
   // System option types (DataForge)
   | 'status'
   | 'status_option'

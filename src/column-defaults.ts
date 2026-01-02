@@ -14,6 +14,7 @@ export const COLUMN_DEFAULTS: Record<
   textarea: { width: 300, minWidth: 200, maxWidth: 600 },
   'rich-text': { width: 350, minWidth: 250, maxWidth: 700 },
   rich_text: { width: 350, minWidth: 250, maxWidth: 700 },
+  markdown: { width: 300, minWidth: 200, maxWidth: 600 },
 
   // Number types
   number: { width: 120, minWidth: 80, maxWidth: 200 },
@@ -49,6 +50,10 @@ export const COLUMN_DEFAULTS: Record<
   currency: { width: 130, minWidth: 100, maxWidth: 200 },
   color: { width: 100, minWidth: 80, maxWidth: 150 },
   json: { width: 200, minWidth: 150, maxWidth: 400 },
+
+  // Interactive types
+  rating: { width: 140, minWidth: 100, maxWidth: 200 },
+  slider: { width: 180, minWidth: 140, maxWidth: 250 },
 
   // System option types (DataForge)
   status: { width: 140, minWidth: 100, maxWidth: 200 },
