@@ -121,47 +121,6 @@ const testData = createMockScenario('drag-drop')
 
 **Implementation:** `useVibeGridData.ts` checks for `collectionOverride` prop before fetching from API.
 
-### Field-Level Width Override (Added 2026-01-02)
-
-**Context:** E2E tests need specific column widths for field type testing.
-
-**Pattern:** Set `display.width` in field definition, column generation respects it.
-
-```typescript
-// In field definition (e.g., column-types.ts)
-{
-  id: 'test_boolean',
-  field_id: 'test_boolean',
-  field_type: 'boolean',
-  display: {
-    width: 80,  // ← Column generator uses this
-    label: 'Boolean'
-  }
-}
-
-// Column generation (stores/column-generation.ts)
-if (fieldDef.display?.width) {
-  colDef.width = fieldDef.display.width  // Explicit override
-} else {
-  colDef.width = getDefaultWidth(fieldType)  // Fallback to defaults
-}
-```
-
-**Why this works:**
-- Field definitions are source of truth for field metadata
-- Column generation derives from field definitions
-- Test fixtures can specify exact widths needed
-- Production code uses same pattern (consistent behavior)
-
-**Key files:**
-- `apps/web/src/systems/vibegrid/stores/column-generation.ts:164-166` - Width override logic
-- `apps/web/src/systems/vibegrid/column-types.ts` - Field type schema
-- `apps/web/src/systems/vibegrid/column-defaults.ts` - Default widths by type
-
-**Example use case:** GH#651 - E2E test fixture needed narrow columns (60-120px) for rating, slider, markdown fields.
-
-**Learned from:** GH#651 implementation session (2026-01-02)
-
 ### Cell Selection Class Updates (Bug Fix)
 
 **Problem:** Cell selection classes (`is-selected`, `is-range-selected`) weren't updating on click.
@@ -220,59 +179,12 @@ expect(state.selectedCells).toHaveLength(1)
 
 **Learned from:** Session #466 - Need to verify internal state, not just DOM.
 
-## Missing Cell Types Pattern (Added 2026-01-02)
-
-**Context:** Adding new field types to E2E tests requires updates in 3 places.
-
-**Checklist when adding new field type:**
-
-1. **Cell renderer** (`column-types.ts`)
-   ```typescript
-   // Add cell component mapping
-   export const CELL_COMPONENTS: Record<FieldType, CellComponent> = {
-     // ...existing types
-     markdown: MarkdownCell,
-     rating: RatingCell,
-     slider: SliderCell,
-   }
-   ```
-
-2. **Default widths** (`column-defaults.ts`)
-   ```typescript
-   export const DEFAULT_WIDTHS: Record<FieldType, number> = {
-     // ...existing types
-     markdown: 200,
-     rating: 120,
-     slider: 150,
-   }
-   ```
-
-3. **Field type schema** (`field-type-schema.ts`)
-   ```typescript
-   export const FIELD_TYPE_SCHEMA = z.enum([
-     // ...existing types
-     'markdown',
-     'rating',
-     'slider',
-   ])
-   ```
-
-**Symptom if missing:** TypeScript errors, missing cell renderers, default width falls back to 150px.
-
-**Why 3 places:** Separation of concerns (types, rendering, defaults). Could consolidate but maintains clarity.
-
-**Learned from:** GH#651 - discovered markdown, rating, slider were in schema but missing from column-types.ts and column-defaults.ts (2026-01-02)
-
 ## Key Files
 
 - `VibeGrid.tsx` - Main component, props interface
 - `components/ActionsBar.tsx` - Row actions UI
 - `stores/InteractionStore.ts` - UI state (selection, menus)
 - `stores/GanttViewStore.ts` - Gantt state
-- `stores/column-generation.ts` - Column generation (width override: LINE 164-166)
 - `utils/cascade-scheduler.ts` - Date cascading
 - `components/DependencyArrowLayer.tsx` - SVG arrows
 - `renderers/components/BodyRenderer.ts` - Cell rendering, selection classes (LINE 29: MobX reaction)
-- `column-types.ts` - Cell component mappings
-- `column-defaults.ts` - Default widths by field type
-- `field-type-schema.ts` - Field type enum
