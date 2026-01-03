@@ -242,6 +242,10 @@ export class DateEditor implements CellEditor {
 
     // Apply styling
     input.className = 'vibegridx-date-editor'
+    input.setAttribute('data-testid', 'date-editor')
+    input.setAttribute('data-field-type', 'date')
+    input.setAttribute('data-column-id', column.id)
+    input.setAttribute('data-editable', 'true')
     input.style.cssText = `
       width: 100%;
       height: 100%;

@@ -386,6 +386,10 @@ export class SelectEditor implements CellEditor {
 
     // Apply styling
     select.className = 'vibegridx-select-editor'
+    select.setAttribute('data-testid', 'select-editor')
+    select.setAttribute('data-field-type', 'select')
+    select.setAttribute('data-column-id', column.id)
+    select.setAttribute('data-editable', 'true')
     select.style.cssText = `
       width: 100%;
       height: 100%;

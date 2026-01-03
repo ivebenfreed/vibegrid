@@ -241,6 +241,10 @@ export class ColorEditor implements CellEditor {
 
     const container = document.createElement('div')
     container.className = 'vibegridx-color-editor'
+    container.setAttribute('data-testid', 'color-editor')
+    container.setAttribute('data-field-type', 'color')
+    container.setAttribute('data-column-id', column.id)
+    container.setAttribute('data-editable', 'true')
     container.style.cssText = `
       width: 100%;
       height: 100%;

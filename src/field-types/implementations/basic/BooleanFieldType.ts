@@ -210,6 +210,10 @@ export class BooleanEditor implements CellEditor {
 
     // Apply styling
     select.className = 'vibegridx-boolean-editor'
+    select.setAttribute('data-testid', 'boolean-editor')
+    select.setAttribute('data-field-type', 'boolean')
+    select.setAttribute('data-column-id', column.id)
+    select.setAttribute('data-editable', 'true')
     select.style.cssText = `
       width: 100%;
       height: 100%;

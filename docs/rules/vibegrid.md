@@ -179,6 +179,60 @@ expect(state.selectedCells).toHaveLength(1)
 
 **Learned from:** Session #466 - Need to verify internal state, not just DOM.
 
+## Field Type Affordance System (Added 2026-01-03)
+
+Each field type has an **affordance** that determines editing behavior.
+
+### Affordance Types
+
+| Affordance | Behavior | Editor Type | Field Types |
+|------------|----------|-------------|-------------|
+| `select` | Opens ComboboxEditor dropdown | `[cmdk-item]` options | boolean, select, color (via select) |
+| `edit` | Opens specialized editor | Varies by field | date (calendar), text (input) |
+| `toggle` | Inline editable, no portal | Direct interaction | rating (stars), slider (progress) |
+| `none` | Read-only, no editing | N/A | Computed fields, read-only |
+
+### Editor Components
+
+| Field Type | Editor Component | Key Selectors |
+|------------|------------------|---------------|
+| **boolean** | ComboboxEditor | `[cmdk-item]` for True/False options |
+| **select** | ComboboxEditor | `[cmdk-item]` for option list |
+| **date** | react-day-picker | `.rdp-root`, `[data-slot="calendar"]` |
+| **rating** | Inline stars | `span` elements with ★/☆ characters |
+| **slider** | Inline progress | Progress bar with percentage |
+| **color** | ComboboxEditor (select impl) | `[cmdk-item]` with hex values |
+| **text** | TextInput | `input[type="text"]` |
+| **number** | NumberInput | `input[type="number"]` |
+
+### Cell Data Attributes
+
+```html
+<div class="vibegridx-cell"
+  data-row-id="task-123"
+  data-column-id="status"
+  data-field-type="select"
+  data-editable="true"
+  data-affordance="select">
+  <div data-affordance="select">Active</div>
+</div>
+```
+
+### Click Behavior
+
+- **Click cell padding** → Selection only (no edit)
+- **Click cell content** (element with `data-affordance`) → Enters edit mode
+- **CellActionRouter** dispatches based on affordance type
+
+### Key Implementation Files
+
+- `field-types/implementations/basic/` - Field type editors
+- `field-types/editors/ComboboxEditor.tsx` - Select/boolean/color editor
+- `field-types/editors/DateEditor.tsx` - Date picker wrapper
+- `components/CellActionRouter.ts` - Click routing logic
+
+**Learned from:** GH#729 E2E test validation session (2026-01-03)
+
 ## Key Files
 
 - `VibeGrid.tsx` - Main component, props interface

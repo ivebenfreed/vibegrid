@@ -71,6 +71,10 @@ export class RatingEditor implements CellEditor {
 
     const container = document.createElement('div')
     container.className = 'vibegridx-rating-editor'
+    container.setAttribute('data-testid', 'rating-editor')
+    container.setAttribute('data-field-type', 'rating')
+    container.setAttribute('data-column-id', column.id)
+    container.setAttribute('data-editable', 'true')
     container.style.cssText = 'display: flex; align-items: center; gap: 2px; padding: 4px;'
 
     const rating = Number(value) || 0
