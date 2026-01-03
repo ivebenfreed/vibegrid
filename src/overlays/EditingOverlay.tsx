@@ -318,6 +318,11 @@ export class EditingOverlay {
         }
       : undefined
 
+    // Convert Map<string, string> to string[] for editor props
+    const validationErrorsList = validationErrors
+      ? Array.from(validationErrors.values())
+      : []
+
     const editorComponent = createEditor({
       cell,
       column,
@@ -340,6 +345,7 @@ export class EditingOverlay {
           }
         : // Fallback to renderer callback (old architecture)
           this.config.onUpdate,
+      validationErrors: validationErrorsList,
       relationshipContext: enhancedRelationshipContext,
     })
 

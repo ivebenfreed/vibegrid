@@ -39,6 +39,7 @@ export class EntityNameRenderer implements CellRenderer {
     // Create container
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-entity-name'
+    container.dataset.fieldType = 'entity-name'
     container.style.display = 'flex'
     container.style.alignItems = 'center'
     container.style.gap = '8px'
@@ -61,6 +62,7 @@ export class EntityNameRenderer implements CellRenderer {
     // ✅ Affordance data attributes for cursor/hover behavior
     textElement.dataset.affordance = 'navigate'
     textElement.dataset.affordanceRole = 'link'
+    textElement.dataset.fieldType = 'entity-name'
 
     // Handle empty values
     if (value == null || value === '') {

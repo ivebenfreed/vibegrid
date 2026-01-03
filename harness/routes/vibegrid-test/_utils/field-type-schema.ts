@@ -203,6 +203,30 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
     },
 
     // ============================================
+    // RELATIONSHIP FIELDS - E2E: relationship-types.spec.ts
+    // ============================================
+    {
+      name: 'assigned_to',
+      type: 'user_reference',
+      label: 'Assignee',
+      required: false,
+      description: 'User reference with badge display',
+      display: { width: 140 },
+    },
+    {
+      name: 'related_project',
+      type: 'entity_reference',
+      label: 'Project',
+      required: false,
+      description: 'Entity reference with badge display',
+      display: { width: 140 },
+      relationshipConfig: {
+        targetEntityType: 'Project',
+        displayField: 'name',
+      },
+    },
+
+    // ============================================
     // INTERNAL FIELDS
     // ============================================
     {
@@ -233,6 +257,7 @@ export const FIELD_CATEGORIES = {
   datetime: ['due_date', 'created_at'],
   choice: ['status', 'is_active', 'priority_color'],
   file: ['attachment', 'avatar'],
+  relationship: ['assigned_to', 'related_project'],
 } as const
 
 /**

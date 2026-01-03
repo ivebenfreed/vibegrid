@@ -1,7 +1,5 @@
 import React from 'react'
-import { observer } from 'mobx-react-lite'
 import { getLogger } from '@/shared/lib/logging'
-import { useEditingStore } from '../../stores/context'
 import type { CellRef, Column } from '../../types'
 import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 
@@ -16,9 +14,11 @@ interface TextEditorProps {
   onUpdate?: (value: string) => void
   onBlur?: () => void
   multiline?: boolean
+  // Validation errors passed directly (portal is outside React context)
+  validationErrors?: string[]
 }
 
-const TextEditorComponent = observer(function TextEditorComponent({
+function TextEditorComponent({
   cell,
   column,
   initialValue,
@@ -27,14 +27,11 @@ const TextEditorComponent = observer(function TextEditorComponent({
   onUpdate,
   onBlur,
   multiline = false,
+  validationErrors = [],
 }: TextEditorProps) {
   const [value, setValue] = React.useState(initialValue || '')
   const inputRef = React.useRef<HTMLInputElement | HTMLTextAreaElement>(null)
   const hasUserInteracted = React.useRef(false)
-
-  // Get validation errors from the EditingStore
-  const editingStore = useEditingStore()
-  const validationErrors = editingStore.validationErrors
 
   React.useEffect(() => {
     // Select text immediately on mount with a small delay to ensure proper focus
@@ -216,9 +213,7 @@ const TextEditorComponent = observer(function TextEditorComponent({
       <ValidationErrorDisplay errors={validationErrors} />
     </div>
   )
-})
+}
 
-// Export the observer-wrapped component
-// Note: observer() already handles efficient updates based on MobX observables
-// We removed the React.memo wrapper since observer() provides its own optimization
+// Export the component directly (no observer wrapper needed - portal is outside React context)
 export const TextEditor = TextEditorComponent
