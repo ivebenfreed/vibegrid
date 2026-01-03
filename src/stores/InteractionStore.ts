@@ -22,6 +22,7 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
+import type { FilterBuilderState, FilterGroup } from '../types/filter-types'
 
 const logger = getLogger(['vibegrid', 'stores', 'InteractionStore'])
 
@@ -220,6 +221,19 @@ export class InteractionStore implements IStore {
   }
 
   // ====================================
+  // FILTER BUILDER STATE
+  // ====================================
+
+  @observable filterBuilderState: FilterBuilderState = {
+    isOpen: false,
+    searchValue: '',
+    draftFilterGroup: null,
+    presets: [],
+    validationErrors: [],
+    showComplexityWarning: false,
+  }
+
+  // ====================================
   // CLIPBOARD STATE
   // ====================================
 
@@ -323,6 +337,14 @@ export class InteractionStore implements IStore {
     this.columnVisibilityMenuState = { isOpen: false, searchValue: '' }
     this.groupConfigMenuState = { isOpen: false }
     this.rowActionMenuState = { isOpen: false, position: { x: 0, y: 0 }, rowId: null }
+    this.filterBuilderState = {
+      isOpen: false,
+      searchValue: '',
+      draftFilterGroup: null,
+      presets: [],
+      validationErrors: [],
+      showComplexityWarning: false,
+    }
     this.clipboard = null
     logger.info('InteractionStore reset to defaults')
   }
@@ -1226,6 +1248,32 @@ export class InteractionStore implements IStore {
     }
 
     logger.info('Row action menu closed')
+  }
+
+  // ====================================
+  // FILTER BUILDER ACTIONS
+  // ====================================
+
+  @action
+  openFilterBuilder(): void {
+    this.filterBuilderState.isOpen = true
+    // Load presets from localStorage if needed
+    logger.info('Filter builder opened')
+  }
+
+  @action
+  closeFilterBuilder(): void {
+    this.filterBuilderState.isOpen = false
+    this.filterBuilderState.draftFilterGroup = null
+    this.filterBuilderState.searchValue = ''
+    this.filterBuilderState.validationErrors = []
+    logger.info('Filter builder closed')
+  }
+
+  @action
+  setDraftFilter(group: FilterGroup | null): void {
+    this.filterBuilderState.draftFilterGroup = group
+    logger.info('Draft filter set', { hasGroup: !!group })
   }
 
   // ====================================

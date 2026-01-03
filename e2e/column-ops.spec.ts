@@ -138,9 +138,7 @@ describe('VibeGrid Column Operations', () => {
     expect(secondVisible).toBe(true)
 
     // Get column IDs before reorder
-    const firstColumnId = await firstHeaderCell.evaluate((el) =>
-      el.getAttribute('data-column-id'),
-    )
+    const firstColumnId = await firstHeaderCell.evaluate((el) => el.getAttribute('data-column-id'))
     const secondColumnId = await secondHeaderCell.evaluate((el) =>
       el.getAttribute('data-column-id'),
     )
@@ -181,8 +179,7 @@ describe('VibeGrid Column Operations', () => {
     // Either the first column moved, or the second column moved to first position
     // (reorder behavior may vary based on implementation)
     // Check that the column order is different from initial state
-    const columnsChanged =
-      newFirstColumnId !== firstColumnId || newFirstColumnId === secondColumnId
+    const columnsChanged = newFirstColumnId !== firstColumnId || newFirstColumnId === secondColumnId
 
     // Note: If reorder is not implemented, this test documents expected behavior
     // The test passes if columns remain functional after drag attempt
@@ -280,7 +277,9 @@ describe('VibeGrid Column Operations', () => {
       if (checkboxItemCount === 0) {
         // Dropdown opened but no toggleable items found
         // Verify at least the dropdown structure exists
-        const menuExists = await page.$('[role="menu"], [data-radix-menu-content], .dropdown-menu-content')
+        const menuExists = await page.$(
+          '[role="menu"], [data-radix-menu-content], .dropdown-menu-content',
+        )
         expect(menuExists).not.toBeNull()
         return
       }
@@ -293,18 +292,14 @@ describe('VibeGrid Column Operations', () => {
 
         if (!isDisabled) {
           // Get initial state
-          const initialState = await checkboxItem.evaluate((el) =>
-            el.getAttribute('data-state'),
-          )
+          const initialState = await checkboxItem.evaluate((el) => el.getAttribute('data-state'))
 
           // Click to toggle
           await checkboxItem.click()
           await new Promise((r) => setTimeout(r, 200))
 
           // Verify state changed
-          const newState = await checkboxItem.evaluate((el) =>
-            el.getAttribute('data-state'),
-          )
+          const newState = await checkboxItem.evaluate((el) => el.getAttribute('data-state'))
 
           // Toggle should change the state (checked <-> unchecked)
           if (initialState !== newState) {
@@ -416,10 +411,7 @@ describe('VibeGrid Column Operations', () => {
     // Hover over the resize handle
     const handleBox = await resizeHandle.boundingBox()
     if (handleBox) {
-      await page.mouse.move(
-        handleBox.x + handleBox.width / 2,
-        handleBox.y + handleBox.height / 2,
-      )
+      await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
     }
 
     // The resize handle's ::after pseudo-element should become visible (opacity: 1)

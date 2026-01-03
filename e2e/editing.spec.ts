@@ -412,10 +412,7 @@ describe('VibeGrid Editing', () => {
     await new Promise((r) => setTimeout(r, 500))
 
     // After Tab, verify that edit was committed (portal should be closed or in new cell)
-    const portalCount = await page.$$eval(
-      '.vibegridx-editing-portal',
-      (els) => els.length,
-    )
+    const portalCount = await page.$$eval('.vibegridx-editing-portal', (els) => els.length)
 
     // Portal should be at most 1 (could be editing next cell)
     expect(portalCount).toBeLessThanOrEqual(1)
