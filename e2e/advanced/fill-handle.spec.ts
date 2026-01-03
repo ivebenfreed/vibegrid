@@ -261,7 +261,9 @@ describe('VibeGrid Fill Handle', () => {
     }
 
     // Find a cell to the right in the same row
-    const targetCell = await page.$(`.vibegridx-cell[data-row-id="${rowId}"][data-column-id="rating"]`)
+    const targetCell = await page.$(
+      `.vibegridx-cell[data-row-id="${rowId}"][data-column-id="rating"]`,
+    )
 
     if (!targetCell) {
       console.log('SKIP: No adjacent cell for horizontal fill')

@@ -63,12 +63,12 @@ export function generateFieldTypeTestEntity(
   options?: {
     includeNulls?: boolean // Include null values for optional fields
     parentId?: string | null // For hierarchy testing
-  }
+  },
 ): FieldTypeTestEntity {
   const includeNulls = options?.includeNulls ?? true
   const shouldBeNull = () => includeNulls && faker.datatype.boolean({ probability: 0.2 })
 
-  const statusValues = STATUS_OPTIONS.map(s => s.value)
+  const statusValues = STATUS_OPTIONS.map((s) => s.value)
   const now = new Date()
   const dueDate = faker.date.soon({ days: 30, refDate: now })
 
@@ -115,7 +115,7 @@ export function generateFieldTypeTestEntities(
     includeNulls?: boolean
     withHierarchy?: boolean
     seed?: number
-  }
+  },
 ): FieldTypeTestEntity[] {
   // Seed faker for reproducibility
   if (options?.seed !== undefined) {
@@ -151,16 +151,20 @@ export function generateFieldTypeTestEntities(
 
     // Fill remaining slots if any
     while (entities.length < count) {
-      entities.push(generateFieldTypeTestEntity(entities.length + 1, {
-        includeNulls: options?.includeNulls,
-      }))
+      entities.push(
+        generateFieldTypeTestEntity(entities.length + 1, {
+          includeNulls: options?.includeNulls,
+        }),
+      )
     }
   } else {
     // Flat list
     for (let i = 0; i < count; i++) {
-      entities.push(generateFieldTypeTestEntity(i + 1, {
-        includeNulls: options?.includeNulls,
-      }))
+      entities.push(
+        generateFieldTypeTestEntity(i + 1, {
+          includeNulls: options?.includeNulls,
+        }),
+      )
     }
   }
 

@@ -12,7 +12,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
-import { clearMockStorage, createMockEntityCollection, type MockEntity } from '@/shared/data/db/collections/mock-collections'
+import {
+  clearMockStorage,
+  createMockEntityCollection,
+  type MockEntity,
+} from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import {

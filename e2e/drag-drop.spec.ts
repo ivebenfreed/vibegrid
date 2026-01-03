@@ -204,11 +204,9 @@ describe('VibeGrid Drag & Drop', () => {
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
     await page.mouse.down()
     await new Promise((r) => setTimeout(r, 150))
-    await page.mouse.move(
-      targetBox.x + targetBox.width / 2,
-      targetBox.y + targetBox.height / 2,
-      { steps: 15 },
-    )
+    await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+      steps: 15,
+    })
     await new Promise((r) => setTimeout(r, 300))
     await page.mouse.up()
     await new Promise((r) => setTimeout(r, 200))
@@ -306,9 +304,7 @@ describe('VibeGrid Drag & Drop', () => {
     })
     expect(toggleVisible).toBe(true)
 
-    const isInitiallyChecked = await rowDragToggle.evaluate(
-      (el: HTMLInputElement) => el.checked,
-    )
+    const isInitiallyChecked = await rowDragToggle.evaluate((el: HTMLInputElement) => el.checked)
     expect(isInitiallyChecked).toBe(true)
 
     await rowDragToggle.click()

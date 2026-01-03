@@ -336,9 +336,7 @@ describe('VibeGrid Row Actions', () => {
       const clearButton = await page.$('.vibegridx-container button svg.lucide-x')
 
       if (clearButton) {
-        const parentButton = await clearButton.evaluateHandle((el) =>
-          el.closest('button'),
-        )
+        const parentButton = await clearButton.evaluateHandle((el) => el.closest('button'))
         if (parentButton) {
           await (parentButton as any).click()
 

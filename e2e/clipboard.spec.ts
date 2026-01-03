@@ -275,9 +275,7 @@ describe('VibeGrid Clipboard', () => {
     await page.keyboard.up('Control')
 
     // Verify grid remains functional and selection is preserved
-    const firstFinal = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const firstFinal = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     const secondFinal = await secondCell.evaluate((el) =>
       el.classList.contains('vibegridx-selected'),
     )
@@ -301,9 +299,7 @@ describe('VibeGrid Clipboard', () => {
     // Select a cell
     const firstCell = cells[0]
     await firstCell.click()
-    const isSelected = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const isSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(isSelected).toBe(true)
 
     // Press Ctrl+Z when there's nothing to undo

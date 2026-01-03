@@ -141,18 +141,14 @@ describe('VibeGrid Keyboard Navigation', () => {
     await new Promise((r) => setTimeout(r, 100))
 
     const afterLeftCells = await page.$$('.vibegridx-selected')
-    const leftColumnId = await afterLeftCells[0].evaluate((el) =>
-      el.getAttribute('data-column-id'),
-    )
+    const leftColumnId = await afterLeftCells[0].evaluate((el) => el.getAttribute('data-column-id'))
 
     // Should have moved back to previous column
     expect(leftColumnId).not.toBe(rightColumnId)
 
     // Test vertical navigation: Start fresh from first row
     const beforeDownCells = await page.$$('.vibegridx-selected')
-    const rowBeforeDown = await beforeDownCells[0].evaluate((el) =>
-      el.getAttribute('data-row-id'),
-    )
+    const rowBeforeDown = await beforeDownCells[0].evaluate((el) => el.getAttribute('data-row-id'))
 
     // Move down
     await page.keyboard.press('ArrowDown')

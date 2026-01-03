@@ -13,7 +13,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
-import { clearMockStorage, createMockEntityCollection } from '@/shared/data/db/collections/mock-collections'
+import {
+  clearMockStorage,
+  createMockEntityCollection,
+} from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import {
@@ -24,7 +27,11 @@ import {
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 
-import { FIELD_TYPE_TEST_SCHEMA, HIGH_PRIORITY_FIELDS, FIELD_CATEGORIES } from './_utils/field-type-schema'
+import {
+  FIELD_TYPE_TEST_SCHEMA,
+  HIGH_PRIORITY_FIELDS,
+  FIELD_CATEGORIES,
+} from './_utils/field-type-schema'
 import {
   generateFieldTypeTestEntities,
   generateFieldTypeTestFixtures,
@@ -52,7 +59,7 @@ function FieldTypeTestRoute() {
   const [dataVersion, setDataVersion] = useState(0)
   const [dataMode, setDataMode] = useState<DataMode>('random')
   const [mockData, setMockData] = useState<FieldTypeTestEntity[]>(() =>
-    generateFieldTypeTestEntities(SCENARIOS.small.rowCount, { seed: 12345 })
+    generateFieldTypeTestEntities(SCENARIOS.small.rowCount, { seed: 12345 }),
   )
 
   // Expose test state for E2E testing
@@ -157,7 +164,9 @@ function FieldTypeTestRoute() {
             <p className="text-muted-foreground">
               Test all 16 field types - {mockData.length} rows
               {dataMode === 'fixtures' && (
-                <Badge variant="secondary" className="ml-2">Fixtures Mode</Badge>
+                <Badge variant="secondary" className="ml-2">
+                  Fixtures Mode
+                </Badge>
               )}
             </p>
           </div>
@@ -223,25 +232,33 @@ function FieldTypeTestRoute() {
               <div>
                 <strong>Text:</strong>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {FIELD_CATEGORIES.text.map((f) => <li key={f}>{f}</li>)}
+                  {FIELD_CATEGORIES.text.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
                 </ul>
               </div>
               <div>
                 <strong>Numeric:</strong>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {FIELD_CATEGORIES.numeric.map((f) => <li key={f}>{f}</li>)}
+                  {FIELD_CATEGORIES.numeric.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
                 </ul>
               </div>
               <div>
                 <strong>Date/Time:</strong>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {FIELD_CATEGORIES.datetime.map((f) => <li key={f}>{f}</li>)}
+                  {FIELD_CATEGORIES.datetime.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
                 </ul>
               </div>
               <div>
                 <strong>Choice:</strong>
                 <ul className="list-disc list-inside text-muted-foreground">
-                  {FIELD_CATEGORIES.choice.map((f) => <li key={f}>{f}</li>)}
+                  {FIELD_CATEGORIES.choice.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
                 </ul>
               </div>
             </div>

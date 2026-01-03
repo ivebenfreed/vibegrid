@@ -22,6 +22,7 @@ import type { ObservableCoordinateManager } from '../coordinates/ObservableCoord
 import { modularCellBridge } from '../field-types/ModularCellBridge'
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
+import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
 
 const logger = getLogger(['vibegrid', 'stores', 'VisualStateStore'])
@@ -103,6 +104,7 @@ export class VisualStateStore implements IStore {
 
   @observable sortBy: SortConfig[] = []
   @observable filters: FilterConfig[] = []
+  @observable filterGroup: FilterGroup | null = null
   @observable groupConfig: GroupConfig | null = null
 
   // ====================================
@@ -192,6 +194,7 @@ export class VisualStateStore implements IStore {
     this.rowHeight = 40
     this.sortBy = []
     this.filters = []
+    this.filterGroup = null
     this.groupConfig = null
     this.entityType = ''
     this.orgId = ''
@@ -369,6 +372,31 @@ export class VisualStateStore implements IStore {
    */
   @computed get visibleOrderedColumns(): Column[] {
     return this.orderedColumns.filter((col) => this.columnVisibility[col.id] !== false)
+  }
+
+  /**
+   * Count of active filter conditions (recursive)
+   */
+  @computed get activeFilterCount(): number {
+    if (!this.filterGroup) return 0
+    return this.countConditions(this.filterGroup)
+  }
+
+  /**
+   * Recursively count conditions in a filter group
+   */
+  private countConditions(group: FilterGroup): number {
+    let count = 0
+    for (const item of group.conditions) {
+      if ('logic' in item) {
+        // It's a nested FilterGroup
+        count += this.countConditions(item)
+      } else {
+        // It's a FilterCondition
+        count += 1
+      }
+    }
+    return count
   }
 
   // ====================================
@@ -991,6 +1019,44 @@ export class VisualStateStore implements IStore {
   clearFilters(): void {
     this.filters = []
     logger.debug('All filters cleared')
+  }
+
+  /**
+   * Apply a filter group (GH#216: Multi-Level Advanced Filtering)
+   *
+   * This sets the active filterGroup used to filter the grid data.
+   * Called when the user clicks "Apply" in the FilterBuilder.
+   */
+  @action
+  applyFilterGroup(group: FilterGroup | null): void {
+    this.filterGroup = group
+
+    // Notify TableCoreStore to trigger re-render with filtered data
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      logger.info('Applied filter group, notified TableCoreStore')
+    }
+
+    logger.info('Filter group applied', {
+      hasGroup: !!group,
+      conditionCount: group ? this.countConditions(group) : 0,
+    })
+  }
+
+  /**
+   * Clear the active filter group
+   */
+  @action
+  clearFilterGroup(): void {
+    this.filterGroup = null
+
+    // Notify TableCoreStore to trigger re-render
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      logger.info('Cleared filter group, notified TableCoreStore')
+    }
+
+    logger.info('Filter group cleared')
   }
 
   // ====================================

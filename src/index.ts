@@ -39,6 +39,14 @@ export type {
   ViewportInfo,
 } from './types'
 
+export type {
+  FilterCondition,
+  FilterGroup,
+  FilterPreset,
+  FilterBuilderState,
+  ValidationError,
+} from './types/filter-types'
+
 // ====================================
 // PURE OBSERVABLE ARCHITECTURE
 // ====================================

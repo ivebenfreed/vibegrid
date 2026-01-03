@@ -213,7 +213,7 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
       description: 'For hierarchy testing',
       display: { width: 80 },
     },
-  ] as unknown as FieldDefinition[],  // Cast via unknown to allow display.width overrides
+  ] as unknown as FieldDefinition[], // Cast via unknown to allow display.width overrides
   createdAt: new Date().toISOString(),
   dependencies: {
     supportsDependencies: false,
@@ -239,10 +239,10 @@ export const FIELD_CATEGORIES = {
  * High-priority fields for focused E2E testing
  */
 export const HIGH_PRIORITY_FIELDS = [
-  'is_active',    // boolean - toggle affordance
-  'status',       // select - dropdown
-  'due_date',     // date - date picker
-  'rating',       // rating - star clicks
-  'progress',     // slider - drag
+  'is_active', // boolean - toggle affordance
+  'status', // select - dropdown
+  'due_date', // date - date picker
+  'rating', // rating - star clicks
+  'progress', // slider - drag
   'priority_color', // color - color picker
 ] as const

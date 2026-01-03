@@ -155,9 +155,7 @@ describe('VibeGrid Context Menus', () => {
     // Select a cell first
     const firstCell = cells[0]
     await firstCell.click()
-    const isSelected = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const isSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(isSelected).toBe(true)
 
     // Right-click to open context menu
