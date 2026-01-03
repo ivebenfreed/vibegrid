@@ -58,11 +58,12 @@ describe('VibeGrid Boolean Field Type', () => {
 
   /**
    * Helper to check if a boolean editor dropdown is visible
+   * Note: Boolean editor uses ComboboxEditor (Radix Command) not native <select>
    */
   async function isDropdownVisible(): Promise<boolean> {
-    // Check for select element that appears during editing
-    const selects = await page.$$('.vibegridx-boolean-editor, select.vibegridx-boolean-editor')
-    return selects.length > 0
+    // Check for Radix Command menu inside editing portal
+    const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
+    return cmdkItems.length > 0
   }
 
   /**
@@ -94,29 +95,44 @@ describe('VibeGrid Boolean Field Type', () => {
       )
     }
 
-    // Find the toggle affordance element for true value
-    const trueBadges = await page.$$(
+    // Find all toggle affordance elements
+    const allBadges = await page.$$(
       '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
     )
 
-    if (trueBadges.length === 0) {
+    if (allBadges.length === 0) {
       throw new Error(
         'TEST FAILURE: No toggle affordance elements found. Verify boolean field renders with data-affordance="toggle" attribute.',
       )
     }
 
-    const trueBadge = trueBadges[0]
-    await expect(trueBadge).toBeVisible()
+    // Find a badge that has true value (contains "Yes" or checkmark)
+    let foundTrueBadge = false
+    for (const badge of allBadges) {
+      const badgeHtml = await badge.evaluate((el) => el.innerHTML)
+      const hasTrueIndicator =
+        badgeHtml.includes('Yes') ||
+        badgeHtml.includes('Active') ||
+        badgeHtml.includes('\u2713') || // checkmark ✓
+        badgeHtml.includes('#d1fae5') // green background
 
-    // Check for true value indicators (green background or checkmark)
-    const badgeHtml = await trueBadge.evaluate((el) => el.innerHTML)
-    const hasTrueIndicator =
-      badgeHtml.includes('Yes') ||
-      badgeHtml.includes('Active') ||
-      badgeHtml.includes('\u2713') || // checkmark
-      badgeHtml.includes('#d1fae5') // green background
+      if (hasTrueIndicator) {
+        foundTrueBadge = true
+        // Verify the badge is visible
+        const isVisible = await badge.evaluate((el) => {
+          const rect = el.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0
+        })
+        expect(isVisible).toBe(true)
+        break
+      }
+    }
 
-    expect(hasTrueIndicator).toBe(true)
+    if (!foundTrueBadge) {
+      throw new Error(
+        'TEST FAILURE: No true value badges found. Ensure test fixtures include is_active=true rows.',
+      )
+    }
   })
 
   it('1.2 Boolean badge renders correctly for false value', async () => {
@@ -209,31 +225,39 @@ describe('VibeGrid Boolean Field Type', () => {
 
     const toggleElement = toggleElements[0]
 
-    // Click to open dropdown
+    // Click to open dropdown (Radix Command menu)
     await toggleElement.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    // Find select element
-    const selectElement = await page.$('.vibegridx-boolean-editor')
+    // Find cmdk-item elements in editing portal
+    const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
 
-    if (!selectElement) {
+    if (cmdkItems.length === 0) {
       throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify editor component renders on click.',
+        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
       )
     }
 
-    const isVisible = await selectElement.evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
+    // Find the "Yes" option and click it
+    let foundYesOption = false
+    for (const item of cmdkItems) {
+      const text = await item.evaluate((el) => el.textContent)
+      if (text?.includes('Yes')) {
+        await item.click()
+        foundYesOption = true
+        break
+      }
+    }
 
-    if (!isVisible) {
+    if (!foundYesOption) {
       throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not visible. Verify editor has dimensions.',
+        'TEST FAILURE: Could not find "Yes" option in dropdown. Available options: ' +
+          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(
+            ', ',
+          ),
       )
     }
 
-    await page.select('.vibegridx-boolean-editor', 'true')
     await new Promise((r) => setTimeout(r, 500))
 
     // Verify the badge now shows true value
@@ -261,30 +285,39 @@ describe('VibeGrid Boolean Field Type', () => {
 
     const toggleElement = toggleElements[0]
 
-    // Click to open dropdown
+    // Click to open dropdown (Radix Command menu)
     await toggleElement.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    const selectElement = await page.$('.vibegridx-boolean-editor')
+    // Find cmdk-item elements in editing portal
+    const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
 
-    if (!selectElement) {
+    if (cmdkItems.length === 0) {
       throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify editor component renders on click.',
+        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
       )
     }
 
-    const isVisible = await selectElement.evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
+    // Find the "No" option and click it
+    let foundNoOption = false
+    for (const item of cmdkItems) {
+      const text = await item.evaluate((el) => el.textContent)
+      if (text?.includes('No') && !text?.includes('None')) {
+        await item.click()
+        foundNoOption = true
+        break
+      }
+    }
 
-    if (!isVisible) {
+    if (!foundNoOption) {
       throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not visible. Verify editor has dimensions.',
+        'TEST FAILURE: Could not find "No" option in dropdown. Available options: ' +
+          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(
+            ', ',
+          ),
       )
     }
 
-    await page.select('.vibegridx-boolean-editor', 'false')
     await new Promise((r) => setTimeout(r, 500))
 
     // Verify the badge now shows false value
@@ -345,49 +378,30 @@ describe('VibeGrid Boolean Field Type', () => {
 
     const toggleElement = toggleElements[0]
 
-    // Click to open dropdown
+    // Click to open dropdown (Radix Command menu)
     await toggleElement.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    const selectElement = await page.$('.vibegridx-boolean-editor')
-    if (!selectElement) {
+    // Find cmdk-item elements in editing portal
+    const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
+
+    if (cmdkItems.length === 0) {
       throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify editor component renders on click.',
+        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
       )
     }
 
-    const isVisible = await selectElement.evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
-
-    if (!isVisible) {
-      throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not visible. Verify editor has dimensions.',
-      )
-    }
-
-    // Select a value
-    await page.select('.vibegridx-boolean-editor', 'true')
-
-    // Click outside to blur
-    const header = await page.$('h2')
-    if (header) {
-      const headerVisible = await header.evaluate((el) => {
-        const rect = el.getBoundingClientRect()
-        return rect.width > 0 && rect.height > 0
-      })
-      if (headerVisible) {
-        await header.click()
-      } else {
-        await page.keyboard.press('Tab')
+    // Select "Yes" option (this will commit and close dropdown)
+    for (const item of cmdkItems) {
+      const text = await item.evaluate((el) => el.textContent)
+      if (text?.includes('Yes')) {
+        await item.click()
+        break
       }
-    } else {
-      await page.keyboard.press('Tab')
     }
     await new Promise((r) => setTimeout(r, 500))
 
-    // Verify dropdown is closed
+    // Verify dropdown is closed (selecting an option commits and closes)
     const dropdownStillVisible = await isDropdownVisible()
     expect(dropdownStillVisible).toBe(false)
   })
