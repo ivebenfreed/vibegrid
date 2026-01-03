@@ -123,17 +123,9 @@ export const FilterBuilder = observer(function FilterBuilder({
   const displayFilterGroup = draftFilterGroup ?? filterGroup
 
   return (
-    <DropdownMenu
-      open={filterBuilderState.isOpen}
-      onOpenChange={handleOpenChange}
-    >
+    <DropdownMenu open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          data-testid="vibegrid-filter-btn"
-          className={className}
-        >
+        <Button variant="outline" size="sm" data-testid="vibegrid-filter-btn" className={className}>
           <Filter className="h-4 w-4 mr-2" />
           Filters
           {activeFilterCount > 0 && (
