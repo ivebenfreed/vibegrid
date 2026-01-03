@@ -57,18 +57,8 @@ describe('VibeGrid Date Field Type', () => {
 
   /**
    * Helper to check if a date editor is visible
-   * Note: Date editor uses react-day-picker (rdp) calendar, not native HTML date input
    */
   async function isDateEditorVisible(): Promise<boolean> {
-    // Check for react-day-picker calendar in editing portal
-    const rdpCalendars = await page.$$('.vibegridx-editing-portal .rdp-root')
-    if (rdpCalendars.length > 0) return true
-
-    // Fallback: Check for any calendar-like container
-    const calendarContainers = await page.$$('.vibegridx-editing-portal [data-slot="calendar"]')
-    if (calendarContainers.length > 0) return true
-
-    // Legacy: Check for native date inputs
     const dateInputs = await page.$$(
       'input[type="date"], input[type="datetime-local"], .vibegridx-date-editor',
     )
@@ -125,8 +115,8 @@ describe('VibeGrid Date Field Type', () => {
     // Check that badge contains a date-like text
     const badgeText = await dateBadge.evaluate((el) => el.textContent)
     const hasDatePattern =
-      // Common date patterns: 2024-01-15, Jan 15, 2024, 01/15/2024, January, 30, etc.
-      /\d{4}|\d{1,2}[/-]\d{1,2}|\w{3,9}[,\s]+\d{1,2}/.test(badgeText || '')
+      // Common date patterns: 2024-01-15, Jan 15, 2024, 01/15/2024, etc.
+      /\d{4}|\d{1,2}[/-]\d{1,2}|\w{3}\s+\d{1,2}/.test(badgeText || '')
 
     expect(hasDatePattern).toBe(true)
   })
@@ -203,54 +193,47 @@ describe('VibeGrid Date Field Type', () => {
     await dateBadge.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    // Check if calendar opened (react-day-picker)
-    const calendarVisible = await isDateEditorVisible()
-    if (!calendarVisible) {
+    // Try to find and interact with date input
+    const dateInput = await page.$('input[type="date"]')
+    if (!(await isElementVisible(dateInput))) {
+      // Date input may use a different editor type
       await page.keyboard.press('Escape')
       throw new Error(
-        'TEST FAILURE: Date calendar not visible after clicking badge. Check date editor implementation.',
+        'TEST FAILURE: Standard date input not available after clicking badge. Check date editor implementation.',
       )
     }
 
-    // Find and click a different day in the calendar
-    // react-day-picker uses buttons with role="gridcell" for day cells
-    const dayButtons = await page.$$('.vibegridx-editing-portal button[name="day"]')
-
-    if (dayButtons.length === 0) {
-      // Fallback: Look for rdp day buttons
-      const rdpDayButtons = await page.$$('.vibegridx-editing-portal .rdp-day')
-      if (rdpDayButtons.length > 0) {
-        // Click a day that's not today (usually has rdp-selected or rdp-today class)
-        const availableDays = await page.$$('.vibegridx-editing-portal .rdp-day:not(.rdp-selected):not(.rdp-outside)')
-        if (availableDays.length > 0) {
-          await availableDays[0].click()
-          await new Promise((r) => setTimeout(r, 500))
-        }
+    // Set a specific date using JavaScript since date inputs have special behavior
+    const testDate = '2024-12-25'
+    await page.evaluate((date) => {
+      const input = document.querySelector('input[type="date"]') as HTMLInputElement
+      if (input) {
+        input.value = date
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
       }
-    } else {
-      await dayButtons[0].click()
-      await new Promise((r) => setTimeout(r, 500))
-    }
+    }, testDate)
+    await new Promise((r) => setTimeout(r, 300))
 
-    // Verify date changed (text should differ from original or calendar should close)
-    const calendarStillVisible = await isDateEditorVisible()
+    // Press Enter to commit
+    await page.keyboard.press('Enter')
+    await new Promise((r) => setTimeout(r, 500))
 
-    // If calendar closed, selection was made
-    if (!calendarStillVisible) {
-      const updatedBadges = await page.$$(
-        '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
-      )
-      if (updatedBadges.length > 0) {
-        const updatedText = await updatedBadges[0].evaluate((el) => el.textContent)
-        // Date should have some content
-        expect((updatedText?.trim().length || 0) > 0).toBe(true)
-      }
-    } else {
-      // Press Escape to close
-      await page.keyboard.press('Escape')
-      await new Promise((r) => setTimeout(r, 200))
-      // Test passed if we could open the calendar
-      expect(true).toBe(true)
+    // Verify date changed (should contain Dec or 25 or 12/25)
+    const updatedBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
+    if (updatedBadges.length > 0) {
+      const updatedText = await updatedBadges[0].evaluate((el) => el.textContent)
+
+      // The date should be displayed in some format
+      const hasNewDate =
+        updatedText?.includes('Dec') ||
+        updatedText?.includes('25') ||
+        updatedText?.includes('12/25') ||
+        updatedText?.includes('2024-12-25')
+
+      expect(hasNewDate).toBe(true)
     }
   })
 
@@ -271,35 +254,28 @@ describe('VibeGrid Date Field Type', () => {
     await dateBadge.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    // Check if calendar opened (react-day-picker)
-    const calendarVisible = await isDateEditorVisible()
-    if (!calendarVisible) {
+    const dateInput = await page.$('input[type="date"]')
+    if (!(await isElementVisible(dateInput))) {
       await page.keyboard.press('Escape')
       throw new Error(
-        'TEST FAILURE: Date calendar not visible for clear test. Check date editor implementation.',
+        'TEST FAILURE: Standard date input not available for clear test. Check date editor implementation.',
       )
     }
 
-    // Look for a clear button in the calendar UI
-    const clearButton = await page.evaluateHandle(() => {
-      const buttons = document.querySelectorAll('.vibegridx-editing-portal button')
-      return Array.from(buttons).find((btn) => btn.textContent?.toLowerCase().includes('clear')) || null
+    // Clear the date
+    await page.evaluate(() => {
+      const input = document.querySelector('input[type="date"]') as HTMLInputElement
+      if (input) {
+        input.value = ''
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }
     })
+    await new Promise((r) => setTimeout(r, 300))
 
-    const clearBtnElement = clearButton.asElement()
-    if (clearBtnElement && (await isElementVisible(clearBtnElement))) {
-      await clearBtnElement.click()
-      await new Promise((r) => setTimeout(r, 500))
-    } else {
-      // No clear button - press Escape to cancel and verify we can at least escape
-      await page.keyboard.press('Escape')
-      await new Promise((r) => setTimeout(r, 300))
-
-      // Verify calendar closed
-      const calendarStillVisible = await isDateEditorVisible()
-      expect(calendarStillVisible).toBe(false)
-      return // Test passed - we verified escape works
-    }
+    // Press Enter to commit
+    await page.keyboard.press('Enter')
+    await new Promise((r) => setTimeout(r, 500))
 
     // Look for empty cell indicator
     const emptyCells = await page.$$(
@@ -321,40 +297,35 @@ describe('VibeGrid Date Field Type', () => {
   })
 
   it('3.6 Datetime field shows time component', async () => {
-    // Look for datetime cells (could be created_at or other datetime fields)
-    // First try created_at column
-    let datetimeCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="created_at"]')
+    // Look for created_at column (datetime type)
+    const datetimeCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="created_at"]')
 
-    // If not found, look for any cells with datetime field type
     if (datetimeCells.length === 0) {
-      datetimeCells = await page.$$('.vibegridx-cell[data-row-id][data-field-type="datetime"]')
-    }
-
-    // If still not found, this test is not applicable for current schema
-    if (datetimeCells.length === 0) {
-      // Verify that date cells exist and work instead (fallback verification)
-      const dateCells = await findDateCells()
-      if (dateCells.length > 0) {
-        const cellText = await dateCells[0].evaluate((el) => el.textContent)
-        // Verify date cells have content (test passes as datetime isn't in current schema)
-        expect((cellText?.trim().length || 0) > 0).toBe(true)
-        return
-      }
       throw new Error(
-        'TEST FAILURE: No datetime or date cells found. Check test fixtures.',
+        'TEST FAILURE: No datetime cells found - created_at field not in schema. Check test fixtures.',
       )
     }
 
     // Find a datetime value (should include time)
-    const firstCell = datetimeCells[0]
-    const cellText = await firstCell.evaluate((el) => el.textContent)
+    const datetimeBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="created_at"] [data-affordance]',
+    )
+
+    if (datetimeBadges.length === 0 || !(await isElementVisible(datetimeBadges[0]))) {
+      throw new Error(
+        'TEST FAILURE: No datetime badge visible in created_at column. Check test fixtures.',
+      )
+    }
+
+    const datetimeBadge = datetimeBadges[0]
+    const badgeText = await datetimeBadge.evaluate((el) => el.textContent)
 
     // Datetime should include some time indicator (: for hours:minutes or AM/PM)
     const hasTimeComponent =
-      cellText?.includes(':') || cellText?.includes('AM') || cellText?.includes('PM')
+      badgeText?.includes(':') || badgeText?.includes('AM') || badgeText?.includes('PM')
 
-    // If it's a date-only display, that's also acceptable for cells with datetime data
-    expect((cellText?.trim().length || 0) > 0).toBe(true)
+    // If it's a date-only display, that's also acceptable
+    expect((badgeText?.length || 0) > 0).toBe(true)
   })
 
   it('3.7 Escape cancels date edit', async () => {

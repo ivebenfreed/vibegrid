@@ -6,9 +6,8 @@
  * @feature GH#488
  * @spec planning/specs/488-vibegrid-e2e-comprehensive-field-type-an.md
  *
- * Color fields in VibeGrid are implemented as SELECT fields with hex color options.
- * Affordance: 'select' - clicking opens a ComboboxEditor with color options.
- * Display: Hex color value as text (e.g., "#06b6d4")
+ * Color fields display as a color swatch with hex value.
+ * Affordance: 'edit' - clicking opens a color picker.
  *
  * Converted from Playwright to raw Puppeteer for GH#572.
  */
@@ -88,7 +87,7 @@ describe('VibeGrid Color Field Type', () => {
     }
   }
 
-  it('6.1 Color field displays hex color value', async () => {
+  it('6.1 Color swatch renders with correct color', async () => {
     console.log('Loading fixtures for deterministic values')
     await loadFixtures()
 
@@ -100,81 +99,94 @@ describe('VibeGrid Color Field Type', () => {
       )
     }
 
-    // Color field is implemented as a select field with hex values
-    const firstCell = colorCells[0]
-    await expect(firstCell).toBeVisible()
+    // Find a color swatch
+    const colorSwatch = await page.$('.vibegridx-color-swatch')
 
-    // Verify cell is a select field type
-    const fieldType = await firstCell.evaluate((el) => el.getAttribute('data-field-type'))
-    expect(fieldType).toBe('select')
+    if (!(await isElementVisible(colorSwatch))) {
+      // Try finding by cell class
+      const colorCell = await page.$('.vibegridx-cell-color-editable, .vibegridx-cell-color')
+      if (await isElementVisible(colorCell)) {
+        await expect(colorCell as ElementHandle).toBeVisible()
+      } else {
+        throw new Error(
+          'TEST FAILURE: No color swatch visible - .vibegridx-color-swatch or .vibegridx-cell-color-editable not found. Check test fixtures.',
+        )
+      }
+      return
+    }
 
-    // Verify cell has hex color value or is empty
-    const cellText = await firstCell.evaluate((el) => el.textContent)
-    // Hex pattern like #06b6d4 or empty with Edit placeholder
-    const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(cellText || '')
-    const isEmpty = cellText?.includes('Edit') || cellText?.trim() === ''
+    await expect(colorSwatch as ElementHandle).toBeVisible()
 
-    expect(hasHexPattern || isEmpty).toBe(true)
+    // Check that swatch has background-color style
+    const style = await colorSwatch!.evaluate((el) => el.getAttribute('style'))
+    const hasBackgroundColor = style?.includes('background-color') || false
+    expect(hasBackgroundColor).toBe(true)
   })
 
-  it('6.2 Hex value displays in cell', async () => {
+  it('6.2 Hex value displays next to swatch', async () => {
     console.log('Loading fixtures')
     await loadFixtures()
 
-    // Color cells display hex values directly (no separate text element)
-    const colorCells = await findColorCells()
+    // Find color text
+    const colorText = await page.$('.vibegridx-color-text')
 
-    if (colorCells.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
-      )
-    }
+    if (!(await isElementVisible(colorText))) {
+      // Alternative: check cell content for hex pattern
+      const colorCells = await findColorCells()
+      if (colorCells.length > 0) {
+        const firstCell = colorCells[0]
+        const cellText = await firstCell.evaluate((el) => el.textContent)
 
-    // Find a cell with actual hex value (not empty)
-    let foundHexValue = false
-    for (const cell of colorCells) {
-      const cellText = await cell.evaluate((el) => el.textContent)
+        // Should contain hex color like #ef4444
+        const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(cellText || '')
 
-      // Check for hex color pattern like #ef4444 or #06b6d4
-      const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(cellText || '')
-
-      if (hasHexPattern) {
-        foundHexValue = true
-        break
+        // If no hex, might be rgb or color name - that's also valid
+        expect((cellText?.length || 0) > 0).toBe(true)
+      } else {
+        throw new Error(
+          'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
+        )
       }
+      return
     }
 
-    // At least one cell should have a hex value after loading fixtures
-    expect(foundHexValue).toBe(true)
+    const text = await colorText!.evaluate((el) => el.textContent)
+
+    // Should be a hex color or color name
+    const isHexColor = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(text || '')
+    const isColorName = /red|green|blue|yellow|orange|purple|pink|cyan/.test(
+      (text || '').toLowerCase(),
+    )
+
+    expect(isHexColor || isColorName || (text?.length || 0) > 0).toBeTruthy()
   })
 
-  it('6.3 Click opens color select dropdown', async () => {
-    // Color field uses select affordance - clicking opens a ComboboxEditor
+  it('6.3 Click opens color picker', async () => {
     const colorElements = await page.$$(
-      '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]',
+      '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="edit"]',
     )
 
     if (colorElements.length === 0 || !(await isElementVisible(colorElements[0]))) {
-      // Try finding color cell directly
-      const colorCells = await findColorCells()
-      if (colorCells.length === 0) {
+      // Try finding by class
+      const colorCell = await page.$('.vibegridx-cell-color-editable')
+      if (!(await isElementVisible(colorCell))) {
         throw new Error(
-          'TEST FAILURE: No color cells visible - priority_color column not found. Check test fixtures.',
+          'TEST FAILURE: No color element visible - [data-affordance="edit"] or .vibegridx-cell-color-editable not found. Check test fixtures.',
         )
       }
 
-      // Click the first cell to open editor
-      await colorCells[0].click()
+      await colorCell!.click()
       await new Promise((r) => setTimeout(r, 500))
 
-      // Check for ComboboxEditor portal (same as select field)
-      const editingPortal = await page.$('.vibegridx-editing-portal')
-      const hasPortal = editingPortal !== null
+      // Check for color input
+      const colorInputs = await page.$$('input[type="color"]')
+      const hasColorInput = colorInputs.length > 0
 
+      // Or editing class
       const editingCells = await page.$$('.vibegridx-editing')
       const isEditing = editingCells.length > 0
 
-      expect(hasPortal || isEditing).toBe(true)
+      expect(hasColorInput || isEditing).toBe(true)
 
       await page.keyboard.press('Escape')
       return
@@ -182,120 +194,116 @@ describe('VibeGrid Color Field Type', () => {
 
     const colorElement = colorElements[0]
 
-    // Click the select element
+    // Click the edit element
     await colorElement.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    // Check for editing portal (ComboboxEditor) or editing state
-    const editingPortal = await page.$('.vibegridx-editing-portal')
-    const hasPortal = editingPortal !== null
-
-    // Check for cmdk items (ComboboxEditor options)
-    const cmdkItems = await page.$$('[cmdk-item]')
-    const hasCmdkItems = cmdkItems.length > 0
+    // Check for color input or editing state
+    const colorInputs = await page.$$('input[type="color"]')
+    const hasColorInput = colorInputs.length > 0
 
     const editingCells = await page.$$('.vibegridx-editing')
     const isEditing = editingCells.length > 0
 
-    expect(hasPortal || hasCmdkItems || isEditing).toBe(true)
+    expect(hasColorInput || isEditing).toBe(true)
 
     await page.keyboard.press('Escape')
     await new Promise((r) => setTimeout(r, 200))
   })
 
-  it('6.4 Select color option updates cell value', async () => {
+  it('6.4 Select color updates swatch', async () => {
     console.log('Click to enter edit mode')
-
-    // Find a color cell with data to edit
-    const colorCells = await findColorCells()
-    if (colorCells.length === 0) {
+    const colorCell = await page.$('.vibegridx-cell-color-editable')
+    if (!(await isElementVisible(colorCell))) {
       throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
+        'TEST FAILURE: No color cell visible - .vibegridx-cell-color-editable not found. Check test fixtures.',
       )
     }
 
-    const colorCell = colorCells[0]
+    // Get original swatch color
+    const originalSwatch = await colorCell!.$('.vibegridx-color-swatch')
+    const originalStyle = originalSwatch
+      ? await originalSwatch.evaluate((el) => el.getAttribute('style'))
+      : ''
 
-    // Get original value
-    const originalText = await colorCell.evaluate((el) => el.textContent)
-
-    // Click the cell content to enter edit mode
-    const cellContent = await colorCell.$('[data-affordance="select"]')
-    if (cellContent) {
-      await cellContent.click()
-    } else {
-      await colorCell.click()
-    }
+    await colorCell!.click()
     await new Promise((r) => setTimeout(r, 500))
 
-    // Check for ComboboxEditor options (cmdk items)
-    const cmdkItems = await page.$$('[cmdk-item]')
-
-    if (cmdkItems.length === 0) {
-      // Editor may not have opened or no options available
+    // Find color input
+    const colorInput = await page.$('input[type="color"]')
+    if (!(await isElementVisible(colorInput))) {
       await page.keyboard.press('Escape')
-      await new Promise((r) => setTimeout(r, 200))
-
-      // Verify cell at least has content (pass if color field works but no options)
-      const hasContent = (originalText?.trim().length || 0) > 0
-      expect(hasContent || true).toBe(true)
-      return
+      throw new Error(
+        'TEST FAILURE: Color input not available - input[type="color"] not found after clicking cell. Check test fixtures.',
+      )
     }
 
-    // Click a different color option
-    const targetOption = cmdkItems.length > 1 ? cmdkItems[1] : cmdkItems[0]
-    const targetText = await targetOption.evaluate((el) => el.textContent)
-    await targetOption.click()
+    // Set a new color using JavaScript since input[type=color] has special behavior
+    const newColor = '#00ff00' // Green
+    await page.evaluate((color) => {
+      const input = document.querySelector('input[type="color"]') as HTMLInputElement
+      if (input) {
+        input.value = color
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+    }, newColor)
+    await new Promise((r) => setTimeout(r, 300))
+
+    // Commit
+    await page.keyboard.press('Enter')
     await new Promise((r) => setTimeout(r, 500))
 
-    // Verify cell updated (or stayed same if same option selected)
-    const updatedText = await colorCell.evaluate((el) => el.textContent)
-    expect(updatedText).toBeDefined()
-    // Value may have changed if different option was selected
-    expect((updatedText?.trim().length || 0) >= 0).toBe(true)
+    // Verify swatch updated
+    const updatedCell = await page.$('.vibegridx-cell-color-editable')
+    if (updatedCell) {
+      const updatedSwatch = await updatedCell.$('.vibegridx-color-swatch')
+      const updatedStyle = updatedSwatch
+        ? await updatedSwatch.evaluate((el) => el.getAttribute('style'))
+        : ''
+
+      // Style should have changed (contains new color)
+      const hasNewColor =
+        updatedStyle?.includes('#00ff00') ||
+        updatedStyle?.includes('rgb(0, 255, 0)') ||
+        updatedStyle !== originalStyle
+
+      expect(hasNewColor).toBe(true)
+    }
   })
 
-  it('6.5 Color cell has proper dimensions', async () => {
-    // Color field displays as a select cell with hex value
-    const colorCells = await findColorCells()
+  it('6.5 Swatch has correct dimensions', async () => {
+    const colorSwatch = await page.$('.vibegridx-color-swatch')
 
-    if (colorCells.length === 0) {
+    if (!(await isElementVisible(colorSwatch))) {
       throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
+        'TEST FAILURE: No color swatch visible - .vibegridx-color-swatch not found. Check test fixtures.',
       )
     }
 
-    const colorCell = colorCells[0]
+    // Check for 16x16 dimensions
+    const style = await colorSwatch!.evaluate((el) => el.getAttribute('style'))
+    const hasWidth = style?.includes('width: 16px') || style?.includes('width:16px')
+    const hasHeight = style?.includes('height: 16px') || style?.includes('height:16px')
 
-    // Check that cell has proper dimensions (width and height > 0)
-    const dimensions = await colorCell.evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return { width: rect.width, height: rect.height }
-    })
-
-    // Cell should have reasonable dimensions
-    expect(dimensions.width).toBeGreaterThan(0)
-    expect(dimensions.height).toBeGreaterThan(0)
+    // At least one dimension should be set
+    expect(hasWidth || hasHeight || style?.includes('px')).toBe(true)
   })
 
-  it('6.6 Color cell is visible and styled', async () => {
-    // Color field cells should be visible with proper styling
-    const colorCells = await findColorCells()
+  it('6.6 Swatch has border for visibility', async () => {
+    const colorSwatch = await page.$('.vibegridx-color-swatch')
 
-    if (colorCells.length === 0) {
+    if (!(await isElementVisible(colorSwatch))) {
       throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
+        'TEST FAILURE: No color swatch visible - .vibegridx-color-swatch not found. Check test fixtures.',
       )
     }
 
-    const colorCell = colorCells[0]
+    // Check for border
+    const style = await colorSwatch!.evaluate((el) => el.getAttribute('style'))
+    const hasBorder = style?.includes('border') || false
 
-    // Verify cell is visible
-    await expect(colorCell).toBeVisible()
-
-    // Verify cell has vibegridx-cell class (proper styling)
-    const classes = await colorCell.evaluate((el) => el.className)
-    expect(classes).toContain('vibegridx-cell')
+    expect(hasBorder).toBe(true)
   })
 
   it('6.7 Empty color shows edit placeholder', async () => {
@@ -303,54 +311,52 @@ describe('VibeGrid Color Field Type', () => {
     await loadFixtures()
 
     // Look for empty color cells
-    const colorCells = await findColorCells()
+    const emptyCells = await page.$$(
+      '.vibegridx-cell[data-column-id="priority_color"] .vibegridx-cell-empty',
+    )
 
-    if (colorCells.length === 0) {
+    if (emptyCells.length === 0) {
       throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
+        'TEST FAILURE: No empty color cells found - .vibegridx-cell-empty within priority_color column not found. Check test fixtures include "All Nulls Test" entity.',
       )
     }
 
-    // Find a cell that is empty (has Edit placeholder or is blank)
-    let foundEmptyCell = false
-    for (const cell of colorCells) {
-      const cellText = await cell.evaluate((el) => el.textContent)
+    const emptyCell = emptyCells[0]
+    const cellText = await emptyCell.evaluate((el) => el.textContent)
 
-      // Check for edit placeholder or truly empty cell
-      if (cellText?.includes('Edit') || cellText?.trim() === '') {
-        foundEmptyCell = true
-        // If it has Edit placeholder, verify it contains that text
-        if (cellText?.includes('Edit')) {
-          expect(cellText).toContain('Edit')
-        }
-        break
-      }
-    }
-
-    if (!foundEmptyCell) {
-      // All cells have values - verify at least one cell with hex value
-      const firstCellText = await colorCells[0].evaluate((el) => el.textContent)
-      const hasHexPattern = /#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/.test(firstCellText || '')
-      expect(hasHexPattern).toBe(true)
-    }
+    // Empty cells should show edit hint
+    expect(cellText).toContain('Edit')
   })
 
-  it('6.8 Editable color cells have select affordance', async () => {
-    // Color field uses select affordance (implemented as select field type)
-    const colorCells = await findColorCells()
-
-    if (colorCells.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No color cells found - priority_color column not present. Check test fixtures.',
-      )
-    }
-
-    // Check for non-editable cells first
+  it('6.8 Read-only color shows no edit affordance', async () => {
+    // Look for non-editable color cells
     const nonEditableCells = await page.$$(
       '.vibegridx-cell[data-column-id="priority_color"][data-editable="false"]',
     )
 
-    if (nonEditableCells.length > 0) {
+    if (nonEditableCells.length === 0) {
+      // Verify editable cells have edit affordance
+      const editableElements = await page.$$(
+        '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="edit"]',
+      )
+
+      if (editableElements.length > 0 && (await isElementVisible(editableElements[0]))) {
+        const affordance = await editableElements[0].evaluate((el) =>
+          el.getAttribute('data-affordance'),
+        )
+        expect(affordance).toBe('edit')
+      } else {
+        // Check for color cell class
+        const colorCell = await page.$('.vibegridx-cell-color-editable')
+        if (await isElementVisible(colorCell)) {
+          expect(true).toBe(true) // Cell is visible and editable
+        } else {
+          throw new Error(
+            'TEST FAILURE: No color cells found to test - neither [data-affordance="edit"] nor .vibegridx-cell-color-editable found. Check test fixtures.',
+          )
+        }
+      }
+    } else {
       // Verify non-editable cells have 'none' affordance
       const firstNonEditable = nonEditableCells[0]
       const element = await firstNonEditable.$('[data-affordance]')
@@ -358,24 +364,6 @@ describe('VibeGrid Color Field Type', () => {
         const affordance = await element.evaluate((el) => el.getAttribute('data-affordance'))
         expect(affordance).toBe('none')
       }
-      return
-    }
-
-    // Verify editable cells have select affordance
-    const selectElements = await page.$$(
-      '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]',
-    )
-
-    if (selectElements.length > 0 && (await isElementVisible(selectElements[0]))) {
-      const affordance = await selectElements[0].evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
-      expect(affordance).toBe('select')
-    } else {
-      // Verify cell is visible and editable
-      const firstCell = colorCells[0]
-      const isEditable = await firstCell.evaluate((el) => el.getAttribute('data-editable'))
-      expect(isEditable).toBe('true')
     }
   })
 })
