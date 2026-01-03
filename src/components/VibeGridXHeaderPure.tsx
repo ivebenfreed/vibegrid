@@ -13,6 +13,7 @@ import { ButtonGroup } from '@/shared/components/ui/button-group'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import type { ViewMode } from '../stores/ViewModeStore'
+import { FilterBuilder } from './FilterBuilder'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
 import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
@@ -170,6 +171,9 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
         {/* Group By Dropdown */}
         {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
+
+        {/* Filter Builder */}
+        <FilterBuilder stores={stores} />
 
         {/* Column Visibility Dropdown */}
         <VibeGridXColumnVisibilityPure stores={stores} />
