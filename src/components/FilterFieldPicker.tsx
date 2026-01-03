@@ -14,11 +14,7 @@ import { observer } from 'mobx-react-lite'
 import { useMemo, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/shared/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { cn } from '@/shared/lib/utils'
 import type { Column } from '../types'
 
@@ -44,9 +40,7 @@ export const FilterFieldPicker = observer(function FilterFieldPicker({
     if (!searchValue) return columns
     const lower = searchValue.toLowerCase()
     return columns.filter(
-      (col) =>
-        col.name.toLowerCase().includes(lower) ||
-        col.id.toLowerCase().includes(lower),
+      (col) => col.name.toLowerCase().includes(lower) || col.id.toLowerCase().includes(lower),
     )
   }, [columns, searchValue])
 
@@ -78,9 +72,7 @@ export const FilterFieldPicker = observer(function FilterFieldPicker({
         </div>
         <div className="max-h-[300px] overflow-y-auto p-1">
           {filteredColumns.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No fields found.
-            </p>
+            <p className="py-6 text-center text-sm text-muted-foreground">No fields found.</p>
           ) : (
             filteredColumns.map((column) => (
               <button
@@ -97,10 +89,7 @@ export const FilterFieldPicker = observer(function FilterFieldPicker({
                 )}
               >
                 <Check
-                  className={cn(
-                    'mr-2 h-4 w-4',
-                    value === column.id ? 'opacity-100' : 'opacity-0',
-                  )}
+                  className={cn('mr-2 h-4 w-4', value === column.id ? 'opacity-100' : 'opacity-0')}
                 />
                 {column.name}
               </button>

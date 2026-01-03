@@ -5,6 +5,8 @@
  *
  * The main row component that composes field picker, operator picker, and value input.
  * Each condition represents a single field comparison (field, operator, value).
+ *
+ * Phase 7: Inline validation error display.
  */
 
 import { X } from 'lucide-react'
@@ -26,6 +28,8 @@ export interface FilterConditionProps {
   onChange: (condition: FilterConditionType) => void
   onRemove: () => void
   className?: string
+  /** Validation error message to display */
+  errorMessage?: string
 }
 
 export const FilterCondition = observer(function FilterCondition({
@@ -35,6 +39,7 @@ export const FilterCondition = observer(function FilterCondition({
   onChange,
   onRemove,
   className,
+  errorMessage,
 }: FilterConditionProps) {
   const selectedColumn = columns.find((col) => col.id === condition.field)
 
@@ -71,41 +76,53 @@ export const FilterCondition = observer(function FilterCondition({
   }
 
   return (
-    <div
-      data-testid={`vibegrid-filter-condition-${index}`}
-      className={`flex items-center gap-2 ${className ?? ''}`}
-    >
-      <FilterFieldPicker
-        columns={columns}
-        value={condition.field}
-        onChange={handleFieldChange}
-        index={index}
-      />
-
-      <FilterOperatorPicker
-        cellType={selectedColumn?.cellType ?? 'text'}
-        value={condition.operator}
-        onChange={handleOperatorChange}
-        index={index}
-      />
-
-      <FilterValueInput
-        column={selectedColumn ?? null}
-        operator={condition.operator}
-        value={condition.value}
-        onChange={handleValueChange}
-        index={index}
-      />
-
-      <Button
-        variant="ghost"
-        size="icon"
-        data-testid={`vibegrid-filter-remove-${index}`}
-        onClick={onRemove}
-        className="h-8 w-8 shrink-0"
+    <div className="flex flex-col gap-1">
+      <div
+        data-testid={`vibegrid-filter-condition-${index}`}
+        className={`flex items-center gap-2 ${className ?? ''}`}
       >
-        <X className="h-4 w-4" />
-      </Button>
+        <FilterFieldPicker
+          columns={columns}
+          value={condition.field}
+          onChange={handleFieldChange}
+          index={index}
+        />
+
+        <FilterOperatorPicker
+          cellType={selectedColumn?.cellType ?? 'text'}
+          value={condition.operator}
+          onChange={handleOperatorChange}
+          index={index}
+        />
+
+        <FilterValueInput
+          column={selectedColumn ?? null}
+          operator={condition.operator}
+          value={condition.value}
+          onChange={handleValueChange}
+          index={index}
+        />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          data-testid={`vibegrid-filter-remove-${index}`}
+          onClick={onRemove}
+          className="h-8 w-8 shrink-0"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Inline validation error */}
+      {errorMessage && (
+        <span
+          data-testid={`vibegrid-filter-error-${index}`}
+          className="text-sm text-destructive pl-1"
+        >
+          {errorMessage}
+        </span>
+      )}
     </div>
   )
 })

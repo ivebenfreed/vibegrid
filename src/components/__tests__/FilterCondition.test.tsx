@@ -372,7 +372,9 @@ describe('FilterOperatorPicker Operators by Field Type', () => {
       throw new Error('FilterOperatorPicker.tsx does not exist yet')
     }
     // Should have logic to determine operators based on field type
-    expect(sourceCode).toMatch(/getOperatorsFor|OPERATORS_BY_TYPE|operatorsForType|switch.*fieldType|fieldType.*switch/)
+    expect(sourceCode).toMatch(
+      /getOperatorsFor|OPERATORS_BY_TYPE|operatorsForType|switch.*fieldType|fieldType.*switch/,
+    )
   })
 
   it('should export OPERATORS_BY_FIELD_TYPE constant or getOperatorsForFieldType function', () => {
@@ -532,7 +534,9 @@ describe('FilterCondition Props Integration', () => {
     }
     // FilterOperatorPicker should receive fieldType and selectedOperator
     expect(sourceCode).toMatch(/FilterOperatorPicker.*fieldType=|FilterOperatorPicker.*type=/)
-    expect(sourceCode).toMatch(/FilterOperatorPicker.*selectedOperator=|FilterOperatorPicker.*operator=/)
+    expect(sourceCode).toMatch(
+      /FilterOperatorPicker.*selectedOperator=|FilterOperatorPicker.*operator=/,
+    )
   })
 
   it('should pass correct props to FilterValueInput', () => {
@@ -620,7 +624,9 @@ describe('FilterCondition Type Imports', () => {
       throw new Error('FilterCondition.tsx does not exist yet')
     }
     // Should import as FilterConditionType or similar to avoid naming conflict with component
-    expect(sourceCode).toMatch(/import.*FilterCondition.*as.*from.*filter-types|import.*type.*\{.*FilterCondition.*as/)
+    expect(sourceCode).toMatch(
+      /import.*FilterCondition.*as.*from.*filter-types|import.*type.*\{.*FilterCondition.*as/,
+    )
   })
 
   it('should import FilterOperator type from types', () => {

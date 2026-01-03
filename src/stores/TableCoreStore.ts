@@ -35,6 +35,7 @@ import type { ObservableCoordinateManager } from '../coordinates/ObservableCoord
 import { GroupProcessor } from '../processors/GroupProcessor'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { HierarchyStore } from './HierarchyStore'
+import { applyNestedFilters } from '../utils/filter-utils'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
 import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/hashing'
 import { generateColumnsFromEntitySchema } from './column-generation'
@@ -778,6 +779,7 @@ export class TableCoreStore implements IStore {
   /**
    * Stage 1: Filtered rows
    * Applies filter configuration to raw rows
+   * Supports both legacy FilterConfig[] and new FilterGroup
    */
   @computed
   get filteredRows(): any[] {
@@ -797,12 +799,17 @@ export class TableCoreStore implements IStore {
       return []
     }
 
+    // Apply legacy filters first (for backward compatibility)
     const filters = this.visualStateStore?.filters || []
-    if (filters.length === 0) {
-      return rows
+    if (filters.length > 0) {
+      rows = applyFilters(rows, filters)
     }
 
-    return applyFilters(rows, filters)
+    // Then apply nested filterGroup (GH#216: Multi-Level Advanced Filtering)
+    const filterGroup = this.visualStateStore?.filterGroup || null
+    rows = applyNestedFilters(rows, filterGroup)
+
+    return rows
   }
 
   /**

@@ -107,14 +107,8 @@ export const FilterValueInput = observer(function FilterValueInput({
   // Boolean field
   if (BOOLEAN_CELL_TYPES.has(cellType)) {
     return (
-      <div
-        data-testid={`vibegrid-filter-value-${index}`}
-        className="flex items-center gap-2"
-      >
-        <Switch
-          checked={value === true}
-          onCheckedChange={(checked) => onChange(checked)}
-        />
+      <div data-testid={`vibegrid-filter-value-${index}`} className="flex items-center gap-2">
+        <Switch checked={value === true} onCheckedChange={(checked) => onChange(checked)} />
         <span className="text-sm">{value ? 'True' : 'False'}</span>
       </div>
     )
@@ -124,20 +118,17 @@ export const FilterValueInput = observer(function FilterValueInput({
   if (SELECT_CELL_TYPES.has(cellType) && column.options) {
     return (
       <Select value={value ?? ''} onValueChange={onChange}>
-        <SelectTrigger
-          data-testid={`vibegrid-filter-value-${index}`}
-          className={className}
-        >
+        <SelectTrigger data-testid={`vibegrid-filter-value-${index}`} className={className}>
           <SelectValue placeholder="Select value..." />
         </SelectTrigger>
         <SelectContent>
-          {(column.options as Array<{ id?: string; value?: string; label?: string; name?: string }>).map(
-            (opt) => (
-              <SelectItem key={opt.id || opt.value} value={opt.value || opt.id || ''}>
-                {opt.label || opt.name || opt.value}
-              </SelectItem>
-            ),
-          )}
+          {(
+            column.options as Array<{ id?: string; value?: string; label?: string; name?: string }>
+          ).map((opt) => (
+            <SelectItem key={opt.id || opt.value} value={opt.value || opt.id || ''}>
+              {opt.label || opt.name || opt.value}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     )

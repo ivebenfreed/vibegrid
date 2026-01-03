@@ -1021,6 +1021,44 @@ export class VisualStateStore implements IStore {
     logger.debug('All filters cleared')
   }
 
+  /**
+   * Apply a filter group (GH#216: Multi-Level Advanced Filtering)
+   *
+   * This sets the active filterGroup used to filter the grid data.
+   * Called when the user clicks "Apply" in the FilterBuilder.
+   */
+  @action
+  applyFilterGroup(group: FilterGroup | null): void {
+    this.filterGroup = group
+
+    // Notify TableCoreStore to trigger re-render with filtered data
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      logger.info('Applied filter group, notified TableCoreStore')
+    }
+
+    logger.info('Filter group applied', {
+      hasGroup: !!group,
+      conditionCount: group ? this.countConditions(group) : 0,
+    })
+  }
+
+  /**
+   * Clear the active filter group
+   */
+  @action
+  clearFilterGroup(): void {
+    this.filterGroup = null
+
+    // Notify TableCoreStore to trigger re-render
+    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
+      this.tableCoreStore.incrementConfigVersion()
+      logger.info('Cleared filter group, notified TableCoreStore')
+    }
+
+    logger.info('Filter group cleared')
+  }
+
   // ====================================
   // SORTING OPERATIONS
   // ====================================

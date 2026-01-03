@@ -22,7 +22,18 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
-import type { FilterBuilderState, FilterGroup } from '../types/filter-types'
+import type {
+  FilterBuilderState,
+  FilterGroup,
+  FilterPreset,
+  ValidationError,
+} from '../types/filter-types'
+import { createPreset } from '../utils/filter-storage'
+import {
+  validateFilterGroup,
+  countConditions,
+  COMPLEXITY_WARNING_THRESHOLD,
+} from '../utils/filter-utils'
 
 const logger = getLogger(['vibegrid', 'stores', 'InteractionStore'])
 
@@ -384,6 +395,30 @@ export class InteractionStore implements IStore {
     }
 
     return null
+  }
+
+  /**
+   * Validation errors for the draft filter group
+   * Returns an array of errors for incomplete or invalid conditions
+   */
+  @computed get validationErrors(): ValidationError[] {
+    if (!this.filterBuilderState.draftFilterGroup) return []
+    return validateFilterGroup(this.filterBuilderState.draftFilterGroup)
+  }
+
+  /**
+   * Whether there are any validation errors in the draft filter
+   */
+  @computed get hasValidationErrors(): boolean {
+    return this.validationErrors.length > 0
+  }
+
+  /**
+   * Whether to show the complexity warning (10+ conditions)
+   */
+  @computed get showComplexityWarning(): boolean {
+    if (!this.filterBuilderState.draftFilterGroup) return false
+    return countConditions(this.filterBuilderState.draftFilterGroup) >= COMPLEXITY_WARNING_THRESHOLD
   }
 
   // ====================================
@@ -1274,6 +1309,37 @@ export class InteractionStore implements IStore {
   setDraftFilter(group: FilterGroup | null): void {
     this.filterBuilderState.draftFilterGroup = group
     logger.info('Draft filter set', { hasGroup: !!group })
+  }
+
+  @action
+  loadPresets(presets: FilterPreset[]): void {
+    this.filterBuilderState.presets = presets
+    logger.info('Presets loaded', { count: presets.length })
+  }
+
+  @action
+  savePreset(name: string): void {
+    if (!this.filterBuilderState.draftFilterGroup) {
+      logger.warn('Cannot save preset - no draft filter group')
+      return
+    }
+    const preset = createPreset(name, this.filterBuilderState.draftFilterGroup)
+    this.filterBuilderState.presets.push(preset)
+    logger.info('Preset saved', { name, id: preset.id })
+  }
+
+  @action
+  loadPreset(preset: FilterPreset): void {
+    this.filterBuilderState.draftFilterGroup = preset.filterGroup
+    logger.info('Preset loaded into draft', { name: preset.name, id: preset.id })
+  }
+
+  @action
+  deletePreset(presetId: string): void {
+    this.filterBuilderState.presets = this.filterBuilderState.presets.filter(
+      (p) => p.id !== presetId,
+    )
+    logger.info('Preset deleted', { id: presetId })
   }
 
   // ====================================
