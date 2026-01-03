@@ -382,7 +382,128 @@ pnpm vitest e2e/vibegrid/field-types/text.spec.ts --config vitest.e2e.config.ts
 | rollup-concat.spec.ts passes | Run test file | All 6 tests pass | [ ] |
 | computed.spec.ts passes | Run test file | All 8 tests pass | [ ] |
 
-### 5.5 Automated Tests
+### 5.5 Per-Test Verification Protocol (MANDATORY)
+
+> **CRITICAL LEARNING FROM GH#729**: Field types can have unexpected implementations.
+> Example: `priority_color` was assumed to be `color` type but was actually `select` with color styling.
+> This protocol prevents wrong assumptions by requiring manual verification BEFORE writing each test.
+
+**For EACH field type (not phase), follow this exact sequence:**
+
+#### Step 1: Manual DOM Inspection (BEFORE writing any tests)
+
+```bash
+# Navigate to test page
+cd .claude/skills/chrome-devtools/scripts
+node run.js "goto http://localhost:$DEV_PORT/debug/vibegrid-test/field-types | wait 1500"
+
+# Take screenshot of the field type column
+node run.js "screenshot /tmp/e2e-evidence/{fieldtype}-before.png"
+
+# Inspect the specific field type cell
+node run.js "eval document.querySelector('[data-field-type=\"{fieldtype}\"]')?.outerHTML"
+```
+
+**Document these values in a comment at top of test file:**
+```typescript
+/**
+ * Field Type: {fieldtype}
+ *
+ * Manual DOM Inspection Results:
+ * - data-field-type: "{actual-value}"
+ * - data-affordance: "{actual-value}" (edit|select|toggle|none)
+ * - data-editable: "{actual-value}" (true|false)
+ * - Editor type: "{observed-editor}" (TextEditor|ComboboxEditor|none)
+ * - Selector for content: "{actual-selector}"
+ *
+ * Verified on: {date}
+ */
+```
+
+#### Step 2: Write ONLY the render test first
+
+```typescript
+describe('{FieldType} Field Type', () => {
+  test('cell renders with value', async () => {
+    // ONE test only - verify basic rendering
+  })
+})
+```
+
+**Run immediately:**
+```bash
+pnpm vitest run e2e/vibegrid/field-types/{fieldtype}.spec.ts --config vitest.e2e.config.ts
+```
+
+**If fails:** Fix before adding more tests. The render test is the foundation.
+
+#### Step 3: Add interaction tests incrementally (2 at a time)
+
+```typescript
+// Add 2 tests
+test('click content enters edit mode', async () => { ... })
+test('type and Enter saves', async () => { ... })
+```
+
+**Run immediately after each pair:**
+```bash
+pnpm vitest run e2e/vibegrid/field-types/{fieldtype}.spec.ts --config vitest.e2e.config.ts
+```
+
+**If fails:** Debug and fix BEFORE adding more tests. Do NOT batch.
+
+#### Step 4: Verify affordance matches reality
+
+Before writing the affordance test, manually verify:
+
+```bash
+# Check actual affordance value
+node run.js "eval document.querySelector('[data-field-type=\"{fieldtype}\"]')?.dataset.affordance"
+```
+
+**Map to Section 5.2 test case:**
+- If `edit` → Test expects inline editor
+- If `select` → Test expects ComboboxEditor (cmdk-item dropdown)
+- If `toggle` → Test expects checkbox/toggle behavior
+- If `none` → Test expects no editor, readonly display
+
+**Update test case table if reality differs from assumption.**
+
+#### Step 5: Document evidence for each test file
+
+After all tests pass for a field type:
+
+```bash
+# Screenshot final state
+node run.js "screenshot /tmp/e2e-evidence/{fieldtype}-verified.png"
+
+# Capture test output
+pnpm vitest run e2e/vibegrid/field-types/{fieldtype}.spec.ts --config vitest.e2e.config.ts > /tmp/e2e-evidence/{fieldtype}-results.txt
+```
+
+#### Anti-Patterns (from GH#729)
+
+| Anti-Pattern | What Went Wrong | Correct Approach |
+|--------------|-----------------|------------------|
+| Assume type from name | `priority_color` assumed color → was select | Inspect DOM first |
+| Batch write 8 tests | All fail, hard to debug | Write 2, run, repeat |
+| Skip DOM inspection | Tests pass but verify wrong thing | Always inspect first |
+| Copy from similar type | Affordances differ | Each type gets fresh inspection |
+| Test passes = done | Could be testing wrong element | Verify selector targets right cell |
+
+#### Per-Test Verification Checklist
+
+Before marking a field type test file complete:
+
+- [ ] **DOM inspection comment** at top of test file with actual values
+- [ ] **Render test** passes (foundation test)
+- [ ] **Interaction tests** pass (added 2 at a time)
+- [ ] **Affordance test** uses ACTUAL value from DOM, not assumed
+- [ ] **Evidence screenshots** saved to `/tmp/e2e-evidence/`
+- [ ] **No silent skips** - grep for `console.log('SKIP')`
+- [ ] **Proper error messages** - `throw new Error('TEST FAILURE:...')`
+
+### 5.6 Automated Tests
 
 | Test File | What It Tests | Test Cases Covered |
 |-----------|---------------|-------------------|
@@ -428,16 +549,20 @@ pnpm vitest e2e/vibegrid/field-types/text.spec.ts --config vitest.e2e.config.ts
 
 ---
 
-## 6. Task Breakdown (TDD-Enforced)
+## 6. Task Breakdown (TDD-Enforced + Per-Test Verification)
 
-> **CRITICAL: TRUE TDD - Tests BLOCK Implementation**
+> **CRITICAL: DOM INSPECTION BEFORE TESTS**
 >
-> Each phase follows: `TEST → IMPL → VERIFY`
-> - **TEST**: Write failing tests FIRST (blocks IMPL)
-> - **IMPL**: Make tests pass (depends on TEST, blocks VERIFY)
-> - **VERIFY**: Manual verification (depends on IMPL)
+> Each field type follows: `INSPECT → ATTR → TEST → VERIFY`
+> - **INSPECT**: Manual DOM inspection, document findings (blocks ATTR)
+> - **ATTR**: Add data attributes to implementation (blocks TEST)
+> - **TEST**: Write tests incrementally per Section 5.5 protocol (blocks VERIFY)
+> - **VERIFY**: All tests pass with evidence
 >
-> See `.claude/rules/incremental-verification.md` for protocol.
+> **KEY LEARNING FROM GH#729:** Never assume field type behavior from name.
+> The INSPECT step prevents wrong assumptions by requiring manual verification BEFORE writing code.
+>
+> See `.claude/rules/incremental-verification.md` and Section 5.5 for full protocol.
 > Stop conditions require: `test_beads_created` for each success criterion.
 
 ### Beads Epic
@@ -464,41 +589,58 @@ BASELINE=$(bd create --title="GH#753: VERIFY baseline - existing 49 tests pass" 
 ```bash
 # ============================================
 # PHASE 1: BASIC EDITABLE TYPES (editable-content affordance)
-# Pattern: Add data attrs → Write tests → Verify
+# Pattern: INSPECT → Add data attrs → Write tests incrementally → Verify
+# CRITICAL: Each field type starts with manual DOM inspection!
 # ============================================
 
 # 1A: TEXT FIELD
-ATTR_TEXT=$(bd create --title="GH#753: Add data attributes to TextFieldType" --type=task --priority=1 --silent)
-bd dep add $ATTR_TEXT $BASELINE
-# File: apps/web/src/systems/vibegrid/field-types/implementations/basic/TextFieldType.ts
-# Add: container.dataset.fieldType = 'text'
+# Step 1: INSPECT - Manual DOM verification BEFORE writing tests
+INSPECT_TEXT=$(bd create --title="GH#753: INSPECT text field - document DOM structure" --type=task --priority=1 --silent)
+bd dep add $INSPECT_TEXT $BASELINE
+# Execute: Section 5.5 Step 1 - navigate, screenshot, eval outerHTML
+# Document: data-field-type, data-affordance, data-editable, editor type, selectors
+# Output: Comment block for top of text.spec.ts with actual values
 
-TEST_TEXT=$(bd create --title="GH#753: Write text.spec.ts E2E tests (~8 tests)" --type=task --priority=1 --labels=testing --silent)
+ATTR_TEXT=$(bd create --title="GH#753: Add data attributes to TextFieldType" --type=task --priority=1 --silent)
+bd dep add $ATTR_TEXT $INSPECT_TEXT  # INSPECT blocks ATTR
+# File: apps/web/src/systems/vibegrid/field-types/implementations/basic/TextFieldType.ts
+# Add: container.dataset.fieldType = 'text' (if not present after INSPECT)
+
+TEST_TEXT=$(bd create --title="GH#753: Write text.spec.ts E2E tests incrementally" --type=task --priority=1 --labels=testing --silent)
 bd dep add $TEST_TEXT $ATTR_TEXT
 # File: apps/web/e2e/vibegrid/field-types/text.spec.ts
-# Pattern: Copy from boolean.spec.ts, adapt for text editing
+# IMPORTANT: Follow Section 5.5 protocol - write 2 tests, run, repeat
+# Add DOM inspection comment at top of file from INSPECT step findings
 
-VERIFY_TEXT=$(bd create --title="GH#753: VERIFY text.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_TEXT=$(bd create --title="GH#753: VERIFY text.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_TEXT $TEST_TEXT
+# Run: pnpm vitest run e2e/vibegrid/field-types/text.spec.ts --config vitest.e2e.config.ts
+# Capture: /tmp/e2e-evidence/text-verified.png, text-results.txt
 
-# 1B: ENTITY-NAME FIELD
+# 1B: ENTITY-NAME FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_ENTNAME=$(bd create --title="GH#753: INSPECT entity-name field - document DOM structure" --type=task --priority=1 --silent)
+bd dep add $INSPECT_ENTNAME $BASELINE
+
 ATTR_ENTNAME=$(bd create --title="GH#753: Add data attributes to EntityNameFieldType" --type=task --priority=1 --silent)
-bd dep add $ATTR_ENTNAME $BASELINE
+bd dep add $ATTR_ENTNAME $INSPECT_ENTNAME
 
-TEST_ENTNAME=$(bd create --title="GH#753: Write entity-name.spec.ts E2E tests (~8 tests)" --type=task --priority=1 --labels=testing --silent)
+TEST_ENTNAME=$(bd create --title="GH#753: Write entity-name.spec.ts E2E tests incrementally" --type=task --priority=1 --labels=testing --silent)
 bd dep add $TEST_ENTNAME $ATTR_ENTNAME
 
-VERIFY_ENTNAME=$(bd create --title="GH#753: VERIFY entity-name.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_ENTNAME=$(bd create --title="GH#753: VERIFY entity-name.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_ENTNAME $TEST_ENTNAME
 
-# 1C: NUMBER FIELD
-ATTR_NUMBER=$(bd create --title="GH#753: Add data attributes to NumberFieldType" --type=task --priority=1 --silent)
-bd dep add $ATTR_NUMBER $BASELINE
+# 1C: NUMBER FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_NUMBER=$(bd create --title="GH#753: INSPECT number field - document DOM structure" --type=task --priority=1 --silent)
+bd dep add $INSPECT_NUMBER $BASELINE
 
-TEST_NUMBER=$(bd create --title="GH#753: Write number.spec.ts E2E tests (~8 tests)" --type=task --priority=1 --labels=testing --silent)
+ATTR_NUMBER=$(bd create --title="GH#753: Add data attributes to NumberFieldType" --type=task --priority=1 --silent)
+bd dep add $ATTR_NUMBER $INSPECT_NUMBER
+
+TEST_NUMBER=$(bd create --title="GH#753: Write number.spec.ts E2E tests incrementally" --type=task --priority=1 --labels=testing --silent)
 bd dep add $TEST_NUMBER $ATTR_NUMBER
 
-VERIFY_NUMBER=$(bd create --title="GH#753: VERIFY number.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_NUMBER=$(bd create --title="GH#753: VERIFY number.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_NUMBER $TEST_NUMBER
 
 # Phase 1 Gate
@@ -513,37 +655,47 @@ bd dep add $VERIFY_P1 $VERIFY_NUMBER
 ```bash
 # ============================================
 # PHASE 2: LINK TYPES (link-only affordance)
-# These navigate instead of edit
+# Pattern: INSPECT → ATTR → TEST (incremental) → VERIFY
+# These navigate instead of edit - but INSPECT first to confirm!
 # ============================================
 
 # 2A: EMAIL FIELD
-ATTR_EMAIL=$(bd create --title="GH#753: Add data attributes to EmailFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_EMAIL $VERIFY_P1
+INSPECT_EMAIL=$(bd create --title="GH#753: INSPECT email field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_EMAIL $VERIFY_P1
 
-TEST_EMAIL=$(bd create --title="GH#753: Write email.spec.ts E2E tests (~8 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_EMAIL=$(bd create --title="GH#753: Add data attributes to EmailFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_EMAIL $INSPECT_EMAIL
+
+TEST_EMAIL=$(bd create --title="GH#753: Write email.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_EMAIL $ATTR_EMAIL
 
-VERIFY_EMAIL=$(bd create --title="GH#753: VERIFY email.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_EMAIL=$(bd create --title="GH#753: VERIFY email.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_EMAIL $TEST_EMAIL
 
-# 2B: URL FIELD
-ATTR_URL=$(bd create --title="GH#753: Add data attributes to UrlFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_URL $VERIFY_P1
+# 2B: URL FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_URL=$(bd create --title="GH#753: INSPECT url field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_URL $VERIFY_P1
 
-TEST_URL=$(bd create --title="GH#753: Write url.spec.ts E2E tests (~8 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_URL=$(bd create --title="GH#753: Add data attributes to UrlFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_URL $INSPECT_URL
+
+TEST_URL=$(bd create --title="GH#753: Write url.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_URL $ATTR_URL
 
-VERIFY_URL=$(bd create --title="GH#753: VERIFY url.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_URL=$(bd create --title="GH#753: VERIFY url.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_URL $TEST_URL
 
-# 2C: PHONE FIELD
-ATTR_PHONE=$(bd create --title="GH#753: Add data attributes to PhoneFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_PHONE $VERIFY_P1
+# 2C: PHONE FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_PHONE=$(bd create --title="GH#753: INSPECT phone field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_PHONE $VERIFY_P1
 
-TEST_PHONE=$(bd create --title="GH#753: Write phone.spec.ts E2E tests (~8 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_PHONE=$(bd create --title="GH#753: Add data attributes to PhoneFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_PHONE $INSPECT_PHONE
+
+TEST_PHONE=$(bd create --title="GH#753: Write phone.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_PHONE $ATTR_PHONE
 
-VERIFY_PHONE=$(bd create --title="GH#753: VERIFY phone.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_PHONE=$(bd create --title="GH#753: VERIFY phone.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_PHONE $TEST_PHONE
 
 # Phase 2 Gate
@@ -558,46 +710,60 @@ bd dep add $VERIFY_P2 $VERIFY_PHONE
 ```bash
 # ============================================
 # PHASE 3: DISPLAY TYPES (readonly-badge and readonly-display)
+# Pattern: INSPECT → ATTR → TEST (incremental) → VERIFY
+# Same 4-step pattern for each field type!
 # ============================================
 
 # 3A: CURRENCY FIELD
-ATTR_CURRENCY=$(bd create --title="GH#753: Add data attributes to CurrencyFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_CURRENCY $VERIFY_P2
+INSPECT_CURRENCY=$(bd create --title="GH#753: INSPECT currency field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_CURRENCY $VERIFY_P2
 
-TEST_CURRENCY=$(bd create --title="GH#753: Write currency.spec.ts E2E tests (~6 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_CURRENCY=$(bd create --title="GH#753: Add data attributes to CurrencyFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_CURRENCY $INSPECT_CURRENCY
+
+TEST_CURRENCY=$(bd create --title="GH#753: Write currency.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_CURRENCY $ATTR_CURRENCY
 
-VERIFY_CURRENCY=$(bd create --title="GH#753: VERIFY currency.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_CURRENCY=$(bd create --title="GH#753: VERIFY currency.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_CURRENCY $TEST_CURRENCY
 
-# 3B: FILE FIELD
-ATTR_FILE=$(bd create --title="GH#753: Add data attributes to FileFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_FILE $VERIFY_P2
+# 3B: FILE FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_FILE=$(bd create --title="GH#753: INSPECT file field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_FILE $VERIFY_P2
 
-TEST_FILE=$(bd create --title="GH#753: Write file.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_FILE=$(bd create --title="GH#753: Add data attributes to FileFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_FILE $INSPECT_FILE
+
+TEST_FILE=$(bd create --title="GH#753: Write file.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_FILE $ATTR_FILE
 
-VERIFY_FILE=$(bd create --title="GH#753: VERIFY file.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_FILE=$(bd create --title="GH#753: VERIFY file.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_FILE $TEST_FILE
 
-# 3C: IMAGE FIELD
-ATTR_IMAGE=$(bd create --title="GH#753: Add data attributes to ImageFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_IMAGE $VERIFY_P2
+# 3C: IMAGE FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_IMAGE=$(bd create --title="GH#753: INSPECT image field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_IMAGE $VERIFY_P2
 
-TEST_IMAGE=$(bd create --title="GH#753: Write image.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_IMAGE=$(bd create --title="GH#753: Add data attributes to ImageFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_IMAGE $INSPECT_IMAGE
+
+TEST_IMAGE=$(bd create --title="GH#753: Write image.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_IMAGE $ATTR_IMAGE
 
-VERIFY_IMAGE=$(bd create --title="GH#753: VERIFY image.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_IMAGE=$(bd create --title="GH#753: VERIFY image.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_IMAGE $TEST_IMAGE
 
-# 3D: MARKDOWN FIELD
-ATTR_MARKDOWN=$(bd create --title="GH#753: Add data attributes to MarkdownFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_MARKDOWN $VERIFY_P2
+# 3D: MARKDOWN FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_MARKDOWN=$(bd create --title="GH#753: INSPECT markdown field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_MARKDOWN $VERIFY_P2
 
-TEST_MARKDOWN=$(bd create --title="GH#753: Write markdown.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_MARKDOWN=$(bd create --title="GH#753: Add data attributes to MarkdownFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_MARKDOWN $INSPECT_MARKDOWN
+
+TEST_MARKDOWN=$(bd create --title="GH#753: Write markdown.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_MARKDOWN $ATTR_MARKDOWN
 
-VERIFY_MARKDOWN=$(bd create --title="GH#753: VERIFY markdown.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_MARKDOWN=$(bd create --title="GH#753: VERIFY markdown.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_MARKDOWN $TEST_MARKDOWN
 
 # Phase 3 Gate
@@ -613,27 +779,34 @@ bd dep add $VERIFY_P3 $VERIFY_MARKDOWN
 ```bash
 # ============================================
 # PHASE 4: RELATIONSHIP TYPES (editable-badge affordance)
-# ComboboxEditor pattern
+# Pattern: INSPECT → ATTR → TEST (incremental) → VERIFY
+# ComboboxEditor pattern - INSPECT will confirm this!
 # ============================================
 
 # 4A: USER-REFERENCE FIELD
-ATTR_USERREF=$(bd create --title="GH#753: Add data attributes to UserReferenceFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_USERREF $VERIFY_P3
+INSPECT_USERREF=$(bd create --title="GH#753: INSPECT user-reference field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_USERREF $VERIFY_P3
 
-TEST_USERREF=$(bd create --title="GH#753: Write user-reference.spec.ts E2E tests (~8 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_USERREF=$(bd create --title="GH#753: Add data attributes to UserReferenceFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_USERREF $INSPECT_USERREF
+
+TEST_USERREF=$(bd create --title="GH#753: Write user-reference.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_USERREF $ATTR_USERREF
 
-VERIFY_USERREF=$(bd create --title="GH#753: VERIFY user-reference.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_USERREF=$(bd create --title="GH#753: VERIFY user-reference.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_USERREF $TEST_USERREF
 
-# 4B: ENTITY-REFERENCE FIELD
-ATTR_ENTREF=$(bd create --title="GH#753: Add data attributes to EntityReferenceFieldType" --type=task --priority=2 --silent)
-bd dep add $ATTR_ENTREF $VERIFY_P3
+# 4B: ENTITY-REFERENCE FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_ENTREF=$(bd create --title="GH#753: INSPECT entity-reference field - document DOM structure" --type=task --priority=2 --silent)
+bd dep add $INSPECT_ENTREF $VERIFY_P3
 
-TEST_ENTREF=$(bd create --title="GH#753: Write entity-reference.spec.ts E2E tests (~8 tests)" --type=task --priority=2 --labels=testing --silent)
+ATTR_ENTREF=$(bd create --title="GH#753: Add data attributes to EntityReferenceFieldType" --type=task --priority=2 --silent)
+bd dep add $ATTR_ENTREF $INSPECT_ENTREF
+
+TEST_ENTREF=$(bd create --title="GH#753: Write entity-reference.spec.ts E2E tests incrementally" --type=task --priority=2 --labels=testing --silent)
 bd dep add $TEST_ENTREF $ATTR_ENTREF
 
-VERIFY_ENTREF=$(bd create --title="GH#753: VERIFY entity-reference.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_ENTREF=$(bd create --title="GH#753: VERIFY entity-reference.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_ENTREF $TEST_ENTREF
 
 # Phase 4 Gate
@@ -647,57 +820,73 @@ bd dep add $VERIFY_P4 $VERIFY_ENTREF
 ```bash
 # ============================================
 # PHASE 5: READONLY TYPES (readonly-display affordance)
-# All calculated/derived fields
+# Pattern: INSPECT → ATTR → TEST (incremental) → VERIFY
+# All calculated/derived fields - INSPECT confirms no edit behavior!
 # ============================================
 
 # 5A: ROLLUP-COUNT FIELD
-ATTR_RCOUNT=$(bd create --title="GH#753: Add data attributes to RollupCountFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_RCOUNT $VERIFY_P4
+INSPECT_RCOUNT=$(bd create --title="GH#753: INSPECT rollup-count field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_RCOUNT $VERIFY_P4
 
-TEST_RCOUNT=$(bd create --title="GH#753: Write rollup-count.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_RCOUNT=$(bd create --title="GH#753: Add data attributes to RollupCountFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_RCOUNT $INSPECT_RCOUNT
+
+TEST_RCOUNT=$(bd create --title="GH#753: Write rollup-count.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_RCOUNT $ATTR_RCOUNT
 
-VERIFY_RCOUNT=$(bd create --title="GH#753: VERIFY rollup-count.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_RCOUNT=$(bd create --title="GH#753: VERIFY rollup-count.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_RCOUNT $TEST_RCOUNT
 
-# 5B: ROLLUP-SUM FIELD
-ATTR_RSUM=$(bd create --title="GH#753: Add data attributes to RollupSumFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_RSUM $VERIFY_P4
+# 5B: ROLLUP-SUM FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_RSUM=$(bd create --title="GH#753: INSPECT rollup-sum field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_RSUM $VERIFY_P4
 
-TEST_RSUM=$(bd create --title="GH#753: Write rollup-sum.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_RSUM=$(bd create --title="GH#753: Add data attributes to RollupSumFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_RSUM $INSPECT_RSUM
+
+TEST_RSUM=$(bd create --title="GH#753: Write rollup-sum.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_RSUM $ATTR_RSUM
 
-VERIFY_RSUM=$(bd create --title="GH#753: VERIFY rollup-sum.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_RSUM=$(bd create --title="GH#753: VERIFY rollup-sum.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_RSUM $TEST_RSUM
 
-# 5C: ROLLUP-AVERAGE FIELD
-ATTR_RAVG=$(bd create --title="GH#753: Add data attributes to RollupAverageFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_RAVG $VERIFY_P4
+# 5C: ROLLUP-AVERAGE FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_RAVG=$(bd create --title="GH#753: INSPECT rollup-average field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_RAVG $VERIFY_P4
 
-TEST_RAVG=$(bd create --title="GH#753: Write rollup-average.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_RAVG=$(bd create --title="GH#753: Add data attributes to RollupAverageFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_RAVG $INSPECT_RAVG
+
+TEST_RAVG=$(bd create --title="GH#753: Write rollup-average.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_RAVG $ATTR_RAVG
 
-VERIFY_RAVG=$(bd create --title="GH#753: VERIFY rollup-average.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_RAVG=$(bd create --title="GH#753: VERIFY rollup-average.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_RAVG $TEST_RAVG
 
-# 5D: ROLLUP-CONCAT FIELD
-ATTR_RCONCAT=$(bd create --title="GH#753: Add data attributes to RollupConcatFieldType" --type=task --priority=3 --silent)
-bd dep add $ATTR_RCONCAT $VERIFY_P4
+# 5D: ROLLUP-CONCAT FIELD (same INSPECT → ATTR → TEST → VERIFY pattern)
+INSPECT_RCONCAT=$(bd create --title="GH#753: INSPECT rollup-concat field - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_RCONCAT $VERIFY_P4
 
-TEST_RCONCAT=$(bd create --title="GH#753: Write rollup-concat.spec.ts E2E tests (~6 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_RCONCAT=$(bd create --title="GH#753: Add data attributes to RollupConcatFieldType" --type=task --priority=3 --silent)
+bd dep add $ATTR_RCONCAT $INSPECT_RCONCAT
+
+TEST_RCONCAT=$(bd create --title="GH#753: Write rollup-concat.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_RCONCAT $ATTR_RCONCAT
 
-VERIFY_RCONCAT=$(bd create --title="GH#753: VERIFY rollup-concat.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_RCONCAT=$(bd create --title="GH#753: VERIFY rollup-concat.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_RCONCAT $TEST_RCONCAT
 
-# 5E: COMPUTED FIELDS (expression + formula)
-ATTR_COMPUTED=$(bd create --title="GH#753: Add data attributes to ComputedFieldTypes" --type=task --priority=3 --silent)
-bd dep add $ATTR_COMPUTED $VERIFY_P4
+# 5E: COMPUTED FIELDS (expression + formula) - same INSPECT → ATTR → TEST → VERIFY pattern
+INSPECT_COMPUTED=$(bd create --title="GH#753: INSPECT computed fields - document DOM structure" --type=task --priority=3 --silent)
+bd dep add $INSPECT_COMPUTED $VERIFY_P4
 
-TEST_COMPUTED=$(bd create --title="GH#753: Write computed.spec.ts E2E tests (~8 tests)" --type=task --priority=3 --labels=testing --silent)
+ATTR_COMPUTED=$(bd create --title="GH#753: Add data attributes to ComputedFieldTypes" --type=task --priority=3 --silent)
+bd dep add $ATTR_COMPUTED $INSPECT_COMPUTED
+
+TEST_COMPUTED=$(bd create --title="GH#753: Write computed.spec.ts E2E tests incrementally" --type=task --priority=3 --labels=testing --silent)
 bd dep add $TEST_COMPUTED $ATTR_COMPUTED
 
-VERIFY_COMPUTED=$(bd create --title="GH#753: VERIFY computed.spec.ts passes" --type=task --labels=testing --silent)
+VERIFY_COMPUTED=$(bd create --title="GH#753: VERIFY computed.spec.ts passes + evidence" --type=task --labels=testing --silent)
 bd dep add $VERIFY_COMPUTED $TEST_COMPUTED
 
 # Phase 5 Gate
