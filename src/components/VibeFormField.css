@@ -1,0 +1,82 @@
+/**
+ * VibeFormField Styles
+ *
+ * Single field wrapper with auto-save on blur
+ */
+
+/* Field container */
+.vibe-form-field {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.vibe-form-field--error {
+	/* Error state handled by border color on input */
+}
+
+/* Field input */
+.vibe-form-field-input {
+	width: 100%;
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--color-border);
+	border-radius: 0.25rem;
+	font-size: 0.875rem;
+	transition: border-color 0.2s;
+}
+
+.vibe-form-field-input:focus {
+	outline: none;
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 3px var(--color-primary-alpha, rgba(0, 100, 200, 0.1));
+}
+
+.vibe-form-field-input:disabled {
+	background-color: var(--color-bg-disabled, #f5f5f5);
+	cursor: not-allowed;
+}
+
+.vibe-form-field--error .vibe-form-field-input {
+	border-color: var(--color-error, #c00);
+}
+
+.vibe-form-field--error .vibe-form-field-input:focus {
+	box-shadow: 0 0 0 3px var(--color-error-alpha, rgba(200, 0, 0, 0.1));
+}
+
+/* Save indicator (spinner) */
+.vibe-form-field-saving {
+	position: absolute;
+	right: 0.75rem;
+	top: 0.5rem;
+	display: flex;
+	align-items: center;
+	pointer-events: none;
+}
+
+.vibe-form-field-spinner {
+	width: 1rem;
+	height: 1rem;
+	border: 2px solid var(--color-primary);
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: vibe-form-field-spin 0.6s linear infinite;
+}
+
+/* Error message */
+.vibe-form-field-error {
+	font-size: 0.75rem;
+	color: var(--color-error, #c00);
+	margin-top: 0.25rem;
+}
+
+/* Spinner animation */
+@keyframes vibe-form-field-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}

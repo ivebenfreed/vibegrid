@@ -16,7 +16,7 @@
  * This is the most complex interaction layer with sophisticated selection logic.
  */
 
-import { action, computed, makeObservable, observable, runInAction } from 'mobx'
+import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
@@ -163,6 +163,13 @@ export class InteractionStore implements IStore {
   // ====================================
 
   @observable focusedCell: string | null = null
+
+  // ====================================
+  // LAYOUT STATE (for PropertySheet)
+  // ====================================
+
+  @observable activeLayout: 'grid' | 'property-sheet' = 'grid'
+  @observable focusedFieldId: string | null = null
 
   // ====================================
   // HOVER STATE
@@ -326,6 +333,8 @@ export class InteractionStore implements IStore {
     this.lastBulkSelectionTime = 0
     // Editing state moved to EditingStore
     this.focusedCell = null
+    this.activeLayout = 'grid'
+    this.focusedFieldId = null
     this.hoveredCell = null
     this.hoveredRow = null
     this.isDragging = false
@@ -489,7 +498,7 @@ export class InteractionStore implements IStore {
    * @param shiftKey - Whether Shift key was pressed (for range select)
    */
   @action
-  handleCellClick(cellId: string, isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
+  handleCellClick(cellId: string, _isEditable: boolean, ctrlKey: boolean, shiftKey: boolean): void {
     // Assert stores are initialized
     assertStorePresent(this.tableCoreStore, 'TableCoreStore')
     assertStorePresent(this.visualStateStore, 'VisualStateStore')
@@ -671,6 +680,24 @@ export class InteractionStore implements IStore {
     }
 
     logger.info('Focused cell changed', { cellId })
+  }
+
+  /**
+   * Set active layout mode
+   */
+  @action
+  setLayout(layout: 'grid' | 'property-sheet'): void {
+    this.activeLayout = layout
+    logger.info('Layout changed', { layout })
+  }
+
+  /**
+   * Focus a field (for PropertySheet navigation)
+   */
+  @action
+  focusField(fieldId: string | null): void {
+    this.focusedFieldId = fieldId
+    logger.info('Field focused', { fieldId })
   }
 
   /**

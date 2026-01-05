@@ -1,0 +1,106 @@
+/**
+ * VibeForm Styles
+ *
+ * Layout-agnostic form wrapper for entity editing
+ */
+
+/* Container */
+.vibe-form {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	padding: 1rem;
+}
+
+/* Status indicator */
+.vibe-form-status {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem;
+	border-radius: 0.25rem;
+	font-size: 0.875rem;
+}
+
+.vibe-form-status-draft {
+	color: var(--color-text-muted);
+	font-style: italic;
+}
+
+.vibe-form-status-saving {
+	color: var(--color-primary);
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.vibe-form-status-saving::before {
+	content: '';
+	width: 1rem;
+	height: 1rem;
+	border: 2px solid var(--color-primary);
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: vibe-form-spin 0.6s linear infinite;
+}
+
+.vibe-form-status-saved {
+	color: var(--color-success);
+}
+
+.vibe-form-status-saved::before {
+	content: '✓';
+	margin-right: 0.25rem;
+}
+
+/* Error banner */
+.vibe-form-error-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.75rem 1rem;
+	background-color: var(--color-error-bg, #fee);
+	color: var(--color-error, #c00);
+	border-radius: 0.25rem;
+	border: 1px solid var(--color-error, #c00);
+}
+
+.vibe-form-retry-button {
+	padding: 0.25rem 0.75rem;
+	background-color: var(--color-error, #c00);
+	color: white;
+	border: none;
+	border-radius: 0.25rem;
+	cursor: pointer;
+	font-size: 0.875rem;
+}
+
+.vibe-form-retry-button:hover {
+	opacity: 0.8;
+}
+
+/* Placeholder for unimplemented layouts */
+.vibe-form-placeholder {
+	padding: 2rem;
+	text-align: center;
+	color: var(--color-text-muted);
+	border: 2px dashed var(--color-border);
+	border-radius: 0.5rem;
+}
+
+.vibe-form-error {
+	padding: 1rem;
+	background-color: var(--color-error-bg, #fee);
+	color: var(--color-error, #c00);
+	border-radius: 0.25rem;
+}
+
+/* Spinner animation */
+@keyframes vibe-form-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
