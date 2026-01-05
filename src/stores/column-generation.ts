@@ -147,10 +147,20 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(platformUserColumns) as any
   }
 
-  // Check if schema registry is ready
-  if (schemaRegistry.isBootstrapping) {
-    fileLog.debug('⏳ Schema registry still loading', { entityType })
-    throw new Error(`Schema registry still loading for entity: ${entityType}`)
+  // Wait for schema registry to be ready (with timeout)
+  // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
+  const maxWaitMs = 30000 // 30 seconds
+  const pollIntervalMs = 100
+  let waited = 0
+
+  while (schemaRegistry.isBootstrapping || !schemaRegistry.schemas) {
+    if (waited >= maxWaitMs) {
+      fileLog.error('❌ Schema registry timeout', { entityType, waited })
+      throw new Error(`Schema registry timeout waiting for entity: ${entityType}`)
+    }
+    fileLog.debug('⏳ Waiting for schema registry...', { entityType, waited })
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+    waited += pollIntervalMs
   }
 
   // Get schemas from MobX store
