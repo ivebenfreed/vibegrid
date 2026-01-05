@@ -79,6 +79,8 @@ export interface EditorProps {
   onCancel: () => void
   onUpdate?: (value: any) => void
   onBlur?: () => void
+  // Validation errors to display (passed directly since portal is outside React context)
+  validationErrors?: string[]
   // Additional context for relationship editors
   relationshipContext?: {
     relationshipResolvers?: Record<string, (id: string | string[]) => string>

@@ -29,6 +29,7 @@ export class NumberRenderer implements CellRenderer {
     // Add affordance data attributes
     container.dataset.affordance = isEditable ? 'edit' : 'none'
     container.dataset.affordanceRole = 'content'
+    container.dataset.fieldType = 'number'
 
     // Number cells use affordance system for cursor/hover
     container.className = 'vibegridx-cell-number'
@@ -68,6 +69,7 @@ export class NumberRenderer implements CellRenderer {
     // Update affordance attributes
     element.dataset.affordance = isEditable ? 'edit' : 'none'
     element.dataset.affordanceRole = 'content'
+    element.dataset.fieldType = 'number'
 
     // Clear existing content
     element.className = isEditable ? 'vibegridx-cell-number-editable' : 'vibegridx-cell-number'

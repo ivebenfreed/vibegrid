@@ -45,6 +45,7 @@ export class TextRenderer implements CellRenderer {
     // Apply affordance data attributes
     container.dataset.affordance = isEditable ? 'edit' : 'none'
     container.dataset.affordanceRole = 'content'
+    container.dataset.fieldType = fieldType
 
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
@@ -84,6 +85,10 @@ export class TextRenderer implements CellRenderer {
     // Clear existing content
     element.className =
       column.editable === false ? 'vibegridx-cell-text' : 'vibegridx-cell-text-editable'
+
+    // Ensure field type attribute persists
+    const fieldType = column.cellType || column.type || 'text'
+    element.dataset.fieldType = fieldType
 
     // Handle empty values
     if (value == null || value === '') {

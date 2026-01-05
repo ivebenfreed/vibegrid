@@ -37,6 +37,11 @@ export interface FieldTypeTestEntity {
   // File fields (paths for display)
   attachment: string | null
   avatar: string | null
+  // Relationship fields
+  assigned_to: string | null  // User reference - displays as user badge
+  assigned_to_resolved?: string  // Pre-resolved display name (backend pattern)
+  related_project: string | null  // Entity reference - displays as entity badge
+  __resolved_related_project?: { name: string } | null  // Entity reference resolved data (backend pattern)
   // Internal
   parent_id: string | null
 }
@@ -54,6 +59,29 @@ const COLOR_PALETTE = [
   '#06b6d4', // cyan
   '#84cc16', // lime
 ]
+
+/**
+ * Mock users for user_reference field testing
+ * These simulate resolved user data for E2E tests
+ */
+export const MOCK_USERS = [
+  { id: 'user-001', name: 'Alice Johnson', email: 'alice@example.com' },
+  { id: 'user-002', name: 'Bob Smith', email: 'bob@example.com' },
+  { id: 'user-003', name: 'Carol Williams', email: 'carol@example.com' },
+  { id: 'user-004', name: 'David Brown', email: 'david@example.com' },
+  { id: 'user-005', name: 'Eva Martinez', email: 'eva@example.com' },
+] as const
+
+/**
+ * Mock projects for entity_reference field testing
+ */
+export const MOCK_PROJECTS = [
+  { id: 'proj-001', name: 'Alpha Project' },
+  { id: 'proj-002', name: 'Beta Initiative' },
+  { id: 'proj-003', name: 'Gamma Sprint' },
+  { id: 'proj-004', name: 'Delta Migration' },
+  { id: 'proj-005', name: 'Epsilon Launch' },
+] as const
 
 /**
  * Generate a single field type test entity
@@ -100,6 +128,19 @@ export function generateFieldTypeTestEntity(
     // File fields (mock paths)
     attachment: shouldBeNull() ? null : faker.system.fileName(),
     avatar: shouldBeNull() ? null : faker.image.avatar(),
+
+    // Relationship fields - store display name directly (not UUID)
+    // The field type renderer checks for non-UUID strings and renders them as badges
+    assigned_to: shouldBeNull() ? null : faker.helpers.arrayElement(MOCK_USERS).name,
+    // For entity reference, use __resolved_ prefix pattern expected by renderer
+    ...(() => {
+      if (shouldBeNull()) return { related_project: null, __resolved_related_project: null }
+      const project = faker.helpers.arrayElement(MOCK_PROJECTS)
+      return {
+        related_project: project.id,  // Store ID (or any value)
+        __resolved_related_project: { name: project.name },  // Resolved display data
+      }
+    })(),
 
     // Internal
     parent_id: options?.parentId ?? null,
@@ -253,7 +294,24 @@ export function generateFieldTypeTestFixtures(): FieldTypeTestEntity[] {
       priority_color: null,
       attachment: null,
       avatar: null,
+      assigned_to: null,
+      related_project: null,
     },
+
+    // User reference variations
+    ...MOCK_USERS.slice(0, 3).map((user, i) => ({
+      ...generateFieldTypeTestEntity(18 + i, { includeNulls: false }),
+      name: `User Ref: ${user.name}`,
+      assigned_to: user.name,
+    })),
+
+    // Entity reference variations
+    ...MOCK_PROJECTS.slice(0, 3).map((project, i) => ({
+      ...generateFieldTypeTestEntity(21 + i, { includeNulls: false }),
+      name: `Project Ref: ${project.name}`,
+      related_project: project.id,
+      __resolved_related_project: { name: project.name },
+    })),
   ]
 }
 
