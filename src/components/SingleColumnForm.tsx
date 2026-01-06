@@ -139,7 +139,6 @@ export const SingleColumnForm = observer(function SingleColumnForm({
 			className="single-column-form"
 			data-testid="single-column-form"
 			style={containerStyle}
-			tabIndex={0}
 		>
 			{columns.map((column, index) => {
 				const fieldId = column.id

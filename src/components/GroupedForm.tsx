@@ -206,7 +206,6 @@ export const GroupedForm = observer(function GroupedForm({
 			className="grouped-form"
 			data-testid="grouped-form"
 			style={{ gap: groupGap }}
-			tabIndex={0}
 		>
 			{groups.map((group) => {
 				const isCollapsed = collapsedGroups.has(group.id)

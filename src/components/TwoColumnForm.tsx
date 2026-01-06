@@ -142,7 +142,6 @@ export const TwoColumnForm = observer(function TwoColumnForm({
 			ref={containerRef}
 			className="two-column-form"
 			data-testid="two-column-form"
-			tabIndex={0}
 		>
 			{columns.map((column, index) => {
 				const fieldId = column.id

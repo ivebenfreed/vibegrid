@@ -141,7 +141,6 @@ export const InlineRow = observer(function InlineRow({
 			ref={containerRef}
 			className="inline-row"
 			data-testid="inline-row"
-			tabIndex={0}
 		>
 			{columns.map((column, index) => {
 				const fieldId = column.id
