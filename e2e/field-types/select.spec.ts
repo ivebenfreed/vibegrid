@@ -351,17 +351,13 @@ describe('VibeGrid Select Field Type', () => {
           'TEST FAILURE: No select cells found to test read-only affordance. Check test fixtures.',
         )
       }
-      const affordance = await editableCells[0].evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const affordance = await editableCells[0].evaluate((el) => el.getAttribute('data-affordance'))
       // Select cells have 'select' affordance (not 'edit')
       expect(affordance).toBe('select')
     } else {
       // Verify non-editable cells have 'none' affordance
       const firstNonEditable = nonEditableCells[0]
-      const affordance = await firstNonEditable.evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const affordance = await firstNonEditable.evaluate((el) => el.getAttribute('data-affordance'))
       expect(affordance).toBe('none')
     }
   })

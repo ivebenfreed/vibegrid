@@ -16,13 +16,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
-import {
-  isElementVisible,
-  loadFixtures,
-  scrollToColumn,
-  VIBEGRID_VIEWPORT,
-  WAIT,
-} from '../utils'
+import { isElementVisible, loadFixtures, scrollToColumn, VIBEGRID_VIEWPORT, WAIT } from '../utils'
 
 let page: Page
 
@@ -53,7 +47,7 @@ describe('VibeGrid Relationship Field Types', () => {
           keysToRemove.push(key)
         }
       }
-      keysToRemove.forEach(k => localStorage.removeItem(k))
+      keysToRemove.forEach((k) => localStorage.removeItem(k))
     })
 
     // Reload to get fresh data
@@ -102,7 +96,9 @@ describe('VibeGrid Relationship Field Types', () => {
       const cells = await findUserRefCells()
 
       if (cells.length === 0) {
-        throw new Error('TEST FAILURE: No user reference cells found. Verify assigned_to column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No user reference cells found. Verify assigned_to column exists in schema.',
+        )
       }
 
       // Find first cell with actual value (badge)
@@ -344,7 +340,9 @@ describe('VibeGrid Relationship Field Types', () => {
       const cells = await findEntityRefCells()
 
       if (cells.length === 0) {
-        throw new Error('TEST FAILURE: No entity reference cells found. Verify related_project column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No entity reference cells found. Verify related_project column exists in schema.',
+        )
       }
 
       // Find first cell with actual value (badge)
@@ -575,7 +573,9 @@ describe('VibeGrid Relationship Field Types', () => {
           if (!badge) return null
           const styles = window.getComputedStyle(badge)
           return {
-            hasBackground: styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent',
+            hasBackground:
+              styles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+              styles.backgroundColor !== 'transparent',
             hasBorder: styles.borderWidth !== '0px',
             hasPadding: styles.padding !== '0px',
           }

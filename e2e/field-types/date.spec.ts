@@ -221,7 +221,9 @@ describe('VibeGrid Date Field Type', () => {
       const rdpDayButtons = await page.$$('.vibegridx-editing-portal .rdp-day')
       if (rdpDayButtons.length > 0) {
         // Click a day that's not today (usually has rdp-selected or rdp-today class)
-        const availableDays = await page.$$('.vibegridx-editing-portal .rdp-day:not(.rdp-selected):not(.rdp-outside)')
+        const availableDays = await page.$$(
+          '.vibegridx-editing-portal .rdp-day:not(.rdp-selected):not(.rdp-outside)',
+        )
         if (availableDays.length > 0) {
           await availableDays[0].click()
           await new Promise((r) => setTimeout(r, 500))
@@ -283,7 +285,9 @@ describe('VibeGrid Date Field Type', () => {
     // Look for a clear button in the calendar UI
     const clearButton = await page.evaluateHandle(() => {
       const buttons = document.querySelectorAll('.vibegridx-editing-portal button')
-      return Array.from(buttons).find((btn) => btn.textContent?.toLowerCase().includes('clear')) || null
+      return (
+        Array.from(buttons).find((btn) => btn.textContent?.toLowerCase().includes('clear')) || null
+      )
     })
 
     const clearBtnElement = clearButton.asElement()
@@ -340,9 +344,7 @@ describe('VibeGrid Date Field Type', () => {
         expect((cellText?.trim().length || 0) > 0).toBe(true)
         return
       }
-      throw new Error(
-        'TEST FAILURE: No datetime or date cells found. Check test fixtures.',
-      )
+      throw new Error('TEST FAILURE: No datetime or date cells found. Check test fixtures.')
     }
 
     // Find a datetime value (should include time)

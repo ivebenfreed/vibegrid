@@ -66,7 +66,7 @@ describe('VibeGrid Text Field Type', () => {
 
     // Check if column is visible
     let cell = await page.$(`.vibegridx-cell[data-column-id="${columnId}"]`)
-    if (cell && await isElementVisible(cell)) return true
+    if (cell && (await isElementVisible(cell))) return true
 
     // Try scrolling right to find the column
     for (let i = 0; i < 10; i++) {
@@ -76,7 +76,7 @@ describe('VibeGrid Text Field Type', () => {
       await new Promise((r) => setTimeout(r, 200))
 
       cell = await page.$(`.vibegridx-cell[data-column-id="${columnId}"]`)
-      if (cell && await isElementVisible(cell)) return true
+      if (cell && (await isElementVisible(cell))) return true
     }
     return false
   }
@@ -90,29 +90,29 @@ describe('VibeGrid Text Field Type', () => {
     // Try phone column first (text-like, editable)
     let cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="phone"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Try email column (also text-like)
     cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="email"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Try description column (markdown, but text-like)
     cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="description"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Try website column (url, but text-like)
     cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="website"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Last resort: Any text cell with data-field-type="text"
@@ -126,7 +126,9 @@ describe('VibeGrid Text Field Type', () => {
    */
   async function isTextEditorVisible(): Promise<boolean> {
     // Check for input/textarea in the editing portal or inline
-    const editors = await page.$$('.vibegridx-editing-portal input, .vibegridx-editing-portal textarea')
+    const editors = await page.$$(
+      '.vibegridx-editing-portal input, .vibegridx-editing-portal textarea',
+    )
     const inlineEditors = await page.$$('.vibegridx-text-editor, .vibegridx-email-editor')
     return editors.length > 0 || inlineEditors.length > 0
   }
@@ -320,9 +322,7 @@ describe('VibeGrid Text Field Type', () => {
     }
 
     if (!targetCell) {
-      throw new Error(
-        'TEST FAILURE: No editable text cell visible for Enter save test.',
-      )
+      throw new Error('TEST FAILURE: No editable text cell visible for Enter save test.')
     }
 
     const originalText = await targetCell.evaluate((el) => el.textContent)
@@ -385,9 +385,7 @@ describe('VibeGrid Text Field Type', () => {
     }
 
     if (!targetCell) {
-      throw new Error(
-        'TEST FAILURE: No editable text cell visible for blur save test.',
-      )
+      throw new Error('TEST FAILURE: No editable text cell visible for blur save test.')
     }
 
     const originalText = await targetCell.evaluate((el) => el.textContent)
@@ -455,9 +453,7 @@ describe('VibeGrid Text Field Type', () => {
     }
 
     if (!targetCell) {
-      throw new Error(
-        'TEST FAILURE: No editable text cell visible for escape cancel test.',
-      )
+      throw new Error('TEST FAILURE: No editable text cell visible for escape cancel test.')
     }
 
     const originalText = await targetCell.evaluate((el) => el.textContent)
@@ -500,7 +496,9 @@ describe('VibeGrid Text Field Type', () => {
       emptyCells = await page.$$('.vibegridx-cell[data-column-id="email"] .vibegridx-cell-empty')
     }
     if (emptyCells.length === 0) {
-      emptyCells = await page.$$('.vibegridx-cell[data-column-id="description"] .vibegridx-cell-empty')
+      emptyCells = await page.$$(
+        '.vibegridx-cell[data-column-id="description"] .vibegridx-cell-empty',
+      )
     }
     if (emptyCells.length === 0) {
       emptyCells = await page.$$('.vibegridx-cell[data-column-id="website"] .vibegridx-cell-empty')
@@ -530,9 +528,13 @@ describe('VibeGrid Text Field Type', () => {
 
   it('1.7 Read-only shows no affordance', async () => {
     // Look for non-editable text cells (phone or email)
-    let nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="phone"][data-editable="false"]')
+    let nonEditableCells = await page.$$(
+      '.vibegridx-cell[data-column-id="phone"][data-editable="false"]',
+    )
     if (nonEditableCells.length === 0) {
-      nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="email"][data-editable="false"]')
+      nonEditableCells = await page.$$(
+        '.vibegridx-cell[data-column-id="email"][data-editable="false"]',
+      )
     }
 
     if (nonEditableCells.length === 0) {
@@ -540,17 +542,13 @@ describe('VibeGrid Text Field Type', () => {
       const editableCells = await findTextCells()
 
       if (editableCells.length === 0) {
-        throw new Error(
-          'TEST FAILURE: No text cells found to test read-only affordance.',
-        )
+        throw new Error('TEST FAILURE: No text cells found to test read-only affordance.')
       }
 
       const firstCell = editableCells[0]
       const isVisible = await isElementVisible(firstCell)
       if (!isVisible) {
-        throw new Error(
-          'TEST FAILURE: Text cell not visible to test affordance.',
-        )
+        throw new Error('TEST FAILURE: Text cell not visible to test affordance.')
       }
 
       // Text fields typically have 'edit' or 'navigate' affordance
@@ -561,9 +559,7 @@ describe('VibeGrid Text Field Type', () => {
     } else {
       // Verify non-editable cells have 'none' affordance
       const firstNonEditable = nonEditableCells[0]
-      const affordance = await firstNonEditable.evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const affordance = await firstNonEditable.evaluate((el) => el.getAttribute('data-affordance'))
       expect(affordance).toBe('none')
     }
   })
@@ -591,9 +587,7 @@ describe('VibeGrid Text Field Type', () => {
     }
 
     if (!targetCell) {
-      throw new Error(
-        'TEST FAILURE: No editable text cell visible for Tab navigation test.',
-      )
+      throw new Error('TEST FAILURE: No editable text cell visible for Tab navigation test.')
     }
 
     // Enter edit mode

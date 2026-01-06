@@ -16,13 +16,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import type { Page, ElementHandle } from 'puppeteer-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
-import {
-  isElementVisible,
-  loadFixtures,
-  scrollToColumn,
-  VIBEGRID_VIEWPORT,
-  WAIT,
-} from '../utils'
+import { isElementVisible, loadFixtures, scrollToColumn, VIBEGRID_VIEWPORT, WAIT } from '../utils'
 
 let page: Page
 
@@ -82,7 +76,9 @@ describe('VibeGrid Display Field Types', () => {
       const currencyCells = await findCurrencyCells()
 
       if (currencyCells.length === 0) {
-        throw new Error('TEST FAILURE: No currency cells found. Verify amount column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No currency cells found. Verify amount column exists in schema.',
+        )
       }
 
       // Find first cell with value (contains $ or currency symbol)
@@ -185,7 +181,9 @@ describe('VibeGrid Display Field Types', () => {
       await scrollToColumn(page, 'amount')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="amount"] .vibegridx-cell-empty')
+      const emptyCells = await page.$$(
+        '.vibegridx-cell[data-column-id="amount"] .vibegridx-cell-empty',
+      )
 
       if (emptyCells.length === 0) {
         const currencyCells = await findCurrencyCells()
@@ -223,7 +221,9 @@ describe('VibeGrid Display Field Types', () => {
       const fileCells = await findFileCells()
 
       if (fileCells.length === 0) {
-        throw new Error('TEST FAILURE: No file cells found. Verify attachment column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No file cells found. Verify attachment column exists in schema.',
+        )
       }
 
       // Find first cell with file value
@@ -264,7 +264,10 @@ describe('VibeGrid Display Field Types', () => {
           const hasIcon = await cell.evaluate((el) => {
             // Check for emoji icons or img element
             const text = el.textContent || ''
-            const hasEmoji = /[\u{1F4C4}\u{1F5BC}\u{1F3A5}\u{1F3B5}\u{1F4D5}\u{1F4D8}\u{1F4CA}\u{1F4D2}\u{1F4E6}]/u.test(text)
+            const hasEmoji =
+              /[\u{1F4C4}\u{1F5BC}\u{1F3A5}\u{1F3B5}\u{1F4D5}\u{1F4D8}\u{1F4CA}\u{1F4D2}\u{1F4E6}]/u.test(
+                text,
+              )
             const hasImg = el.querySelector('img') !== null
             return hasEmoji || hasImg
           })
@@ -309,7 +312,9 @@ describe('VibeGrid Display Field Types', () => {
       await scrollToColumn(page, 'attachment')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="attachment"] .vibegridx-cell-empty')
+      const emptyCells = await page.$$(
+        '.vibegridx-cell[data-column-id="attachment"] .vibegridx-cell-empty',
+      )
 
       if (emptyCells.length === 0) {
         const fileCells = await findFileCells()
@@ -347,7 +352,9 @@ describe('VibeGrid Display Field Types', () => {
       const imageCells = await findImageCells()
 
       if (imageCells.length === 0) {
-        throw new Error('TEST FAILURE: No image cells found. Verify avatar column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No image cells found. Verify avatar column exists in schema.',
+        )
       }
 
       // Find first cell
@@ -449,7 +456,9 @@ describe('VibeGrid Display Field Types', () => {
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        throw new Error('TEST FAILURE: No markdown cells found. Verify description column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No markdown cells found. Verify description column exists in schema.',
+        )
       }
 
       // Find first cell with content
@@ -618,7 +627,9 @@ describe('VibeGrid Display Field Types', () => {
             // Check for affordance attribute on cell or child
             const affordance = await cell.evaluate((el) => {
               const withAffordance = el.querySelector('[data-affordance]')
-              return withAffordance ? withAffordance.getAttribute('data-affordance') : el.getAttribute('data-affordance')
+              return withAffordance
+                ? withAffordance.getAttribute('data-affordance')
+                : el.getAttribute('data-affordance')
             })
 
             // Display types should have some affordance

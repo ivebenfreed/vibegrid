@@ -78,16 +78,16 @@ describe('VibeGrid Number Field Type', () => {
     await scrollToColumn(page, 'quantity')
     let cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="quantity"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Try amount column (currency type, also uses NumberFieldType)
     await scrollToColumn(page, 'amount')
     cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id="amount"]')
     if (cells.length > 0) {
-      const visible = await Promise.all(cells.map(c => isElementVisible(c)))
-      if (visible.some(v => v)) return cells
+      const visible = await Promise.all(cells.map((c) => isElementVisible(c)))
+      if (visible.some((v) => v)) return cells
     }
 
     // Look for any cells with data-field-type="number" or "currency"
@@ -136,7 +136,7 @@ describe('VibeGrid Number Field Type', () => {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
         `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}. ` +
-        'Expected to find quantity or amount column with wide viewport (2400px).'
+          'Expected to find quantity or amount column with wide viewport (2400px).',
       )
     }
 
@@ -172,7 +172,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -214,7 +214,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -257,7 +257,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -326,7 +326,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -393,7 +393,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -412,7 +412,7 @@ describe('VibeGrid Number Field Type', () => {
       throw new Error('TEST FAILURE: No visible editable number cell found')
     }
 
-    const originalText = await targetCell.evaluate((el) => el.textContent) || ''
+    const originalText = (await targetCell.evaluate((el) => el.textContent)) || ''
 
     // Click the content element to enter edit mode
     const contentElement = await targetCell.$('[data-affordance="edit"]')
@@ -447,7 +447,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 
@@ -461,8 +461,8 @@ describe('VibeGrid Number Field Type', () => {
       const isEmpty = (text?.trim() || '') === ''
       const hasEditHint = text?.includes('Edit')
       const hasNumber = /[\d,$]+/.test(text || '')
-      const hasEmptyClass = await cell.evaluate((el) =>
-        el.querySelector('.vibegridx-cell-empty') !== null,
+      const hasEmptyClass = await cell.evaluate(
+        (el) => el.querySelector('.vibegridx-cell-empty') !== null,
       )
 
       if (isEmpty || hasEditHint || hasNumber || hasEmptyClass) {
@@ -481,7 +481,7 @@ describe('VibeGrid Number Field Type', () => {
     if (numberCells.length === 0) {
       const visibleColumns = await getVisibleColumns(page)
       throw new Error(
-        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`
+        `TEST FAILURE: No number cells found. Visible columns: ${visibleColumns.join(', ')}`,
       )
     }
 

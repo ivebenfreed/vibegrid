@@ -42,7 +42,9 @@ export async function getVisibleColumns(page: Page): Promise<string[]> {
  * Returns true if column was found and is visible
  */
 export async function scrollToColumn(page: Page, columnId: string): Promise<boolean> {
-  const gridScroller = await page.$('.vibegridx-scroller, .vibegridx-body, [data-testid="vibegrid-container"]')
+  const gridScroller = await page.$(
+    '.vibegridx-scroller, .vibegridx-body, [data-testid="vibegrid-container"]',
+  )
   if (!gridScroller) return false
 
   // Check if column is already visible
@@ -140,7 +142,9 @@ export async function findEditableCell(cells: ElementHandle[]): Promise<ElementH
  * Check if text editor (input/textarea) is visible in editing portal
  */
 export async function isTextEditorVisible(page: Page): Promise<boolean> {
-  const editors = await page.$$('.vibegridx-editing-portal input, .vibegridx-editing-portal textarea')
+  const editors = await page.$$(
+    '.vibegridx-editing-portal input, .vibegridx-editing-portal textarea',
+  )
   const inlineEditors = await page.$$('.vibegridx-text-editor, .vibegridx-email-editor')
   return editors.length > 0 || inlineEditors.length > 0
 }
@@ -150,7 +154,9 @@ export async function isTextEditorVisible(page: Page): Promise<boolean> {
  */
 export async function isNumberEditorVisible(page: Page): Promise<boolean> {
   // Check portal is visible and has a number input
-  const portalWithInput = await page.$('.vibegridx-editing-portal[style*="display: block"] input[type="number"]')
+  const portalWithInput = await page.$(
+    '.vibegridx-editing-portal[style*="display: block"] input[type="number"]',
+  )
   if (portalWithInput) return true
 
   // Check portal is visible and has editing content

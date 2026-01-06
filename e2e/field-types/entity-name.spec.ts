@@ -155,9 +155,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     // Check if any cell shows "Untitled" placeholder
@@ -177,7 +175,9 @@ describe('VibeGrid Entity Name Field Type', () => {
 
     // If no "Untitled" found, verify cells have content (expected with fixtures)
     if (!foundUntitled) {
-      console.log('NOTE: No empty names in test data - all cells have values (expected with fixtures)')
+      console.log(
+        'NOTE: No empty names in test data - all cells have values (expected with fixtures)',
+      )
       const firstContainer = entityNameContainers[0]
       const textElement = await firstContainer.$('.vibegridx-entity-name-text')
       if (textElement) {
@@ -195,9 +195,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -226,9 +224,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -257,9 +253,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -296,9 +290,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -348,9 +340,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -403,9 +393,7 @@ describe('VibeGrid Entity Name Field Type', () => {
     const entityNameContainers = await waitForEntityNameContainers()
 
     if (entityNameContainers.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No entity name containers found. Verify name column renders.',
-      )
+      throw new Error('TEST FAILURE: No entity name containers found. Verify name column renders.')
     }
 
     const firstContainer = entityNameContainers[0]
@@ -428,9 +416,7 @@ describe('VibeGrid Entity Name Field Type', () => {
 
     // Verify pencil has edit affordance
     if (pencilIcon) {
-      const pencilAffordance = await pencilIcon.evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const pencilAffordance = await pencilIcon.evaluate((el) => el.getAttribute('data-affordance'))
       expect(pencilAffordance).toBe('edit')
     }
   })
