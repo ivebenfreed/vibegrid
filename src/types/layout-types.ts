@@ -6,6 +6,7 @@
  * - single-column: Stacked fields (label above, value below)
  * - two-column: Two fields per row
  * - inline-row: Horizontal inline layout
+ * - grouped: Collapsible sections with named field groups
  * - grid: Traditional spreadsheet grid (default)
  */
 
@@ -14,7 +15,7 @@ import type { CSSProperties } from 'react'
 /**
  * Layout type determines how fields are arranged
  */
-export type LayoutType = 'property-sheet' | 'single-column' | 'two-column' | 'inline-row' | 'grid'
+export type LayoutType = 'property-sheet' | 'single-column' | 'two-column' | 'inline-row' | 'grouped' | 'grid'
 
 /**
  * Field placement configuration for custom layouts
