@@ -20,64 +20,64 @@ export type LayoutType = 'property-sheet' | 'single-column' | 'two-column' | 'in
  * Field placement configuration for custom layouts
  */
 export interface FieldPlacement {
-	/** Field ID from VibeGrid column definition */
-	fieldId: string
-	/** Row position (0-based index) */
-	row?: number
-	/** Column position (0-based index) */
-	col?: number
-	/** Column span (for multi-column layouts) */
-	span?: number
+  /** Field ID from VibeGrid column definition */
+  fieldId: string
+  /** Row position (0-based index) */
+  row?: number
+  /** Column position (0-based index) */
+  col?: number
+  /** Column span (for multi-column layouts) */
+  span?: number
 }
 
 /**
  * Responsive layout configuration
  */
 export interface ResponsiveConfig {
-	/** Layout to use on mobile devices */
-	mobile: 'single-column' | 'property-sheet'
-	/** Pixel threshold for mobile breakpoint */
-	threshold: number
+  /** Layout to use on mobile devices */
+  mobile: 'single-column' | 'property-sheet'
+  /** Pixel threshold for mobile breakpoint */
+  threshold: number
 }
 
 /**
  * Layout configuration for VibeGrid
  */
 export interface LayoutConfig {
-	/** Layout type */
-	type: LayoutType
-	/** Custom field placements (optional, for advanced layouts) */
-	fields?: FieldPlacement[]
-	/** Responsive configuration */
-	responsive?: ResponsiveConfig
-	/** Whether to show field labels */
-	showLabels?: boolean
-	/** Label position relative to value */
-	labelPosition?: 'left' | 'above'
+  /** Layout type */
+  type: LayoutType
+  /** Custom field placements (optional, for advanced layouts) */
+  fields?: FieldPlacement[]
+  /** Responsive configuration */
+  responsive?: ResponsiveConfig
+  /** Whether to show field labels */
+  showLabels?: boolean
+  /** Label position relative to value */
+  labelPosition?: 'left' | 'above'
 }
 
 /**
  * Navigation neighbor result
  */
 export interface FieldNeighbors {
-	/** Field ID above current field (if any) */
-	up?: string
-	/** Field ID below current field (if any) */
-	down?: string
-	/** Field ID left of current field (if any) */
-	left?: string
-	/** Field ID right of current field (if any) */
-	right?: string
+  /** Field ID above current field (if any) */
+  up?: string
+  /** Field ID below current field (if any) */
+  down?: string
+  /** Field ID left of current field (if any) */
+  left?: string
+  /** Field ID right of current field (if any) */
+  right?: string
 }
 
 /**
  * Cell position in layout
  */
 export interface CellPosition {
-	/** Row index (0-based) */
-	row: number
-	/** Column index (0-based) */
-	col: number
+  /** Row index (0-based) */
+  row: number
+  /** Column index (0-based) */
+  col: number
 }
 
 /**
@@ -88,69 +88,69 @@ export interface CellPosition {
  * consistently across grid, form, and custom layouts.
  */
 export interface CellLayoutAdapter {
-	// ==================== Navigation ====================
+  // ==================== Navigation ====================
 
-	/**
-	 * Get neighboring fields for keyboard navigation
-	 * @param fieldId - Current field ID
-	 * @returns Neighbor field IDs (up, down, left, right)
-	 */
-	getFieldNeighbors(fieldId: string): FieldNeighbors
+  /**
+   * Get neighboring fields for keyboard navigation
+   * @param fieldId - Current field ID
+   * @returns Neighbor field IDs (up, down, left, right)
+   */
+  getFieldNeighbors(fieldId: string): FieldNeighbors
 
-	/**
-	 * Get field's position in layout grid
-	 * @param fieldId - Field ID to locate
-	 * @returns Row and column indices
-	 */
-	getCellPosition(fieldId: string): CellPosition
+  /**
+   * Get field's position in layout grid
+   * @param fieldId - Field ID to locate
+   * @returns Row and column indices
+   */
+  getCellPosition(fieldId: string): CellPosition
 
-	/**
-	 * Get field ID at specific position
-	 * @param row - Row index
-	 * @param col - Column index
-	 * @returns Field ID at position, or null if empty
-	 */
-	getFieldAtPosition(row: number, col: number): string | null
+  /**
+   * Get field ID at specific position
+   * @param row - Row index
+   * @param col - Column index
+   * @returns Field ID at position, or null if empty
+   */
+  getFieldAtPosition(row: number, col: number): string | null
 
-	/**
-	 * Get tab order for sequential navigation
-	 * @returns Ordered array of field IDs
-	 */
-	getTabOrder(): string[]
+  /**
+   * Get tab order for sequential navigation
+   * @returns Ordered array of field IDs
+   */
+  getTabOrder(): string[]
 
-	// ==================== Rendering ====================
+  // ==================== Rendering ====================
 
-	/**
-	 * Get CSS grid template string for layout
-	 * @returns CSS grid-template-areas or grid-template-columns/rows
-	 */
-	getGridTemplate(): string
+  /**
+   * Get CSS grid template string for layout
+   * @returns CSS grid-template-areas or grid-template-columns/rows
+   */
+  getGridTemplate(): string
 
-	/**
-	 * Get field-specific CSS styles for positioning
-	 * @param fieldId - Field ID to style
-	 * @returns CSS properties for field container
-	 */
-	getFieldStyle(fieldId: string): CSSProperties
+  /**
+   * Get field-specific CSS styles for positioning
+   * @param fieldId - Field ID to style
+   * @returns CSS properties for field container
+   */
+  getFieldStyle(fieldId: string): CSSProperties
 
-	// ==================== Y.js Integration (Future) ====================
+  // ==================== Y.js Integration (Future) ====================
 
-	/**
-	 * Hook called when field receives focus (for Y.js awareness)
-	 * @param fieldId - Field that gained focus
-	 */
-	onFieldFocus?(fieldId: string): void
+  /**
+   * Hook called when field receives focus (for Y.js awareness)
+   * @param fieldId - Field that gained focus
+   */
+  onFieldFocus?(fieldId: string): void
 
-	/**
-	 * Hook called when field loses focus (for Y.js awareness)
-	 * @param fieldId - Field that lost focus
-	 */
-	onFieldBlur?(fieldId: string): void
+  /**
+   * Hook called when field loses focus (for Y.js awareness)
+   * @param fieldId - Field that lost focus
+   */
+  onFieldBlur?(fieldId: string): void
 
-	/**
-	 * Hook called when field value changes (for Y.js sync)
-	 * @param fieldId - Field that changed
-	 * @param value - New value
-	 */
-	onValueChange?(fieldId: string, value: any): void
+  /**
+   * Hook called when field value changes (for Y.js sync)
+   * @param fieldId - Field that changed
+   * @param value - New value
+   */
+  onValueChange?(fieldId: string, value: any): void
 }
