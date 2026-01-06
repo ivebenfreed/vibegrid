@@ -38,10 +38,10 @@ export interface FieldTypeTestEntity {
   attachment: string | null
   avatar: string | null
   // Relationship fields
-  assigned_to: string | null  // User reference - displays as user badge
-  assigned_to_resolved?: string  // Pre-resolved display name (backend pattern)
-  related_project: string | null  // Entity reference - displays as entity badge
-  __resolved_related_project?: { name: string } | null  // Entity reference resolved data (backend pattern)
+  assigned_to: string | null // User reference - displays as user badge
+  assigned_to_resolved?: string // Pre-resolved display name (backend pattern)
+  related_project: string | null // Entity reference - displays as entity badge
+  __resolved_related_project?: { name: string } | null // Entity reference resolved data (backend pattern)
   // Internal
   parent_id: string | null
 }
@@ -137,8 +137,8 @@ export function generateFieldTypeTestEntity(
       if (shouldBeNull()) return { related_project: null, __resolved_related_project: null }
       const project = faker.helpers.arrayElement(MOCK_PROJECTS)
       return {
-        related_project: project.id,  // Store ID (or any value)
-        __resolved_related_project: { name: project.name },  // Resolved display data
+        related_project: project.id, // Store ID (or any value)
+        __resolved_related_project: { name: project.name }, // Resolved display data
       }
     })(),
 
