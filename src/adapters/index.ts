@@ -24,11 +24,11 @@ export { GroupedFormLayoutAdapter } from './GroupedFormLayoutAdapter'
 export type { GroupedFormLayoutAdapterOptions, FieldGroup } from './GroupedFormLayoutAdapter'
 
 export type {
-	CellLayoutAdapter,
-	CellPosition,
-	FieldNeighbors,
-	FieldPlacement,
-	LayoutConfig,
-	LayoutType,
-	ResponsiveConfig,
+  CellLayoutAdapter,
+  CellPosition,
+  FieldNeighbors,
+  FieldPlacement,
+  LayoutConfig,
+  LayoutType,
+  ResponsiveConfig,
 } from '../types/layout-types'

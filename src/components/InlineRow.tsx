@@ -30,203 +30,199 @@ import { getLogger } from '@/shared/lib/logging'
 const logger = getLogger(['vibegrid', 'InlineRow'])
 
 export interface InlineRowProps {
-	/** Entity data to display */
-	data: any
-	/** Field definitions (columns) */
-	columns: Column[]
-	/** Interaction store for selection/focus state */
-	interactionStore: InteractionStore | null
-	/** Gap between fields (CSS value) */
-	fieldGap?: string
-	/** Whether to show labels (default: false for compact mode) */
-	showLabels?: boolean
-	/** Field width behavior */
-	fieldWidth?: 'auto' | 'equal' | 'content'
-	/** Field change callback (for VibeForm integration) */
-	onFieldChange?: (fieldId: string, value: any) => void
+  /** Entity data to display */
+  data: any
+  /** Field definitions (columns) */
+  columns: Column[]
+  /** Interaction store for selection/focus state */
+  interactionStore: InteractionStore | null
+  /** Gap between fields (CSS value) */
+  fieldGap?: string
+  /** Whether to show labels (default: false for compact mode) */
+  showLabels?: boolean
+  /** Field width behavior */
+  fieldWidth?: 'auto' | 'equal' | 'content'
+  /** Field change callback (for VibeForm integration) */
+  onFieldChange?: (fieldId: string, value: any) => void
 }
 
 export const InlineRow = observer(function InlineRow({
-	data,
-	columns,
-	interactionStore,
-	fieldGap = '0.75rem',
-	showLabels = false,
-	fieldWidth = 'auto',
-	onFieldChange,
+  data,
+  columns,
+  interactionStore,
+  fieldGap = '0.75rem',
+  showLabels = false,
+  fieldWidth = 'auto',
+  onFieldChange,
 }: InlineRowProps) {
-	const containerRef = useRef<HTMLDivElement>(null)
-	const adapterRef = useRef<InlineRowLayoutAdapter | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const adapterRef = useRef<InlineRowLayoutAdapter | null>(null)
 
-	// Initialize adapter
-	useEffect(() => {
-		adapterRef.current = new InlineRowLayoutAdapter({
-			columns,
-			fieldGap,
-			showLabels,
-			fieldWidth,
-		})
+  // Initialize adapter
+  useEffect(() => {
+    adapterRef.current = new InlineRowLayoutAdapter({
+      columns,
+      fieldGap,
+      showLabels,
+      fieldWidth,
+    })
 
-		logger.debug('InlineRow adapter initialized', {
-			columnCount: columns.length,
-			fieldGap,
-			showLabels,
-			fieldWidth,
-		})
-	}, [columns, fieldGap, showLabels, fieldWidth])
+    logger.debug('InlineRow adapter initialized', {
+      columnCount: columns.length,
+      fieldGap,
+      showLabels,
+      fieldWidth,
+    })
+  }, [columns, fieldGap, showLabels, fieldWidth])
 
-	// Handle keyboard navigation
-	useEffect(() => {
-		const container = containerRef.current
-		if (!container || !adapterRef.current || !interactionStore) return
+  // Handle keyboard navigation
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !adapterRef.current || !interactionStore) return
 
-		const handleKeyDown = (event: KeyboardEvent) => {
-			const focusedFieldId = interactionStore.focusedFieldId
-			if (!focusedFieldId || !adapterRef.current) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const focusedFieldId = interactionStore.focusedFieldId
+      if (!focusedFieldId || !adapterRef.current) return
 
-			const adapter = adapterRef.current
-			const neighbors = adapter.getFieldNeighbors(focusedFieldId)
+      const adapter = adapterRef.current
+      const neighbors = adapter.getFieldNeighbors(focusedFieldId)
 
-			let nextFieldId: string | null = null
+      let nextFieldId: string | null = null
 
-			switch (event.key) {
-				case 'ArrowLeft':
-					nextFieldId = neighbors.left || null
-					break
-				case 'ArrowRight':
-					nextFieldId = neighbors.right || null
-					break
-				case 'Tab':
-					if (!event.shiftKey) {
-						nextFieldId = neighbors.right || null
-					} else {
-						nextFieldId = neighbors.left || null
-					}
-					break
-			}
+      switch (event.key) {
+        case 'ArrowLeft':
+          nextFieldId = neighbors.left || null
+          break
+        case 'ArrowRight':
+          nextFieldId = neighbors.right || null
+          break
+        case 'Tab':
+          if (!event.shiftKey) {
+            nextFieldId = neighbors.right || null
+          } else {
+            nextFieldId = neighbors.left || null
+          }
+          break
+      }
 
-			if (nextFieldId) {
-				event.preventDefault()
-				interactionStore.focusField(nextFieldId)
+      if (nextFieldId) {
+        event.preventDefault()
+        interactionStore.focusField(nextFieldId)
 
-				const nextElement = container.querySelector(
-					`[data-testid="inline-row-field-${nextFieldId}"]`,
-				) as HTMLElement
-				if (nextElement?.scrollIntoView) {
-					nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
-				}
+        const nextElement = container.querySelector(
+          `[data-testid="inline-row-field-${nextFieldId}"]`,
+        ) as HTMLElement
+        if (nextElement?.scrollIntoView) {
+          nextElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
+        }
 
-				logger.debug('InlineRow keyboard navigation', {
-					from: focusedFieldId,
-					to: nextFieldId,
-					key: event.key,
-				})
-			}
-		}
+        logger.debug('InlineRow keyboard navigation', {
+          from: focusedFieldId,
+          to: nextFieldId,
+          key: event.key,
+        })
+      }
+    }
 
-		container.addEventListener('keydown', handleKeyDown)
-		return () => container.removeEventListener('keydown', handleKeyDown)
-	}, [interactionStore])
+    container.addEventListener('keydown', handleKeyDown)
+    return () => container.removeEventListener('keydown', handleKeyDown)
+  }, [interactionStore])
 
-	// Handle field click to set focus
-	const handleFieldClick = (fieldId: string) => {
-		if (interactionStore) {
-			interactionStore.focusField(fieldId)
-			logger.debug('InlineRow field clicked', { fieldId })
-		}
-	}
+  // Handle field click to set focus
+  const handleFieldClick = (fieldId: string) => {
+    if (interactionStore) {
+      interactionStore.focusField(fieldId)
+      logger.debug('InlineRow field clicked', { fieldId })
+    }
+  }
 
-	return (
-		<div
-			ref={containerRef}
-			className="inline-row"
-			data-testid="inline-row"
-		>
-			{columns.map((column, index) => {
-				const fieldId = column.id
-				const value = data[column.field || column.id]
-				const isFocused = interactionStore?.focusedFieldId === fieldId
+  return (
+    <div ref={containerRef} className="inline-row" data-testid="inline-row">
+      {columns.map((column, index) => {
+        const fieldId = column.id
+        const value = data[column.field || column.id]
+        const isFocused = interactionStore?.focusedFieldId === fieldId
 
-				return (
-					<div
-						key={fieldId}
-						className={`inline-row-field ${isFocused ? 'inline-row-field--focused' : ''}`}
-						data-testid={`inline-row-field-${fieldId}`}
-						onClick={() => handleFieldClick(fieldId)}
-						onKeyDown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault()
-								handleFieldClick(fieldId)
-							}
-						}}
-						tabIndex={-1}
-						style={adapterRef.current?.getFieldStyle(fieldId)}
-					>
-						{showLabels && (
-							<div className="inline-row-field__label">
-								<label htmlFor={`field-${fieldId}`}>{column.label || column.id}</label>
-							</div>
-						)}
-						<div className="inline-row-field__value">
-							<InlineRowFieldValue
-								fieldId={fieldId}
-								value={value}
-								column={column}
-								rowData={data}
-								rowIndex={index}
-							/>
-						</div>
-					</div>
-				)
-			})}
-		</div>
-	)
+        return (
+          <div
+            key={fieldId}
+            className={`inline-row-field ${isFocused ? 'inline-row-field--focused' : ''}`}
+            data-testid={`inline-row-field-${fieldId}`}
+            onClick={() => handleFieldClick(fieldId)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                handleFieldClick(fieldId)
+              }
+            }}
+            tabIndex={-1}
+            style={adapterRef.current?.getFieldStyle(fieldId)}
+          >
+            {showLabels && (
+              <div className="inline-row-field__label">
+                <label htmlFor={`field-${fieldId}`}>{column.label || column.id}</label>
+              </div>
+            )}
+            <div className="inline-row-field__value">
+              <InlineRowFieldValue
+                fieldId={fieldId}
+                value={value}
+                column={column}
+                rowData={data}
+                rowIndex={index}
+              />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
 })
 
 /**
  * InlineRowFieldValue - Renders field value using existing VibeGrid cell renderers
  */
 const InlineRowFieldValue = observer(function InlineRowFieldValue({
-	fieldId,
-	value,
-	column,
-	rowData,
-	rowIndex,
+  fieldId,
+  value,
+  column,
+  rowData,
+  rowIndex,
 }: {
-	fieldId: string
-	value: any
-	column: Column
-	rowData: any
-	rowIndex: number
+  fieldId: string
+  value: any
+  column: Column
+  rowData: any
+  rowIndex: number
 }) {
-	const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
-	useEffect(() => {
-		const container = containerRef.current
-		if (!container) return
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
 
-		container.innerHTML = ''
+    container.innerHTML = ''
 
-		try {
-			const cellElement = modularCellBridge.createCell(value, column, rowData, {
-				rowIndex,
-				columnIndex: 0,
-			})
+    try {
+      const cellElement = modularCellBridge.createCell(value, column, rowData, {
+        rowIndex,
+        columnIndex: 0,
+      })
 
-			cellElement.style.position = 'static'
-			cellElement.style.left = 'auto'
-			cellElement.style.width = 'auto'
-			cellElement.classList.add('inline-row-cell')
+      cellElement.style.position = 'static'
+      cellElement.style.left = 'auto'
+      cellElement.style.width = 'auto'
+      cellElement.classList.add('inline-row-cell')
 
-			container.appendChild(cellElement)
-		} catch (error) {
-			logger.error('Error rendering inline row field value', {
-				fieldId,
-				error,
-			})
-			container.textContent = String(value || '')
-		}
-	}, [value, column, rowData, rowIndex, fieldId])
+      container.appendChild(cellElement)
+    } catch (error) {
+      logger.error('Error rendering inline row field value', {
+        fieldId,
+        error,
+      })
+      container.textContent = String(value || '')
+    }
+  }, [value, column, rowData, rowIndex, fieldId])
 
-	return <div ref={containerRef} id={`field-${fieldId}`} className="inline-row-field-value" />
+  return <div ref={containerRef} id={`field-${fieldId}`} className="inline-row-field-value" />
 })

@@ -15,7 +15,13 @@ import type { CSSProperties } from 'react'
 /**
  * Layout type determines how fields are arranged
  */
-export type LayoutType = 'property-sheet' | 'single-column' | 'two-column' | 'inline-row' | 'grouped' | 'grid'
+export type LayoutType =
+  | 'property-sheet'
+  | 'single-column'
+  | 'two-column'
+  | 'inline-row'
+  | 'grouped'
+  | 'grid'
 
 /**
  * Field placement configuration for custom layouts

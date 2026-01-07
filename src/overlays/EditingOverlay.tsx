@@ -319,9 +319,7 @@ export class EditingOverlay {
       : undefined
 
     // Convert Map<string, string> to string[] for editor props
-    const validationErrorsList = validationErrors
-      ? Array.from(validationErrors.values())
-      : []
+    const validationErrorsList = validationErrors ? Array.from(validationErrors.values()) : []
 
     const editorComponent = createEditor({
       cell,
