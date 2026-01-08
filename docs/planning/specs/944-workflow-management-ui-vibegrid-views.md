@@ -729,6 +729,7 @@ bd dep add $VERIFY_P5 $IMPL_P5
 - [ ] Test: VibeGrid renders with schedules data
 - [ ] Test: Column sorting works
 - [ ] Test: Row selection works
+- [ ] Test: Definitions name cell links to workflow editor
 
 #### IMPL (Make Tests Pass)
 - [ ] Create `WorkflowDefinitionsGridAdapter.ts` following GridAdapter pattern
@@ -738,6 +739,7 @@ bd dep add $VERIFY_P5 $IMPL_P5
 - [ ] Migrate `WorkflowExecutionsTable` to use VibeGrid
 - [ ] Migrate `WorkflowSchedulesTable` to use VibeGrid
 - [ ] Fix schedules to show `workflowName` via JOIN (currently shows ID)
+- [ ] Definitions name cell: Use NameCell pattern to link to `/debug/workflow-editor?id={id}`
 
 #### VERIFY
 | Check | How to Verify | Status |
@@ -746,6 +748,7 @@ bd dep add $VERIFY_P5 $IMPL_P5
 | Virtual scroll works | Load 100+ executions, scroll | [ ] Verified |
 | Sorting works | Click column headers | [ ] Verified |
 | Schedules show name | Verify workflow name displays | [ ] Verified |
+| Name cell links to editor | Click definition name, opens editor | [ ] Verified |
 
 **Beads:**
 ```bash
