@@ -414,6 +414,31 @@ interface ListTimelineEventsResponse {
 > **TDD Enforcement**: Each phase follows TEST -> IMPL -> VERIFY pattern.
 > Beads are created with dependencies: IMPL depends on TEST, VERIFY depends on IMPL.
 
+### Implementation Status (Updated 2026-01-07)
+
+**Gap Analysis Complete** - Partial implementation exists from prior work.
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Backend: stepResults.list** | ✅ Complete | Endpoint + schema implemented |
+| **Backend: executions.list date filters** | ✅ Complete | startDate/endDate params work |
+| **Backend: timelineEvents.list** | ❌ Missing | Schema + endpoint needed |
+| **Store: WorkflowManagementStore** | ✅ Complete | All observables/actions |
+| **Client: workflows-client.ts** | ✅ Complete | All methods implemented |
+| **Route: /tools/workflows** | ✅ Complete | Wired to page component |
+| **UI: WorkflowsManagementPage** | ✅ Complete | Tabbed interface |
+| **UI: WorkflowDefinitionsTable** | ⚠️ Uses Table | Needs VibeGrid migration |
+| **UI: WorkflowExecutionsTable** | ⚠️ Uses Table | Needs VibeGrid migration |
+| **UI: WorkflowSchedulesTable** | ⚠️ Uses Table | Shows ID not name |
+| **UI: ExecutionDetailPanel** | ✅ Complete | Side panel with step results |
+| **UI: StepResultsList** | ✅ Complete | Step display |
+| **Feature Flag** | ❌ Missing | No migration or route guard |
+| **Tests** | ❌ Missing | No unit/integration/E2E tests |
+
+**Remaining Phases (5-8)** added below to complete Full Spec.
+
+---
+
 ### Phase 0: Baseline Verification (BLOCKING)
 
 Before starting implementation, manually verify existing functionality works:
@@ -640,7 +665,7 @@ bd dep add $VERIFY_P4 $IMPL_P4
 
 ---
 
-### Beads Summary
+### Beads Summary (Original Phases 0-4)
 
 | Phase | TEST | IMPL | VERIFY | SMOKE |
 |-------|------|------|--------|-------|
@@ -651,6 +676,179 @@ bd dep add $VERIFY_P4 $IMPL_P4
 | P4 | Real-time tests | Polling, empty states, flags | Feature complete | - |
 
 **Dependency chain:** P0 -> TEST_P1 -> IMPL_P1 -> VERIFY_P1 -> TEST_P2 -> ... -> VERIFY_P4
+
+---
+
+## Remaining Phases (5-8) - Added 2026-01-07
+
+Gap analysis revealed partial implementation exists. These phases complete the spec.
+
+### Phase 5: timelineEvents API (MISSING)
+
+**What's Missing:** Schema and endpoint for timeline events.
+
+#### TEST (Write First)
+- [ ] Test: `timelineEvents.list` returns events for valid execution_id
+- [ ] Test: Events sorted by timestamp DESC
+- [ ] Test: Respects org_id (RLS)
+- [ ] Test: Returns empty array for execution with no events
+
+#### IMPL (Make Tests Pass)
+- [ ] Add `listTimelineEventsSchema` to workflow-schemas.ts
+- [ ] Add `timelineEventSchema` to workflow-schemas.ts
+- [ ] Add `timelineEvents.list` endpoint to workflows router
+- [ ] Query `workflow_timeline_events` table
+- [ ] Add `timelineEvents()` method to workflows-client.ts
+
+#### VERIFY
+| Check | How to Verify | Status |
+|-------|---------------|--------|
+| Tests pass | `pnpm test -- --grep "timelineEvents"` | [ ] Pass |
+| API works | curl timelineEvents.list with valid execution_id | [ ] Verified |
+| Client works | Call from browser console | [ ] Verified |
+| Typecheck | `pnpm typecheck` | [ ] Pass |
+
+**Beads:**
+```bash
+TEST_P5=$(bd create --title="GH#944: TEST P5 - timelineEvents API tests" --type=task --priority=1 --labels=phase-5,testing,tdd --silent)
+IMPL_P5=$(bd create --title="GH#944: IMPL P5 - timelineEvents.list endpoint" --type=task --priority=2 --labels=phase-5 --silent)
+VERIFY_P5=$(bd create --title="GH#944: VERIFY P5 - timelineEvents API complete" --type=task --labels=phase-5,testing --silent)
+bd dep add $IMPL_P5 $TEST_P5
+bd dep add $VERIFY_P5 $IMPL_P5
+```
+
+---
+
+### Phase 6: VibeGrid Migration (USES TABLE)
+
+**What's Missing:** UI uses standard Table instead of VibeGrid. Need migration for virtual scroll.
+
+#### TEST (Write First)
+- [ ] Test: VibeGrid renders with definitions data
+- [ ] Test: VibeGrid renders with executions data
+- [ ] Test: VibeGrid renders with schedules data
+- [ ] Test: Column sorting works
+- [ ] Test: Row selection works
+
+#### IMPL (Make Tests Pass)
+- [ ] Create `WorkflowDefinitionsGridAdapter.ts` following GridAdapter pattern
+- [ ] Create `WorkflowExecutionsGridAdapter.ts`
+- [ ] Create `WorkflowSchedulesGridAdapter.ts`
+- [ ] Migrate `WorkflowDefinitionsTable` to use VibeGrid
+- [ ] Migrate `WorkflowExecutionsTable` to use VibeGrid
+- [ ] Migrate `WorkflowSchedulesTable` to use VibeGrid
+- [ ] Fix schedules to show `workflowName` via JOIN (currently shows ID)
+
+#### VERIFY
+| Check | How to Verify | Status |
+|-------|---------------|--------|
+| Tests pass | `pnpm test -- --grep "VibeGrid"` | [ ] Pass |
+| Virtual scroll works | Load 100+ executions, scroll | [ ] Verified |
+| Sorting works | Click column headers | [ ] Verified |
+| Schedules show name | Verify workflow name displays | [ ] Verified |
+
+**Beads:**
+```bash
+TEST_P6=$(bd create --title="GH#944: TEST P6 - VibeGrid adapter tests" --type=task --priority=1 --labels=phase-6,testing,tdd --silent)
+IMPL_P6=$(bd create --title="GH#944: IMPL P6 - Migrate tables to VibeGrid" --type=task --priority=2 --labels=phase-6 --silent)
+VERIFY_P6=$(bd create --title="GH#944: VERIFY P6 - VibeGrid migration complete" --type=task --labels=phase-6,testing --silent)
+bd dep add $TEST_P6 $VERIFY_P5
+bd dep add $IMPL_P6 $TEST_P6
+bd dep add $VERIFY_P6 $IMPL_P6
+```
+
+---
+
+### Phase 7: Feature Flag Integration (MISSING)
+
+**What's Missing:** No feature flag migration or route guard. Can't safely toggle feature.
+
+#### TEST (Write First)
+- [ ] Test: Route renders ComingSoon when flag disabled
+- [ ] Test: Route renders WorkflowsManagementPage when flag enabled
+- [ ] Test: Feature flag evaluator returns correct value
+
+#### IMPL (Make Tests Pass)
+- [ ] Create migration: `20260107000000_feature_flag_workflows_management_ui.ts`
+  - Insert `feature.workflows.management_ui` with default=false
+- [ ] Update `/tools/workflows.tsx` route to check feature flag
+- [ ] Add ComingSoon fallback component
+- [ ] Use `useFeatureFlag` hook for client-side check
+
+#### VERIFY
+| Check | How to Verify | Status |
+|-------|---------------|--------|
+| Migration runs | `pnpm migrate:run` succeeds | [ ] Pass |
+| Flag false → ComingSoon | Set flag false, verify UI | [ ] Verified |
+| Flag true → Management UI | Set flag true, verify UI | [ ] Verified |
+| Typecheck | `pnpm typecheck` | [ ] Pass |
+
+**Beads:**
+```bash
+TEST_P7=$(bd create --title="GH#944: TEST P7 - Feature flag tests" --type=task --priority=1 --labels=phase-7,testing,tdd --silent)
+IMPL_P7=$(bd create --title="GH#944: IMPL P7 - Feature flag migration and route guard" --type=task --priority=2 --labels=phase-7 --silent)
+VERIFY_P7=$(bd create --title="GH#944: VERIFY P7 - Feature flag complete" --type=task --labels=phase-7,testing --silent)
+bd dep add $TEST_P7 $VERIFY_P6
+bd dep add $IMPL_P7 $TEST_P7
+bd dep add $VERIFY_P7 $IMPL_P7
+```
+
+---
+
+### Phase 8: Comprehensive Test Suite (MISSING)
+
+**What's Missing:** Zero tests exist. Need unit, integration, and E2E coverage.
+
+#### IMPL (Test Files)
+- [ ] Unit: `WorkflowManagementStore.spec.ts` - all actions and computed
+- [ ] Unit: `StepResultsList.spec.ts` - rendering, status icons
+- [ ] Integration: `workflow-management-api.spec.ts` - API endpoints
+- [ ] E2E: `workflow-management.spec.ts` - full flow tests
+
+#### E2E Test Scenarios
+```typescript
+// workflow-management.spec.ts
+test('navigate to /tools/workflows, verify tabs load')
+test('filter executions by status')
+test('click execution row, verify detail panel opens')
+test('verify step results display in panel')
+test('toggle schedule enabled state')
+```
+
+#### VERIFY
+| Check | How to Verify | Status |
+|-------|---------------|--------|
+| Unit tests pass | `pnpm test -- --grep "WorkflowManagement"` | [ ] Pass |
+| Integration tests pass | `pnpm test:integration` | [ ] Pass |
+| E2E tests pass | `pnpm test:e2e -- workflow-management` | [ ] Pass |
+| Coverage adequate | Check coverage report | [ ] Pass |
+
+**Beads:**
+```bash
+IMPL_P8_UNIT=$(bd create --title="GH#944: IMPL P8 - Unit tests for store and components" --type=task --priority=1 --labels=phase-8,testing --silent)
+IMPL_P8_INT=$(bd create --title="GH#944: IMPL P8 - Integration tests for API" --type=task --priority=2 --labels=phase-8,testing --silent)
+IMPL_P8_E2E=$(bd create --title="GH#944: IMPL P8 - E2E tests for full flow" --type=task --priority=3 --labels=phase-8,testing,e2e --silent)
+VERIFY_P8=$(bd create --title="GH#944: VERIFY P8 - Test suite complete" --type=task --labels=phase-8,testing --silent)
+bd dep add $IMPL_P8_UNIT $VERIFY_P7
+bd dep add $IMPL_P8_INT $IMPL_P8_UNIT
+bd dep add $IMPL_P8_E2E $IMPL_P8_INT
+bd dep add $VERIFY_P8 $IMPL_P8_E2E
+```
+
+---
+
+### Remaining Phases Summary
+
+| Phase | Focus | Effort | Dependencies |
+|-------|-------|--------|--------------|
+| P5 | timelineEvents API | 2-3h | None (can start now) |
+| P6 | VibeGrid migration | 3-4h | P5 complete |
+| P7 | Feature flag | 1-2h | P6 complete |
+| P8 | Test suite | 4-6h | P7 complete |
+
+**Total Remaining Effort:** ~12-15 hours
+
+**Dependency chain:** P5 -> P6 -> P7 -> P8
 
 ---
 
