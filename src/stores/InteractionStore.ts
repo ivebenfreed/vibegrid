@@ -1474,4 +1474,32 @@ export class InteractionStore implements IStore {
       }
     }
   }
+
+  /**
+   * Readable state for agent context
+   * JSON-serializable snapshot of interaction state
+   */
+  @computed get readableState(): InteractionReadableState {
+    return {
+      selectedRowIds: Array.from(this.selectedRows ?? []),
+      selectedCellIds: Array.from(this.selectedCells ?? []),
+      focusedCell: this.focusedCell
+        ? {
+            rowId: this.focusedCell.split(':')[0],
+            columnId: this.focusedCell.split(':')[1],
+          }
+        : null,
+      isEditing: false, // Editing state moved to EditingStore
+    }
+  }
+}
+
+/**
+ * Readable state interface for InteractionStore
+ */
+export interface InteractionReadableState {
+  selectedRowIds: string[]
+  selectedCellIds: string[]
+  focusedCell: { rowId: string; columnId: string } | null
+  isEditing: boolean
 }

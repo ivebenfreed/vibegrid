@@ -13,15 +13,14 @@
  * All renderers, managers, and components should read from this store ONLY.
  */
 
-import { action, computed, makeObservable, observable, runInAction } from 'mobx'
+import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { modularCellBridge } from '../field-types/ModularCellBridge'
-import { GroupProcessor } from '../processors/GroupProcessor'
-import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
+import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
 
@@ -1137,7 +1136,7 @@ export class VisualStateStore implements IStore {
    * Load ALL saved preferences from localStorage
    */
   loadAllSavedPreferences(
-    columns: Column[],
+    _columns: Column[],
     entityType: string,
     orgId: string,
   ): {
@@ -1242,4 +1241,58 @@ export class VisualStateStore implements IStore {
   getVisibleRowRange(): { start: number; end: number } {
     return this.visibleRowRange
   }
+
+  /**
+   * Readable state for agent context
+   * JSON-serializable snapshot of visual configuration
+   */
+  @computed get readableState(): VisualStateReadableState {
+    // Extract flat conditions from FilterGroup (which may have nested groups)
+    const flattenConditions = (
+      group: FilterGroup | null,
+    ): Array<{ field: string; operator: string; value: unknown }> => {
+      if (!group) return []
+      const result: Array<{ field: string; operator: string; value: unknown }> = []
+      for (const item of group.conditions) {
+        if ('logic' in item) {
+          // It's a nested FilterGroup - recursively flatten
+          result.push(...flattenConditions(item))
+        } else {
+          // It's a FilterCondition
+          result.push({
+            field: item.field,
+            operator: item.operator,
+            value: item.value,
+          })
+        }
+      }
+      return result
+    }
+
+    return {
+      filters: flattenConditions(this.filterGroup),
+      filterCount: this.activeFilterCount,
+      sortBy:
+        this.sortBy?.map((s) => ({
+          field: s.field,
+          direction: s.direction,
+        })) ?? [],
+      groupConfig: this.groupConfig
+        ? {
+            field: this.groupConfig.fields?.[0]?.field ?? '',
+            collapsed: this.groupConfig.expandedGroups?.size === 0,
+          }
+        : null,
+    }
+  }
+}
+
+/**
+ * Readable state interface for VisualStateStore
+ */
+export interface VisualStateReadableState {
+  filters: Array<{ field: string; operator: string; value: unknown }>
+  filterCount: number
+  sortBy: Array<{ field: string; direction: 'asc' | 'desc' }>
+  groupConfig: { field: string; collapsed: boolean } | null
 }

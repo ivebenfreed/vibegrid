@@ -17,7 +17,6 @@
 
 import {
   action,
-  autorun,
   computed,
   makeObservable,
   type ObservableMap,
@@ -272,7 +271,6 @@ export class TableCoreStore implements IStore {
   private visualStateStore: VisualStateStore | null = null
   private hierarchyStore: HierarchyStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for entity mutations
   private schemaRegistry:
     | import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore
@@ -1233,7 +1231,7 @@ export class TableCoreStore implements IStore {
     sourceGroupId: string,
     targetGroupId: string,
     draggedRowId: string,
-    newIndex: number,
+    _newIndex: number,
   ): Promise<boolean> {
     // Extract the field name and value from group IDs (e.g., "group_status_done" -> {field: "status", value: "done"})
     const parseGroupId = (groupId: string): { field: string; value: string } | null => {
@@ -1638,4 +1636,34 @@ export class TableCoreStore implements IStore {
    * @observable Grouping configuration
    */
   @observable grouping: any = null
+
+  /**
+   * Readable state for agent context
+   * JSON-serializable snapshot of current grid data state
+   */
+  @computed get readableState(): TableCoreReadableState {
+    return {
+      entityType: this.entityType,
+      rowCount: this.processedRows.length,
+      visibleRows: this.processedRows.slice(0, 50).map((row) => ({
+        id: row.id,
+        data: row.data,
+      })),
+      columns: this.columns.map((c) => ({
+        fieldName: c.field ?? c.id,
+        fieldType: c.cellType ?? 'text',
+        displayName: c.name ?? c.label ?? c.title ?? c.id,
+      })),
+    }
+  }
+}
+
+/**
+ * Readable state interface for TableCoreStore
+ */
+export interface TableCoreReadableState {
+  entityType: string
+  rowCount: number
+  visibleRows: Array<{ id: string; data: Record<string, unknown> }>
+  columns: Array<{ fieldName: string; fieldType: string; displayName: string }>
 }
