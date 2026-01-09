@@ -287,7 +287,7 @@ export const ThreadListGrid = observer(function ThreadListGrid({
   const handleThreadClick = (threadId: string) => {
     store.setSelectedThread(threadId)
     // Navigate to thread detail page
-    navigate({ to: '/emails/thread/$threadId', params: { threadId } })
+    navigate({ to: '/inbox/thread/$threadId', params: { threadId } })
   }
 
   return (
