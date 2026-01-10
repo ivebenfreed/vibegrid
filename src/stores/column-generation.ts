@@ -102,6 +102,7 @@ interface EntityField {
   type: string
   required?: boolean
   editor?: {
+    type?: string
     options?: Array<{
       value: string
       label: string
@@ -110,9 +111,12 @@ interface EntityField {
       icon?: string
       description?: string
     }>
+    [key: string]: any // Allow additional editor properties
   }
   validation?: {
     enum?: string[]
+    required?: boolean
+    [key: string]: any // Allow additional validation properties
   }
   syncable?: boolean
 
@@ -128,6 +132,69 @@ interface EntityField {
   relationshipSearchFields?: string[]
   searchFields?: string[]
   relationshipType?: 'many-to-one' | 'one-to-many' | 'many-to-many'
+
+  // Enhanced field metadata from backend (from EnhancedFieldHandler)
+  display?: {
+    width?: number
+    minWidth?: number
+    maxWidth?: number
+    label?: string
+    sortable?: boolean
+    filterable?: boolean
+    resizable?: boolean
+    format?: string
+    prefix?: string
+    suffix?: string
+    placeholder?: string
+    textAlign?: 'left' | 'center' | 'right'
+    fontWeight?: 'normal' | 'bold'
+    precision?: number
+    showColorPreview?: boolean
+    showFilePreview?: boolean
+    truncateAt?: number
+    showTooltip?: boolean
+    tooltipContent?: string
+    showCalculationIndicator?: boolean
+    isReadOnly?: boolean
+    [key: string]: any
+  }
+  capabilities?: {
+    supportsSorting?: boolean
+    supportsFiltering?: boolean
+    supportsGrouping?: boolean
+    supportsAggregation?: boolean
+    requiresSpecialEditor?: boolean
+    hasRichDisplay?: boolean
+    supportsValidation?: boolean
+    supportsFormatting?: boolean
+    isCalculatedField?: boolean
+    isRollupField?: boolean
+    isRelationshipField?: boolean
+    isStatus?: boolean
+    hasWorkflowLogic?: boolean
+    supportsTransitions?: boolean
+    requiresStatusSet?: boolean
+    isOptionReference?: boolean
+    requiresCustomOptions?: boolean
+  }
+  accessibility?: {
+    ariaLabel?: string
+    ariaDescription?: string
+    ariaRequired?: boolean
+    ariaInvalid?: boolean
+    ariaValueMin?: number
+    ariaValueMax?: number
+    ariaValueNow?: number
+    ariaValueText?: string
+    ariaLive?: 'polite' | 'assertive' | 'off'
+    ariaOrientation?: 'horizontal' | 'vertical'
+    ariaMultiline?: boolean
+    ariaHasPopup?: boolean | 'menu' | 'listbox' | 'tree' | 'grid' | 'dialog'
+    tabIndex?: number
+    role?: string
+  }
+  statusSet?: any // Status set metadata for status fields
+  collaborativeMetadata?: any // Collaborative editing metadata
 }
 
 /**
@@ -365,6 +432,11 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         options: options,
         editor: safeFieldDef.editor || null,
         validation: safeFieldDef.validation || null,
+        // Enhanced field metadata from backend schema enhancement
+        display: safeFieldDef.display || undefined,
+        capabilities: safeFieldDef.capabilities || undefined,
+        accessibility: safeFieldDef.accessibility || undefined,
+        statusSet: safeFieldDef.statusSet || undefined,
 
         // 🚀 NEW: Pre-computed field type metadata for instant cell rendering
         fieldType: fieldTypeInstance,

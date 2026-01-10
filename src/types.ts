@@ -124,6 +124,35 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options'> {
   // Editor configuration
   editor?: any
 
+  // Enhanced field metadata from backend schema enhancement
+  display?: {
+    width?: number
+    minWidth?: number
+    maxWidth?: number
+    label?: string
+    sortable?: boolean
+    filterable?: boolean
+    resizable?: boolean
+    format?: string
+    [key: string]: any
+  }
+  capabilities?: {
+    supportsSorting?: boolean
+    supportsFiltering?: boolean
+    supportsGrouping?: boolean
+    supportsAggregation?: boolean
+    requiresSpecialEditor?: boolean
+    hasRichDisplay?: boolean
+    [key: string]: any
+  }
+  accessibility?: {
+    ariaLabel?: string
+    ariaDescription?: string
+    ariaRequired?: boolean
+    [key: string]: any
+  }
+  statusSet?: any // Status set configuration for status fields
+
   // Default values and metadata
   defaultValue?: any
   meta?: any // Additional metadata
