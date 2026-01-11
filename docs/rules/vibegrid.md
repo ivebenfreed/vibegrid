@@ -121,6 +121,74 @@ const testData = createMockScenario('drag-drop')
 
 **Implementation:** `useVibeGridData.ts` checks for `collectionOverride` prop before fetching from API.
 
+## Non-DataForge Data Sources (Added 2026-01-11)
+
+### collectionOverride Pattern for MobX Store Data
+
+Use `collectionOverride` to display data from MobX stores or other non-DataForge sources:
+
+```typescript
+// Transform MobX store data to VibeGrid format
+const gridData = useMemo(() => {
+  return storeData.map(item => ({
+    id: item.id,
+    field1: item.value1,
+    field2: item.value2,
+    // Store full object for row actions
+    _originalData: item,
+  }))
+}, [storeData])
+
+// Create mock collection interface
+const mockCollection = useMemo(() => {
+  if (!gridData.length) return null
+
+  return {
+    items: gridData,
+    count: gridData.length,
+    // Mock methods (required by collection interface)
+    insert: async () => {},
+    update: async () => {},
+    delete: async () => {},
+  }
+}, [gridData])
+
+// Provide to VibeGrid
+<VibeGridStoreProvider
+  tableId={tableId}
+  entityType="CustomType"
+  collectionOverride={mockCollection}
+>
+  <VibeGrid
+    tableId={tableId}
+    entityType="CustomType"
+    skipDataFetching={true}  // Important: prevent API fetch
+    onCellClick={(rowId) => {
+      const row = gridData.find(r => r.id === rowId)
+      handleClick(row._originalData)
+    }}
+  />
+</VibeGridStoreProvider>
+```
+
+**Key points:**
+- `collectionOverride` accepts any data source (MobX store, API response, computed data)
+- Must implement collection interface: `{ items, count, insert?, update?, delete? }`
+- Use `skipDataFetching={true}` to prevent VibeGrid from calling DataForge API
+- Store original data object (e.g., `_originalData`) for row actions and navigation
+- Transform data in `useMemo()` to re-compute when source changes
+
+**Real-world examples:**
+- GH#1076: Bid Submissions page (vendor response data from `useBidMailBidPackage` query)
+- GH#1076: COI List (COI documents from `coiStore.filteredCOIs`)
+
+**When to use:**
+- Data comes from non-DataForge sources (external APIs, MobX stores, computed values)
+- Need VibeGrid UI/UX but data isn't entity-based
+- Testing/mocking scenarios
+
+**Learned from:** GH#1076 - Migrating GC list pages with non-entity data sources (2026-01-11)
+
 ### Cell Selection Class Updates (Bug Fix)
 
 **Problem:** Cell selection classes (`is-selected`, `is-range-selected`) weren't updating on click.
