@@ -1,3 +1,10 @@
+---
+domain: vibegrid
+status: draft
+relatedRules:
+  - vibegrid
+  - vibegrid-interactions
+---
 # Export Services
 CSV, Excel, and PDF Export Engines - Data export functionality
 

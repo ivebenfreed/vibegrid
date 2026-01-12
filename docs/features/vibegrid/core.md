@@ -1,3 +1,10 @@
+---
+domain: vibegrid
+status: active
+relatedRules:
+  - vibegrid
+  - vibegrid-interactions
+---
 # Core
 
 High-performance virtualized data grid component for rendering and editing large entity collections (10k+ rows) with smooth 60fps scrolling, real-time collaboration, and comprehensive keyboard navigation.

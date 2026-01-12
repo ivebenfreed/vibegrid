@@ -1,3 +1,10 @@
+---
+domain: vibegrid
+status: active
+relatedRules:
+  - vibegrid
+  - vibegrid-interactions
+---
 # Gantt
 
 Timeline-based view for tasks with date fields. Displays task bars with drag-to-move/resize, dependency arrows, and critical path highlighting.

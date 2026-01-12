@@ -1,3 +1,10 @@
+---
+domain: vibegrid
+status: draft
+relatedRules:
+  - vibegrid
+  - vibegrid-interactions
+---
 # Data Controls
 Data Controls in VibeGrid provide powerful ways to slice, dice, and view data through multi-level filtering, hierarchical grouping, and persistent presets. These controls are managed primarily through the `VisualStateStore` for grid configuration and `InteractionStore` for UI state, with `GroupProcessor` handling the client-side data transformation.
 
