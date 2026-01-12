@@ -1,24 +1,4 @@
 # Data Controls
-{description}
-
-## Overview
-- **Domain:** vibegrid
-- **Status:** draft
-- **Related Issues:** [list any GH# references found]
-
-## Behaviors
-[B1-B10...]
-
-## Notes
-[Any additional context]'
-
-[gemini-3-flash-preview]
-YOLO mode is enabled. All tool calls will be automatically approved.
-Loaded cached credentials.
-I will search for "vibegrid" and terms related to data controls like "filter", "group", "preset", and "aggregation" in the `apps/`, `packages/`, and `planning/` directories to understand the current implementation and design.
-I will read the `VisualStateStore.ts` and `GroupProcessor.ts` files to understand the implementation of filtering and grouping, and search for "presets" and "view" within the `apps/web/src/systems/vibegrid/` directory to identify how they are handled.
-I will read the `InteractionStore.ts` file to understand the triggering of presets and then proceed to draft the "Data Controls" documentation based on my findings.
-# Data Controls
 Data Controls in VibeGrid provide powerful ways to slice, dice, and view data through multi-level filtering, hierarchical grouping, and persistent presets. These controls are managed primarily through the `VisualStateStore` for grid configuration and `InteractionStore` for UI state, with `GroupProcessor` handling the client-side data transformation.
 
 ## Overview
