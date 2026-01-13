@@ -10,7 +10,39 @@ github_issue: 1076
 github_milestone: null
 parent_epic: null
 created: 2026-01-11
-updated: 2026-01-11
+updated: 2026-01-13
+
+phases:
+  - id: p1
+    name: "Bid Packages Page"
+    tasks:
+      - "Update ProjectBidPackagesPage.tsx to use VibeGrid"
+      - "Configure columns: name, trade, dueDate, reminderEnabled, codeCount, vendorCount"
+      - "Add badge cell renderers for reminder status"
+      - "Preserve click-through to package detail"
+  - id: p2
+    name: "Bid Submissions Page"
+    tasks:
+      - "Update ProjectBidPackageSubmissionsPage.tsx to use VibeGrid"
+      - "Configure columns: vendor, contact, responseStatus, dueDate, submittedAt, baseAmount, documentsCount"
+      - "Enable inline editing for baseAmount (bid entry)"
+      - "Configure default sort: responseStatus DESC, submittedAt ASC"
+      - "Add status badge cell renderer and currency formatter for baseAmount"
+  - id: p3
+    name: "COI List Page"
+    tasks:
+      - "Update COIList.tsx to use VibeGrid"
+      - "Configure columns: insured_name, status, compliance, gl_each_occurrence, gl_expiration_date"
+      - "Add column filters to replace external filter bar"
+      - "Add status and compliance badge cell renderers"
+      - "Add currency formatter for GL limit"
+  - id: p4
+    name: "Cleanup & Polish"
+    tasks:
+      - "Remove deprecated markers or add JSDoc deprecation comments"
+      - "Update any tests that reference old components"
+      - "Verify pnpm typecheck passes"
+      - "Verify pnpm lint passes"
 ---
 
 # Migrate Remaining GC List Pages to VibeGrid
