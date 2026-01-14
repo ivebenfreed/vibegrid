@@ -214,6 +214,14 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(platformUserColumns) as any
   }
 
+  // Special case: Email threads (Communications worker, not DataForge entities)
+  if (entityType === 'EmailThread') {
+    fileLog.debug('📧 Using email thread schema (communications entity)', { entityType })
+    const { emailThreadColumns } = await import('@/features/email-inbox/schemas/email-thread-schema')
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(emailThreadColumns) as any
+  }
+
   // Wait for schema registry to be ready (with timeout)
   // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
   const maxWaitMs = 30000 // 30 seconds
