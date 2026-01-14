@@ -224,6 +224,16 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(emailThreadColumns) as any
   }
 
+  // Special case: Command Center items (aggregated from multiple sources, not DataForge entities)
+  if (entityType === 'CommandCenterItem') {
+    fileLog.debug('📋 Using command center item schema (aggregated entity)', { entityType })
+    const { commandCenterItemColumns } = await import(
+      '@/features/command-center/schemas/command-center-item-schema'
+    )
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
+  }
+
   // Wait for schema registry to be ready (with timeout)
   // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
   const maxWaitMs = 30000 // 30 seconds
