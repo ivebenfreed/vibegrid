@@ -217,7 +217,9 @@ export async function generateColumnsFromEntitySchema<T = any>(
   // Special case: Email threads (Communications worker, not DataForge entities)
   if (entityType === 'EmailThread') {
     fileLog.debug('📧 Using email thread schema (communications entity)', { entityType })
-    const { emailThreadColumns } = await import('@/features/email-inbox/schemas/email-thread-schema')
+    const { emailThreadColumns } = await import(
+      '@/features/email-inbox/schemas/email-thread-schema'
+    )
     // Enrich columns with field types for fast path in ModularCellBridge
     return enrichColumnsWithFieldTypes(emailThreadColumns) as any
   }

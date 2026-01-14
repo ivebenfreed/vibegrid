@@ -57,9 +57,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
   isSelectMode,
   selectedIds,
   onToggleSelect,
-  onMarkRead,
-  onAssign,
-  onStar,
+  onMarkRead: _onMarkRead,
+  onAssign: _onAssign,
+  onStar: _onStar,
 }: ThreadListGridProps) {
   const store = useEmailInbox()
   const navigate = useNavigate()
@@ -71,19 +71,13 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     // Wait for tableCoreStore but NOT isFullyHydrated (we need to mark entityDataLoaded ourselves)
     if (!tableCoreStore) return
 
-    // DEBUG: Log first thread to see participants data
-    if (threads.length > 0) {
-      console.log('[ThreadListGrid] First thread participants:', threads[0].participants)
-      console.log('[ThreadListGrid] First thread full:', threads[0])
-    }
-
     // Transform threads to rows format expected by VibeGrid (flat objects)
     // Pre-format participants array since VibeGrid doesn't use custom column formatters
     const rows = threads.map((thread) => {
       // Format participants to display first sender name/email
       const firstParticipant = thread.participants?.[0]
       const fromDisplay = firstParticipant
-        ? (firstParticipant.name || firstParticipant.email)
+        ? firstParticipant.name || firstParticipant.email
         : '(Unknown)'
 
       // Format folders array to comma-separated string
@@ -133,8 +127,8 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     [isSelectMode, onToggleSelect, store, navigate],
   )
 
-  // Handle row selection for bulk actions
-  const handleSelectionChange = useCallback(
+  // Handle row selection for bulk actions (TODO: wire up when selection is implemented)
+  const _handleSelectionChange = useCallback(
     (selectedRowIds: Set<string>) => {
       // Sync selection state
       for (const id of selectedRowIds) {
@@ -183,7 +177,7 @@ export const ThreadListGrid = observer(function ThreadListGrid(props: ThreadList
 
   // Memoize org/user IDs to prevent unnecessary re-renders
   const orgId = useMemo(() => org.activeOrganizationId || '', [org.activeOrganizationId])
-  const userId = useMemo(() => auth.user?.id || '', [auth.user?.id])
+  const _userId = useMemo(() => auth.user?.id || '', [auth.user?.id])
 
   if (!orgId) {
     return (
@@ -194,11 +188,7 @@ export const ThreadListGrid = observer(function ThreadListGrid(props: ThreadList
   }
 
   return (
-    <VibeGridStoreProvider
-      tableId="email-inbox-threads"
-      entityType="EmailThread"
-      orgId={orgId}
-    >
+    <VibeGridStoreProvider tableId="email-inbox-threads" entityType="EmailThread" orgId={orgId}>
       <ThreadListGridInner {...props} />
     </VibeGridStoreProvider>
   )
