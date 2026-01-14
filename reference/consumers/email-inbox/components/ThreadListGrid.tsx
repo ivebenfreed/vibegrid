@@ -3,8 +3,8 @@
  *
  * Displays email threads using VibeGrid with 10 columns:
  * 1. Unread indicator (blue dot)
- * 2. From (sender name/email)
- * 3. Subject (thread subject line)
+ * 2. From (sender name/email) - uses latestSender from client-side join
+ * 3. Subject (thread subject line) - bold when unread
  * 4. Date (relative or absolute)
  * 5. Assigned To (user avatar/name)
  * 6. Snippet (message preview)
@@ -15,6 +15,7 @@
  *
  * Uses VibeGrid with custom EmailThread columns (not a DataForge entity).
  * Part of GH#948: Email Inbox UI - Pure Communications View
+ * Updated for GH#1200: TanStack DB Collections + bold styling for unread
  */
 
 import { useCallback, useEffect, useMemo } from 'react'
@@ -28,7 +29,7 @@ import {
   useInitStore,
 } from '@/systems/vibegrid/stores/context'
 import { useOrganization, useAuth } from '@/app/stores'
-import type { InboxThread } from '@/shared/data/queries/email-threads.queries'
+import type { ThreadWithLatestSender } from '../hooks'
 import { useEmailInbox } from '../stores'
 
 // ====================================
@@ -36,7 +37,7 @@ import { useEmailInbox } from '../stores'
 // ====================================
 
 interface ThreadListGridProps {
-  threads: InboxThread[]
+  threads: ThreadWithLatestSender[]
   isSelectMode: boolean
   selectedIds: Set<string>
   onToggleSelect: (threadId: string) => void
@@ -72,34 +73,40 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     if (!tableCoreStore) return
 
     // Transform threads to rows format expected by VibeGrid (flat objects)
-    // Pre-format participants array since VibeGrid doesn't use custom column formatters
+    // GH#1200: Use latestSender (from client-side join) instead of participants[0]
     const rows = threads.map((thread) => {
-      // Format participants to display first sender name/email
-      const firstParticipant = thread.participants?.[0]
-      const fromDisplay = firstParticipant
-        ? firstParticipant.name || firstParticipant.email
-        : '(Unknown)'
+      // Use latestSender from the client-side join with latest messages
+      // Falls back to first participant if no latest message (defensive)
+      const sender = thread.latestSender || thread.participants?.[0]
+      const fromDisplay = sender ? sender.name || sender.email : '(Unknown)'
 
       // Format folders array to comma-separated string
       const foldersDisplay = thread.folders?.join(', ') || ''
 
+      // GH#1200: Add bold styling class for unread threads
+      // The _rowClassName is used by VibeGrid for row-level styling
+      const rowClassName = thread.unread ? 'email-thread-unread' : ''
+
       return {
         id: thread.id,
         unread: thread.unread,
-        // Pre-formatted string for display (VibeGrid doesn't use custom formatters)
-        participants: fromDisplay,
+        // Pre-formatted string for display (VibeGrid uses column.id to access data)
+        // GH#1200: Now shows latest sender, not first participant
+        from: fromDisplay,
         subject: thread.subject || '(No subject)',
-        latestMessageDate: thread.latestMessageDate,
-        assignedToUserName: thread.assignedToUserName || '',
+        date: thread.latestMessageDate,
+        assigned_to: thread.assignedToUserName || '',
         snippet: thread.snippet || '',
-        hasAttachments: thread.hasAttachments,
-        messageCount: thread.messageCount,
+        attachments: thread.hasAttachments,
+        message_count: thread.messageCount,
         // Pre-formatted string for display
         folders: foldersDisplay,
         starred: thread.starred,
         // Keep original fields for reference
         connectionId: thread.connectionId,
         nylasThreadId: thread.nylasThreadId,
+        // Row styling for unread
+        _rowClassName: rowClassName,
       }
     })
 
