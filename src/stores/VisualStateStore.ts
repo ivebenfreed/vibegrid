@@ -479,6 +479,19 @@ export class VisualStateStore implements IStore {
           this.columnWidths[col.id] = col.width || 150
         }
       }
+
+      // SCHEMA OVERRIDE: Ensure columns explicitly marked as visible (hidden: false)
+      // are shown even if cached preferences had them hidden.
+      // This handles cases where schema changed from hidden to visible.
+      for (const col of columns) {
+        if (col.hidden === false && this.columnVisibility[col.id] === false) {
+          logger.info('Overriding cached visibility with schema default', {
+            columnId: col.id,
+            reason: 'Schema marks column as visible (hidden: false)',
+          })
+          this.columnVisibility[col.id] = true
+        }
+      }
     }
 
     // Only set groupConfig if null (PersistenceStore may have already loaded it)
