@@ -30,6 +30,10 @@ VibeGrid supports rich interactions beyond basic table display. This document co
 
 ### Pattern 1: Expandable Nested Tables (Added 2026-01-15)
 
+> ⚠️ **TECHNICAL DEBT WARNING:** This pattern documents a domain-specific implementation that should have been a generic VibeGrid primitive. See GH#1240 for the refactor to move this to `systems/vibegrid/`. When GH#1240 is complete, use the generic approach instead.
+>
+> **Before implementing row expansion:** Check `.claude/rules/vibegrid.md` → "Decision Checklist" to determine if your use case should be generic.
+
 **Context:** Display one-to-many relationships in-line without navigating away (e.g., COI → Coverages)
 
 **Pattern:** Row expansion with lazy-loaded nested table component
@@ -376,3 +380,4 @@ export const coiColumns: EnhancedColumn[] = [
 ## Learned From
 
 - **GH#1236 implementation session** (2026-01-15) - Expandable nested tables, domain-specific custom field types
+- **GH#1236 post-implementation review** (2026-01-15) - Identified that row expansion should be generic VibeGrid primitive, not domain-specific. Created GH#1240 to track refactor. Added Decision Checklist to `vibegrid.md` to prevent this mistake.
