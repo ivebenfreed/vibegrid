@@ -25,6 +25,16 @@ export class BooleanRenderer implements CellRenderer {
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
 
+    // Format value for display
+    const boolValue = this.parseBoolean(value)
+    const displayValue = this.formatValue(value, column)
+    const isEditable = column.editable !== false
+
+    // Check if we should use minimal indicator mode (e.g., just '●' for unread)
+    // Use minimal mode when custom labels are provided and falseLabel is empty
+    const hasCustomLabels = column.display && 'trueLabel' in column.display
+    const isMinimalIndicator = hasCustomLabels && column.display?.falseLabel === ''
+
     // Handle null/undefined values with consistent empty state
     if (value == null || value === '') {
       if (column.editable === false) {
@@ -37,13 +47,19 @@ export class BooleanRenderer implements CellRenderer {
       return container
     }
 
+    if (isMinimalIndicator) {
+      // Minimal mode: just show the label text (or nothing for false)
+      container.className = 'vibegridx-boolean-indicator'
+      if (boolValue && displayValue) {
+        container.innerHTML = `<span style="color: #3b82f6; font-size: 1.25rem; line-height: 1;">${displayValue}</span>`
+      } else {
+        container.textContent = ''
+      }
+      return container
+    }
+
     // Boolean badges use affordance system for cursor/hover
     container.className = 'vibegridx-boolean-badge'
-
-    // Format value for display
-    const boolValue = this.parseBoolean(value)
-    const displayValue = this.formatValue(value, column)
-    const isEditable = column.editable !== false
 
     // Create boolean badge
     container.innerHTML = this.createBooleanBadge(displayValue, boolValue, isEditable)
@@ -144,8 +160,9 @@ export class BooleanRenderer implements CellRenderer {
     if (boolValue === null) return ''
 
     // Check for custom labels from backend metadata
-    if (column.display?.trueLabel && column.display?.falseLabel) {
-      return boolValue ? column.display.trueLabel : column.display.falseLabel
+    // Use 'in' operator to check key existence, not truthy values (falseLabel can be '')
+    if (column.display && 'trueLabel' in column.display) {
+      return boolValue ? column.display.trueLabel : (column.display.falseLabel ?? '')
     }
 
     // Default formatting
