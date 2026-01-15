@@ -87,7 +87,10 @@ export interface TableRow {
 }
 
 // Runtime column type with all options
-export interface Column<T = any> extends Omit<BaseColumn<T>, 'options'> {
+export interface Column<T = any> extends Omit<BaseColumn<T>, 'options' | 'cellType'> {
+  // Override cellType to use full CellType union (BaseColumn uses constrained FieldTypeToCellType)
+  cellType?: BaseCellType
+
   // Legacy support
   label?: string // Alias for name
   title?: string // Alias for name (legacy)

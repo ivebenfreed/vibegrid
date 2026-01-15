@@ -77,6 +77,12 @@ export const COLUMN_DEFAULTS: Record<
   rollup_concat: { width: 200, minWidth: 150, maxWidth: 400 },
   computed_expression: { width: 150, minWidth: 120, maxWidth: 300 },
   computed_formula: { width: 150, minWidth: 120, maxWidth: 300 },
+
+  // COI-specific types (GH#1236)
+  'currency-abbreviated': { width: 100, minWidth: 80, maxWidth: 150 },
+  'additional-insured': { width: 120, minWidth: 100, maxWidth: 180 },
+  'expiration-date': { width: 100, minWidth: 80, maxWidth: 150 },
+  'row-expand': { width: 40, minWidth: 40, maxWidth: 40 },
 } as const
 
 /**

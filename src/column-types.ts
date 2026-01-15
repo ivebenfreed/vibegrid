@@ -132,6 +132,11 @@ export type CellType =
   | 'rollup_concat'
   | 'computed_expression'
   | 'computed_formula'
+  // COI-specific types (GH#1236)
+  | 'currency-abbreviated'
+  | 'additional-insured'
+  | 'expiration-date'
+  | 'row-expand' // Expandable row with chevron (B5)
 
 // OPTIMIZED: Pre-computed Sets for O(1) lookup performance
 export const SELECT_CELL_TYPES = new Set<CellType>([

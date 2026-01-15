@@ -234,6 +234,14 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
   }
 
+  // Special case: COI (custom schema with promoted ACORD 25 fields)
+  if (entityType === 'GCCertificateOfInsurance') {
+    fileLog.debug('📋 Using COI schema (GC compliance entity with promoted fields)', { entityType })
+    const { coiColumns } = await import('@/features/coi/schemas/coi-schema')
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(coiColumns) as any
+  }
+
   // Wait for schema registry to be ready (with timeout)
   // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
   const maxWaitMs = 30000 // 30 seconds
