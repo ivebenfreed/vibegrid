@@ -29,6 +29,7 @@ interface VibeGridXHeaderPureProps {
   enableHierarchy?: boolean
   className?: string
   entityName?: string
+  entityDisplayName?: string // User-friendly display name (e.g., "Document" instead of "GCFile")
   orgId?: string
   createEntity: (data: Record<string, any>) => void
 }
@@ -42,6 +43,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableHierarchy = false,
   className = '',
   entityName,
+  entityDisplayName,
   orgId,
   createEntity,
 }: VibeGridXHeaderPureProps) {
@@ -164,6 +166,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
           <VibeGridEntityAdd
             stores={stores}
             entityName={entityName}
+            entityDisplayName={entityDisplayName}
             orgId={orgId}
             createEntity={createEntity}
           />

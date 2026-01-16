@@ -41,6 +41,7 @@ const fileLog = getLogger(['vibegrid', 'components', 'VibeGridEntityAdd'])
 interface VibeGridEntityAddProps {
   stores: VibeGridStores
   entityName: string
+  entityDisplayName?: string // User-friendly display name (e.g., "Document" instead of "GCFile")
   orgId?: string
   createEntity: (data: Record<string, any>) => void
   className?: string
@@ -64,6 +65,7 @@ interface FieldValue {
 export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   stores,
   entityName,
+  entityDisplayName,
   orgId,
   createEntity,
   className = '',
@@ -78,8 +80,9 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   // Get reactive data from MobX stores
   const columns = tableCoreStore.columns
 
-  // Extract display name for UI
-  const displayName = entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity'
+  // Extract display name for UI - use provided entityDisplayName or fall back to transformed entityName
+  const displayName =
+    entityDisplayName || (entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity')
 
   // Get form fields from columns (excluding system columns)
   const formFields = useMemo(() => {
