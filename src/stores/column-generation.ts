@@ -242,6 +242,16 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(coiColumns) as any
   }
 
+  // Special case: RFI Module items (cross-project RFI workspace, not DataForge entities)
+  if (entityType === 'RfiModuleItem') {
+    fileLog.debug('📋 Using RFI module item schema (cross-project RFI workspace)', { entityType })
+    const { rfiModuleItemColumns } = await import(
+      '@/features/rfi-module/schemas/rfi-module-item-schema'
+    )
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(rfiModuleItemColumns) as any
+  }
+
   // Wait for schema registry to be ready (with timeout)
   // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
   const maxWaitMs = 30000 // 30 seconds
