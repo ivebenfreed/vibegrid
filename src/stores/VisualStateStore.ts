@@ -19,7 +19,7 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
-import { modularCellBridge } from '../field-types/ModularCellBridge'
+import type { ModularCellBridge } from '../field-types/ModularCellBridge'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
@@ -120,6 +120,7 @@ export class VisualStateStore implements IStore {
 
   private coordinateManager?: ObservableCoordinateManager
   private interactionStore?: import('./InteractionStore').InteractionStore
+  private modularCellBridge: ModularCellBridge | null = null
 
   // ====================================
   // LIFECYCLE
@@ -157,6 +158,22 @@ export class VisualStateStore implements IStore {
   setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
     this.interactionStore = store
     logger.info('Interaction store set on VisualStateStore')
+  }
+
+  /**
+   * Set modular cell bridge for affordance precomputation.
+   */
+  @action
+  setModularCellBridge(bridge: ModularCellBridge | null): void {
+    this.modularCellBridge = bridge
+
+    if (bridge && this.columns.length > 0) {
+      bridge.precomputeAffordances(this.columns)
+    }
+  }
+
+  getModularCellBridge(): ModularCellBridge | null {
+    return this.modularCellBridge
   }
 
   /**
@@ -513,7 +530,9 @@ export class VisualStateStore implements IStore {
 
     // 🚀 PERF: Pre-compute affordances for all columns at initialization time
     // This eliminates lazy affordance resolution during cell creation
-    modularCellBridge.precomputeAffordances(columns)
+    if (this.modularCellBridge) {
+      this.modularCellBridge.precomputeAffordances(columns)
+    }
 
     logger.info('Columns initialized (preserving loaded preferences)', {
       entityType,
@@ -887,13 +906,6 @@ export class VisualStateStore implements IStore {
 
     this.groupConfig = config
 
-    // 🔧 FIX: Notify TableCoreStore that config changed so it can increment configVersion
-    // This triggers the renderer to re-render with grouped data
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('✅ Notified TableCoreStore of grouping change')
-    }
-
     logger.info('Group config updated (selection cleared)', { config })
   }
 
@@ -939,13 +951,6 @@ export class VisualStateStore implements IStore {
       ...this.groupConfig,
       expandedGroups,
     }
-
-    // 🔧 FIX: Notify TableCoreStore that config changed so it can increment configVersion
-    // This triggers the renderer to re-render with updated group expansion state
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('✅ Notified TableCoreStore of group expansion change')
-    }
   }
 
   /**
@@ -958,12 +963,6 @@ export class VisualStateStore implements IStore {
     this.groupConfig = {
       ...this.groupConfig,
       expandedGroups: allGroupIds,
-    }
-
-    // 🔧 FIX: Notify TableCoreStore to trigger re-render
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('✅ Notified TableCoreStore of expand all')
     }
 
     logger.info('All groups expanded', { count: allGroupIds.size })
@@ -979,12 +978,6 @@ export class VisualStateStore implements IStore {
     this.groupConfig = {
       ...this.groupConfig,
       expandedGroups: new Set(),
-    }
-
-    // 🔧 FIX: Notify TableCoreStore to trigger re-render
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('✅ Notified TableCoreStore of collapse all')
     }
 
     logger.info('All groups collapsed')
@@ -1043,12 +1036,6 @@ export class VisualStateStore implements IStore {
   applyFilterGroup(group: FilterGroup | null): void {
     this.filterGroup = group
 
-    // Notify TableCoreStore to trigger re-render with filtered data
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('Applied filter group, notified TableCoreStore')
-    }
-
     logger.info('Filter group applied', {
       hasGroup: !!group,
       conditionCount: group ? this.countConditions(group) : 0,
@@ -1061,12 +1048,6 @@ export class VisualStateStore implements IStore {
   @action
   clearFilterGroup(): void {
     this.filterGroup = null
-
-    // Notify TableCoreStore to trigger re-render
-    if (this.tableCoreStore && this.tableCoreStore.incrementConfigVersion) {
-      this.tableCoreStore.incrementConfigVersion()
-      logger.info('Cleared filter group, notified TableCoreStore')
-    }
 
     logger.info('Filter group cleared')
   }

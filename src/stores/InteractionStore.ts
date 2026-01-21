@@ -102,6 +102,14 @@ export interface ColumnResizeState {
   newWidth: number
 }
 
+export interface ColumnDragState {
+  isDragging: boolean
+  draggedColumnId: string | null
+  targetColumnId: string | null
+  startIndex: number
+  currentIndex: number
+}
+
 export interface DragSource {
   row: string
   column: string
@@ -185,6 +193,7 @@ export class InteractionStore implements IStore {
   @observable isDragging: boolean = false
   @observable dragSource: DragSource | null = null
   @observable dragTarget: DragSource | null = null
+  @observable columnDrag: ColumnDragState | null = null
 
   // Drag selection state (for drag-to-select ranges)
   @observable isDragSelecting: boolean = false
@@ -340,6 +349,7 @@ export class InteractionStore implements IStore {
     this.isDragging = false
     this.dragSource = null
     this.dragTarget = null
+    this.columnDrag = null
     this.isDragSelecting = false
     this.dragSelectStart = null
     this.dragSelectCurrent = null
@@ -1026,6 +1036,44 @@ export class InteractionStore implements IStore {
     logger.info('Drag ended', { source, target })
 
     return { source, target }
+  }
+
+  @action
+  startColumnDrag(columnId: string, startIndex: number): void {
+    this.isDragging = true
+    this.columnDrag = {
+      isDragging: true,
+      draggedColumnId: columnId,
+      targetColumnId: null,
+      startIndex,
+      currentIndex: startIndex,
+    }
+
+    logger.info('Column drag started', { columnId, startIndex })
+  }
+
+  @action
+  updateColumnDragTarget(targetColumnId: string, targetIndex: number): void {
+    if (!this.columnDrag) {
+      return
+    }
+
+    this.columnDrag = {
+      ...this.columnDrag,
+      targetColumnId,
+      currentIndex: targetIndex,
+    }
+  }
+
+  @action
+  endColumnDrag(): ColumnDragState | null {
+    const state = this.columnDrag
+    this.isDragging = false
+    this.columnDrag = null
+
+    logger.info('Column drag ended', { state })
+
+    return state
   }
 
   @action

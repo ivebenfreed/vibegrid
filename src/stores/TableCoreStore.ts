@@ -21,6 +21,7 @@ import {
   makeObservable,
   type ObservableMap,
   observable,
+  reaction,
   runInAction,
   untracked,
 } from 'mobx'
@@ -278,6 +279,7 @@ export class TableCoreStore implements IStore {
   private coordinateManager: ObservableCoordinateManager | null = null
   private interactionStore: import('./InteractionStore').InteractionStore | null = null
   private disposers = new DisposerManager()
+  private visualConfigDisposer: (() => void) | null = null
 
   // ====================================
   // CONSTRUCTOR
@@ -302,7 +304,50 @@ export class TableCoreStore implements IStore {
     // Also store the full VisualStateStore reference for column initialization
     if ('columns' in inputs && 'initializeColumns' in inputs) {
       this.visualStateStore = inputs as VisualStateStore
+      this.setupVisualConfigReaction()
     }
+  }
+
+  private buildVisualConfigSnapshot(): string {
+    if (!this.visualStateStore) return ''
+    return JSON.stringify(
+      {
+        sortBy: this.visualStateStore.sortBy,
+        filters: this.visualStateStore.filters,
+        filterGroup: this.visualStateStore.filterGroup,
+        groupConfig: this.visualStateStore.groupConfig,
+      },
+      (_key, value) => (value instanceof Set ? Array.from(value) : value),
+    )
+  }
+
+  private setupVisualConfigReaction(): void {
+    if (!this.visualStateStore) return
+
+    if (this.visualConfigDisposer) {
+      this.disposers.remove(this.visualConfigDisposer)
+      this.visualConfigDisposer()
+      this.visualConfigDisposer = null
+    }
+
+    this.visualConfigDisposer = reaction(
+      () => this.buildVisualConfigSnapshot(),
+      (snapshot) => {
+        if (!snapshot) return
+
+        this.incrementConfigVersion()
+        logger.info('Visual config changed, configVersion bumped', {
+          configVersion: this.configVersion,
+          sortCount: this.visualStateStore?.sortBy.length ?? 0,
+          filterCount: this.visualStateStore?.filters.length ?? 0,
+          hasFilterGroup: !!this.visualStateStore?.filterGroup,
+          groupFieldCount: this.visualStateStore?.groupConfig?.fields?.length ?? 0,
+        })
+      },
+      { fireImmediately: false },
+    )
+
+    this.disposers.add(this.visualConfigDisposer)
   }
 
   /**
@@ -1222,6 +1267,74 @@ export class TableCoreStore implements IStore {
     }
   }
 
+  private decodeGroupKey(groupKey: string): any {
+    if (groupKey === '__null__') {
+      return null
+    }
+
+    if (groupKey.startsWith('{') || groupKey.startsWith('[')) {
+      try {
+        return JSON.parse(groupKey)
+      } catch {
+        return groupKey
+      }
+    }
+
+    return groupKey
+  }
+
+  private splitGroupId(groupId: string): { baseId: string; parentGroupId: string | null } {
+    const parentMarker = groupId.lastIndexOf('_group_')
+    if (parentMarker === -1) {
+      return { baseId: groupId, parentGroupId: null }
+    }
+
+    return {
+      baseId: groupId.slice(0, parentMarker),
+      parentGroupId: groupId.slice(parentMarker + 1),
+    }
+  }
+
+  private parseGroupIdForMove(
+    groupId: string,
+  ): { field: string; value: any; groupKey: string; parentGroupId: string | null } | null {
+    if (!groupId.startsWith('group_')) {
+      logger.warn('🔍 Could not parse group ID (missing prefix)', { groupId })
+      return null
+    }
+
+    const { baseId, parentGroupId } = this.splitGroupId(groupId)
+    const groupFields =
+      this.visualStateStore?.groupConfig?.fields?.map((field) => field.field).filter(Boolean) ?? []
+    const orderedFields = groupFields.sort((a, b) => b.length - a.length)
+
+    for (const fieldName of orderedFields) {
+      const prefix = `group_${fieldName}_`
+      if (!baseId.startsWith(prefix)) continue
+      const groupKey = baseId.slice(prefix.length)
+      return {
+        field: fieldName,
+        value: this.decodeGroupKey(groupKey),
+        groupKey,
+        parentGroupId,
+      }
+    }
+
+    const fallbackMatch = baseId.match(/^group_([^_]+)_(.+)$/)
+    if (!fallbackMatch) {
+      logger.warn('🔍 Could not parse group ID', { groupId, baseId })
+      return null
+    }
+
+    const groupKey = fallbackMatch[2]
+    return {
+      field: fallbackMatch[1],
+      value: this.decodeGroupKey(groupKey),
+      groupKey,
+      parentGroupId,
+    }
+  }
+
   /**
    * Move row between different groups
    * Updates the actual entity field value, reactive system handles visual repositioning
@@ -1233,18 +1346,8 @@ export class TableCoreStore implements IStore {
     draggedRowId: string,
     _newIndex: number,
   ): Promise<boolean> {
-    // Extract the field name and value from group IDs (e.g., "group_status_done" -> {field: "status", value: "done"})
-    const parseGroupId = (groupId: string): { field: string; value: string } | null => {
-      const match = groupId.match(/^group_([^_]+)_(.+)$/)
-      if (!match) {
-        logger.warn('🔍 Could not parse group ID', { groupId })
-        return null
-      }
-      return { field: match[1], value: match[2] }
-    }
-
-    const targetGroupInfo = parseGroupId(targetGroupId)
-    const sourceGroupInfo = parseGroupId(sourceGroupId)
+    const targetGroupInfo = this.parseGroupIdForMove(targetGroupId)
+    const sourceGroupInfo = this.parseGroupIdForMove(sourceGroupId)
 
     if (!targetGroupInfo) {
       logger.error('❌ Invalid target group ID format', { targetGroupId })
@@ -1262,16 +1365,59 @@ export class TableCoreStore implements IStore {
 
     // Update the actual row data using TanStack DB collection
     try {
+      const recordKey = String(draggedRowId)
+      let collectionReady = false
+      let recordSnapshot: any = null
+
+      try {
+        collectionReady = this.collection.isReady?.() ?? false
+        if (!collectionReady && this.collection.stateWhenReady) {
+          await this.collection.stateWhenReady()
+          collectionReady = this.collection.isReady?.() ?? collectionReady
+        }
+        recordSnapshot = this.collection.state?.get(recordKey) ?? null
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        logger.warn('⚠️ Failed to read collection state before cross-group move', {
+          draggedRowId,
+          recordKey,
+          fieldName,
+          targetGroupId,
+          sourceGroupId,
+          error: errorMessage,
+        })
+      }
+
       const updateData = { [fieldName]: newValue }
+      logger.debug('🧭 Cross-group move update prepared', {
+        draggedRowId,
+        recordKey,
+        fieldName,
+        oldValue: sourceGroupInfo?.value,
+        newValue,
+        sourceGroupId,
+        targetGroupId,
+        sourceGroupInfo,
+        targetGroupInfo,
+        targetGroupKey: targetGroupInfo.groupKey,
+        targetParentGroupId: targetGroupInfo.parentGroupId,
+        collectionReady,
+        collectionSize: this.collection.state?.size ?? null,
+        hasRecord: !!recordSnapshot,
+        currentValue: recordSnapshot?.[fieldName],
+      })
 
       // Use TanStack DB collection's update method with optimistic updates
-      const tx = this.collection.update(String(draggedRowId), (draft: any) => {
+      const tx = this.collection.update(recordKey, (draft: any) => {
+        if (!draft) {
+          throw new Error('Record not found in collection state')
+        }
         draft[fieldName] = newValue
         draft.updatedAt = new Date().toISOString()
       })
 
-      // Wait for the update to complete (handles optimistic state + server sync)
-      await tx
+      const persisted = tx?.isPersisted?.promise
+      await (persisted && typeof persisted.then === 'function' ? persisted : Promise.resolve(tx))
 
       logger.info('🔄 Cross-group move completed via field update', {
         draggedRowId,
@@ -1287,13 +1433,26 @@ export class TableCoreStore implements IStore {
       return true
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const recordKey = String(draggedRowId)
+      const recordSnapshot = this.collection?.state?.get(recordKey) ?? null
+
       logger.error('❌ Failed to update row field for cross-group move', {
         draggedRowId,
+        recordKey,
         fieldName,
         newValue,
         entityType: this.entityType,
         updateData: { [fieldName]: newValue },
+        sourceGroupId,
+        targetGroupId,
+        sourceGroupInfo,
+        targetGroupInfo,
+        collectionReady: this.collection?.isReady?.() ?? null,
+        collectionSize: this.collection?.state?.size ?? null,
+        hasRecord: !!recordSnapshot,
+        currentValue: recordSnapshot?.[fieldName],
         error: errorMessage,
+        errorStack: error instanceof Error ? error.stack : undefined,
       })
       return false
     }
