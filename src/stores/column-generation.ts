@@ -242,7 +242,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(coiColumns) as any
   }
 
-// TODO: GH#292 - RFI Module schema not yet implemented
+  // TODO: GH#292 - RFI Module schema not yet implemented
   // Special case: RFI Module items (cross-project RFI workspace, not DataForge entities)
   // if (entityType === 'RfiModuleItem') {
   //   fileLog.debug('📋 Using RFI module item schema (cross-project RFI workspace)', { entityType })
@@ -255,10 +255,24 @@ export async function generateColumnsFromEntitySchema<T = any>(
 
   // Special case: BidPackage (custom schema with vendor/code counts from relationships)
   if (entityType === 'BidPackage') {
-    fileLog.debug('📦 Using bid package schema (GC entity with relationship counts)', { entityType })
+    fileLog.debug('📦 Using bid package schema (GC entity with relationship counts)', {
+      entityType,
+    })
     const { bidPackageColumns } = await import('@/features/bid-mail/schemas/bid-package-schema')
     // Enrich columns with field types for fast path in ModularCellBridge
     return enrichColumnsWithFieldTypes(bidPackageColumns) as any
+  }
+
+  // Special case: GlobalBidPackage (global bids view with project name column)
+  if (entityType === 'GlobalBidPackage') {
+    fileLog.debug('🌐 Using global bid package schema (cross-project view)', {
+      entityType,
+    })
+    const { globalBidPackageColumns } = await import(
+      '@/features/bid-mail/schemas/global-bid-package-schema'
+    )
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(globalBidPackageColumns) as any
   }
 
   // Wait for schema registry to be ready (with timeout)
