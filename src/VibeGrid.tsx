@@ -108,6 +108,9 @@ interface VibeGridProps<T = any> {
 
   // Testing mode - skip TanStack DB data fetching (use with MockDataInjector)
   skipDataFetching?: boolean
+
+  // Entity Add button (shows in toolbar)
+  enableEntityAdd?: boolean
 }
 
 // ====================================
@@ -147,6 +150,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onViewModeChange,
     enableKanban = false,
     skipDataFetching = false,
+    enableEntityAdd = true,
   } = props
 
   // ====================================
@@ -721,7 +725,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           onViewModeChange={onViewModeChange}
           enableKanban={enableKanban}
           enableHierarchy={enableHierarchy}
-          entityName={entityType}
+          entityName={enableEntityAdd ? entityType : undefined}
           entityDisplayName={entityDisplayName}
           orgId={orgId}
           createEntity={createEntity}

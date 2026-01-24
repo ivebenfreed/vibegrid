@@ -282,8 +282,31 @@ export function useVibeGridData(
   // TanStack DB maintains stable references, so this only fires on actual data changes
   const prevRowsRef = useRef<any[]>([])
 
+  // Handle collectionOverride data push when skip mode is enabled
+  // This allows components to provide mock data that still gets rendered
   useEffect(() => {
-    // Skip data push in mock mode (MockDataInjector handles this)
+    if (!skip || !collectionOverride) return
+
+    // If collectionOverride has items array, push them directly to the store
+    const items = collectionOverride.items || collectionOverride
+    if (Array.isArray(items) && items.length > 0) {
+      logger.info('[useVibeGridData] 📊 Pushing collectionOverride items to store', {
+        itemCount: items.length,
+        entityType,
+      })
+      tableCoreStore.setRows(items)
+
+      // Mark entity data as loaded
+      if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+        initStore.markReady('entityDataLoaded')
+        hasMarkedReadyRef.current = true
+      }
+    }
+  }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
+
+  useEffect(() => {
+    // Skip data push in mock mode when NOT using collectionOverride
+    // (collectionOverride is handled by the effect above)
     if (skip) return
 
     // Don't push data while loading
