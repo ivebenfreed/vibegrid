@@ -912,9 +912,13 @@ export class InteractionStore implements IStore {
       this.selectedCells = newSelection
       logger.info('Row cells deselected', { rowId })
     } else {
-      // Select row - clear all previous selections and select only this row
-      this.selectedCells = new Set(rowCells)
-      logger.info('Row cells selected (previous selection cleared)', { rowId })
+      // Select row - add to existing selection (multi-select behavior)
+      const newSelection = new Set(this.selectedCells)
+      for (const cellId of rowCells) {
+        newSelection.add(cellId)
+      }
+      this.selectedCells = newSelection
+      logger.info('Row cells selected (added to selection)', { rowId })
     }
 
     // Increment version to trigger overlay updates
