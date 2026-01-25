@@ -5,7 +5,7 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
+import { ChevronDown, ChevronUp, GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React, { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
@@ -27,6 +27,7 @@ interface VibeGridXHeaderPureProps {
   onViewModeChange?: (mode: ViewMode) => void
   enableKanban?: boolean
   enableHierarchy?: boolean
+  enableRowExpansion?: boolean // GH#1240 - Show expand all / collapse all buttons
   className?: string
   entityName?: string
   entityDisplayName?: string // User-friendly display name (e.g., "Document" instead of "GCFile")
@@ -41,13 +42,14 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   onViewModeChange,
   enableKanban = false,
   enableHierarchy = false,
+  enableRowExpansion = false,
   className = '',
   entityName,
   entityDisplayName,
   orgId,
   createEntity,
 }: VibeGridXHeaderPureProps) {
-  const { visualStateStore, hierarchyStore } = stores
+  const { visualStateStore, hierarchyStore, interactionStore, tableCoreStore } = stores
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -151,6 +153,46 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
             <Network className="size-4 mr-1" />
             Hierarchy
           </Button>
+        )}
+
+        {/* Row Expansion Controls (GH#1240) */}
+        {enableRowExpansion && (
+          <ButtonGroup>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rowIds = tableCoreStore.processedRows
+                  .filter(
+                    (row: any) => row.type !== 'group-header' && row.type !== 'expanded-content',
+                  )
+                  .map((row: any) => row.id)
+                interactionStore.expandAllRows(rowIds)
+              }}
+              disabled={
+                interactionStore.expandedRowIds.size ===
+                tableCoreStore.processedRows.filter(
+                  (row: any) => row.type !== 'group-header' && row.type !== 'expanded-content',
+                ).length
+              }
+              title="Expand all rows"
+              data-testid="expand-all-rows"
+            >
+              <ChevronDown className="size-4 mr-1" />
+              Expand All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => interactionStore.collapseAllRows()}
+              disabled={interactionStore.expandedRowIds.size === 0}
+              title="Collapse all rows"
+              data-testid="collapse-all-rows"
+            >
+              <ChevronUp className="size-4 mr-1" />
+              Collapse All
+            </Button>
+          </ButtonGroup>
         )}
 
         {hiddenColumnCount > 0 && (

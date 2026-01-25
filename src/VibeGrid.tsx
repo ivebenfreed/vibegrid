@@ -773,6 +773,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           onViewModeChange={onViewModeChange}
           enableKanban={enableKanban}
           enableHierarchy={enableHierarchy}
+          enableRowExpansion={rowExpansionConfig?.enabled}
           entityName={enableEntityAdd ? entityType : undefined}
           entityDisplayName={entityDisplayName}
           orgId={orgId}
