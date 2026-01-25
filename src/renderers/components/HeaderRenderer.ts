@@ -14,7 +14,7 @@ import type { SelectionController } from '../modules/SelectionController'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'HeaderRenderer.ts'])
 
-const ROW_HEIGHT = 40
+const _ROW_HEIGHT = 40
 const HEADER_HEIGHT = 48
 
 export interface HeaderRendererOptions {
@@ -82,7 +82,7 @@ export class HeaderRenderer {
     const geometry = this.visualStateStore.geometry
     const visibleColumns = this.visualStateStore.visibleColumns
     const columns = this.tableCoreStore.columns
-    const columnVisibility = this.visualStateStore.columnVisibility
+    const _columnVisibility = this.visualStateStore.columnVisibility
     const columnOrder = this.visualStateStore.columnOrder
 
     // MobX: Change detection pattern - check if render is actually needed
@@ -226,7 +226,7 @@ export class HeaderRenderer {
   /**
    * Create column header element
    */
-  private createColumnHeader(column: any, actualIndex: number, xOffset: number): HTMLElement {
+  private createColumnHeader(column: any, _actualIndex: number, _xOffset: number): HTMLElement {
     // Use single source of truth for column width
     const actualWidth = this.visualStateStore.columnWidths[column.id] || 150
     const headerCell = this.domFactory.createHeaderCell(column, actualWidth)
@@ -238,10 +238,12 @@ export class HeaderRenderer {
     // Update sort indicator if column is sorted
     this.updateSortIndicator(headerCell, column)
 
-    // Add resize handle with event handlers
-    const resizeHandle = this.domFactory.createResizeHandle()
-    this.setupResizeHandler(resizeHandle, column)
-    headerCell.appendChild(resizeHandle)
+    // Add resize handle only for resizable columns
+    if (column.resizable !== false) {
+      const resizeHandle = this.domFactory.createResizeHandle()
+      this.setupResizeHandler(resizeHandle, column)
+      headerCell.appendChild(resizeHandle)
+    }
 
     // Set up passive interaction attributes for MouseController
     this.setupHeaderClickHandler(headerCell, column)
@@ -256,71 +258,6 @@ export class HeaderRenderer {
   }
 
   /**
-   * Create end drop zone for placing columns at the end
-   */
-  private createEndDropZone(): HTMLElement {
-    const endDropZone = document.createElement('div')
-    endDropZone.className = 'vibegridx-end-drop-zone'
-    endDropZone.style.cssText = `
-      position: relative;
-      width: 20px;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: default;
-      border-left: 1px dashed transparent;
-      transition: border-color 0.15s ease;
-    `
-
-    // Add drop handlers for inserting at the end
-    endDropZone.addEventListener('dragover', (e: DragEvent) => {
-      e.preventDefault()
-      e.dataTransfer!.dropEffect = 'move'
-
-      // Remove any existing insertion lines from column headers
-      document.querySelectorAll('.column-drop-line').forEach((line) => line.remove())
-
-      // Show visual feedback for end insertion
-      endDropZone.style.borderLeftColor = '#3b82f6'
-      endDropZone.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'
-    })
-
-    endDropZone.addEventListener('dragleave', (e: DragEvent) => {
-      // Only remove if actually leaving (not moving to child elements)
-      if (!endDropZone.contains(e.relatedTarget as Node)) {
-        endDropZone.style.borderLeftColor = 'transparent'
-        endDropZone.style.backgroundColor = 'transparent'
-      }
-    })
-
-    endDropZone.addEventListener('drop', (e: DragEvent) => {
-      e.preventDefault()
-
-      // Clear visual feedback
-      endDropZone.style.borderLeftColor = 'transparent'
-      endDropZone.style.backgroundColor = 'transparent'
-
-      const draggedColumnId = e.dataTransfer!.getData('text/plain')
-      if (draggedColumnId) {
-        fileLog.debug('🎯 Column dropped at end position', { draggedColumnId })
-
-        // Move column to the end by using the last column as target with insertBefore=false
-        const columns = this.tableCoreStore.columns
-        if (columns.length > 0) {
-          const lastColumn = columns[columns.length - 1]
-          if (lastColumn.id !== draggedColumnId) {
-            // Insert after the last column - reorderColumn not yet implemented
-            fileLog.warn('Column reordering not yet implemented')
-          }
-        }
-      }
-    })
-
-    return endDropZone
-  }
-
-  /**
    * Update column coordinate mapping
    * @returns true if mapping changed, false if unchanged
    */
@@ -330,7 +267,7 @@ export class HeaderRenderer {
 
     // Build new coordinate mapping for all visible columns
     // Get reactive column widths
-    const columnWidths = this.visualStateStore.columnWidths
+    const _columnWidths = this.visualStateStore.columnWidths
 
     allVisibleColumns.forEach((column, index) => {
       const actualWidth = this.visualStateStore.columnWidths[column.id] || 150
@@ -549,7 +486,7 @@ export class HeaderRenderer {
       const headerCells = this.headerContainer.querySelectorAll('.vibegridx-header-cell')
       const columns = this.tableCoreStore.columns
 
-      headerCells.forEach((headerCell, index) => {
+      headerCells.forEach((headerCell, _index) => {
         const fieldId = headerCell.getAttribute('data-field')
         const column = columns.find((c) => c.id === fieldId)
 
@@ -656,7 +593,7 @@ export class HeaderRenderer {
     try {
       const groupConfig = this.visualStateStore.groupConfig
       return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0)
-    } catch (error) {
+    } catch (_error) {
       // If visual operations aren't available, fallback to direct check
       const tableCore = this.tableCoreStore
       return tableCore.grouping && tableCore.grouping.fields && tableCore.grouping.fields.length > 0

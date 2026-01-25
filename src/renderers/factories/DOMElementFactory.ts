@@ -8,7 +8,7 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import type { SelectionController } from '../modules/SelectionController'
 
-const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'factories', 'DOMElementFactory.ts'])
+const _fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'factories', 'DOMElementFactory.ts'])
 
 const ROW_HEIGHT = 40
 const HEADER_HEIGHT = 48
@@ -58,12 +58,6 @@ export class DOMElementFactory {
 
     // Debug logging for missing group data
     if (!groupData) {
-      console.error('❌ Group row missing data!', {
-        rowIndex,
-        groupRowId: groupRow.id,
-        groupRowKeys: Object.keys(groupRow),
-        fullGroupRow: groupRow,
-      })
     }
 
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header')
@@ -276,6 +270,31 @@ export class DOMElementFactory {
     const textGroup = this.createElement('div', 'vibegridx-header-text-group')
     textGroup.style.cssText = 'display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;'
 
+    // For row-expand columns, show a chevron icon in the header instead of text
+    if (column.cellType === 'row-expand') {
+      const chevronContainer = this.createElement('span', 'vibegridx-header-expand-icon')
+      chevronContainer.style.cssText =
+        'display: flex; align-items: center; justify-content: center; width: 100%; color: var(--muted-foreground, #6b7280);'
+
+      // Create chevron SVG pointing right (same as cell chevron)
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      svg.setAttribute('width', '14')
+      svg.setAttribute('height', '14')
+      svg.setAttribute('viewBox', '0 0 24 24')
+      svg.setAttribute('fill', 'none')
+      svg.setAttribute('stroke', 'currentColor')
+      svg.setAttribute('stroke-width', '2')
+      svg.setAttribute('stroke-linecap', 'round')
+      svg.setAttribute('stroke-linejoin', 'round')
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      path.setAttribute('d', 'm9 18 6-6-6-6')
+      svg.appendChild(path)
+      chevronContainer.appendChild(svg)
+      textGroup.appendChild(chevronContainer)
+      return textGroup
+    }
+
     // Header text
     const headerText = this.createElement('span', 'vibegridx-header-text')
     headerText.style.cssText =
@@ -347,7 +366,7 @@ export class DOMElementFactory {
   private createSortIconSVG(direction: 'asc' | 'desc' | null): string {
     const activeColor = '#3b82f6'
     const inactiveColor = '#9ca3af'
-    const hoverColor = '#6366f1'
+    const _hoverColor = '#6366f1'
 
     return `
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" class="vibegridx-sort-svg">
