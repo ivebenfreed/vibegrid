@@ -575,7 +575,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         rendererRef.current = null
       }
     }
-  }, [stores]) // Only depend on stores - MobX autorun handles columns readiness!
+  }, [stores, onCellClick]) // Depend on stores and onCellClick to recreate renderer when callback changes
 
   // ====================================
   // ROW ACTIONS HELPER

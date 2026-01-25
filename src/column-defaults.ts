@@ -83,6 +83,9 @@ export const COLUMN_DEFAULTS: Record<
   'additional-insured': { width: 120, minWidth: 100, maxWidth: 180 },
   'expiration-date': { width: 100, minWidth: 80, maxWidth: 150 },
   'row-expand': { width: 40, minWidth: 40, maxWidth: 40 },
+
+  // Entity field types
+  'entity-name': { width: 200, minWidth: 150, maxWidth: 400 },
 } as const
 
 /**
