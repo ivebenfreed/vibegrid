@@ -495,6 +495,100 @@ export class BodyRenderer {
   }
 
   /**
+   * Create expanded content row element for row expansion (GH#1240)
+   *
+   * This creates a container for expanded content that will be rendered
+   * by the React component via renderExpandedContent callback.
+   */
+  createExpandedContentRowElement(
+    expandedRow: any,
+    rowIndex: number,
+    parentRow: any,
+  ): HTMLElement {
+    const rowElement = this.createElement('div', 'vibegridx-row vibegridx-expanded-content-row')
+    rowElement.dataset.rowId = expandedRow.id
+    rowElement.dataset.parentRowId = expandedRow.parentRowId
+
+    // PERF: Use transform for GPU-accelerated positioning
+    rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
+    rowElement.style.height = `${expandedRow.height || 200}px`
+
+    // Full width spanning all columns
+    const totalRowWidth = this.visualStateStore.geometry.totalWidth
+    rowElement.style.width = `${totalRowWidth}px`
+    rowElement.style.minWidth = `${totalRowWidth}px`
+
+    // Create the expanded content container
+    const contentContainer = this.createElement('div', 'vibegridx-expanded-content-container')
+    contentContainer.dataset.rowId = expandedRow.parentRowId
+    contentContainer.style.cssText = `
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background: var(--vibegrid-expanded-bg, #f9fafb);
+      border-left: 2px solid var(--vibegrid-expanded-border, #e5e7eb);
+      padding: 8px 16px 8px 70px;
+    `
+
+    // Show loading state if data is being fetched
+    if (expandedRow.isLoading) {
+      const loadingIndicator = this.createElement('div', 'vibegridx-expanded-loading')
+      loadingIndicator.innerHTML = `
+        <div class="vibegridx-expand-spinner"></div>
+        <span>Loading...</span>
+      `
+      contentContainer.appendChild(loadingIndicator)
+    }
+    // Show error state if loading failed
+    else if (expandedRow.error) {
+      const errorContainer = this.createElement('div', 'vibegridx-expanded-error')
+      errorContainer.innerHTML = `
+        <span class="vibegridx-expanded-error-icon">⚠️</span>
+        <span class="vibegridx-expanded-error-message">${expandedRow.error.message || 'Failed to load'}</span>
+        <button class="vibegridx-expanded-retry-btn" data-action="retry-expand" data-row-id="${expandedRow.parentRowId}">
+          Retry
+        </button>
+      `
+      contentContainer.appendChild(errorContainer)
+    }
+    // Show "no data" state if expandedData is empty array
+    else if (expandedRow.expandedData && expandedRow.expandedData.length === 0) {
+      const emptyContainer = this.createElement('div', 'vibegridx-expanded-empty')
+      emptyContainer.textContent = 'No items'
+      contentContainer.appendChild(emptyContainer)
+    }
+    // Data is loaded - container will be populated by React component
+    else if (expandedRow.expandedData && expandedRow.expandedData.length > 0) {
+      // The content container is ready for React to mount the nested VibeGrid
+      // Mark it with a data attribute so the React bridge can find it
+      contentContainer.dataset.hasData = 'true'
+      contentContainer.dataset.itemCount = String(expandedRow.expandedData.length)
+    }
+    // Default: data not yet loaded but not loading either (initial state)
+    else {
+      const placeholderContainer = this.createElement('div', 'vibegridx-expanded-placeholder')
+      placeholderContainer.textContent = 'Expand to load data'
+      contentContainer.appendChild(placeholderContainer)
+    }
+
+    rowElement.appendChild(contentContainer)
+
+    // Track in activeRows
+    this.activeRows.set(expandedRow.id, rowElement)
+
+    fileLog.debug('🔽 Created expanded content row', {
+      rowId: expandedRow.id,
+      parentRowId: expandedRow.parentRowId,
+      height: expandedRow.height,
+      isLoading: expandedRow.isLoading,
+      hasData: !!expandedRow.expandedData,
+      itemCount: expandedRow.expandedData?.length || 0,
+    })
+
+    return rowElement
+  }
+
+  /**
    * Create expand/collapse button for group headers
    */
   private createGroupExpandButton(level: number, isExpanded: boolean): HTMLElement {

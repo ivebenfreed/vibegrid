@@ -74,6 +74,12 @@ export {
   getNavigableRowIndices,
 } from './processors/RowExpansionProcessor'
 
+// Row expansion hook
+export { useRowExpansion } from './hooks/useRowExpansion'
+
+// Row expansion components (GH#1240 P2.4)
+export { ExpandedContentPortals } from './components/ExpandedContentPortals'
+
 // ====================================
 // PURE OBSERVABLE ARCHITECTURE
 // ====================================

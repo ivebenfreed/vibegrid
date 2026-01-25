@@ -22,6 +22,7 @@ import { ActionsBar } from './components/ActionsBar'
 import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
+import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 import { GanttTimeline } from './components/GanttTimeline'
 import { GanttToolbar } from './components/GanttToolbar'
 import { KanbanBoard } from './components/kanban'
@@ -29,9 +30,11 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
+import { useRowExpansion } from './hooks/useRowExpansion'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, VibeGridStoreProvider, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
+import type { RowExpansionConfig, RowExpansionChangeEvent, ExpandedDataLoadEvent } from './types/row-expansion'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -111,6 +114,11 @@ interface VibeGridProps<T = any> {
 
   // Entity Add button (shows in toolbar)
   enableEntityAdd?: boolean
+
+  // Row expansion (GH#1240)
+  rowExpansionConfig?: RowExpansionConfig
+  onRowExpansionChange?: (event: RowExpansionChangeEvent) => void
+  onExpandedDataLoad?: (event: ExpandedDataLoadEvent) => void
 }
 
 // ====================================
@@ -151,6 +159,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableKanban = false,
     skipDataFetching = false,
     enableEntityAdd = true,
+    rowExpansionConfig,
+    onRowExpansionChange,
+    onExpandedDataLoad,
   } = props
 
   // ====================================
@@ -207,6 +218,43 @@ function VibeGridInnerBase(props: VibeGridProps) {
     entityType,
     hierarchyStore,
     tableCoreStore,
+  })
+
+  // Row expansion integration (GH#1240)
+  const rowExpansion = useRowExpansion(interactionStore, {
+    enabled: rowExpansionConfig?.enabled ?? false,
+    allowMultiple: rowExpansionConfig?.allowMultiple ?? true,
+    loadData: rowExpansionConfig?.loadExpandedData,
+    cacheTTL: 5 * 60 * 1000, // 5 minutes
+    onExpansionChange: onRowExpansionChange
+      ? (expandedRowIds) => {
+          onRowExpansionChange({
+            type: expandedRowIds.size > 0 ? 'expand' : 'collapse',
+            rowIds: Array.from(expandedRowIds),
+            expandedRowIds,
+          })
+        }
+      : undefined,
+    onDataLoaded: onExpandedDataLoad
+      ? (rowId, data) => {
+          onExpandedDataLoad({
+            rowId,
+            data,
+            error: null,
+            duration: 0, // Could track this if needed
+          })
+        }
+      : undefined,
+    onLoadError: onExpandedDataLoad
+      ? (rowId, error) => {
+          onExpandedDataLoad({
+            rowId,
+            data: null,
+            error,
+            duration: 0,
+          })
+        }
+      : undefined,
   })
 
   // Fetch organization members for UserReference fields (automatic org context)
@@ -794,6 +842,18 @@ function VibeGridInnerBase(props: VibeGridProps) {
           />
         )}
       </div>
+
+      {/* Expanded content portals - render React content into expanded row containers (GH#1240) */}
+      {rowExpansionConfig?.enabled && (
+        <ExpandedContentPortals
+          containerRef={containerRef}
+          rowExpansionConfig={rowExpansionConfig}
+          interactionStore={interactionStore}
+          tableCoreStore={tableCoreStore}
+          entityType={entityType}
+          orgId={orgId}
+        />
+      )}
 
       {/* Debug info in development - removed to avoid MobX tracking */}
     </div>

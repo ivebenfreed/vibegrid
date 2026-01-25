@@ -1353,9 +1353,21 @@ export class SimplePassiveRenderer {
       fileLog.warn('⚠️ createRowElementByType called with undefined row', { rowIndex })
       return null
     }
+
+    // Handle different row types
     if (row.type === 'group' && this.domFactory) {
       return this.domFactory.createGroupHeaderElement(row, rowIndex)
     }
+
+    // GH#1240: Handle expanded content rows
+    if (row.type === 'expanded-content' && this.bodyRenderer) {
+      // Find the parent row data for the expanded content
+      const parentRow = this.tableCoreStore.processedRows.find(
+        (r: any) => r.id === row.parentRowId,
+      )
+      return this.bodyRenderer.createExpandedContentRowElement(row, rowIndex, parentRow)
+    }
+
     return this.bodyRenderer!.createRowElement(
       row,
       rowIndex,
