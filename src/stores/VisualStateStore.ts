@@ -554,19 +554,38 @@ export class VisualStateStore implements IStore {
   // ====================================
 
   /**
-   * Update column width
+   * Update column width (enforces minWidth/maxWidth constraints from column schema)
    */
   @action
   setColumnWidth(columnId: string, width: number): void {
+    // Find column schema to enforce constraints
+    const column = this.columns.find((c) => c.id === columnId)
+    let constrainedWidth = width
+
+    if (column) {
+      // Enforce minWidth constraint
+      if (column.minWidth != null && width < column.minWidth) {
+        constrainedWidth = column.minWidth
+      }
+      // Enforce maxWidth constraint
+      if (column.maxWidth != null && width > column.maxWidth) {
+        constrainedWidth = column.maxWidth
+      }
+    }
+
     this.columnWidths = {
       ...this.columnWidths,
-      [columnId]: width,
+      [columnId]: constrainedWidth,
     }
 
     // 🔧 FIX: Use visibleOrderedColumns with actual widths, not schema defaults
     this.updateCoordinatorWithCurrentLayout()
 
-    logger.debug('Column width updated', { columnId, width })
+    logger.debug('Column width updated', {
+      columnId,
+      width: constrainedWidth,
+      requestedWidth: width,
+    })
   }
 
   /**
