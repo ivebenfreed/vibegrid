@@ -364,19 +364,25 @@ export interface GroupNode {
 // VIRTUAL ROW TYPES (for Mixed Rendering)
 // ====================================
 
-export type VirtualRowType = 'data' | 'group' | 'summary'
+export type VirtualRowType = 'data' | 'group' | 'summary' | 'expanded-content'
 
 export interface VirtualRow {
   type: VirtualRowType
   id: string
   index: number // Position in the flattened virtual array
   height: number // Row height (may vary by type)
-  data: TableRow | GroupNode // The actual data
+  offset?: number // Vertical offset in pixels (for virtualization)
+  data: TableRow | GroupNode | null // The actual data (null for expanded-content rows)
   level?: number // Nesting level for groups
   isExpandable?: boolean // Can be expanded/collapsed
   isExpanded?: boolean // Current expansion state for groups
   parentGroupId?: string // Parent group for data rows
   groupId?: string // Group ID for drag-drop operations (same as parentGroupId for data rows)
+  // Expanded content row fields (GH#1240)
+  parentRowId?: string // Parent row ID for expanded content rows
+  expandedData?: unknown[] | null // Loaded data for expanded content
+  isLoading?: boolean // Whether expanded data is loading
+  error?: Error | null // Error from loading expanded data
 }
 
 // Group aggregation configuration and results

@@ -47,6 +47,33 @@ export type {
   ValidationError,
 } from './types/filter-types'
 
+// Row expansion types (GH#1240)
+export type {
+  RowExpansionConfig,
+  ExpandedContentProps,
+  ExpandedRowState,
+  ExpansionCacheConfig,
+  ExpandedContentVirtualRow,
+  RowExpansionChangeEvent,
+  ExpandedDataLoadEvent,
+  RowExpansionActions,
+  VibeGridExpansionProps,
+} from './types/row-expansion'
+export { isExpandedContentRow } from './types/row-expansion'
+
+// Row expansion processor functions
+export {
+  processExpandedRows,
+  createExpandedContentRow,
+  calculateExpandedHeight,
+  recalculateRowOffsets,
+  getParentRowId,
+  isExpandedContentRowId,
+  getTotalExpandedHeight,
+  filterExpandedRows,
+  getNavigableRowIndices,
+} from './processors/RowExpansionProcessor'
+
 // ====================================
 // PURE OBSERVABLE ARCHITECTURE
 // ====================================

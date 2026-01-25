@@ -270,6 +270,33 @@ export class InteractionStore implements IStore {
   @observable clipboardVersion: number = 0
 
   // ====================================
+  // ROW EXPANSION STATE (GH#1240)
+  // ====================================
+
+  /** Set of currently expanded row IDs */
+  @observable expandedRowIds: Set<string> = new Set()
+
+  /** Map of expanded row states (loading/data/error) */
+  @observable expandedRowStates: Map<
+    string,
+    {
+      data: unknown[] | null
+      isLoading: boolean
+      error: Error | null
+      loadedAt: number | null
+    }
+  > = new Map()
+
+  /** Version tracking for expansion state changes */
+  @observable expansionVersion: number = 0
+
+  /** Whether row expansion is enabled */
+  @observable rowExpansionEnabled: boolean = false
+
+  /** Whether multiple rows can be expanded simultaneously */
+  @observable allowMultipleExpansion: boolean = true
+
+  // ====================================
   // DEPENDENCIES (Injected)
   // ====================================
 
@@ -376,6 +403,11 @@ export class InteractionStore implements IStore {
       showComplexityWarning: false,
     }
     this.clipboard = null
+    // Reset expansion state (GH#1240)
+    this.expandedRowIds = new Set()
+    this.expandedRowStates = new Map()
+    this.rowExpansionEnabled = false
+    this.allowMultipleExpansion = true
     logger.info('InteractionStore reset to defaults')
   }
 
@@ -1525,6 +1557,216 @@ export class InteractionStore implements IStore {
         newElement.focus({ preventScroll: true })
       }
     }
+  }
+
+  // ====================================
+  // ROW EXPANSION ACTIONS (GH#1240)
+  // ====================================
+
+  /**
+   * Enable row expansion with configuration
+   */
+  @action
+  enableRowExpansion(allowMultiple: boolean = true): void {
+    this.rowExpansionEnabled = true
+    this.allowMultipleExpansion = allowMultiple
+    logger.info('Row expansion enabled', { allowMultiple })
+  }
+
+  /**
+   * Disable row expansion
+   */
+  @action
+  disableRowExpansion(): void {
+    this.rowExpansionEnabled = false
+    this.expandedRowIds = new Set()
+    this.expandedRowStates = new Map()
+    this.expansionVersion++
+    logger.info('Row expansion disabled')
+  }
+
+  /**
+   * Expand a single row
+   */
+  @action
+  expandRow(rowId: string): void {
+    if (!this.rowExpansionEnabled) return
+
+    // If single expansion mode, collapse others first
+    if (!this.allowMultipleExpansion && this.expandedRowIds.size > 0) {
+      this.expandedRowIds = new Set()
+    }
+
+    const newExpanded = new Set(this.expandedRowIds)
+    newExpanded.add(rowId)
+    this.expandedRowIds = newExpanded
+
+    // Initialize state for this row if not exists
+    if (!this.expandedRowStates.has(rowId)) {
+      this.expandedRowStates.set(rowId, {
+        data: null,
+        isLoading: true,
+        error: null,
+        loadedAt: null,
+      })
+    }
+
+    this.expansionVersion++
+    logger.info('Row expanded', { rowId, totalExpanded: newExpanded.size })
+  }
+
+  /**
+   * Collapse a single row
+   */
+  @action
+  collapseRow(rowId: string): void {
+    const newExpanded = new Set(this.expandedRowIds)
+    newExpanded.delete(rowId)
+    this.expandedRowIds = newExpanded
+
+    // Keep the state in cache (don't delete from expandedRowStates)
+    // This allows for quick re-expansion without refetching
+
+    this.expansionVersion++
+    logger.info('Row collapsed', { rowId, totalExpanded: newExpanded.size })
+  }
+
+  /**
+   * Toggle expansion state of a row
+   */
+  @action
+  toggleRowExpansion(rowId: string): void {
+    if (this.expandedRowIds.has(rowId)) {
+      this.collapseRow(rowId)
+    } else {
+      this.expandRow(rowId)
+    }
+  }
+
+  /**
+   * Expand all rows (requires row IDs to be provided)
+   */
+  @action
+  expandAllRows(rowIds: string[]): void {
+    if (!this.rowExpansionEnabled) return
+
+    const newExpanded = new Set(rowIds)
+    this.expandedRowIds = newExpanded
+
+    // Initialize states for all rows
+    for (const rowId of rowIds) {
+      if (!this.expandedRowStates.has(rowId)) {
+        this.expandedRowStates.set(rowId, {
+          data: null,
+          isLoading: true,
+          error: null,
+          loadedAt: null,
+        })
+      }
+    }
+
+    this.expansionVersion++
+    logger.info('All rows expanded', { count: rowIds.length })
+  }
+
+  /**
+   * Collapse all rows
+   */
+  @action
+  collapseAllRows(): void {
+    this.expandedRowIds = new Set()
+    this.expansionVersion++
+    logger.info('All rows collapsed')
+  }
+
+  /**
+   * Check if a row is expanded
+   */
+  isRowExpanded(rowId: string): boolean {
+    return this.expandedRowIds.has(rowId)
+  }
+
+  /**
+   * Get expanded data for a row (from cache)
+   */
+  getExpandedData(rowId: string): unknown[] | null {
+    return this.expandedRowStates.get(rowId)?.data ?? null
+  }
+
+  /**
+   * Check if expanded data is loading for a row
+   */
+  isExpandedDataLoading(rowId: string): boolean {
+    return this.expandedRowStates.get(rowId)?.isLoading ?? false
+  }
+
+  /**
+   * Set expanded data for a row (called after async load)
+   */
+  @action
+  setExpandedData(rowId: string, data: unknown[] | null, error: Error | null = null): void {
+    this.expandedRowStates.set(rowId, {
+      data,
+      isLoading: false,
+      error,
+      loadedAt: Date.now(),
+    })
+    this.expansionVersion++
+    logger.info('Expanded data set', {
+      rowId,
+      hasData: !!data,
+      itemCount: data?.length ?? 0,
+      hasError: !!error,
+    })
+  }
+
+  /**
+   * Set loading state for expanded data
+   */
+  @action
+  setExpandedDataLoading(rowId: string): void {
+    const current = this.expandedRowStates.get(rowId)
+    this.expandedRowStates.set(rowId, {
+      data: current?.data ?? null,
+      isLoading: true,
+      error: null,
+      loadedAt: current?.loadedAt ?? null,
+    })
+    this.expansionVersion++
+  }
+
+  /**
+   * Clear expanded data cache for a row
+   */
+  @action
+  clearExpandedDataCache(rowId: string): void {
+    this.expandedRowStates.delete(rowId)
+    this.expansionVersion++
+    logger.info('Expanded data cache cleared', { rowId })
+  }
+
+  /**
+   * Clear all expanded data cache
+   */
+  @action
+  clearAllExpandedDataCache(): void {
+    this.expandedRowStates = new Map()
+    this.expansionVersion++
+    logger.info('All expanded data cache cleared')
+  }
+
+  /**
+   * Computed: number of expanded rows
+   */
+  @computed get expandedRowCount(): number {
+    return this.expandedRowIds.size
+  }
+
+  /**
+   * Computed: whether any rows are expanded
+   */
+  @computed get hasExpandedRows(): boolean {
+    return this.expandedRowIds.size > 0
   }
 
   /**

@@ -37,3 +37,7 @@ export {
 // Controllers use coordinateManager directly via MobX reactions
 // React components use observer() + coordinateManager for reactivity
 // No special hooks needed with proper MobX integration
+
+// Row expansion hook (GH#1240)
+export { useRowExpansion } from './useRowExpansion'
+export type { UseRowExpansionOptions, UseRowExpansionResult } from './useRowExpansion'

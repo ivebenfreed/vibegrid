@@ -327,6 +327,7 @@ export class FieldTypeRegistry {
         import('./implementations/basic/SliderFieldType'),
         import('./implementations/basic/ImageFieldType'),
         import('./implementations/basic/MarkdownFieldType'),
+        import('./implementations/basic/RowExpandFieldType'), // GH#1240: Row expansion
 
         // Relationship types
         import('./implementations/relationship/UserReferenceFieldType'),
