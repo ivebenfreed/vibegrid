@@ -75,23 +75,14 @@ export function createExpandedContentRow(
   // Calculate height based on expanded data count
   let height: number
   const dataRowCount = state?.data && Array.isArray(state.data) ? state.data.length : 0
-  console.log('📐 [RowExpansionProcessor] Height calculation', {
-    rowId: parentRow.id,
-    hasState: !!state,
-    hasData: !!state?.data,
-    dataRowCount,
-    isLoading: state?.isLoading,
-  })
   if (dataRowCount > 0) {
     // Dynamic height: header + rows + padding
     height = SUB_TABLE_HEADER_HEIGHT + dataRowCount * SUB_TABLE_ROW_HEIGHT + SUB_TABLE_PADDING
     // Cap at reasonable max
     height = Math.min(height, 400)
-    console.log('📐 [RowExpansionProcessor] Calculated dynamic height', { height, dataRowCount })
   } else {
     // Use config height for loading/empty states
     height = calculateExpandedHeight(parentRow.id, parentRow.data, config)
-    console.log('📐 [RowExpansionProcessor] Using default height', { height })
   }
 
   return {

@@ -683,27 +683,11 @@ export class SimplePassiveRenderer {
 
         // GH#1240: Trigger data loading for expanded rows
         const expansionConfig = this.tableCoreStore.getRowExpansionConfig()
-        console.log('🔄 [SimplePassiveRenderer] Expansion config check', {
-          hasConfig: !!expansionConfig,
-          enabled: expansionConfig?.enabled,
-          hasLoadFn: !!expansionConfig?.loadExpandedData,
-          expandedRowIds: Array.from(this.interactionStore.expandedRowIds),
-        })
         if (expansionConfig?.enabled && expansionConfig.loadExpandedData) {
           for (const rowId of this.interactionStore.expandedRowIds) {
             const state = this.interactionStore.expandedRowStates.get(rowId)
-            console.log('🔄 [SimplePassiveRenderer] Checking row', {
-              rowId,
-              hasState: !!state,
-              stateData: state?.data,
-              stateIsLoading: state?.isLoading,
-              shouldLoad: !state?.data && !state?.isLoading,
-            })
             // Only load if not already loaded or loading
             if (!state?.data && !state?.isLoading) {
-              console.log('🔄 [SimplePassiveRenderer] Triggering data load for expanded row', {
-                rowId,
-              })
               this.interactionStore.setExpandedDataLoading(rowId)
               try {
                 const data = await expansionConfig.loadExpandedData(rowId, null)
