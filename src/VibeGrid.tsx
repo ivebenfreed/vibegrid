@@ -21,6 +21,7 @@ import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
+import { FloatingActionsMenu } from './components/FloatingActionsMenu'
 // GH#1240: ExpandedContentPortals renders nested VibeGrid via React portals
 import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 import { GanttTimeline } from './components/GanttTimeline'
@@ -884,6 +885,18 @@ function VibeGridInnerBase(props: VibeGridProps) {
             enableDelete={enableDelete}
             onDelete={onDelete}
             deleteConfirmation={deleteConfirmation}
+            getRowData={getRowData}
+          />
+        )}
+
+        {/* Floating row action menu (3-dots) - renders via portal when triggered */}
+        {(rowActions || enableDelete) && (
+          <FloatingActionsMenu
+            rowActions={rowActions}
+            onRowAction={onRowAction ? (actionId, rowData) => onRowAction(actionId, [rowData.id], [rowData]) : undefined}
+            enableDelete={enableDelete}
+            onDelete={onDelete ? (rowId, rowData) => onDelete([rowId], [rowData]) : undefined}
+            deleteConfirmation={deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined}
             getRowData={getRowData}
           />
         )}

@@ -202,6 +202,10 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
 
 FloatingActionsMenuContent.displayName = 'FloatingActionsMenuContent'
 
+// Export the content component for direct use in VibeGrid component tree
+export { FloatingActionsMenuContent as FloatingActionsMenu }
+export type { FloatingActionsMenuProps }
+
 /**
  * FloatingActionsMenuManager - Manages Portal lifecycle for menu
  *
