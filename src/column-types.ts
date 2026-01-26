@@ -137,6 +137,8 @@ export type CellType =
   | 'additional-insured'
   | 'expiration-date'
   | 'row-expand' // Expandable row with chevron (B5)
+  // Entity field types
+  | 'entity-name' // Primary field with navigate affordance
 
 // OPTIMIZED: Pre-computed Sets for O(1) lookup performance
 export const SELECT_CELL_TYPES = new Set<CellType>([

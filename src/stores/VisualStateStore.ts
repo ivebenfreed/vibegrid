@@ -511,6 +511,38 @@ export class VisualStateStore implements IStore {
       }
     }
 
+    // CONSTRAINT ENFORCEMENT: Apply minWidth/maxWidth constraints from schema
+    // to all loaded column widths (persisted values may violate new schema constraints)
+    for (const col of columns) {
+      const savedWidth = this.columnWidths[col.id]
+      if (savedWidth !== undefined) {
+        let constrainedWidth = savedWidth
+        let wasConstrained = false
+
+        // Enforce minWidth constraint
+        if (col.minWidth != null && savedWidth < col.minWidth) {
+          constrainedWidth = col.minWidth
+          wasConstrained = true
+        }
+        // Enforce maxWidth constraint
+        if (col.maxWidth != null && savedWidth > col.maxWidth) {
+          constrainedWidth = col.maxWidth
+          wasConstrained = true
+        }
+
+        if (wasConstrained) {
+          this.columnWidths[col.id] = constrainedWidth
+          logger.info('Constrained loaded column width to schema limits', {
+            columnId: col.id,
+            savedWidth,
+            constrainedWidth,
+            minWidth: col.minWidth,
+            maxWidth: col.maxWidth,
+          })
+        }
+      }
+    }
+
     // Only set groupConfig if null (PersistenceStore may have already loaded it)
     // groupConfig is intentionally left as-is if already set
 
