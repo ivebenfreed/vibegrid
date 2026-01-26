@@ -107,10 +107,19 @@ export function useRowExpansion(
   // ====================================
 
   useEffect(() => {
+    logger.info('🔄 useRowExpansion effect running', {
+      enabled,
+      allowMultiple,
+      currentRowExpansionEnabled: interactionStore.rowExpansionEnabled,
+    })
     if (enabled) {
       interactionStore.enableRowExpansion(allowMultiple)
+      logger.info('🔄 useRowExpansion: enabled row expansion', {
+        rowExpansionEnabled: interactionStore.rowExpansionEnabled,
+      })
     } else {
       interactionStore.disableRowExpansion()
+      logger.info('🔄 useRowExpansion: disabled row expansion')
     }
 
     return () => {

@@ -5,16 +5,24 @@
  * into DOM containers created by BodyRenderer.
  *
  * GH#1240: VibeGrid Generic Row Expansion - Phase 4
+ *
+ * Uses a real nested VibeGrid instance for full cell styling and column utils.
  */
 
 import type React from 'react'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, Suspense, lazy } from 'react'
 import { createPortal } from 'react-dom'
 import { observer } from 'mobx-react-lite'
 import { getLogger } from '@/shared/lib/logging'
 import type { RowExpansionConfig, ExpandedContentProps } from '../types/row-expansion'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
+
+// Lazy imports to avoid circular dependency (VibeGrid imports ExpandedContentPortals)
+const VibeGrid = lazy(() => import('../VibeGrid').then((m) => ({ default: m.VibeGrid })))
+const VibeGridStoreProvider = lazy(() =>
+  import('../stores/context').then((m) => ({ default: m.VibeGridStoreProvider })),
+)
 
 const logger = getLogger(['vibegrid', 'ExpandedContentPortals'])
 
@@ -254,7 +262,7 @@ export const ExpandedContentPortals = observer(function ExpandedContentPortals({
 })
 
 // ====================================
-// DEFAULT EXPANDED CONTENT
+// DEFAULT EXPANDED CONTENT (Nested VibeGrid)
 // ====================================
 
 interface DefaultExpandedContentProps extends ExpandedContentProps {
@@ -264,25 +272,32 @@ interface DefaultExpandedContentProps extends ExpandedContentProps {
 }
 
 /**
- * Default expanded content renderer that shows nested data in a table format.
- * For full nested VibeGrid support, use the renderExpandedContent callback.
+ * Default expanded content renderer using a real nested VibeGrid.
+ * This provides full cell styling, field type rendering, and column utilities.
  */
-function DefaultExpandedContent({
-  rowId: _rowId,
-  rowData: _rowData,
+const DefaultExpandedContent = observer(function DefaultExpandedContent({
+  rowId,
   expandedData,
   isLoading,
   error,
   onCollapse,
-  nestedColumns,
   nestedEntityType,
-  entityType: _entityType,
-  orgId: _orgId,
-  rowExpansionConfig: _rowExpansionConfig,
+  orgId,
 }: DefaultExpandedContentProps) {
-  // For now, render a simple table view of expanded data
-  // Full nested VibeGrid support can be added via renderExpandedContent
+  // Create collection override for nested VibeGrid
+  const collectionOverride = useMemo(() => {
+    if (!expandedData) return undefined
 
+    return {
+      items: expandedData.map((item: any, index: number) => ({
+        ...item,
+        id: item.id || `${rowId}-item-${index}`,
+      })),
+      count: expandedData.length,
+    }
+  }, [expandedData, rowId])
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 p-4 text-muted-foreground">
@@ -292,6 +307,7 @@ function DefaultExpandedContent({
     )
   }
 
+  // Error state
   if (error) {
     return (
       <div className="flex items-center gap-2 p-4 text-destructive">
@@ -300,10 +316,7 @@ function DefaultExpandedContent({
         <button
           type="button"
           className="ml-2 px-2 py-1 text-sm bg-muted hover:bg-muted/80 rounded"
-          onClick={() => {
-            // Trigger reload by collapsing and re-expanding
-            onCollapse()
-          }}
+          onClick={onCollapse}
         >
           Retry
         </button>
@@ -311,76 +324,52 @@ function DefaultExpandedContent({
     )
   }
 
+  // Empty state
   if (!expandedData || expandedData.length === 0) {
     return <div className="p-4 text-muted-foreground">No items</div>
   }
 
-  // Simple table rendering for expanded data
-  // Features can provide custom renderExpandedContent for full VibeGrid
-  const columns =
-    nestedColumns ||
-    Object.keys(expandedData[0] || {})
-      .filter((key) => !key.startsWith('_') && key !== 'id')
-      .slice(0, 5) // Limit to first 5 columns for default view
-
+  // Render nested VibeGrid with full cell styling
+  // Wrap in VibeGridStoreProvider with collectionOverride for data
   return (
-    <div className="vibegridx-nested-table">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-muted-foreground">
-          {nestedEntityType || 'Items'} ({expandedData.length})
-        </span>
-        <button
-          type="button"
-          className="text-xs text-muted-foreground hover:text-foreground"
-          onClick={onCollapse}
+    <div className="vibegridx-nested-grid" style={{ height: '100%', minHeight: 80 }}>
+      <Suspense
+        fallback={
+          <div className="flex items-center gap-2 p-4 text-muted-foreground">
+            <div className="vibegridx-expand-spinner" />
+            <span>Loading grid...</span>
+          </div>
+        }
+      >
+        <VibeGridStoreProvider
+          tableId={`nested-${rowId}`}
+          entityType={nestedEntityType || 'nested'}
+          orgId={orgId}
+          collectionOverride={collectionOverride}
         >
-          Collapse
-        </button>
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            {(Array.isArray(columns) ? columns : []).map((col: any) => (
-              <th
-                key={typeof col === 'string' ? col : col.id}
-                className="text-left py-1 px-2 font-medium text-muted-foreground"
-              >
-                {typeof col === 'string' ? col : col.name || col.id}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {expandedData.map((item: any, index: number) => (
-            <tr key={item.id || index} className="border-b border-border/50">
-              {(Array.isArray(columns) ? columns : []).map((col: any) => {
-                const colId = typeof col === 'string' ? col : col.id
-                const value = item[colId]
-                return (
-                  <td key={colId} className="py-1 px-2">
-                    {formatCellValue(value)}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <VibeGrid
+            tableId={`nested-${rowId}`}
+            entityType={nestedEntityType || 'nested'}
+            orgId={orgId}
+            skipDataFetching={true}
+            enableSelectionColumn={false}
+            enableVirtualScrolling={false}
+            enableGrouping={false}
+            enableFiltering={false}
+            enableSorting={false}
+            enableDragAndDrop={false}
+            // GH#1240: No header/toolbar for nested grids - just the data rows
+            showHeader={false}
+            showToolbar={false}
+            height={(expandedData?.length || 0) * 32 + 8}
+          />
+        </VibeGridStoreProvider>
+      </Suspense>
     </div>
   )
-}
+})
 
-/**
- * Simple cell value formatter for default table view
- */
-function formatCellValue(value: unknown): string {
-  if (value === null || value === undefined) return '—'
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-  if (typeof value === 'number') return value.toLocaleString()
-  if (value instanceof Date) return value.toLocaleDateString()
-  if (Array.isArray(value)) return value.join(', ')
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
-}
+// GH#1240: Column generation and formatting moved to VibeGrid's internal column-generation system
+// The nested VibeGrid auto-generates columns from the entity schema
 
 export default ExpandedContentPortals

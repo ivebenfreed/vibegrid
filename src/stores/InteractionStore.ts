@@ -1601,15 +1601,8 @@ export class InteractionStore implements IStore {
     newExpanded.add(rowId)
     this.expandedRowIds = newExpanded
 
-    // Initialize state for this row if not exists
-    if (!this.expandedRowStates.has(rowId)) {
-      this.expandedRowStates.set(rowId, {
-        data: null,
-        isLoading: true,
-        error: null,
-        loadedAt: null,
-      })
-    }
+    // GH#1240: Don't initialize state here - let the expansion observer handle loading
+    // The observer in SimplePassiveRenderer will set isLoading and trigger the actual load
 
     this.expansionVersion++
     logger.info('Row expanded', { rowId, totalExpanded: newExpanded.size })
@@ -1653,17 +1646,7 @@ export class InteractionStore implements IStore {
     const newExpanded = new Set(rowIds)
     this.expandedRowIds = newExpanded
 
-    // Initialize states for all rows
-    for (const rowId of rowIds) {
-      if (!this.expandedRowStates.has(rowId)) {
-        this.expandedRowStates.set(rowId, {
-          data: null,
-          isLoading: true,
-          error: null,
-          loadedAt: null,
-        })
-      }
-    }
+    // GH#1240: Don't initialize state here - let the expansion observer handle loading
 
     this.expansionVersion++
     logger.info('All rows expanded', { count: rowIds.length })

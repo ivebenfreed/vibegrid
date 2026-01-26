@@ -174,6 +174,7 @@ export class SimplePassiveRenderer {
   private interactionObserverDisposer: (() => void) | null = null
   private scrollObserverDisposer: (() => void) | null = null
   private dragSelectionObserverDisposer: (() => void) | null = null
+  private expansionObserverDisposer: (() => void) | null = null // GH#1240: Row expansion observer
   private pendingRAF: number | null = null // Track pending RAF to prevent cascades
   private observersEnabled: boolean = false // Prevent observers from running during initialization
 
@@ -655,6 +656,79 @@ export class SimplePassiveRenderer {
         // Force re-render when column visibility changes
         this.renderHeader()
         this.renderBody()
+      },
+    )
+
+    // GH#1240: ROW EXPANSION OBSERVER - triggers data loading and body re-render
+    this.expansionObserverDisposer = reaction(
+      () => this.interactionStore.expansionVersion,
+      async (expansionVersion) => {
+        fileLog.info('🔄 ROW EXPANSION CHANGE DETECTED', {
+          expansionVersion,
+          observersEnabled: this.observersEnabled,
+          expandedRowIds: Array.from(this.interactionStore.expandedRowIds),
+        })
+
+        // GUARD: Skip if observers are not enabled yet
+        if (!this.observersEnabled) {
+          fileLog.debug('⏸️ EXPANSION: Observers not enabled yet')
+          return
+        }
+
+        // GUARD: Only render if grid is fully initialized
+        if (this.initStore && !this.initStore.isFullyHydrated) {
+          fileLog.debug('⏸️ EXPANSION: Skipping render during initialization')
+          return
+        }
+
+        // GH#1240: Trigger data loading for expanded rows
+        const expansionConfig = this.tableCoreStore.getRowExpansionConfig()
+        console.log('🔄 [SimplePassiveRenderer] Expansion config check', {
+          hasConfig: !!expansionConfig,
+          enabled: expansionConfig?.enabled,
+          hasLoadFn: !!expansionConfig?.loadExpandedData,
+          expandedRowIds: Array.from(this.interactionStore.expandedRowIds),
+        })
+        if (expansionConfig?.enabled && expansionConfig.loadExpandedData) {
+          for (const rowId of this.interactionStore.expandedRowIds) {
+            const state = this.interactionStore.expandedRowStates.get(rowId)
+            console.log('🔄 [SimplePassiveRenderer] Checking row', {
+              rowId,
+              hasState: !!state,
+              stateData: state?.data,
+              stateIsLoading: state?.isLoading,
+              shouldLoad: !state?.data && !state?.isLoading,
+            })
+            // Only load if not already loaded or loading
+            if (!state?.data && !state?.isLoading) {
+              console.log('🔄 [SimplePassiveRenderer] Triggering data load for expanded row', {
+                rowId,
+              })
+              this.interactionStore.setExpandedDataLoading(rowId)
+              try {
+                const data = await expansionConfig.loadExpandedData(rowId, null)
+                this.interactionStore.setExpandedData(rowId, data as unknown[], null)
+                fileLog.info('✅ Expanded data loaded', {
+                  rowId,
+                  itemCount: (data as unknown[])?.length,
+                })
+              } catch (error) {
+                const err = error instanceof Error ? error : new Error(String(error))
+                this.interactionStore.setExpandedData(rowId, null, err)
+                fileLog.error('❌ Failed to load expanded data', { rowId, error: err.message })
+              }
+            }
+          }
+        }
+
+        fileLog.info('🔄 Expansion state changed - triggering body re-render', {
+          expandedCount: this.interactionStore.expandedRowIds.size,
+        })
+
+        // Force body re-render when expansion changes
+        runInAction(() => {
+          this.renderBody()
+        })
       },
     )
 
@@ -1362,9 +1436,7 @@ export class SimplePassiveRenderer {
     // GH#1240: Handle expanded content rows
     if (row.type === 'expanded-content' && this.bodyRenderer) {
       // Find the parent row data for the expanded content
-      const parentRow = this.tableCoreStore.processedRows.find(
-        (r: any) => r.id === row.parentRowId,
-      )
+      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r.id === row.parentRowId)
       return this.bodyRenderer.createExpandedContentRowElement(row, rowIndex, parentRow)
     }
 
@@ -2458,6 +2530,11 @@ export class SimplePassiveRenderer {
     if (this.dragSelectionObserverDisposer) {
       this.dragSelectionObserverDisposer()
       this.dragSelectionObserverDisposer = null
+    }
+    // GH#1240: Clean up expansion observer
+    if (this.expansionObserverDisposer) {
+      this.expansionObserverDisposer()
+      this.expansionObserverDisposer = null
     }
 
     // Clean up Phase 2 managers

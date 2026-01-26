@@ -9,11 +9,15 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import type { VirtualRow } from '../types'
-import type {
-  ExpandedContentVirtualRow,
-  ExpandedRowState,
-  RowExpansionConfig,
-} from '../types/row-expansion'
+import type { ExpandedContentVirtualRow, RowExpansionConfig } from '../types/row-expansion'
+
+/** State stored in InteractionStore (without rowId since it's the map key) */
+type ExpandedStateEntry = {
+  data: unknown[] | null
+  isLoading: boolean
+  error: Error | null
+  loadedAt: number | null
+}
 
 const logger = getLogger(['vibegrid', 'RowExpansionProcessor'])
 
@@ -55,15 +59,40 @@ export function calculateExpandedHeight(
   return Math.max(expandedContentHeight, MIN_EXPANDED_CONTENT_HEIGHT)
 }
 
+/** Height per row in sub-table (header + rows) */
+const SUB_TABLE_HEADER_HEIGHT = 40
+const SUB_TABLE_ROW_HEIGHT = 32
+const SUB_TABLE_PADDING = 24
+
 /**
  * Create an expanded content virtual row
  */
 export function createExpandedContentRow(
   parentRow: VirtualRow,
-  state: ExpandedRowState | null,
+  state: ExpandedStateEntry | null,
   config: RowExpansionConfig,
 ): ExpandedContentVirtualRow {
-  const height = calculateExpandedHeight(parentRow.id, parentRow.data, config)
+  // Calculate height based on expanded data count
+  let height: number
+  const dataRowCount = state?.data && Array.isArray(state.data) ? state.data.length : 0
+  console.log('📐 [RowExpansionProcessor] Height calculation', {
+    rowId: parentRow.id,
+    hasState: !!state,
+    hasData: !!state?.data,
+    dataRowCount,
+    isLoading: state?.isLoading,
+  })
+  if (dataRowCount > 0) {
+    // Dynamic height: header + rows + padding
+    height = SUB_TABLE_HEADER_HEIGHT + dataRowCount * SUB_TABLE_ROW_HEIGHT + SUB_TABLE_PADDING
+    // Cap at reasonable max
+    height = Math.min(height, 400)
+    console.log('📐 [RowExpansionProcessor] Calculated dynamic height', { height, dataRowCount })
+  } else {
+    // Use config height for loading/empty states
+    height = calculateExpandedHeight(parentRow.id, parentRow.data, config)
+    console.log('📐 [RowExpansionProcessor] Using default height', { height })
+  }
 
   return {
     id: `${parentRow.id}:expanded`,
@@ -91,7 +120,7 @@ export function createExpandedContentRow(
 export function processExpandedRows(
   virtualRows: VirtualRow[],
   expandedRowIds: Set<string>,
-  expandedRowStates: Map<string, ExpandedRowState>,
+  expandedRowStates: Map<string, ExpandedStateEntry>,
   config: RowExpansionConfig,
 ): VirtualRow[] {
   if (!config.enabled || expandedRowIds.size === 0) {
@@ -165,7 +194,7 @@ export function isExpandedContentRowId(rowId: string): boolean {
  */
 export function getTotalExpandedHeight(
   expandedRowIds: Set<string>,
-  expandedRowStates: Map<string, ExpandedRowState>,
+  expandedRowStates: Map<string, ExpandedStateEntry>,
   config: RowExpansionConfig,
 ): number {
   let totalHeight = 0

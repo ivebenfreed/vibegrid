@@ -197,6 +197,27 @@ export class MouseController {
       }
     }
 
+    // GH#1240: Check for expand-row button clicks BEFORE selection
+    // This prevents selection overlay from triggering on expand column
+    const expandButton = target.closest('[data-action="expand-row"]') as HTMLElement | null
+    if (expandButton) {
+      const rowId = expandButton.getAttribute('data-row-id')
+      fileLog.info('🔄 [mousedown] Expand button detected', {
+        rowId,
+        rowExpansionEnabled: this.interactionStore.rowExpansionEnabled,
+        expandedRowIds: Array.from(this.interactionStore.expandedRowIds || []),
+      })
+      if (rowId && this.interactionStore.rowExpansionEnabled) {
+        // Toggle expansion directly in mousedown to prevent selection
+        fileLog.info('🔄 [mousedown] Calling toggleRowExpansion', { rowId })
+        this.interactionStore.toggleRowExpansion(rowId)
+        this.isTracking = false
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+    }
+
     // Check for column header drag second
     const headerElement = target.closest('[data-column-id]:not([data-row-id])')
     if (headerElement) {
@@ -774,17 +795,27 @@ export class MouseController {
     const target = e.target as HTMLElement
     const isWithinContainer = this.container.contains(e.target as Node)
 
-    fileLog.debug('🔍 onClick entry', {
+    // GH#1240: Log at info level so it's always visible
+    fileLog.info('🔍 onClick entry', {
       targetTag: target.tagName,
       targetClass: target.className,
       targetId: target.id,
       isWithinContainer,
-      targetHasDataColumnId: target.hasAttribute('data-column-id'),
-      targetHasDataInteractionType: target.hasAttribute('data-interaction-type'),
-      targetDataInteractionType: target.getAttribute('data-interaction-type'),
+      targetHasDataAction: target.getAttribute('data-action'),
+      closestExpandButton: !!target.closest('[data-action="expand-row"]'),
     })
 
     if (isWithinContainer) {
+      // GH#1240: Expand-row clicks are handled in onMouseDown, not onClick
+      // This prevents double-toggle (mousedown toggles, onClick would toggle again)
+      const expandButton = target.closest('[data-action="expand-row"]') as HTMLElement | null
+      if (expandButton) {
+        fileLog.debug('🔄 [onClick] Ignoring expand button - handled in mousedown')
+        e.stopPropagation()
+        e.preventDefault()
+        return
+      }
+
       // Handle clicks within the container
       const cellElement = target.closest('[data-row-id][data-column-id]')
       const rowHeaderElement = target.closest('[data-interaction-type="row-header"]')

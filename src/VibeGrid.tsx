@@ -19,9 +19,9 @@ import { membersCollection } from '@/shared/data/db/collections/member-collectio
 import { useDependencyCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
-import { GRID_DIMENSIONS } from './constants/grid-dimensions'
 import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
+// GH#1240: ExpandedContentPortals renders nested VibeGrid via React portals
 import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 import { GanttTimeline } from './components/GanttTimeline'
 import { GanttToolbar } from './components/GanttToolbar'
@@ -32,9 +32,14 @@ import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-import { useVibeGridStores, VibeGridStoreProvider, useCollectionOverride } from './stores/context'
+import { useVibeGridStores } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
-import type { RowExpansionConfig, RowExpansionChangeEvent, ExpandedDataLoadEvent } from './types/row-expansion'
+import type {
+  RowExpansionConfig,
+  RowExpansionChangeEvent,
+  ExpandedDataLoadEvent,
+} from './types/row-expansion'
+import type { Column } from './types'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -61,7 +66,7 @@ export interface RowAction {
 // COMPONENT PROPS
 // ====================================
 
-interface VibeGridProps<T = any> {
+interface VibeGridProps<_T = any> {
   tableId: string // Unique identifier for this table instance
   entityType: string // Entity type (determines data source)
   entityDisplayName?: string // User-friendly display name for the entity (e.g., "Document" instead of "GCFile")
@@ -112,8 +117,27 @@ interface VibeGridProps<T = any> {
   // Testing mode - skip TanStack DB data fetching (use with MockDataInjector)
   skipDataFetching?: boolean
 
+  // Collection override for nested grids or mock testing (GH#1240)
+  collectionOverride?: { items: any[]; count: number }
+
+  // Column overrides for nested grids (GH#1240)
+  columnOverrides?: Column[]
+
   // Entity Add button (shows in toolbar)
   enableEntityAdd?: boolean
+
+  // Toolbar and header visibility (GH#1240)
+  showToolbar?: boolean
+  showHeader?: boolean
+  showPagination?: boolean
+  minHeight?: number
+  maxHeight?: number
+
+  // Drag and drop (aliased from enableDragAndDrop for clarity)
+  enableDragDrop?: boolean
+
+  // Virtualization control (for nested grids that don't need it)
+  enableVirtualization?: boolean
 
   // Row expansion (GH#1240)
   rowExpansionConfig?: RowExpansionConfig
@@ -136,8 +160,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     width = '100%',
     enableSelectionColumn = true,
     onCellClick,
-    onCellDoubleClick,
-    onSelectionChange,
+    onCellDoubleClick: _onCellDoubleClick,
+    onSelectionChange: _onSelectionChange,
     onEditingChange,
     onPerformanceUpdate,
     onEntityUpdate,
@@ -158,7 +182,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onViewModeChange,
     enableKanban = false,
     skipDataFetching = false,
+    collectionOverride: _collectionOverride, // Used by context provider, not directly here
     enableEntityAdd = true,
+    showToolbar = true,
+    showHeader = true,
     rowExpansionConfig,
     onRowExpansionChange,
     onExpandedDataLoad,
@@ -221,6 +248,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
   })
 
   // Row expansion integration (GH#1240)
+  logger.info('🔄 VibeGrid rowExpansionConfig', {
+    hasConfig: !!rowExpansionConfig,
+    enabled: rowExpansionConfig?.enabled,
+    enabledFallback: rowExpansionConfig?.enabled ?? false,
+  })
   const rowExpansion = useRowExpansion(interactionStore, {
     enabled: rowExpansionConfig?.enabled ?? false,
     allowMultiple: rowExpansionConfig?.allowMultiple ?? true,
@@ -256,6 +288,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
         }
       : undefined,
   })
+
+  // GH#1240: Data loading is now handled by SimplePassiveRenderer's expansion observer
+  // which is a proper MobX reaction that has access to the same interactionStore instance
 
   // Fetch organization members for UserReference fields (automatic org context)
   const {
@@ -366,6 +401,15 @@ function VibeGridInnerBase(props: VibeGridProps) {
     })
     tableCoreStore.setCollection(collection)
   }, [collection, tableCoreStore, entityType])
+
+  // GH#1240: Set row expansion config on TableCoreStore
+  useEffect(() => {
+    if (!tableCoreStore) return
+    logger.info('Setting row expansion config on TableCoreStore', {
+      enabled: rowExpansionConfig?.enabled,
+    })
+    tableCoreStore.setRowExpansionConfig(rowExpansionConfig ?? null)
+  }, [rowExpansionConfig, tableCoreStore])
 
   // Set TanStack DB collection on EditingStore for edit persistence
   useEffect(() => {
@@ -714,7 +758,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
   const isRendered = !!rendererRef.current
 
   // Header should show as soon as stores are ready (don't wait for renderer)
-  const shouldShowHeader = isReady && visualStateStore.columns.length > 0
+  // GH#1240: Respect showHeader prop for nested grids that don't need headers
+  const shouldShowHeader = showHeader && isReady && visualStateStore.columns.length > 0
 
   // Log header visibility decision
   useEffect(() => {
@@ -844,7 +889,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         )}
       </div>
 
-      {/* Expanded content portals - render React content into expanded row containers (GH#1240) */}
+      {/* GH#1240: Render nested VibeGrid into expanded row containers via React portals */}
       {rowExpansionConfig?.enabled && (
         <ExpandedContentPortals
           containerRef={containerRef}

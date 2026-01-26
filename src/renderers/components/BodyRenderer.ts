@@ -20,6 +20,8 @@ import { DragDropManager } from '../../utils/drag-drop-handlers'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
+// GH#1240: SubTableRenderer replaced by nested VibeGrid via React portals
+import type { SubTableColumn } from './SubTableRenderer'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'BodyRenderer.ts'])
 
@@ -221,6 +223,12 @@ export class BodyRenderer {
     this.cellRenderingStats.rowsRequested++
     this.cellRenderingStats.lastRenderTime = Date.now()
 
+    // GH#1240: Handle expanded-content rows specially
+    if (row.type === 'expanded-content') {
+      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r.id === row.parentRowId)
+      return this.createExpandedContentRowElement(row, rowIndex, parentRow)
+    }
+
     // PERF: Debug logging removed from hot path - object creation was expensive
     // Enable via: __VIBEGRID_DEBUG__.enable() for render timeline instead
 
@@ -249,7 +257,9 @@ export class BodyRenderer {
     }
 
     // PERF: Use transform for GPU-accelerated positioning (doesn't trigger layout)
-    rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
+    // GH#1240: Use actual offset for variable row heights (expanded rows have different heights)
+    const rowOffset = this.tableCoreStore.rowOffsets[rowIndex] ?? rowIndex * ROW_HEIGHT
+    rowElement.style.transform = `translateY(${rowOffset}px)`
 
     // Add drag column (always present for consistent layout)
     // PERF: CSS handles all static styles - only set position if needed
@@ -472,7 +482,9 @@ export class BodyRenderer {
     rowElement.dataset.rowId = groupRow.id
     rowElement.dataset.groupId = groupRow.id
     // PERF: Use transform for GPU-accelerated positioning
-    rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
+    // GH#1240: Use actual offset for variable row heights
+    const rowOffset = this.tableCoreStore.rowOffsets[rowIndex] ?? rowIndex * ROW_HEIGHT
+    rowElement.style.transform = `translateY(${rowOffset}px)`
     // Group-specific styles (background varies by level)
     rowElement.style.background = level === 0 ? '#e3f2fd' : '#f5f5f5'
     rowElement.style.borderBottom = `2px solid ${level === 0 ? '#2196f3' : '#9e9e9e'}`
@@ -500,17 +512,15 @@ export class BodyRenderer {
    * This creates a container for expanded content that will be rendered
    * by the React component via renderExpandedContent callback.
    */
-  createExpandedContentRowElement(
-    expandedRow: any,
-    rowIndex: number,
-    parentRow: any,
-  ): HTMLElement {
+  createExpandedContentRowElement(expandedRow: any, rowIndex: number, parentRow: any): HTMLElement {
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-expanded-content-row')
     rowElement.dataset.rowId = expandedRow.id
     rowElement.dataset.parentRowId = expandedRow.parentRowId
 
     // PERF: Use transform for GPU-accelerated positioning
-    rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
+    // GH#1240: Use actual offset for variable row heights (expanded rows have different heights)
+    const rowOffset = this.tableCoreStore.rowOffsets[rowIndex] ?? rowIndex * ROW_HEIGHT
+    rowElement.style.transform = `translateY(${rowOffset}px)`
     rowElement.style.height = `${expandedRow.height || 200}px`
 
     // Full width spanning all columns
@@ -525,8 +535,8 @@ export class BodyRenderer {
       width: 100%;
       height: 100%;
       overflow: auto;
-      background: var(--vibegrid-expanded-bg, #f9fafb);
-      border-left: 2px solid var(--vibegrid-expanded-border, #e5e7eb);
+      background: hsl(var(--muted));
+      border-left: 2px solid hsl(var(--border));
       padding: 8px 16px 8px 70px;
     `
 
@@ -557,12 +567,12 @@ export class BodyRenderer {
       emptyContainer.textContent = 'No items'
       contentContainer.appendChild(emptyContainer)
     }
-    // Data is loaded - container will be populated by React component
+    // Data is loaded - mark container for React portal (ExpandedContentPortals renders nested VibeGrid)
     else if (expandedRow.expandedData && expandedRow.expandedData.length > 0) {
-      // The content container is ready for React to mount the nested VibeGrid
-      // Mark it with a data attribute so the React bridge can find it
       contentContainer.dataset.hasData = 'true'
       contentContainer.dataset.itemCount = String(expandedRow.expandedData.length)
+      // GH#1240: React portal (ExpandedContentPortals) will detect data-has-data="true"
+      // and render a nested VibeGrid into this container
     }
     // Default: data not yet loaded but not loading either (initial state)
     else {
@@ -706,6 +716,56 @@ export class BodyRenderer {
   }
 
   // ====================================
+  // SUB-TABLE HELPERS (GH#1240)
+  // ====================================
+
+  /**
+   * Auto-detect columns from data object for sub-table rendering
+   */
+  private autoDetectColumns(dataItem: unknown): SubTableColumn[] {
+    if (!dataItem || typeof dataItem !== 'object') return []
+
+    const item = dataItem as Record<string, unknown>
+    return Object.keys(item)
+      .filter((key) => !key.startsWith('_') && key !== 'id') // Skip private fields and id
+      .slice(0, 6) // Limit to first 6 columns for readability
+      .map((key) => ({
+        id: key,
+        name: this.formatColumnName(key),
+        width: this.inferColumnWidth(key, item[key]),
+      }))
+  }
+
+  /**
+   * Format a column key into a human-readable name
+   */
+  private formatColumnName(key: string): string {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  /**
+   * Infer column width based on key and value
+   */
+  private inferColumnWidth(key: string, value: unknown): number {
+    // Date columns
+    if (key.includes('date') || key.includes('Date')) return 100
+    // Currency columns
+    if (key.includes('amount') || key.includes('limit') || key.includes('premium')) return 120
+    // Type/status columns
+    if (key.includes('type') || key.includes('status')) return 80
+    // Name columns
+    if (key.includes('name') || key.includes('Name')) return 150
+    // Default based on value length
+    if (typeof value === 'string' && value.length > 20) return 180
+    return 120
+  }
+
+  // ====================================
   // CELL RENDERING METHODS
   // ====================================
 
@@ -720,7 +780,13 @@ export class BodyRenderer {
     widthOverride?: number,
   ): HTMLElement {
     // PERFORMANCE: Simplified cell creation using ModularCellBridge efficiently
-    const rowData = row.data || row
+    const baseRowData = row.data || row
+
+    // GH#1240: Inject expansion state for row-expand column
+    const isExpanded = this.interactionStore.expandedRowIds.has(row.id)
+    const rowData =
+      column.cellType === 'row-expand' ? { ...baseRowData, _isExpanded: isExpanded } : baseRowData
+
     const value = rowData[column.id]
 
     if (this.modularCellBridge) {
@@ -1363,7 +1429,9 @@ export class BodyRenderer {
     const rowData = newRow.data || newRow
 
     // 1. Update position
-    rowElement.style.transform = `translateY(${newRowIndex * ROW_HEIGHT}px)`
+    // GH#1240: Use actual offset for variable row heights (expanded rows have different heights)
+    const rowOffset = this.tableCoreStore.rowOffsets[newRowIndex] ?? newRowIndex * ROW_HEIGHT
+    rowElement.style.transform = `translateY(${rowOffset}px)`
 
     // 2. Update row ID
     const oldRowId = rowElement.dataset.rowId

@@ -33,6 +33,8 @@ import { getOrCreateEntityCollection } from '@/shared/data/db/collections/regist
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
+import { processExpandedRows } from '../processors/RowExpansionProcessor'
+import type { RowExpansionConfig } from '../types/row-expansion'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { HierarchyStore } from './HierarchyStore'
 import { applyNestedFilters } from '../utils/filter-utils'
@@ -278,6 +280,9 @@ export class TableCoreStore implements IStore {
     | null = null
   private coordinateManager: ObservableCoordinateManager | null = null
   private interactionStore: import('./InteractionStore').InteractionStore | null = null
+
+  /** GH#1240: Row expansion configuration */
+  private rowExpansionConfig: RowExpansionConfig | null = null
   private disposers = new DisposerManager()
   private visualConfigDisposer: (() => void) | null = null
 
@@ -409,6 +414,22 @@ export class TableCoreStore implements IStore {
   setInteractionStore(store: import('./InteractionStore').InteractionStore): void {
     this.interactionStore = store
     logger.info('Interaction store set on TableCoreStore')
+  }
+
+  /**
+   * Set row expansion config (GH#1240)
+   */
+  @action
+  setRowExpansionConfig(config: RowExpansionConfig | null): void {
+    this.rowExpansionConfig = config
+    logger.info('Row expansion config set on TableCoreStore', { enabled: config?.enabled })
+  }
+
+  /**
+   * Get row expansion config (GH#1240)
+   */
+  getRowExpansionConfig(): RowExpansionConfig | null {
+    return this.rowExpansionConfig
   }
 
   /**
@@ -926,20 +947,57 @@ export class TableCoreStore implements IStore {
 
     const rows = this.groupedOrOrderedRows
 
-    // If rows are already VirtualRows (from grouping), return as-is
+    // If rows are already VirtualRows (from grouping), use as-is
+    let virtualRows: any[]
     if (rows.length > 0 && 'type' in rows[0]) {
-      return rows
+      virtualRows = rows
+    } else {
+      // Wrap flat rows in VirtualRow structure for consistency
+      // BodyRenderer.createCellElement expects rows with { type, id, index, height, data } structure
+      virtualRows = rows.map((row, index) => ({
+        type: 'data' as const,
+        id: row.id,
+        index,
+        height: row.height || 40, // Preserve variable row heights, default to 40
+        data: row,
+      }))
     }
 
-    // Wrap flat rows in VirtualRow structure for consistency
-    // BodyRenderer.createCellElement expects rows with { type, id, index, height, data } structure
-    return rows.map((row, index) => ({
-      type: 'data' as const,
-      id: row.id,
-      index,
-      height: row.height || 40, // Preserve variable row heights, default to 40
-      data: row,
-    }))
+    // GH#1240: Process row expansion if enabled
+    // CRITICAL: Access expansionVersion FIRST to ensure MobX tracks it as a dependency
+    // This forces processedRows to recompute when expansion state changes
+    const interactionStore = this.interactionStore
+    const expansionVersion = interactionStore?.expansionVersion ?? 0
+    const expansionConfig = this.rowExpansionConfig
+    const expandedRowIds = interactionStore?.expandedRowIds ?? new Set<string>()
+    const expandedRowStates = interactionStore?.expandedRowStates ?? new Map()
+
+    logger.info('📊 processedRows expansion check', {
+      hasInteractionStore: !!interactionStore,
+      hasExpansionConfig: !!expansionConfig,
+      expansionEnabled: expansionConfig?.enabled,
+      expansionVersion, // Track version to ensure MobX dependency
+      expandedCount: expandedRowIds.size,
+      expandedRowIdsArray: Array.from(expandedRowIds),
+    })
+
+    if (expansionConfig?.enabled && expandedRowIds.size > 0) {
+      logger.info('🔄 Processing expanded rows', {
+        expandedCount: expandedRowIds.size,
+        rowCount: virtualRows.length,
+      })
+      virtualRows = processExpandedRows(
+        virtualRows,
+        expandedRowIds,
+        expandedRowStates,
+        expansionConfig,
+      )
+      logger.info('✅ Expanded rows processed', {
+        outputRowCount: virtualRows.length,
+      })
+    }
+
+    return virtualRows
   }
 
   // ====================================
