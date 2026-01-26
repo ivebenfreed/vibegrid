@@ -32,7 +32,7 @@ import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-import { useVibeGridStores } from './stores/context'
+import { useVibeGridStores, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
 import type {
   RowExpansionConfig,
