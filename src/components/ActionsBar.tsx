@@ -56,7 +56,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   // Derive selected rows from selected cells
   // A row is considered selected if all its visible cells are selected
-  const selectedRowIds = React.useMemo(() => {
+  // NOTE: Not using useMemo here - observer() tracks selectedCells via MobX,
+  // and useMemo's dependency comparison doesn't work reliably with MobX observables.
+  // This caused a race condition where clicking Delete captured stale selectedRowIds.
+  const selectedRowIds = (() => {
     if (selectedCells.size === 0) return []
 
     const rowCellCounts = new Map<string, { selected: number; total: number }>()
@@ -76,12 +79,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     return Array.from(rowCellCounts.entries())
       .filter(([_, counts]) => counts.selected === counts.total)
       .map(([rowId]) => rowId)
-  }, [selectedCells, visualStateStore.visibleColumns])
+  })()
 
-  const selectedRowsData = React.useMemo(
-    () => selectedRowIds.map(getRowData).filter(Boolean),
-    [selectedRowIds, getRowData],
-  )
+  // Also compute fresh - same reason as selectedRowIds above
+  const selectedRowsData = selectedRowIds.map(getRowData).filter(Boolean)
 
   const selectedCount = selectedRowIds.length
 
