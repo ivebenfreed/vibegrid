@@ -22,7 +22,8 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { observer } from 'mobx-react-lite'
 import { runInAction } from 'mobx'
 import { useNavigate } from '@tanstack/react-router'
-import { VibeGrid } from '@/systems/vibegrid'
+import { VibeGrid, type RowAction } from '@/systems/vibegrid'
+import { Mail, MailOpen, Star, StarOff, UserPlus } from 'lucide-react'
 import {
   VibeGridStoreProvider,
   useTableCoreStore,
@@ -58,9 +59,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
   isSelectMode,
   selectedIds,
   onToggleSelect,
-  onMarkRead: _onMarkRead,
-  onAssign: _onAssign,
-  onStar: _onStar,
+  onMarkRead,
+  onAssign,
+  onStar,
 }: ThreadListGridProps) {
   const store = useEmailInbox()
   const navigate = useNavigate()
@@ -152,6 +153,70 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     [selectedIds, onToggleSelect],
   )
 
+  // Row actions for the floating 3-dots menu
+  const rowActions: RowAction[] = useMemo(
+    () => [
+      {
+        id: 'toggle-read',
+        label: 'Mark as read',
+        icon: MailOpen,
+        hidden: (rowData) => !rowData.unread,
+      },
+      {
+        id: 'toggle-unread',
+        label: 'Mark as unread',
+        icon: Mail,
+        hidden: (rowData) => rowData.unread,
+      },
+      {
+        id: 'toggle-star',
+        label: 'Star',
+        icon: Star,
+        hidden: (rowData) => rowData.starred,
+      },
+      {
+        id: 'toggle-unstar',
+        label: 'Unstar',
+        icon: StarOff,
+        hidden: (rowData) => !rowData.starred,
+      },
+      {
+        id: 'assign',
+        label: 'Assign to...',
+        icon: UserPlus,
+      },
+    ],
+    [],
+  )
+
+  // Handle row action clicks
+  const handleRowAction = useCallback(
+    (actionId: string, rowIds: string[], rowsData: any[]) => {
+      const rowId = rowIds[0]
+      const rowData = rowsData[0]
+      if (!rowId || !rowData) return
+
+      switch (actionId) {
+        case 'toggle-read':
+          onMarkRead(rowId, false) // Mark as read (unread = false)
+          break
+        case 'toggle-unread':
+          onMarkRead(rowId, true) // Mark as unread (unread = true)
+          break
+        case 'toggle-star':
+          onStar(rowId, true) // Star
+          break
+        case 'toggle-unstar':
+          onStar(rowId, false) // Unstar
+          break
+        case 'assign':
+          onAssign(rowId)
+          break
+      }
+    },
+    [onMarkRead, onStar, onAssign],
+  )
+
   return (
     <div className="h-full w-full min-h-0 overflow-x-auto">
       <VibeGrid
@@ -165,6 +230,8 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         enableSorting={true}
         enableDragAndDrop={false}
         onCellClick={handleCellClick}
+        rowActions={rowActions}
+        onRowAction={handleRowAction}
       />
     </div>
   )
