@@ -1462,8 +1462,10 @@ export class BodyRenderer {
     }
 
     // 4. Update row header (row number or checkbox)
-    const rowHeader = rowElement.querySelector('.vibegridx-row-header-cell')
+    const rowHeader = rowElement.querySelector('.vibegridx-row-header-cell') as HTMLElement | null
     if (rowHeader) {
+      // CRITICAL: Update rowHeader's data-row-id for MouseController event delegation
+      rowHeader.dataset.rowId = newRow.id
       const checkbox = rowHeader.querySelector('input[type="checkbox"]') as HTMLInputElement
       if (checkbox) {
         checkbox.dataset.rowId = newRow.id
