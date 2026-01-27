@@ -1,10 +1,11 @@
 ---
 paths: apps/web/src/systems/vibegrid/**/*
 relatedFeatures:
-  - vibegrid/core
   - vibegrid/data-controls
   - vibegrid/export-services
+  - vibegrid/row-expansion
   - vibegrid/gantt
+  - vibegrid/core
 ---
 
 # VibeGrid Core
