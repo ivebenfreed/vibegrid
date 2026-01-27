@@ -22,11 +22,12 @@ export class SelectionOverlayDOM {
   // Persistent container (appended once in constructor)
   private selectionContainer: HTMLDivElement | null = null
 
-  // Single merged element (reused for performance)
-  private mergedElement: HTMLDivElement | null = null
+  // Pool of overlay elements for non-contiguous selection
+  private overlayElements: HTMLDivElement[] = []
+  private activeOverlayCount: number = 0
 
-  // Track last bounds to avoid unnecessary updates
-  private lastBounds: { minX: number; minY: number; maxX: number; maxY: number } | null = null
+  // Track last bounds signature to avoid unnecessary updates
+  private lastBoundsSignature: string | null = null
 
   // NOTE: Viewport tracking removed - now handled by DOM positioning system
 
@@ -80,7 +81,7 @@ export class SelectionOverlayDOM {
 
   /**
    * Update with visual cell positions directly
-   * Uses diffing instead of tear-down for stable DOM order
+   * Supports non-contiguous selection by drawing separate rectangles for each row group
    */
   updateWithVisualPositions(visualCells: VisualCellPosition[]): void {
     if (!this.selectionContainer) return
@@ -95,91 +96,166 @@ export class SelectionOverlayDOM {
     })
 
     if (visualCells.length === 0) {
-      // Clear selection
-      this.hideMergedElement()
-      this.lastBounds = null
+      // Clear selection - hide all overlay elements
+      this.hideAllOverlays()
+      this.lastBoundsSignature = null
       return
     }
 
-    // Ensure element is visible if it was hidden
-    if (this.mergedElement && this.mergedElement.style.display === 'none') {
-      this.mergedElement.style.display = 'block'
-    }
+    // Group cells by row (Y position)
+    const rowGroups = this.groupCellsByRow(visualCells)
 
-    // Calculate merged bounding box (performance optimization)
-    let minX = Infinity,
-      minY = Infinity
-    let maxX = -Infinity,
-      maxY = -Infinity
+    // Merge contiguous rows into ranges
+    const ranges = this.mergeContiguousRows(rowGroups)
 
-    for (const cell of visualCells) {
-      minX = Math.min(minX, cell.x)
-      minY = Math.min(minY, cell.y)
-      maxX = Math.max(maxX, cell.x + cell.width)
-      maxY = Math.max(maxY, cell.y + cell.height)
-    }
+    // Create bounds signature for diffing
+    const boundsSignature = ranges.map((r) => `${r.minX},${r.minY},${r.maxX},${r.maxY}`).join('|')
 
-    // Diff against previous bounds to avoid unnecessary updates
-    const boundsChanged =
-      !this.lastBounds ||
-      this.lastBounds.minX !== minX ||
-      this.lastBounds.minY !== minY ||
-      this.lastBounds.maxX !== maxX ||
-      this.lastBounds.maxY !== maxY
-
-    if (!boundsChanged) {
+    if (boundsSignature === this.lastBoundsSignature) {
       myLog.debug('SelectionOverlayDOM: Bounds unchanged, skipping update')
       return
     }
 
-    this.lastBounds = { minX, minY, maxX, maxY }
+    this.lastBoundsSignature = boundsSignature
 
-    // Reuse existing element or create if needed
-    if (!this.mergedElement) {
-      // First time: create element
-      this.mergedElement = document.createElement('div')
-      this.mergedElement.className = 'vibegridx-selection-overlay vibegridx-selection-merged'
+    // Update overlay elements for each range
+    this.activeOverlayCount = 0
+    for (const range of ranges) {
+      this.updateOrCreateOverlay(this.activeOverlayCount, range)
+      this.activeOverlayCount++
+    }
 
-      Object.assign(this.mergedElement.style, {
+    // Hide any extra overlay elements
+    for (let i = this.activeOverlayCount; i < this.overlayElements.length; i++) {
+      this.overlayElements[i].style.display = 'none'
+    }
+
+    myLog.info('SelectionOverlayDOM: Updated selection', {
+      rangeCount: ranges.length,
+      activeOverlays: this.activeOverlayCount,
+    })
+  }
+
+  /**
+   * Group cells by their Y position (row)
+   */
+  private groupCellsByRow(
+    cells: VisualCellPosition[],
+  ): Map<number, { minX: number; maxX: number; y: number; height: number }> {
+    const rowGroups = new Map<number, { minX: number; maxX: number; y: number; height: number }>()
+
+    for (const cell of cells) {
+      const existing = rowGroups.get(cell.y)
+      if (existing) {
+        existing.minX = Math.min(existing.minX, cell.x)
+        existing.maxX = Math.max(existing.maxX, cell.x + cell.width)
+      } else {
+        rowGroups.set(cell.y, {
+          minX: cell.x,
+          maxX: cell.x + cell.width,
+          y: cell.y,
+          height: cell.height,
+        })
+      }
+    }
+
+    return rowGroups
+  }
+
+  /**
+   * Merge contiguous rows into ranges
+   * Rows are contiguous if they're adjacent (next row Y = current row Y + height)
+   */
+  private mergeContiguousRows(
+    rowGroups: Map<number, { minX: number; maxX: number; y: number; height: number }>,
+  ): Array<{ minX: number; minY: number; maxX: number; maxY: number }> {
+    // Sort rows by Y position
+    const sortedRows = Array.from(rowGroups.values()).sort((a, b) => a.y - b.y)
+
+    if (sortedRows.length === 0) return []
+
+    const ranges: Array<{ minX: number; minY: number; maxX: number; maxY: number }> = []
+    let currentRange = {
+      minX: sortedRows[0].minX,
+      minY: sortedRows[0].y,
+      maxX: sortedRows[0].maxX,
+      maxY: sortedRows[0].y + sortedRows[0].height,
+    }
+
+    for (let i = 1; i < sortedRows.length; i++) {
+      const row = sortedRows[i]
+      const prevRow = sortedRows[i - 1]
+
+      // Check if this row is contiguous with the current range
+      // Allow small tolerance (1px) for rounding errors
+      const isContiguous = Math.abs(row.y - (prevRow.y + prevRow.height)) <= 1
+
+      if (isContiguous) {
+        // Extend current range
+        currentRange.minX = Math.min(currentRange.minX, row.minX)
+        currentRange.maxX = Math.max(currentRange.maxX, row.maxX)
+        currentRange.maxY = row.y + row.height
+      } else {
+        // Start new range
+        ranges.push(currentRange)
+        currentRange = {
+          minX: row.minX,
+          minY: row.y,
+          maxX: row.maxX,
+          maxY: row.y + row.height,
+        }
+      }
+    }
+
+    // Don't forget the last range
+    ranges.push(currentRange)
+
+    return ranges
+  }
+
+  /**
+   * Update or create an overlay element at the given index
+   */
+  private updateOrCreateOverlay(
+    index: number,
+    bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  ): void {
+    let element = this.overlayElements[index]
+
+    if (!element) {
+      // Create new element
+      element = document.createElement('div')
+      element.className = 'vibegridx-selection-overlay vibegridx-selection-merged'
+      Object.assign(element.style, {
         position: 'absolute',
         pointerEvents: 'none',
         backgroundColor: this.config.selectionColor,
         border: `${this.config.borderWidth}px solid ${this.config.selectionBorderColor}`,
         boxSizing: 'border-box',
-        left: `${minX}px`,
-        top: `${minY}px`,
-        width: `${maxX - minX}px`,
-        height: `${maxY - minY}px`,
         borderRadius: '3px',
       })
-
-      this.selectionContainer.appendChild(this.mergedElement)
-
-      myLog.info('SelectionOverlayDOM: Created merged selection', {
-        bounds: { minX, minY, maxX, maxY },
-      })
-    } else {
-      // Update existing element (NO remove/re-append)
-      Object.assign(this.mergedElement.style, {
-        left: `${minX}px`,
-        top: `${minY}px`,
-        width: `${maxX - minX}px`,
-        height: `${maxY - minY}px`,
-      })
-
-      myLog.debug('SelectionOverlayDOM: Updated merged selection', {
-        bounds: { minX, minY, maxX, maxY },
-      })
+      this.selectionContainer!.appendChild(element)
+      this.overlayElements.push(element)
     }
+
+    // Update position and size
+    Object.assign(element.style, {
+      display: 'block',
+      left: `${bounds.minX}px`,
+      top: `${bounds.minY}px`,
+      width: `${bounds.maxX - bounds.minX}px`,
+      height: `${bounds.maxY - bounds.minY}px`,
+    })
   }
 
   /**
-   * Hide merged element
+   * Hide all overlay elements
    */
-  private hideMergedElement(): void {
-    if (this.mergedElement) {
-      this.mergedElement.style.display = 'none'
+  private hideAllOverlays(): void {
+    for (const element of this.overlayElements) {
+      element.style.display = 'none'
     }
+    this.activeOverlayCount = 0
   }
 
   /**
@@ -207,20 +283,22 @@ export class SelectionOverlayDOM {
    */
   clearSelection(): void {
     myLog.info('SelectionOverlayDOM: Clearing selection')
-    this.hideMergedElement()
-    this.lastBounds = null
+    this.hideAllOverlays()
+    this.lastBoundsSignature = null
   }
 
   /**
    * Destroy the overlay and clean up
    */
   destroy(): void {
-    this.lastBounds = null
+    this.lastBoundsSignature = null
 
-    if (this.mergedElement) {
-      this.mergedElement.remove()
-      this.mergedElement = null
+    // Remove all overlay elements
+    for (const element of this.overlayElements) {
+      element.remove()
     }
+    this.overlayElements = []
+    this.activeOverlayCount = 0
 
     // Remove persistent container
     if (this.selectionContainer) {
