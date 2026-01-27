@@ -49,6 +49,7 @@ export class SelectionController {
 
     runInAction(() => {
       this.interactionStore.selectedCells = selectedCells
+      this.interactionStore.selectionVersion++
     })
     fileLog.debug('Selected all cells', { count: selectedCells.size })
   }
@@ -145,6 +146,8 @@ export class SelectionController {
     runInAction(() => {
       this.interactionStore.selectedCells = selectedCells
       this.interactionStore.anchorCell = `${startRowId}:${visibleColumns[0]?.id}`
+      // CRITICAL: Increment selectionVersion so SelectionOverlayController updates
+      this.interactionStore.selectionVersion++
     })
 
     // Update checkbox visual state
@@ -198,6 +201,7 @@ export class SelectionController {
 
     runInAction(() => {
       this.interactionStore.selectedCells = selectedCells
+      this.interactionStore.selectionVersion++
     })
 
     fileLog.debug('Cell range selected', {
