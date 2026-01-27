@@ -86,7 +86,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   const selectedCount = selectedRowIds.length
 
-  const handleActionClick = async (action: RowAction) => {
+  const handleActionClick = async (action: RowAction, e?: React.MouseEvent) => {
+    // Stop propagation to prevent MouseController's global click handler from interfering
+    e?.stopPropagation()
+
     if (isProcessing) return
 
     if (action.destructive) {
@@ -115,7 +118,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     }
   }
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    // Stop propagation to prevent MouseController's global click handler from interfering
+    // The global handler can cause MobX reactions that interfere with React state updates
+    e.stopPropagation()
     setPendingDelete({ rowIds: selectedRowIds, rowsData: selectedRowsData })
     setDeleteDialogOpen(true)
   }
@@ -143,7 +149,8 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     setPendingDelete(null)
   }
 
-  const handleClearSelection = () => {
+  const handleClearSelection = (e: React.MouseEvent) => {
+    e.stopPropagation()
     interactionStore.clearSelection()
   }
 
@@ -177,6 +184,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
       <div
         className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto"
         data-testid="vibegrid-actions-bar"
+        // Stop mousedown propagation to prevent MouseController's global handlers from interfering
+        // with React state updates in this component
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 px-4 py-3 bg-popover border border-border rounded-lg shadow-xl min-w-[320px]">
           {/* Selection count */}
@@ -205,7 +216,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
                   key={action.id}
                   variant={action.destructive ? 'destructive' : 'secondary'}
                   size="sm"
-                  onClick={() => handleActionClick(action)}
+                  onClick={(e) => handleActionClick(action, e)}
                   disabled={isProcessing}
                   data-testid={`action-${action.id}`}
                 >
