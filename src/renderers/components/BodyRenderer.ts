@@ -1493,6 +1493,12 @@ export class BodyRenderer {
       precomputed?.visibleColumns ??
       columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
+    // Create layout lookup map for O(1) lookups (same pattern as createRowElement)
+    const layoutMap = new Map<string, any>()
+    for (const layout of columnLayouts) {
+      layoutMap.set(layout.id, layout)
+    }
+
     // Get all cells in the row
     const cells = rowElement.querySelectorAll('.vibegridx-cell')
 
@@ -1504,6 +1510,14 @@ export class BodyRenderer {
 
       // Update cell attributes
       cell.dataset.rowId = newRow.id
+
+      // CRITICAL: Update cell position and width from current layout
+      // Without this, recycled rows keep old cell dimensions after column reorder/resize
+      const layout = layoutMap.get(column.id)
+      if (layout) {
+        cell.style.left = `${layout.xOffset}px`
+        cell.style.width = `${layout.width}px`
+      }
 
       // Update cell content using fast path
       this.updateCellContentFast(cell, value, column, rowData)
