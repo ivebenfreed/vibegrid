@@ -11,9 +11,20 @@ Data Controls in VibeGrid provide powerful ways to slice, dice, and view data th
 ## Overview
 - **Domain:** vibegrid
 - **Status:** draft
-- **Related Issues:** GH#187, GH#216, GH#247, GH#248, GH#394, GH#415, GH#466
+- **Related Issues:** GH#187, GH#216, GH#247, GH#248, GH#394, GH#415, GH#466, GH#1391
 
 ## Behaviors
+
+### Smart Text Search
+
+### B0: Global Text Search (Smart Search)
+- **Trigger:** User types in the search input in the grid toolbar.
+- **Expected:** `SmartSearchInput` debounces (300ms) and calls `VisualStateStore.setGlobalSearchText`. `TableCoreStore.searchFilteredRows` filters rows where any searchable column contains the search text (case-insensitive).
+- **Verify:** Grid rows filter in real-time as user types. Only rows with matching text in configured columns remain visible.
+- **Source:** `SmartSearchInput.tsx`, `TableCoreStore.ts:searchFilteredRows`, `filter-utils.ts:applyTextSearch()`
+- **Status:** [x] Implemented (GH#1391)
+
+### Column Filtering
 
 ### B1: Simple Column Filtering
 - **Trigger:** User clicks on a column header's filter icon and enters a value/selects an option.

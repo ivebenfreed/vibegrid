@@ -2,11 +2,14 @@
  * Filter Utilities
  *
  * GH#216: Multi-Level Advanced Filtering for VibeGrid
+ * GH#1391: Smart Text Search - applyTextSearch function
  *
  * Provides validation and utility functions for filter conditions and groups.
  */
 
 import type { ValidationError, FilterGroup, FilterCondition } from '../types/filter-types'
+import type { Column } from '../types'
+import { isTextType } from '../column-types'
 
 /**
  * Threshold for showing complexity warning
@@ -224,4 +227,50 @@ export function applyNestedFilters(rows: any[], filterGroup: FilterGroup | null)
   }
 
   return rows.filter((row) => evaluateFilterGroup(row, filterGroup))
+}
+
+// ====================================
+// TEXT SEARCH FUNCTIONS (GH#1391)
+// ====================================
+
+/**
+ * Apply text search across specified columns.
+ * Returns rows where any searchable column contains the search text (case-insensitive).
+ *
+ * Uses existing isTextType() to determine default searchable columns:
+ * - text, longtext, rich-text, email, url, phone
+ *
+ * @param rows - Array of rows to search
+ * @param searchText - The search text to find
+ * @param columns - Column definitions for the grid
+ * @param searchableColumnIds - Optional list of specific column IDs to search
+ * @returns Filtered array of rows that match the search criteria
+ */
+export function applyTextSearch(
+  rows: any[],
+  searchText: string,
+  columns: Column[],
+  searchableColumnIds?: string[],
+): any[] {
+  const trimmed = searchText.trim().toLowerCase()
+  if (!trimmed) return rows
+
+  // Determine which columns to search
+  // Uses existing isTextType() from column-types.ts for consistency
+  const columnsToSearch = searchableColumnIds
+    ? columns.filter((c) => searchableColumnIds.includes(c.id))
+    : columns.filter((c) => isTextType(c.cellType || ''))
+
+  if (columnsToSearch.length === 0) return rows
+
+  return rows.filter((row) => {
+    return columnsToSearch.some((col) => {
+      // Use column.field for row data lookup (per Codex review note)
+      // Support both row[field] and row.data[field] patterns
+      const field = col.field || col.id
+      const value = row[field] ?? row.data?.[field]
+      if (value == null) return false
+      return String(value).toLowerCase().includes(trimmed)
+    })
+  })
 }

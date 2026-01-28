@@ -144,6 +144,14 @@ interface VibeGridProps<_T = any> {
   rowExpansionConfig?: RowExpansionConfig
   onRowExpansionChange?: (event: RowExpansionChangeEvent) => void
   onExpandedDataLoad?: (event: ExpandedDataLoadEvent) => void
+
+  // Smart text search (GH#1391)
+  /** Columns to search. Defaults to all columns with isTextType() */
+  searchableColumns?: string[]
+  /** Placeholder text for search input. Defaults to "Search..." */
+  searchPlaceholder?: string
+  /** Disable smart search entirely. Defaults to false */
+  disableSearch?: boolean
 }
 
 // ====================================
@@ -190,6 +198,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
     rowExpansionConfig,
     onRowExpansionChange,
     onExpandedDataLoad,
+    // Smart text search (GH#1391)
+    searchableColumns,
+    searchPlaceholder,
+    disableSearch = false,
   } = props
 
   // ====================================
@@ -762,6 +774,20 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // GH#1240: Respect showHeader prop for nested grids that don't need headers
   const shouldShowHeader = showHeader && isReady && visualStateStore.columns.length > 0
 
+  // GH#1391: Smart text search configuration
+  const searchConfig = {
+    searchableColumns,
+    searchPlaceholder,
+    disableSearch,
+  }
+
+  // GH#1391: Wire searchableColumns to TableCoreStore for data pipeline
+  useEffect(() => {
+    if (tableCoreStore) {
+      tableCoreStore.setSearchableColumns(searchableColumns)
+    }
+  }, [searchableColumns, tableCoreStore])
+
   // Log header visibility decision
   useEffect(() => {
     logger.info('📊 Header visibility check', {
@@ -824,6 +850,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           entityDisplayName={entityDisplayName}
           orgId={orgId}
           createEntity={createEntity}
+          searchConfig={searchConfig}
         />
       )}
 

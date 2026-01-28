@@ -37,7 +37,7 @@ import { processExpandedRows } from '../processors/RowExpansionProcessor'
 import type { RowExpansionConfig } from '../types/row-expansion'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { HierarchyStore } from './HierarchyStore'
-import { applyNestedFilters } from '../utils/filter-utils'
+import { applyNestedFilters, applyTextSearch } from '../utils/filter-utils'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
 import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/hashing'
 import { generateColumnsFromEntitySchema } from './column-generation'
@@ -224,6 +224,9 @@ export class TableCoreStore implements IStore {
   @observable flatRowOrder: string[] = []
   @observable isSchemaLoaded: boolean = false
   @observable schemaError: string | null = null
+
+  // GH#1391: Configurable searchable columns for text search
+  @observable.ref searchableColumns: string[] | undefined = undefined
 
   // Pending reorder confirmation (when sorting is active)
   @observable pendingReorder: PendingReorderOperation | null = null
@@ -430,6 +433,19 @@ export class TableCoreStore implements IStore {
    */
   getRowExpansionConfig(): RowExpansionConfig | null {
     return this.rowExpansionConfig
+  }
+
+  /**
+   * Set searchable columns for text search (GH#1391)
+   * When undefined, applyTextSearch will use isTextType() to determine searchable columns
+   */
+  @action
+  setSearchableColumns(columns: string[] | undefined): void {
+    this.searchableColumns = columns
+    logger.info('Searchable columns set on TableCoreStore', {
+      columns,
+      hasCustomColumns: columns !== undefined,
+    })
   }
 
   /**
@@ -841,27 +857,57 @@ export class TableCoreStore implements IStore {
   // ====================================
 
   /**
-   * Stage 1: Filtered rows
-   * Applies filter configuration to raw rows
-   * Supports both legacy FilterConfig[] and new FilterGroup
+   * Get base rows for the pipeline (handles rawRows vs entityDataProvider fallback)
+   * This is the source for searchFilteredRows
    */
-  @computed
-  get filteredRows(): any[] {
+  private get baseRows(): any[] {
     if (!this.isSchemaLoaded || !this.hasLoadedRows) {
       return []
     }
 
     // Use raw rows if available (simplified Day 7 approach)
-    let rows: any[]
     if (this.rawRows.length > 0) {
-      rows = this.rawRows
-    } else if (this.entityDataProvider) {
-      // Fallback to entity data provider (future full implementation)
-      const data = this.entityDataProvider.getEntityData() || {}
-      rows = Object.values(data)
-    } else {
-      return []
+      return this.rawRows
     }
+
+    // Fallback to entity data provider (future full implementation)
+    if (this.entityDataProvider) {
+      const data = this.entityDataProvider.getEntityData() || {}
+      return Object.values(data)
+    }
+
+    return []
+  }
+
+  /**
+   * Stage 0.5: Search-filtered rows (GH#1391: Smart Text Search)
+   * Applies global search text BEFORE FilterGroup filtering
+   *
+   * Pipeline: baseRows → searchFilteredRows → filteredRows (FilterGroup) → sortedRows
+   */
+  @computed
+  get searchFilteredRows(): any[] {
+    const rows = this.baseRows
+    if (rows.length === 0) return rows
+
+    const searchText = this.visualStateStore?.globalSearchText || ''
+    if (!searchText.trim()) return rows
+
+    return applyTextSearch(rows, searchText, this.columns, this.searchableColumns)
+  }
+
+  /**
+   * Stage 1: Filtered rows
+   * Applies filter configuration to search-filtered rows
+   * Supports both legacy FilterConfig[] and new FilterGroup
+   *
+   * Pipeline: baseRows → searchFilteredRows → filteredRows (FilterGroup) → sortedRows
+   */
+  @computed
+  get filteredRows(): any[] {
+    // Start from search-filtered rows (GH#1391)
+    let rows = this.searchFilteredRows
+    if (rows.length === 0) return rows
 
     // Apply legacy filters first (for backward compatibility)
     const filters = this.visualStateStore?.filters || []
@@ -1790,6 +1836,9 @@ export class TableCoreStore implements IStore {
     this.configVersion = 0
     this.structureVersion = 0
     this.lastChangeMetadata = null
+
+    // Reset searchable columns (GH#1391)
+    this.searchableColumns = undefined
 
     logger.info('🔄 TableCoreStore reset', { entityType: this.entityType })
   }

@@ -15,10 +15,21 @@ import type { VibeGridStores } from '../stores/context'
 import type { ViewMode } from '../stores/ViewModeStore'
 import { FilterBuilder } from './FilterBuilder'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
+import { SmartSearchInput } from './SmartSearchInput'
 import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
 
 const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
+
+/** Search configuration for smart text search (GH#1391) */
+export interface SearchConfig {
+  /** Columns to search. Defaults to all columns with isTextType() */
+  searchableColumns?: string[]
+  /** Placeholder text for search input. Defaults to "Search..." */
+  searchPlaceholder?: string
+  /** Disable smart search entirely. Defaults to false */
+  disableSearch?: boolean
+}
 
 interface VibeGridXHeaderPureProps {
   stores: VibeGridStores
@@ -33,6 +44,8 @@ interface VibeGridXHeaderPureProps {
   entityDisplayName?: string // User-friendly display name (e.g., "Document" instead of "GCFile")
   orgId?: string
   createEntity: (data: Record<string, any>) => void
+  /** Smart text search configuration (GH#1391) */
+  searchConfig?: SearchConfig
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -48,6 +61,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   entityDisplayName,
   orgId,
   createEntity,
+  searchConfig,
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore, hierarchyStore, interactionStore, tableCoreStore } = stores
 
@@ -216,6 +230,14 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
         {/* Group By Dropdown */}
         {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
+
+        {/* Smart Text Search (GH#1391) */}
+        {!searchConfig?.disableSearch && (
+          <SmartSearchInput
+            stores={stores}
+            placeholder={searchConfig?.searchPlaceholder}
+          />
+        )}
 
         {/* Filter Builder */}
         <FilterBuilder stores={stores} />

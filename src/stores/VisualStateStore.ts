@@ -107,6 +107,12 @@ export class VisualStateStore implements IStore {
   @observable groupConfig: GroupConfig | null = null
 
   // ====================================
+  // GLOBAL SEARCH STATE (Ephemeral - NOT persisted)
+  // ====================================
+
+  @observable globalSearchText: string = ''
+
+  // ====================================
   // METADATA
   // ====================================
 
@@ -212,6 +218,7 @@ export class VisualStateStore implements IStore {
     this.filters = []
     this.filterGroup = null
     this.groupConfig = null
+    this.globalSearchText = ''
     this.entityType = ''
     this.orgId = ''
     this.userId = ''
@@ -396,6 +403,13 @@ export class VisualStateStore implements IStore {
   @computed get activeFilterCount(): number {
     if (!this.filterGroup) return 0
     return this.countConditions(this.filterGroup)
+  }
+
+  /**
+   * Check if there is an active global search
+   */
+  @computed get hasActiveSearch(): boolean {
+    return this.globalSearchText.trim().length > 0
   }
 
   /**
@@ -1101,6 +1115,39 @@ export class VisualStateStore implements IStore {
     this.filterGroup = null
 
     logger.info('Filter group cleared')
+  }
+
+  // ====================================
+  // GLOBAL SEARCH OPERATIONS
+  // ====================================
+
+  /**
+   * Set global search text for smart text search (GH#1391)
+   */
+  @action
+  setGlobalSearchText(text: string): void {
+    this.globalSearchText = text
+    logger.debug('Global search text updated', { text, hasSearch: text.trim().length > 0 })
+  }
+
+  /**
+   * Clear global search (GH#1391)
+   */
+  @action
+  clearGlobalSearch(): void {
+    this.globalSearchText = ''
+    logger.debug('Global search cleared')
+  }
+
+  /**
+   * Clear all filters AND global search (for reset functionality)
+   */
+  @action
+  clearAllFilters(): void {
+    this.filters = []
+    this.filterGroup = null
+    this.clearGlobalSearch()
+    logger.info('All filters and search cleared')
   }
 
   // ====================================

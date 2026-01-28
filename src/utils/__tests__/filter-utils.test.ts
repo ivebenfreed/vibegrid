@@ -2,16 +2,24 @@
  * Filter Utils Tests
  *
  * GH#216: Multi-Level Advanced Filtering for VibeGrid
+ * GH#1391: Smart Text Search - applyTextSearch function
  *
  * Tests for filter evaluation functions:
  * - evaluateCondition: single condition evaluation
  * - evaluateFilterGroup: nested AND/OR group evaluation
  * - applyNestedFilters: apply filter group to row array
+ * - applyTextSearch: global text search across text columns
  */
 
 import { describe, expect, it } from 'vitest'
-import { evaluateCondition, evaluateFilterGroup, applyNestedFilters } from '../filter-utils'
+import {
+  evaluateCondition,
+  evaluateFilterGroup,
+  applyNestedFilters,
+  applyTextSearch,
+} from '../filter-utils'
 import type { FilterCondition, FilterGroup } from '../../types/filter-types'
+import type { Column } from '../../types'
 
 // ====================================
 // EVALUATE CONDITION TESTS
@@ -651,5 +659,300 @@ describe('applyNestedFilters', () => {
     const result = applyNestedFilters(testRows, group)
     expect(result[0].id).toBe('3')
     expect(result[1].id).toBe('4')
+  })
+})
+
+// ====================================
+// APPLY TEXT SEARCH TESTS (GH#1391)
+// ====================================
+
+describe('applyTextSearch', () => {
+  // Columns with various cell types - text types should be searchable by default
+  const mockColumns: Column[] = [
+    { id: 'name', field: 'name', name: 'Name', cellType: 'text' },
+    { id: 'email', field: 'email', name: 'Email', cellType: 'email' },
+    { id: 'phone', field: 'phone', name: 'Phone', cellType: 'phone' },
+    { id: 'website', field: 'website', name: 'Website', cellType: 'url' },
+    { id: 'status', field: 'status', name: 'Status', cellType: 'select' },
+    { id: 'count', field: 'count', name: 'Count', cellType: 'number' },
+    { id: 'description', field: 'description', name: 'Description', cellType: 'longtext' },
+  ]
+
+  const mockRows = [
+    {
+      name: 'John Doe',
+      email: 'john@test.com',
+      phone: '555-1234',
+      website: 'https://john.dev',
+      status: 'active',
+      count: 10,
+      description: 'A developer',
+    },
+    {
+      name: 'Jane Smith',
+      email: 'jane@example.com',
+      phone: '555-5678',
+      website: 'https://jane.io',
+      status: 'inactive',
+      count: 20,
+      description: 'A designer',
+    },
+    {
+      name: 'Bob Wilson',
+      email: 'bob@test.org',
+      phone: '555-9999',
+      website: 'https://bob.dev',
+      status: 'active',
+      count: 30,
+      description: 'A manager',
+    },
+  ]
+
+  describe('basic text matching', () => {
+    it('should filter rows by search text across text columns', () => {
+      const result = applyTextSearch(mockRows, 'john', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+
+    it('should match across multiple columns', () => {
+      // 'test' appears in john@test.com and bob@test.org
+      const result = applyTextSearch(mockRows, 'test', mockColumns)
+      expect(result).toHaveLength(2)
+      expect(result.map((r) => r.name)).toContain('John Doe')
+      expect(result.map((r) => r.name)).toContain('Bob Wilson')
+    })
+
+    it('should be case-insensitive', () => {
+      expect(applyTextSearch(mockRows, 'JOHN', mockColumns)).toHaveLength(1)
+      expect(applyTextSearch(mockRows, 'john', mockColumns)).toHaveLength(1)
+      expect(applyTextSearch(mockRows, 'John', mockColumns)).toHaveLength(1)
+      expect(applyTextSearch(mockRows, 'jOhN', mockColumns)).toHaveLength(1)
+    })
+
+    it('should handle partial word matches', () => {
+      const result = applyTextSearch(mockRows, 'wil', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Bob Wilson')
+    })
+
+    it('should match email addresses', () => {
+      const result = applyTextSearch(mockRows, '@example.com', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('Jane Smith')
+    })
+
+    it('should match phone numbers', () => {
+      const result = applyTextSearch(mockRows, '555-1234', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+
+    it('should match URLs', () => {
+      const result = applyTextSearch(mockRows, '.dev', mockColumns)
+      expect(result).toHaveLength(2) // john.dev and bob.dev
+    })
+
+    it('should match longtext fields', () => {
+      const result = applyTextSearch(mockRows, 'developer', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+  })
+
+  describe('empty and whitespace handling', () => {
+    it('should return all rows when search is empty', () => {
+      expect(applyTextSearch(mockRows, '', mockColumns)).toHaveLength(3)
+    })
+
+    it('should return all rows when search is whitespace only', () => {
+      expect(applyTextSearch(mockRows, '   ', mockColumns)).toHaveLength(3)
+      expect(applyTextSearch(mockRows, '\t\n', mockColumns)).toHaveLength(3)
+    })
+
+    it('should trim search text before matching', () => {
+      const result = applyTextSearch(mockRows, '  john  ', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+  })
+
+  describe('no matches', () => {
+    it('should return empty array when no matches found', () => {
+      const result = applyTextSearch(mockRows, 'xyz123nonexistent', mockColumns)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('column type filtering', () => {
+    it('should ignore non-text columns by default', () => {
+      // 'active' is in status (select type) - should NOT match
+      const result = applyTextSearch(mockRows, 'active', mockColumns)
+      expect(result).toHaveLength(0)
+    })
+
+    it('should ignore number columns by default', () => {
+      // '10' is in count (number type) - should NOT match
+      const result = applyTextSearch(mockRows, '10', mockColumns)
+      expect(result).toHaveLength(0)
+    })
+
+    it('should return all rows when no searchable columns exist', () => {
+      const nonTextColumns: Column[] = [
+        { id: 'status', field: 'status', name: 'Status', cellType: 'select' },
+        { id: 'count', field: 'count', name: 'Count', cellType: 'number' },
+        { id: 'isActive', field: 'isActive', name: 'Active', cellType: 'boolean' },
+      ]
+      // When there are no text columns to search, applyTextSearch returns all rows
+      // because no filtering can be applied
+      const result = applyTextSearch(mockRows, 'anything', nonTextColumns)
+      expect(result).toHaveLength(3)
+    })
+  })
+
+  describe('searchableColumnIds parameter', () => {
+    it('should respect searchableColumnIds when provided', () => {
+      // Search only 'name' column - 'test' should not match since it's in email
+      const result = applyTextSearch(mockRows, 'test', mockColumns, ['name'])
+      expect(result).toHaveLength(0)
+    })
+
+    it('should find matches when searchableColumnIds includes matching column', () => {
+      const result = applyTextSearch(mockRows, 'John', mockColumns, ['name'])
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+
+    it('should search multiple specific columns', () => {
+      // Search both name and email
+      const result = applyTextSearch(mockRows, 'john', mockColumns, ['name', 'email'])
+      expect(result).toHaveLength(1) // Only John matches
+    })
+
+    it('should allow searching non-text columns when explicitly specified', () => {
+      // When searchableColumnIds is provided, it filters columns by ID regardless of cellType
+      // We need to verify the column lookup behavior
+      const statusColumn = mockColumns.find((c) => c.id === 'status')
+      expect(statusColumn).toBeDefined()
+      expect(statusColumn?.cellType).toBe('select')
+
+      // Now test the search - it should search only the 'status' column
+      const result = applyTextSearch(mockRows, 'active', mockColumns, ['status'])
+
+      // Debug: Check what we got
+      // 'active' is in the status column for John and Bob
+      // Jane has status='inactive' which should NOT match 'active'
+      const matchingStatuses = mockRows.filter((r) => r.status === 'active')
+      expect(matchingStatuses).toHaveLength(2) // John and Bob
+
+      // The implementation searches case-insensitively with string.includes()
+      // 'active' should match rows where status='active'
+      // BUT 'inactive' does NOT contain 'active' as a substring... wait, it DOES!
+      // 'inactive' contains 'active' as a substring!
+      // So ALL three rows will match because 'inactive'.includes('active') === true
+      expect(result).toHaveLength(3) // All three match because 'inactive' contains 'active'
+    })
+  })
+
+  describe('nested data structure', () => {
+    it('should handle rows with nested data property', () => {
+      const nestedRows = [
+        { id: '1', data: { name: 'Test User', email: 'test@email.com' } },
+        { id: '2', data: { name: 'Other User', email: 'other@email.com' } },
+      ]
+      const result = applyTextSearch(nestedRows, 'test', mockColumns)
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('1')
+    })
+
+    it('should prefer flat row fields over nested data', () => {
+      const mixedRows = [
+        { name: 'Direct Name', email: 'direct@email.com', data: { name: 'Nested Name' } },
+      ]
+      const result = applyTextSearch(mixedRows, 'Direct', mockColumns)
+      expect(result).toHaveLength(1)
+    })
+  })
+
+  describe('null and undefined values', () => {
+    it('should handle null values gracefully', () => {
+      const rowsWithNulls = [
+        { name: null, email: 'test@email.com', phone: null, website: null, description: null },
+        { name: 'Test', email: undefined, phone: null, website: null, description: null },
+        {
+          name: 'John',
+          email: 'john@test.com',
+          phone: '555',
+          website: 'http://x',
+          description: 'hi',
+        },
+      ]
+      // 'test' matches email in row 1 ('test@email.com'), name in row 2 ('Test'),
+      // and email in row 3 ('john@test.com' contains 'test')
+      const result = applyTextSearch(rowsWithNulls, 'test', mockColumns)
+      expect(result).toHaveLength(3) // All three match
+    })
+
+    it('should handle undefined values gracefully', () => {
+      const rowsWithUndefined = [
+        { name: undefined, email: 'search@here.com' },
+        { name: 'Visible', email: undefined },
+      ]
+      const result = applyTextSearch(rowsWithUndefined, 'search', mockColumns)
+      expect(result).toHaveLength(1)
+    })
+
+    it('should not match on null/undefined values', () => {
+      const rowsWithNulls = [
+        { name: null, email: null },
+        { name: undefined, email: undefined },
+      ]
+      const result = applyTextSearch(rowsWithNulls, 'null', mockColumns)
+      expect(result).toHaveLength(0)
+    })
+  })
+
+  describe('edge cases', () => {
+    it('should handle empty rows array', () => {
+      const result = applyTextSearch([], 'test', mockColumns)
+      expect(result).toHaveLength(0)
+    })
+
+    it('should handle empty columns array', () => {
+      const result = applyTextSearch(mockRows, 'test', [])
+      expect(result).toHaveLength(3) // Returns all rows when no columns to search
+    })
+
+    it('should handle special regex characters in search text', () => {
+      const rowsWithSpecialChars = [
+        { name: 'Test (with) parens', email: 'test@email.com' },
+        { name: 'Test [with] brackets', email: 'other@email.com' },
+        { name: 'Test $pecial', email: 'special@email.com' },
+      ]
+      // These should work because we use string.includes(), not regex
+      expect(applyTextSearch(rowsWithSpecialChars, '(with)', mockColumns)).toHaveLength(1)
+      expect(applyTextSearch(rowsWithSpecialChars, '[with]', mockColumns)).toHaveLength(1)
+      expect(applyTextSearch(rowsWithSpecialChars, '$pecial', mockColumns)).toHaveLength(1)
+    })
+
+    it('should preserve row order', () => {
+      // Search for '.com' - only John and Jane have .com in their emails
+      // John: john@test.com (matches)
+      // Jane: jane@example.com (matches)
+      // Bob: bob@test.org (no .com)
+      const result = applyTextSearch(mockRows, '.com', mockColumns)
+      expect(result).toHaveLength(2)
+      expect(result[0].name).toBe('John Doe')
+      expect(result[1].name).toBe('Jane Smith')
+    })
+
+    it('should handle columns with field different from id', () => {
+      const columnsWithDifferentField: Column[] = [
+        { id: 'userName', field: 'name', name: 'User Name', cellType: 'text' },
+      ]
+      const result = applyTextSearch(mockRows, 'John', columnsWithDifferentField)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
   })
 })
