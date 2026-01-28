@@ -1485,9 +1485,19 @@ export class SimplePassiveRenderer {
 
     // PERF: Pre-compute values ONCE instead of per-row
     // This avoids repeated MobX computed property reads and array filtering
-    const visibleColumns = columns.filter((col) =>
-      allVisibleColumnLayouts.some((l) => l.id === col.id),
-    )
+    // CRITICAL: Must use .map() over allVisibleColumnLayouts to preserve visual column order
+    // (same pattern as renderBody) - .filter() preserves wrong order from columns array
+    const visibleColumns = allVisibleColumnLayouts
+      .map((layout) => {
+        const column = columns.find((col) => col.id === layout.id)
+        if (!column) return null
+        // Enrich with actual width from layout (respects columnWidths state)
+        return {
+          ...column,
+          width: layout.width,
+        }
+      })
+      .filter(Boolean) as typeof columns
     const totalWidth = visualState.geometry.totalWidth
     const precomputed = {
       visibleColumns,
