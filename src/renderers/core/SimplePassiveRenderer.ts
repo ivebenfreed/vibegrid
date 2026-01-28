@@ -175,6 +175,7 @@ export class SimplePassiveRenderer {
   private scrollObserverDisposer: (() => void) | null = null
   private dragSelectionObserverDisposer: (() => void) | null = null
   private expansionObserverDisposer: (() => void) | null = null // GH#1240: Row expansion observer
+  private searchFilterObserverDisposer: (() => void) | null = null // GH#1391: Smart text search observer
   private pendingRAF: number | null = null // Track pending RAF to prevent cascades
   private observersEnabled: boolean = false // Prevent observers from running during initialization
 
@@ -655,6 +656,36 @@ export class SimplePassiveRenderer {
 
         // Force re-render when column visibility changes
         this.renderHeader()
+        this.renderBody()
+      },
+    )
+
+    // GH#1391: SEARCH FILTER OBSERVER - triggers body re-render when search text changes
+    // This is needed because search filtering uses MobX computeds, not setRows(), so
+    // the version-based observer doesn't fire. We need to observe globalSearchText directly.
+    this.searchFilterObserverDisposer = reaction(
+      () => this.visualStateStore.globalSearchText,
+      (searchText) => {
+        // GUARD: Skip if observers are not enabled yet
+        if (!this.observersEnabled) {
+          fileLog.debug('⏸️ SEARCH FILTER: Observers not enabled yet')
+          return
+        }
+
+        // GUARD: Only render if grid is fully initialized
+        const isFullyInitialized = this.initStore.isFullyHydrated
+        if (!isFullyInitialized) {
+          fileLog.debug('⏸️ SEARCH FILTER: Skipping render during initialization')
+          return
+        }
+
+        fileLog.info('🔍 SEARCH FILTER CHANGE DETECTED - triggering body re-render', {
+          searchText,
+          hasSearch: searchText.trim().length > 0,
+          processedRowCount: this.tableCoreStore.processedRows.length,
+        })
+
+        // Re-render body with filtered rows
         this.renderBody()
       },
     )
@@ -2519,6 +2550,11 @@ export class SimplePassiveRenderer {
     if (this.expansionObserverDisposer) {
       this.expansionObserverDisposer()
       this.expansionObserverDisposer = null
+    }
+    // GH#1391: Clean up search filter observer
+    if (this.searchFilterObserverDisposer) {
+      this.searchFilterObserverDisposer()
+      this.searchFilterObserverDisposer = null
     }
 
     // Clean up Phase 2 managers
