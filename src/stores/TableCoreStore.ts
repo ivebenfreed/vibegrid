@@ -1891,7 +1891,11 @@ export class TableCoreStore implements IStore {
       data: row.data || row,
     }))
 
-    this.coordinateManager.updateRows(rows as any, this.visualStateStore?.sortBy || [])
+    this.coordinateManager.updateRows(
+      rows as any,
+      this.visualStateStore?.sortBy || [],
+      this.rowOffsets,
+    )
 
     logger.info('🔄 Coordinator updated with row order (selection cleared)', {
       rowCount: rows.length,
