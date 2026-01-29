@@ -370,6 +370,7 @@ export interface VirtualRow {
   type: VirtualRowType
   id: string
   index: number // Position in the flattened virtual array
+  dataIndex?: number // Position among data rows only (excludes expanded-content/group rows, used for zebra striping)
   height: number // Row height (may vary by type)
   offset?: number // Vertical offset in pixels (for virtualization)
   data: TableRow | GroupNode | null // The actual data (null for expanded-content rows)

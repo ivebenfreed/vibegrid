@@ -1004,6 +1004,7 @@ export class TableCoreStore implements IStore {
         type: 'data' as const,
         id: row.id,
         index,
+        dataIndex: index, // For data-only rows, dataIndex === index (no expanded-content rows yet)
         height: row.height || 40, // Preserve variable row heights, default to 40
         data: row,
       }))

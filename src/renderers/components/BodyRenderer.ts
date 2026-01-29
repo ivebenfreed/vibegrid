@@ -252,7 +252,10 @@ export class BodyRenderer {
     const _adjustedStartX = startX
 
     // Add alternating row class for CSS styling (supports dark mode)
-    if (rowIndex % 2 !== 0) {
+    // Use dataIndex (position among data rows only) so expanded-content rows
+    // don't disrupt the zebra stripe pattern
+    const zebraIndex = row.dataIndex ?? rowIndex
+    if (zebraIndex % 2 !== 0) {
       rowElement.classList.add('vibegridx-row-alt')
     }
 
