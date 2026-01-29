@@ -96,18 +96,25 @@ export class VibeGridXCoordinateManager {
 
   /**
    * Update row mappings from sorted data
+   * @param sortedRows - Rows in display order (may include expanded-content rows)
+   * @param sortBy - Current sort configuration
+   * @param rowOffsets - Optional cumulative Y offsets for variable-height rows
    */
   updateRows(
     sortedRows: TableRow[],
     sortBy: Array<{ field: string; direction: 'asc' | 'desc' }> = [],
+    rowOffsets?: number[],
   ): void {
     const oldMapping = { ...this.mapping }
+    const rowHeight = 40
 
-    // Create new row mappings
+    // Create new row mappings with optional Y positions from rowOffsets
     const newRows: RowMapping[] = sortedRows.map((row, sortedIndex) => ({
       rowId: row.id,
       originalIndex: -1, // We don't track original index for now
       sortedIndex,
+      y: rowOffsets ? rowOffsets[sortedIndex] : sortedIndex * rowHeight,
+      height: (row as any).height || rowHeight,
     }))
 
     this.mapping = {
@@ -272,18 +279,21 @@ export class VibeGridXCoordinateManager {
       return null
     }
 
-    // Calculate y position (assuming fixed row height of 40px)
+    // Use stored Y position from row mapping (supports variable-height expanded rows)
+    // Falls back to fixed 40px calculation if Y not stored
+    const rowMapping = this.mapping.rows[position.rowIndex]
     const rowHeight = 40
-    const y = position.rowIndex * rowHeight
+    const y = rowMapping?.y ?? position.rowIndex * rowHeight
 
     fileLog.debug('getCellPosition: Row mapping check', {
       rowId,
       sortedIndex: position.rowIndex,
       calculatedY: y,
+      usedStoredY: rowMapping?.y !== undefined,
       totalRows: this.mapping.rows.length,
       firstFewRows: this.mapping.rows
         .slice(0, 5)
-        .map((r) => ({ id: r.rowId, index: r.sortedIndex })),
+        .map((r) => ({ id: r.rowId, index: r.sortedIndex, y: r.y })),
     })
 
     return {

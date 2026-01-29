@@ -76,13 +76,15 @@ export class ObservableCoordinateManager {
   /**
    * Update row mappings from sorted data
    * @action increments observable version
+   * @param rowOffsets - Optional cumulative Y offsets for variable-height rows (expanded content)
    */
   @action
   updateRows(
     sortedRows: TableRow[],
     sortBy: Array<{ field: string; direction: 'asc' | 'desc' }> = [],
+    rowOffsets?: number[],
   ): void {
-    this.coordinator.updateRows(sortedRows, sortBy)
+    this.coordinator.updateRows(sortedRows, sortBy, rowOffsets)
     // Version updated via listener
   }
 

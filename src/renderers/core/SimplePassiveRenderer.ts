@@ -1575,6 +1575,8 @@ export class SimplePassiveRenderer {
 
     // 🚀 ROW RECYCLING: Instead of destroying rows, add them to the pool for reuse
     // Remove rows that are no longer visible - ADD TO POOL instead of destroy
+    // GH#1240 FIX: Only pool data rows - expanded-content rows have different DOM structure
+    // and cannot be recycled as data rows (causes corrupted rendering)
     if (currentRange.start > previousRange.start) {
       for (let i = previousRange.start; i < currentRange.start && i <= previousRange.end; i++) {
         const rowId = rows[i]?.id
@@ -1584,8 +1586,9 @@ export class SimplePassiveRenderer {
             // Remove from DOM but keep for recycling
             rowElement.remove()
             this.activeRows.delete(rowId)
-            // Add to pool for reuse (if pool not full)
-            if (this.rowPool.length < this.MAX_POOL_SIZE) {
+            // Only pool data rows (not expanded-content or group rows)
+            const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
+            if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
               this.rowPool.push(rowElement)
             }
             rowsRemoved++
@@ -1603,8 +1606,9 @@ export class SimplePassiveRenderer {
             // Remove from DOM but keep for recycling
             rowElement.remove()
             this.activeRows.delete(rowId)
-            // Add to pool for reuse (if pool not full)
-            if (this.rowPool.length < this.MAX_POOL_SIZE) {
+            // Only pool data rows (not expanded-content or group rows)
+            const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
+            if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
               this.rowPool.push(rowElement)
             }
             rowsRemoved++
@@ -2096,12 +2100,14 @@ export class SimplePassiveRenderer {
     this.lastVisibleRows = { start: startIndex, end: endIndex }
 
     // Build complete coordinate mapping for all rows (needed for overlays)
+    // GH#1240: Use actual rowOffsets for variable-height rows (expanded content rows)
+    const rowOffsets = this.tableCoreStore.rowOffsets
     const newRows: any[] = []
     rows.forEach((row, rowIndex) => {
       newRows.push({
         rowId: row.id,
-        y: rowIndex * ROW_HEIGHT,
-        height: ROW_HEIGHT,
+        y: rowOffsets[rowIndex] ?? rowIndex * ROW_HEIGHT,
+        height: row.height || ROW_HEIGHT,
         index: rowIndex,
       })
     })
@@ -2120,9 +2126,9 @@ export class SimplePassiveRenderer {
       this.coordinateMapping.rows = newRows
       this.coordinateMapping.version++
 
-      // Also update the shared coordinator with row data
-      // The coordinator only uses row.id, so we can pass rows as-is
-      this.stores.coordinateManager.updateRows(rows as any, this.visualStateStore.sortBy)
+      // Also update the shared coordinator with row data + offsets
+      // GH#1240: Pass rowOffsets so coordinator knows actual Y positions with expanded rows
+      this.stores.coordinateManager.updateRows(rows as any, this.visualStateStore.sortBy, rowOffsets)
 
       fileLog.debug('🔄 Row coordinate mapping updated (local + shared coordinator)', {
         newRowCount: newRows.length,
