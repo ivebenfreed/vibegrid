@@ -949,8 +949,32 @@ export class MouseController {
 
           const columnId = columnHeaderElement.getAttribute('data-column-id')
           const field = columnHeaderElement.getAttribute('data-field')
+          const cellType = columnHeaderElement.getAttribute('data-cell-type')
 
           if (columnId && field) {
+            // Handle row-expand column header click: toggle expand/collapse all
+            if (cellType === 'row-expand') {
+              fileLog.debug('🔄 Row-expand header clicked - toggling all rows', {
+                columnId,
+                hasExpandedRows: this.interactionStore.hasExpandedRows,
+              })
+
+              if (this.interactionStore.hasExpandedRows) {
+                // Collapse all rows
+                this.interactionStore.collapseAllRows()
+              } else {
+                // Expand all rows - get all expandable row IDs
+                const rowIds =
+                  this.tableCoreStore?.processedRows
+                    ?.filter(
+                      (row: any) => row.type !== 'group-header' && row.type !== 'expanded-content',
+                    )
+                    ?.map((row: any) => row.id) || []
+                this.interactionStore.expandAllRows(rowIds)
+              }
+              return
+            }
+
             const isCtrlKey = e.ctrlKey || e.metaKey
             const isShiftKey = e.shiftKey
 
@@ -992,15 +1016,39 @@ export class MouseController {
             // This is a column header click that was missed in the earlier check
             const columnId = columnHeaderElement.getAttribute('data-column-id')
             const field = columnHeaderElement.getAttribute('data-field')
+            const cellType = columnHeaderElement.getAttribute('data-cell-type')
 
             fileLog.debug('🔍 FOUND MISSED COLUMN HEADER in fallback check', {
               columnId,
               field,
+              cellType,
               targetTag: target.tagName,
               targetClass: target.className,
             })
 
             if (columnId && field) {
+              // Handle row-expand column header click: toggle expand/collapse all
+              if (cellType === 'row-expand') {
+                fileLog.debug('🔄 Row-expand header clicked (fallback) - toggling all rows', {
+                  columnId,
+                  hasExpandedRows: this.interactionStore.hasExpandedRows,
+                })
+
+                if (this.interactionStore.hasExpandedRows) {
+                  this.interactionStore.collapseAllRows()
+                } else {
+                  const rowIds =
+                    this.tableCoreStore?.processedRows
+                      ?.filter(
+                        (row: any) =>
+                          row.type !== 'group-header' && row.type !== 'expanded-content',
+                      )
+                      ?.map((row: any) => row.id) || []
+                  this.interactionStore.expandAllRows(rowIds)
+                }
+                return
+              }
+
               const isShiftKey = e.shiftKey
 
               // Ctrl+click for column selection is disabled in this system

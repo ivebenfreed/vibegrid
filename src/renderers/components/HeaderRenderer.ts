@@ -337,10 +337,15 @@ export class HeaderRenderer {
     headerCell.setAttribute('data-column-id', column.id)
     headerCell.setAttribute('data-field', column.field || column.id)
     headerCell.setAttribute('data-interaction-type', 'column-header')
+    // Add cell type for special column handling (e.g., row-expand header click)
+    if (column.cellType) {
+      headerCell.setAttribute('data-cell-type', column.cellType)
+    }
 
     fileLog.debug('🎯 Header cell setup for passive interaction', {
       columnId: column.id,
       field: column.field || column.id,
+      cellType: column.cellType,
     })
   }
 
