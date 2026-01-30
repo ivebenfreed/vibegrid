@@ -33,35 +33,37 @@ import { EntityNotFound } from './EntityNotFound'
 
 const logger = getLogger(['entity', 'EntityListView'])
 
+interface EntityListViewProps {
+  /** Override entity name (used by directory routes that don't have :entityName param) */
+  entityName?: string
+}
+
 /**
  * Entity List View Component
  * Fetches and displays entity records in a grid
  */
-export const EntityListView = observer(() => {
-  // Get entity name from route params
-  const { entityName } = useParams({ strict: false })
+export const EntityListView = observer(function EntityListView(props: EntityListViewProps) {
+  // Use prop if provided, otherwise read from route params
+  const params = useParams({ strict: false })
+  const entityName = props.entityName ?? (params as { entityName?: string }).entityName
   const navigate = useNavigate()
 
   // Create dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-  if (!entityName) {
-    return <EntityNotFound entityName="unknown" />
-  }
-
-  // Fetch entity schema from cache (prefetched in route loader)
-  const schema = useEntitySchema(entityName)
-
+  // All hooks must be called unconditionally (React rules of hooks)
+  const resolvedName = entityName ?? ''
+  const schema = useEntitySchema(resolvedName)
   const [isTransitionPending, startTransition] = useTransition()
-
-  // Note: Vibegrid handles its own virtualization/pagination
-  // This config is just for compatibility with useEntityListData
-  // Uses streaming for STREAMING_ENTITIES (like BuildProject) for progressive loading
-  const listResult = useStreamingEntityListData(entityName, {
+  const listResult = useStreamingEntityListData(resolvedName, {
     pagination: { pageIndex: 0, pageSize: 1000 },
     orderBy: 'created_at',
     orderDirection: 'desc',
   })
+
+  if (!entityName) {
+    return <EntityNotFound entityName="unknown" />
+  }
 
   if (!listResult.isReady && listResult.rows.length === 0) {
     return <EntityListSkeleton />
