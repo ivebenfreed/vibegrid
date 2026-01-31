@@ -8,11 +8,6 @@ import { useEffect, useRef } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import { PositionEvents, positionTracker } from '../stores/dom-position-state'
 import type { ColumnLayout, PositionUpdateHandler } from '../types/coordinate-types'
-import {
-  updateVirtualBounds,
-  updateVirtualColumns,
-  updateVirtualViewport,
-} from '../virtualization/VirtualScrollManager'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'hooks', 'use-position-tracking.ts'])
 
@@ -30,7 +25,7 @@ export function usePositionTracking(
     viewportDimensions?: { width: number; height: number }
   } = {},
 ) {
-  const { enabled = true, columns = [], totalRows = 0, viewportDimensions } = options
+  const { enabled = true, columns = [], totalRows = 0 } = options
   const isInitialized = useRef(false)
 
   useEffect(() => {
@@ -47,22 +42,8 @@ export function usePositionTracking(
     // Initialize DOM position tracking
     positionTracker.initialize(containerRef.current)
 
-    // Update virtual bounds with column information
-    if (columns.length > 0) {
-      updateVirtualColumns(columns)
-    }
-
-    if (totalRows > 0) {
-      updateVirtualBounds({ totalRows })
-    }
-
-    // Update viewport dimensions if provided
-    if (viewportDimensions) {
-      updateVirtualViewport({
-        viewportWidth: viewportDimensions.width,
-        viewportHeight: viewportDimensions.height,
-      })
-    }
+    // Virtual bounds/columns/viewport are now managed by ViewportStore.
+    // No global update functions needed.
 
     isInitialized.current = true
 
@@ -73,32 +54,9 @@ export function usePositionTracking(
     }
   }, [enabled, containerRef, columns.length, totalRows])
 
-  // Update column layouts when they change
-  useEffect(() => {
-    if (isInitialized.current && columns.length > 0) {
-      fileLog.debug('📊 Updating column layouts', { columnCount: columns.length })
-      updateVirtualColumns(columns)
-    }
-  }, [columns])
-
-  // Update row count when it changes
-  useEffect(() => {
-    if (isInitialized.current && totalRows > 0) {
-      fileLog.debug('📊 Updating row count', { totalRows })
-      updateVirtualBounds({ totalRows })
-    }
-  }, [totalRows])
-
-  // Update viewport dimensions when they change
-  useEffect(() => {
-    if (isInitialized.current && viewportDimensions) {
-      fileLog.debug('📐 Updating viewport dimensions', viewportDimensions)
-      updateVirtualViewport({
-        viewportWidth: viewportDimensions.width,
-        viewportHeight: viewportDimensions.height,
-      })
-    }
-  }, [viewportDimensions?.width, viewportDimensions?.height])
+  // Column layouts, row count, and viewport dimensions are now
+  // managed by ViewportStore. The global VirtualScrollManager update
+  // functions have been removed in P2 consolidation.
 
   return {
     isTracking: isInitialized.current,
@@ -119,7 +77,8 @@ export function usePositionChangeHandler(handler: PositionUpdateHandler, deps: a
       unsubscribe()
       fileLog.debug('📡 Unsubscribed from position changes')
     }
-  }, deps)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...deps, handler])
 }
 
 /**
@@ -151,18 +110,13 @@ export function useScrollTracking(
           return
         }
 
-        const scrollTop = element.scrollTop
-        const scrollLeft = element.scrollLeft
-
-        updateVirtualViewport({
-          scrollTop,
-          scrollLeft,
-        })
+        // Scroll position is now tracked by ViewportStore via ScrollController.
+        // This hook only needs to schedule RAF for throttling.
 
         lastUpdate.current = now
         rafId = null
 
-        fileLog.debug('📜 Scroll position updated', { scrollTop, scrollLeft })
+        fileLog.debug('📜 Scroll position tracked (ViewportStore handles state)')
       })
     }
 
@@ -209,20 +163,13 @@ export function useResizeTracking(
           return
         }
 
-        const rect = element.getBoundingClientRect()
-
-        updateVirtualViewport({
-          viewportWidth: rect.width,
-          viewportHeight: rect.height,
-        })
+        // Viewport dimensions are now tracked by ViewportStore.
+        // This hook only needs to schedule RAF for throttling.
 
         lastUpdate.current = now
         rafId = null
 
-        fileLog.debug('📐 Viewport size updated', {
-          width: rect.width,
-          height: rect.height,
-        })
+        fileLog.debug('📐 Viewport resize tracked (ViewportStore handles state)')
       })
     }
 
@@ -250,19 +197,8 @@ export function useManualPositionUpdate() {
       fileLog.debug('🔄 Manual position update triggered')
       positionTracker.forceUpdate()
     },
-    updateViewport: (viewport: {
-      scrollTop?: number
-      scrollLeft?: number
-      viewportWidth?: number
-      viewportHeight?: number
-    }) => {
-      fileLog.debug('🔄 Manual viewport update', viewport)
-      updateVirtualViewport(viewport)
-    },
-    updateBounds: (bounds: { totalRows?: number; columnWidths?: number[]; rowHeight?: number }) => {
-      fileLog.debug('🔄 Manual bounds update', bounds)
-      updateVirtualBounds(bounds)
-    },
+    // updateViewport and updateBounds removed in P2 consolidation.
+    // Use ViewportStore actions directly instead.
   }
 }
 

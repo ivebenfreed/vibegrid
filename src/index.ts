@@ -81,15 +81,10 @@ export { useRowExpansion } from './hooks/useRowExpansion'
 export { ExpandedContentPortals } from './components/ExpandedContentPortals'
 
 // ====================================
-// PURE OBSERVABLE ARCHITECTURE
+// CORE RENDERER
 // ====================================
 
-// Core renderer
 export { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
-// Pure observables store system
-export { createPureObservables } from './stores/pure-observables'
-
-// Entity integration removed - table machine now subscribes directly to atoms
 
 // ====================================
 // VIRTUALIZATION
@@ -123,7 +118,6 @@ export const VIBEGRIDX_PERFORMANCE_TARGETS = {
 
 export const VIBEGRID_FEATURES = {
   PURE_OBSERVABLES: true,
-  LEGEND_STATE: true,
   VIRTUAL_SCROLLING: true,
   CANVAS_OVERLAYS: true,
   OPTIMISTIC_UPDATES: true,
@@ -131,64 +125,36 @@ export const VIBEGRID_FEATURES = {
   DOMAIN_INTEGRATION: true,
 } as const
 
-// ====================================
-// FACTORY FUNCTIONS
-// ====================================
-
-/**
- * Creates a complete VibeGrid instance with default configuration
- */
-export const createVibeGrid = (entityType: 'task' | 'project' | 'user', config?: Partial<any>) => {
-  return {
-    entityType,
-    config: {
-      enableVirtualScrolling: true,
-      enableCanvasOverlays: true,
-      enableGrouping: true,
-      enableFiltering: true,
-      enableSorting: true,
-      enableDragAndDrop: true,
-      ...config,
-    },
-  }
-}
-
 /**
  * Architecture Summary:
  *
- * ✅ Pure Observable Architecture - Legend State powered reactive system:
- *    - tableCore$ (data & configuration with persistence)
- *    - tableInteraction$ (UI state - selection, editing, menus)
- *    - tableViewport$ (scroll state and virtualization)
+ * - SimplePassiveRenderer:
+ *    Direct DOM manipulation for performance
+ *    Granular updates only where needed
+ *    <70ms initial render, <0.5ms cell updates
  *
- * ✅ SimplePassiveRenderer:
- *    - Direct DOM manipulation for performance
- *    - Granular updates only where needed
- *    - <70ms initial render, <0.5ms cell updates
+ * - MobX State Management:
+ *    TableCoreStore (data & configuration with persistence)
+ *    InteractionStore (UI state - selection, editing, menus)
+ *    VisualStateStore (viewport & scroll state)
  *
- * ✅ Entity Integration Layer:
- *    - Direct connection to Legend State universe observables
- *    - Real-time sync with database via syncedCrud
- *    - Optimistic updates with automatic rollback
+ * - Virtual Scrolling:
+ *    Viewport-based row rendering
+ *    Buffer and overscan for smooth scrolling
+ *    Performance-optimized calculations
  *
- * ✅ Virtual Scrolling:
- *    - Viewport-based row rendering
- *    - Buffer and overscan for smooth scrolling
- *    - Performance-optimized calculations
+ * - Canvas Overlays:
+ *    Selection indicators and drag visualizations
+ *    Layer-based rendering optimization
+ *    Coordinate system management
  *
- * ✅ Canvas Overlays:
- *    - Selection indicators and drag visualizations
- *    - Layer-based rendering optimization
- *    - Coordinate system management
- *
- * ✅ Complete TypeScript Support:
- *    - Comprehensive type system
- *    - Observable type safety
- *    - Column and entity typing
+ * - Complete TypeScript Support:
+ *    Comprehensive type system
+ *    Observable type safety
+ *    Column and entity typing
  *
  * This implementation achieves Notion/ClickUp-level performance using
- * Legend State observables for reactive coordination while maintaining
- * React for business logic and leveraging direct DOM manipulation for
- * performance-critical rendering. 85% reduction in code complexity
- * compared to XState version (~600 lines vs 4,400+ lines).
+ * MobX for reactive coordination while maintaining React for business
+ * logic and leveraging direct DOM manipulation for performance-critical
+ * rendering.
  */

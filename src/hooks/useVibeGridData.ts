@@ -234,6 +234,8 @@ export function useVibeGridData(
 
   // Track if initial data has been pushed to avoid duplicate markReady calls
   const hasMarkedReadyRef = useRef(false)
+  // Timer ref for empty collection fallback
+  const emptyCollectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Reactive query with filters applied
   // Use proper isLoading from useLiveQuery instead of computing manually
@@ -325,19 +327,58 @@ export function useVibeGridData(
     // skip redundant updates (e.g., server echo after optimistic update)
     tableCoreStore.setRows(sortedRows)
 
-    // Mark entity data as loaded on first successful push
+    // Mark entity data as loaded on first push with actual data.
+    // Don't mark on empty results - TanStack DB's useLiveQuery resolves the local
+    // query immediately (returning []) before the server sync delivers real data.
+    // Marking entityDataLoaded here would cause isFullyHydrated → true → skeleton
+    // disappears while the grid body is still empty. (GH#1413)
     if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
-      initStore.markReady('entityDataLoaded')
-      hasMarkedReadyRef.current = true
-      logger.info('[useVibeGridData] 📊 Entity data initially loaded', {
-        rowCount: sortedRows.length,
-      })
+      if (sortedRows.length > 0) {
+        // Clear the empty-collection fallback timer since we got real data
+        if (emptyCollectionTimerRef.current) {
+          clearTimeout(emptyCollectionTimerRef.current)
+          emptyCollectionTimerRef.current = null
+        }
+        initStore.markReady('entityDataLoaded')
+        hasMarkedReadyRef.current = true
+        logger.info('[useVibeGridData] 📊 Entity data initially loaded', {
+          rowCount: sortedRows.length,
+        })
+      } else {
+        logger.debug('[useVibeGridData] ⏳ Empty data push, waiting for server sync', {
+          entityType,
+        })
+      }
     } else {
       logger.debug('[useVibeGridData] 📊 Entity data updated', {
         rowCount: sortedRows.length,
       })
     }
-  }, [skip, sortedRows, queryLoading, tableCoreStore, initStore])
+  }, [skip, sortedRows, queryLoading, tableCoreStore, initStore, entityType])
+
+  // Fallback: For legitimately empty collections, mark entityDataLoaded after a delay.
+  // When the server returns 0 records, sortedRows stays [] and the condition above
+  // never fires. This timeout ensures the skeleton eventually disappears.
+  useEffect(() => {
+    if (skip || hasMarkedReadyRef.current) return
+
+    emptyCollectionTimerRef.current = setTimeout(() => {
+      if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+        initStore.markReady('entityDataLoaded')
+        hasMarkedReadyRef.current = true
+        logger.info('[useVibeGridData] 📊 Entity data marked loaded (empty collection fallback)', {
+          entityType,
+        })
+      }
+    }, 5000)
+
+    return () => {
+      if (emptyCollectionTimerRef.current) {
+        clearTimeout(emptyCollectionTimerRef.current)
+        emptyCollectionTimerRef.current = null
+      }
+    }
+  }, [skip, initStore, entityType])
 
   // ====================================
   // CRUD MUTATIONS

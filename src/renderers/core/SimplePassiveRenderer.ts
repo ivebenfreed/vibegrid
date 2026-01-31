@@ -6,35 +6,26 @@
  */
 
 import { reaction, runInAction } from 'mobx'
-import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 // Service layer
 import { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
 import { modularCellBridge } from '../../field-types'
-import type { VisualCellPosition } from '../../overlays/OverlayTypes'
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler'
 import { CellActionRouter } from '../../routing/CellActionRouter'
 import { SelectionService } from '../../services/SelectionService'
 import { positionTracker } from '../../stores/dom-position-state'
-// Utility imports
-import type { TableRow, ViewportInfo } from '../../types'
-import { ChangeType } from '../../utils/change-classification'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
 import { determineUpdateStrategy } from '../../utils/update-router'
-import {
-  updateVirtualBounds,
-  updateVirtualColumns,
-  updateVirtualViewport,
-} from '../../virtualization/VirtualScrollManager'
+// VirtualScrollManager removed in P2 consolidation - viewport state now in ViewportStore
 // Manager imports (ViewportManager consolidated into visual-state)
 import { BodyRenderer, CellFormatter } from '../components/BodyRenderer'
 import type { GroupRenderer } from '../components/GroupRenderer'
-import { HeaderRenderer, type HeaderRendererOptions } from '../components/HeaderRenderer'
+import { HeaderRenderer } from '../components/HeaderRenderer'
 // New modular architecture imports - ObserverManager will be removed
 // import { ObserverManager, type ObserverManagerOptions, type VisualState } from './ObserverManager';
-import { DOMElementFactory, type DOMElementFactoryOptions } from '../factories/DOMElementFactory'
+import { DOMElementFactory } from '../factories/DOMElementFactory'
 import { EventManager } from '../managers/EventManager'
 import { ColumnWidthManager } from '../modules/ColumnWidthManager'
 import { KeyboardController } from '../modules/KeyboardController'
@@ -54,23 +45,6 @@ const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT
 // ====================================
 // TYPES
 // ====================================
-
-/**
- * Visual state snapshot for change detection
- */
-interface VisualState {
-  scrollTop: number
-  scrollLeft: number
-  viewportWidth: number
-  viewportHeight: number
-  visibleRowStart: number
-  visibleRowEnd: number
-  visibleColumnStart: number
-  visibleColumnEnd: number
-  columns?: any[] // Column definitions
-  columnVisibility?: any // Column visibility state
-  viewport?: any // Viewport information
-}
 
 // Import MobX store types
 import type { VibeGridStores } from '../../stores/context'
@@ -123,9 +97,6 @@ export class SimplePassiveRenderer {
   private rowPool: HTMLElement[] = []
   private readonly MAX_POOL_SIZE = 50 // Limit pool to prevent memory bloat
 
-  // Visual state tracking for change detection
-  private lastVisualState: VisualState | null = null
-
   // Overlay management
   private overlayManager: OverlayManager | null = null
 
@@ -137,17 +108,11 @@ export class SimplePassiveRenderer {
     sortBy: [],
   }
 
-  // Scroll coordination
-  private _scrollRAF: number | null = null
-
   // Row range selection tracking - now handled by SelectionController
   // Keyboard navigation tracking - now handled by KeyboardNavigationController
 
   // UI element references
   private selectAllCheckbox: HTMLInputElement | null = null
-
-  // Smart cell system
-  private formattersReady: boolean = false
 
   // Modular controllers
   private selectionController: SelectionController | null = null
@@ -183,14 +148,6 @@ export class SimplePassiveRenderer {
   private lastDataVersion: number = 0
   private lastConfigVersion: number = 0
   private lastStructureVersion: number = 0
-
-  // ✅ PERFORMANCE: Track last values to prevent unnecessary DOM updates
-  private lastSelectedCount: number = 0
-  private lastSelectAllChecked: boolean | undefined = undefined
-  private lastSelectAllIndeterminate: boolean | undefined = undefined
-
-  // GUARD 2: Track previous row structure to prevent spurious full rerenders
-  private previousRowStructure: { count: number; ids: string[] } | null = null
   private domFactory: DOMElementFactory | null = null
   private headerRenderer: HeaderRenderer | null = null
 
@@ -461,6 +418,7 @@ export class SimplePassiveRenderer {
       interactionStore: this.interactionStore,
       editingStore: this.editingStore,
       coordinateManager: this.stores.coordinateManager,
+      viewportStore: this.stores.viewportStore,
       enableSelectionColumn: this.options.enableSelectionColumn,
       headerContainer: this.headerContainer,
       bodyContainer: this.bodyContainer,
@@ -835,7 +793,7 @@ export class SimplePassiveRenderer {
 
     // VISUAL OBSERVER: Only watches layout changes (columns, viewport dimensions)
     // Track non-scroll visual changes to avoid duplicate renders with scroll observer
-    const lastVisualLayout = ''
+    const _lastVisualLayout = ''
 
     fileLog.debug('🎯 CREATING VISUAL OBSERVER', {
       visualStateStoreExists: !!this.visualStateStore,
@@ -1114,7 +1072,7 @@ export class SimplePassiveRenderer {
       fileLog.info('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)')
 
       // Now safe to measure DOM
-      const bounds = this.container.getBoundingClientRect()
+      const _bounds = this.container.getBoundingClientRect()
       // TODO: Add updateViewportDimensions method to VisualStateStore
       // this.visualStateStore.updateViewportDimensions(bounds.width, bounds.height);
 
@@ -1134,7 +1092,7 @@ export class SimplePassiveRenderer {
         viewport: this.viewport,
         headerViewport: this.headerViewport || undefined,
         container: this.container,
-        virtualViewportStore: this.stores.virtualViewportStore,
+        viewportStore: this.stores.viewportStore,
         onClickOutside: (e: MouseEvent) => {
           // ✅ Route through InteractionCoordinator for proper service layer handling
           if (this.interactionCoordinator) {
@@ -1347,75 +1305,19 @@ export class SimplePassiveRenderer {
     // Initialize DOM position tracking
     positionTracker.initialize(this.container)
 
-    // Initialize virtual bounds with current data
-    const columns = this.visualStateStore.columns
-    const columnWidths = columns.map((col) => col.width || GRID_DIMENSIONS.DEFAULT_COLUMN_WIDTH)
-    const totalRows = this.tableCoreStore.processedRows.length
-
-    updateVirtualBounds({
-      totalRows,
-      columnWidths,
-      rowHeight: GRID_DIMENSIONS.ROW_HEIGHT,
-    })
-
-    // Initialize virtual viewport
+    // Initialize ViewportStore with current viewport dimensions
     const bounds = this.container.getBoundingClientRect()
-    updateVirtualViewport({
-      viewportWidth: bounds.width,
-      viewportHeight: bounds.height,
-      scrollTop: 0,
-      scrollLeft: 0,
+    const viewportStore = this.stores.viewportStore
+    runInAction(() => {
+      viewportStore.updateViewportSize(bounds.width, bounds.height)
+      viewportStore.updateScroll(0, 0)
     })
 
     fileLog.debug('✅ Hybrid position tracking initialized', {
-      totalRows,
-      columnCount: columns.length,
+      totalRows: this.tableCoreStore.processedRows.length,
+      columnCount: this.visualStateStore.columns.length,
       viewportSize: `${bounds.width}x${bounds.height}`,
     })
-  }
-
-  /**
-   * Check if virtual range changed and trigger re-render if needed
-   * This runs outside the reactive context to avoid observer cascades
-   */
-  private checkVirtualRangeChange(): void {
-    // Skip during initialization to prevent multiple renders
-    // Check rendererInitialized specifically to ensure we're completely done
-    if (!this.initStore.hydrationState.rendererInitialized) {
-      return
-    }
-
-    // Get current visual state outside of observer context
-    const visualState = this.visualStateStore
-    const currentColumnRange = visualState.geometry.visibleColumnRange
-    const currentRowRange = visualState.geometry.visibleRowRange
-
-    // Check if visible column range changed (horizontal virtual scrolling)
-    const previousColumnRange = this.lastVisibleColumns || { start: -1, end: -1 }
-    const columnRangeChanged =
-      currentColumnRange.start !== previousColumnRange.start ||
-      currentColumnRange.end !== previousColumnRange.end
-
-    // Check if visible row range changed (vertical virtual scrolling)
-    const previousRowRange = this.lastVisibleRows || { start: -1, end: -1 }
-    const rowRangeChanged =
-      currentRowRange.start !== previousRowRange.start ||
-      currentRowRange.end !== previousRowRange.end
-
-    // Only handle column range changes (row changes handled by direct scroll observer)
-    if (columnRangeChanged) {
-      fileLog.debug('🔄 Column range changed - triggering body re-render', {
-        columnRangeChanged,
-        oldColumnRange: `${previousColumnRange.start}-${previousColumnRange.end}`,
-        newColumnRange: `${currentColumnRange.start}-${currentColumnRange.end}`,
-      })
-
-      // Update tracking
-      this.lastVisibleColumns = currentColumnRange
-
-      // For column changes, need full re-render
-      this.renderBody()
-    }
   }
 
   /**
@@ -1847,18 +1749,6 @@ export class SimplePassiveRenderer {
   }
 
   /**
-   * Legacy observers setup - removed, now using ObserverManager
-   */
-  private setupObservers(): void {
-    // This method is kept for compatibility but now delegates to ObserverManager
-    // All observer logic has been moved to ObserverManager.ts
-
-    // Context menu handling is now done by EventManager in Phase 2
-
-    fileLog.debug('✅ Legacy setupObservers() called - using ObserverManager instead')
-  }
-
-  /**
    * Create DOM element with class - matches UnifiedTableRenderer pattern
    */
   private createElement(tag: string, className: string): HTMLElement {
@@ -2128,7 +2018,11 @@ export class SimplePassiveRenderer {
 
       // Also update the shared coordinator with row data + offsets
       // GH#1240: Pass rowOffsets so coordinator knows actual Y positions with expanded rows
-      this.stores.coordinateManager.updateRows(rows as any, this.visualStateStore.sortBy, rowOffsets)
+      this.stores.coordinateManager.updateRows(
+        rows as any,
+        this.visualStateStore.sortBy,
+        rowOffsets,
+      )
 
       fileLog.debug('🔄 Row coordinate mapping updated (local + shared coordinator)', {
         newRowCount: newRows.length,
@@ -2168,64 +2062,6 @@ export class SimplePassiveRenderer {
     fileLog.debug('✅ Body rendered with Phase 2 managers')
   }
 
-  /**
-   * Apply CSS classes to DOM cells for selection state
-   */
-  private updateDOMSelectionClasses(selectedCells: Set<string>): void {
-    // Remove existing selection classes from all cells
-    const allCells = this.container.querySelectorAll('.vibegridx-cell')
-    allCells.forEach((cell) => {
-      cell.classList.remove('vibegridx-selected')
-    })
-
-    // Apply selection classes to selected cells
-    selectedCells.forEach((cellId) => {
-      const [rowId, columnId] = cellId.split(':')
-      const cellElement = this.container.querySelector(
-        `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
-      )
-      if (cellElement) {
-        cellElement.classList.add('vibegridx-selected')
-      }
-    })
-
-    fileLog.debug('✅ DOM selection classes updated', { selectedCount: selectedCells.size })
-  }
-
-  /**
-   * Calculate visual cell positions for canvas overlays
-   */
-  private calculateVisualCellPositions(selectedCells: Set<string>): VisualCellPosition[] {
-    const visualCells: VisualCellPosition[] = []
-
-    selectedCells.forEach((cellId) => {
-      const [rowId, columnId] = cellId.split(':')
-      const cellElement = this.container.querySelector(
-        `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
-      ) as HTMLElement
-
-      if (cellElement && this.viewport) {
-        const cellRect = cellElement.getBoundingClientRect()
-        const containerRect = this.container.getBoundingClientRect()
-
-        visualCells.push({
-          cellKey: cellId,
-          x: cellRect.left - containerRect.left,
-          y: cellRect.top - containerRect.top,
-          width: cellRect.width,
-          height: cellRect.height,
-        })
-      }
-    })
-
-    fileLog.debug('✅ Visual cell positions calculated', {
-      selectedCount: selectedCells.size,
-      visualCount: visualCells.length,
-    })
-
-    return visualCells
-  }
-
   // REMOVED: createRowElement() - Now fully handled by RowRenderer in Phase 2
   // This legacy method has been replaced by this.rowRenderer.createRowElement()
 
@@ -2234,157 +2070,9 @@ export class SimplePassiveRenderer {
   /**
    * Format cell value using centralized display formatters
    */
-  private formatCellValue(value: any, type?: string, column?: any): string {
+  private formatCellValue(value: any, _type?: string, _column?: any): string {
     // Delegate to the modular CellFormatter
     return CellFormatter.formatCellValue(value)
-  }
-
-  // Removed redundant formatting methods - now using centralized display formatters
-
-  /**
-   * Handle consolidated visual state changes - batched column, visibility, and viewport updates
-   * This prevents cascade effects and reduces render cycles from 5+ to 1
-   */
-  private handleConsolidatedVisualStateChange(visualState: VisualState): void {
-    fileLog.debug('🎨 Consolidated visual state change - batched render coordination', {
-      columnCount: visualState.columns?.length ?? 0,
-      hiddenColumns: visualState.columnVisibility
-        ? Object.values(visualState.columnVisibility).filter((v) => v === false).length
-        : 0,
-      viewport: visualState.viewport,
-    })
-
-    // Apply Legend State batching pattern to prevent multiple DOM updates
-    runInAction(() => {
-      // Determine what actually changed to optimize renders
-      const previousState = this.lastVisualState
-
-      // Check if header needs to be re-rendered
-      const needsHeaderRender =
-        !previousState ||
-        (previousState.columns?.length ?? 0) !== (visualState.columns?.length ?? 0) ||
-        JSON.stringify(previousState.columnVisibility) !==
-          JSON.stringify(visualState.columnVisibility) ||
-        JSON.stringify((previousState.columns ?? []).map((c: any) => c.width)) !==
-          JSON.stringify((visualState.columns ?? []).map((c: any) => c.width))
-
-      // Check if body needs to be re-rendered (viewport changes affect body virtual scrolling)
-      // Add scroll thresholds to prevent excessive re-renders on small scroll changes
-      const scrollThreshold = 20 // Only re-render if scroll changes by more than 20px
-      const scrollTopChanged =
-        !previousState ||
-        Math.abs(previousState.viewport.scrollTop - visualState.viewport.scrollTop) >
-          scrollThreshold
-      const scrollLeftChanged =
-        !previousState ||
-        Math.abs(previousState.viewport.scrollLeft - visualState.viewport.scrollLeft) >
-          scrollThreshold
-
-      const needsBodyRender =
-        !previousState ||
-        scrollTopChanged ||
-        scrollLeftChanged ||
-        previousState.viewport.viewportWidth !== visualState.viewport.viewportWidth ||
-        previousState.viewport.viewportHeight !== visualState.viewport.viewportHeight ||
-        needsHeaderRender // Body depends on header changes
-
-      fileLog.debug('🎯 Render decisions', {
-        needsHeaderRender,
-        needsBodyRender,
-        hasLastState: !!previousState,
-      })
-
-      // Single coordinated render cycle instead of separate renders
-      if (needsHeaderRender) {
-        this.renderHeader()
-      }
-
-      if (needsBodyRender) {
-        this.renderBody()
-      }
-
-      // Store current state for next comparison
-      this.lastVisualState = {
-        ...visualState,
-        columns: visualState.columns ? [...visualState.columns] : [],
-        columnVisibility: visualState.columnVisibility ? { ...visualState.columnVisibility } : {},
-        viewport: visualState.viewport ? { ...visualState.viewport } : {},
-      }
-    })
-
-    // Viewport handling is now fully integrated into consolidated visual state
-    // No need to call handleViewportChange() as it would duplicate the work
-  }
-
-  /**
-   * Handle viewport changes (scroll and dimension updates)
-   * SIMPLIFIED: Virtual scrolling updates now handled by focused scroll observer
-   */
-  private handleViewportChange(): void {
-    // Update overlay selection with current viewport position (lightweight)
-    if (this.overlayManager) {
-      // Selection overlay is now handled reactively by OverlayManager via interactions observable
-      // Viewport changes are handled automatically by the hybrid coordinate system
-    }
-
-    fileLog.debug('⏭️ Viewport change - virtual scrolling handled by scroll observer')
-  }
-
-  // ====================================
-  // UTILITY METHODS
-  // ====================================
-
-  /**
-   * Calculate rectangular selection range including all interior cells
-   */
-  private calculateRectangularSelection(startCell: string, endCell: string): string[] {
-    const [startRowId, startColId] = startCell.split(':')
-    const [endRowId, endColId] = endCell.split(':')
-
-    // Get current data and columns for range calculation
-    const processedRows = this.tableCoreStore.processedRows
-    const columns = this.visualStateStore.columns
-    const columnVisibility = this.visualStateStore.columnVisibility
-    const visibleColumns = columns.filter((col) => columnVisibility[col.id] !== false)
-
-    // Find row and column indices
-    const startRowIndex = processedRows.findIndex((row: any) => row.id === startRowId)
-    const endRowIndex = processedRows.findIndex((row: any) => row.id === endRowId)
-    const startColIndex = visibleColumns.findIndex((col) => col.id === startColId)
-    const endColIndex = visibleColumns.findIndex((col) => col.id === endColId)
-
-    if (startRowIndex === -1 || endRowIndex === -1 || startColIndex === -1 || endColIndex === -1) {
-      // Fallback to just the two cells if indices not found
-      return [startCell, endCell]
-    }
-
-    // Ensure proper ordering (top-left to bottom-right)
-    const minRowIndex = Math.min(startRowIndex, endRowIndex)
-    const maxRowIndex = Math.max(startRowIndex, endRowIndex)
-    const minColIndex = Math.min(startColIndex, endColIndex)
-    const maxColIndex = Math.max(startColIndex, endColIndex)
-
-    // Generate all cells in the rectangular range
-    const selectedCells: string[] = []
-    for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex++) {
-      for (let colIndex = minColIndex; colIndex <= maxColIndex; colIndex++) {
-        const row = processedRows[rowIndex]
-        const column = visibleColumns[colIndex]
-        if (row && column) {
-          selectedCells.push(`${row.id}:${column.id}`)
-        }
-      }
-    }
-
-    fileLog.debug('🔢 Calculated rectangular selection', {
-      startCell,
-      endCell,
-      rowRange: `${minRowIndex}-${maxRowIndex}`,
-      colRange: `${minColIndex}-${maxColIndex}`,
-      totalCells: selectedCells.length,
-    })
-
-    return selectedCells
   }
 
   /**
@@ -2476,8 +2164,8 @@ export class SimplePassiveRenderer {
         resizedColumnIndex !== -1
           ? this.visualStateStore.columnLayouts.length - resizedColumnIndex - 1
           : 0,
-      duration: duration.toFixed(2) + 'ms',
-      avgPerCell: cellsUpdated > 0 ? (duration / cellsUpdated).toFixed(3) + 'ms' : 'N/A',
+      duration: `${duration.toFixed(2)}ms`,
+      avgPerCell: cellsUpdated > 0 ? `${(duration / cellsUpdated).toFixed(3)}ms` : 'N/A',
     })
   }
 
@@ -2490,20 +2178,6 @@ export class SimplePassiveRenderer {
 
     // Always include both columns for consistent layout
     return DRAG_COLUMN_WIDTH + ROW_HEADER_WIDTH // 30px + 40px = 70px
-  }
-
-  /**
-   * Check if we're currently in grouped mode
-   */
-  private isGroupedMode(): boolean {
-    try {
-      const groupConfig = this.visualStateStore.groupConfig
-      return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0)
-    } catch (error) {
-      // If visual operations aren't available, fallback to direct check (MobX)
-      const groupConfig = this.visualStateStore.groupConfig
-      return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0)
-    }
   }
 
   /**
@@ -2621,7 +2295,7 @@ export class SimplePassiveRenderer {
     this.bodyRenderer = null
 
     // Clean up legacy disposers (if any remain)
-    this.disposers.forEach((dispose) => dispose())
+    for (const dispose of this.disposers) dispose()
     this.disposers = []
 
     // Clean up hybrid position tracking

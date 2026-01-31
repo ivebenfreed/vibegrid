@@ -15,13 +15,14 @@ import { EditingOverlay } from '../../overlays/EditingOverlay'
 import type { VisualCellPosition } from '../../overlays/OverlayTypes'
 // EditSessionManager removed - using EditingStore directly
 // New hybrid coordinate system imports
-import { domPositions$, PositionEvents, positionTracker } from '../../stores/dom-position-state'
+import { domPositions$, positionTracker } from '../../stores/dom-position-state'
 import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 // SelectionManager functionality consolidated into interaction-state
 import type { TableCoreStore } from '../../stores/TableCoreStore'
+import type { ViewportStore } from '../../stores/ViewportStore'
 import type { ViewportInfo } from '../../types'
-import { virtualCellPosition$ } from '../../virtualization/VirtualScrollManager'
+// virtualCellPosition$ removed in P2 consolidation - coordinate queries via ObservableCoordinateManager
 // Phase 2.6: New overlay controllers
 import { SelectionOverlayController } from './controllers/SelectionOverlayController'
 import { EditingOverlayController } from './controllers/EditingOverlayController'
@@ -43,6 +44,7 @@ export interface OverlayManagerOptions {
   interactionStore: InteractionStore
   editingStore: EditingStore
   coordinateManager: ObservableCoordinateManager
+  viewportStore: ViewportStore
   enableSelectionColumn?: boolean
   headerContainer?: HTMLElement | null
   bodyContainer?: HTMLElement | null
@@ -56,6 +58,7 @@ export class OverlayManager {
   private interactionStore: InteractionStore
   private editingStore: EditingStore
   private coordinateManager: ObservableCoordinateManager
+  private viewportStore: ViewportStore
   private enableSelectionColumn: boolean
   private headerContainer: HTMLElement | null
   private bodyContainer: HTMLElement | null
@@ -98,6 +101,7 @@ export class OverlayManager {
     this.interactionStore = options.interactionStore
     this.editingStore = options.editingStore
     this.coordinateManager = options.coordinateManager
+    this.viewportStore = options.viewportStore
     this.enableSelectionColumn = options.enableSelectionColumn ?? false
     this.headerContainer = options.headerContainer || null
     this.bodyContainer = options.bodyContainer || null
@@ -327,7 +331,7 @@ export class OverlayManager {
     // State tracking for deduplication
     let lastEditingCell: string | null = null
     let lastResizeState: string = '' // Track full resize state as string
-    let wasColumnResizing = false
+    let _wasColumnResizing = false
     let pendingUpdate: number | null = null
 
     // BUGFIX: Pending update flags that ACCUMULATE across RAF cancellations
@@ -465,10 +469,10 @@ export class OverlayManager {
 
             // BUGFIX: Capture and reset pending flags at RAF execution time
             // This ensures all accumulated changes are processed even if RAF was rescheduled
-            const doSelectionUpdate = pendingSelectionUpdate
-            const doEditingUpdate = pendingEditingUpdate
-            const doClipboardUpdate = pendingClipboardUpdate
-            const doResizeUpdate = pendingResizeUpdate
+            const _doSelectionUpdate = pendingSelectionUpdate
+            const _doEditingUpdate = pendingEditingUpdate
+            const _doClipboardUpdate = pendingClipboardUpdate
+            const _doResizeUpdate = pendingResizeUpdate
             pendingSelectionUpdate = false
             pendingEditingUpdate = false
             pendingClipboardUpdate = false
@@ -477,7 +481,7 @@ export class OverlayManager {
             // BATCHED: All DOM updates happen together in a single frame
             // Phase 2.6: All overlay updates now handled by dedicated controllers
 
-            wasColumnResizing = isColumnResizing
+            _wasColumnResizing = isColumnResizing
           })
         },
       ),
@@ -580,69 +584,6 @@ export class OverlayManager {
         this.canvasOverlay.hideFillHandle()
       }
     }
-  }
-
-  /**
-   * Compare two Sets for equality (optimized for performance)
-   */
-  private areSetsEqual(set1: Set<string>, set2: Set<string>): boolean {
-    if (set1.size !== set2.size) return false
-    for (const item of set1) {
-      if (!set2.has(item)) return false
-    }
-    return true
-  }
-
-  // NOTE: updateEditingOverlay method removed - editing overlays now handled reactively via interactions observable
-
-  /**
-   * Get current cell value from data
-   */
-  private getCellValue(rowId: string, columnId: string): any {
-    const processedRows = this.tableCoreStore.processedRows
-
-    // Debug the full data structure
-    fileLog.debug('getCellValue DETAILED DEBUG', {
-      targetRowId: rowId,
-      targetColumnId: columnId,
-      totalRows: processedRows?.length || 0,
-      firstFewRowIds: processedRows?.slice(0, 3).map((r: any) => r.id) || [],
-      allRowIds: processedRows?.map((r: any) => r.id) || [],
-      sampleRowStructure: processedRows?.[0]
-        ? Object.keys(processedRows[0]).slice(0, 8)
-        : 'no rows',
-    })
-
-    const row = processedRows.find((r: any) => r.id === rowId)
-
-    if (!row) {
-      fileLog.debug('getCellValue: Row NOT found', {
-        targetRowId: rowId,
-        availableRowIds: processedRows?.map((r: any) => r.id) || [],
-      })
-      return ''
-    }
-
-    const value = row[columnId]
-
-    fileLog.debug('getCellValue: Row found, extracting value', {
-      targetRowId: rowId,
-      foundRowId: row.id,
-      targetColumnId: columnId,
-      extractedValue: value,
-      rowKeys: Object.keys(row).slice(0, 8),
-      hasTargetColumn: columnId in row,
-    })
-
-    fileLog.debug('📄 Getting cell value for editing', {
-      rowId,
-      columnId,
-      foundRow: !!row,
-      cellValue: value,
-      rowKeys: row ? Object.keys(row).slice(0, 5) : [],
-    })
-
-    return value
   }
 
   /**
@@ -792,9 +733,8 @@ export class OverlayManager {
     rowId: string,
     columnId: string,
   ): { x: number; y: number; width: number; height: number } | null {
-    // PERFORMANCE FIX: Use cached scroll position instead of DOM read
-    const cachedViewport = PositionEvents.getViewportCache()
-    const currentScrollLeft = cachedViewport.scrollLeft || 0
+    // Read scroll position from ViewportStore (single source of truth)
+    const _currentScrollLeft = this.viewportStore?.scrollLeft ?? 0
 
     const cellKey = `${rowId}:${columnId}`
 
@@ -885,28 +825,24 @@ export class OverlayManager {
    * Get viewport info
    */
   private getViewportInfo(): ViewportInfo {
-    // PERFORMANCE FIX: Use cached viewport measurements instead of DOM reads
-    const cachedViewport = PositionEvents.getViewportCache()
-
-    // If cache is fresh, use it directly
-    if (cachedViewport.containerRect && cachedViewport.lastViewportUpdate > 0) {
-      fileLog.debug('Using cached viewport measurements')
-
+    // Read viewport measurements from ViewportStore (single source of truth)
+    const vs = this.viewportStore
+    if (vs && vs.viewportWidth > 0) {
       return {
         start: 0,
         end: 0,
-        height: cachedViewport.clientHeight,
-        width: cachedViewport.clientWidth,
-        scrollTop: cachedViewport.scrollTop,
-        scrollLeft: cachedViewport.scrollLeft,
-        viewportWidth: cachedViewport.clientWidth,
-        viewportHeight: cachedViewport.clientHeight,
+        height: vs.viewportHeight,
+        width: vs.viewportWidth,
+        scrollTop: vs.scrollTop,
+        scrollLeft: vs.scrollLeft,
+        viewportWidth: vs.viewportWidth,
+        viewportHeight: vs.viewportHeight,
         itemHeight: 40,
       }
     }
 
-    // Fallback to DOM reads if cache is empty (should be rare)
-    fileLog.debug('Viewport cache miss, reading from DOM')
+    // Fallback to DOM reads if ViewportStore is not populated yet (should be rare)
+    fileLog.debug('ViewportStore not populated, reading from DOM')
     const scrollContainer =
       this.bodyContainer ||
       (this.container.querySelector('.vibegridx-body-container') as HTMLElement) ||
@@ -1001,9 +937,9 @@ export class OverlayManager {
 
     // Build row and column indices for sorting
     const rowIdToIndex = new Map<string, number>()
-    rows.forEach((row, index) => rowIdToIndex.set(row.id, index))
+    for (const [index, row] of rows.entries()) rowIdToIndex.set(row.id, index)
     const columnIdToIndex = new Map<string, number>()
-    columns.forEach((col: any, index: number) => columnIdToIndex.set(col.id, index))
+    for (const [index, col] of (columns as any[]).entries()) columnIdToIndex.set(col.id, index)
 
     // Sort selected cells by row, then by column to establish pattern order
     const sortedSelectedCells = Array.from(selectedCells).sort((a, b) => {
@@ -1153,7 +1089,7 @@ export class OverlayManager {
     }
 
     // Dispose of MobX reactions
-    this.disposers.forEach((dispose) => dispose())
+    for (const dispose of this.disposers) dispose()
     this.disposers = []
 
     // Clean up RAF to prevent memory leaks

@@ -23,6 +23,7 @@ import type { ModularCellBridge } from '../field-types/ModularCellBridge'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
+import type { ViewportStore } from './ViewportStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'VisualStateStore'])
 
@@ -81,13 +82,11 @@ export class VisualStateStore implements IStore {
   @observable columnOrder: string[] = []
 
   // ====================================
-  // VIEWPORT STATE
+  // VIEWPORT STATE (delegated to ViewportStore)
   // ====================================
-
-  @observable viewportWidth: number = 0
-  @observable viewportHeight: number = 0
-  @observable scrollLeft: number = 0
-  @observable scrollTop: number = 0
+  // viewportWidth, viewportHeight, scrollLeft, scrollTop are now
+  // stored in ViewportStore. Getter/setter properties below delegate
+  // to ViewportStore for backward-compatible access.
 
   // ====================================
   // DATA DIMENSIONS
@@ -127,6 +126,7 @@ export class VisualStateStore implements IStore {
   private coordinateManager?: ObservableCoordinateManager
   private interactionStore?: import('./InteractionStore').InteractionStore
   private modularCellBridge: ModularCellBridge | null = null
+  private _viewportStore?: ViewportStore
 
   // ====================================
   // LIFECYCLE
@@ -146,6 +146,58 @@ export class VisualStateStore implements IStore {
   setTableCoreStore(store: any): void {
     this.tableCoreStore = store
     logger.info('TableCoreStore set on VisualStateStore')
+  }
+
+  /**
+   * Set viewport store (dependency injection - P2 consolidation)
+   * ViewportStore is now the source of truth for scroll/viewport state.
+   */
+  setViewportStore(store: ViewportStore): void {
+    this._viewportStore = store
+    logger.info('ViewportStore set on VisualStateStore')
+  }
+
+  // ====================================
+  // VIEWPORT DELEGATE ACCESSORS
+  // ====================================
+  // These properties delegate to ViewportStore so that existing consumers
+  // (SimplePassiveRenderer, VibeGrid.tsx, etc.) continue to work without
+  // needing to change their call sites.
+
+  get viewportWidth(): number {
+    return this._viewportStore?.viewportWidth ?? 0
+  }
+  set viewportWidth(value: number) {
+    if (this._viewportStore) {
+      this._viewportStore.updateViewportSize(value, this._viewportStore.viewportHeight)
+    }
+  }
+
+  get viewportHeight(): number {
+    return this._viewportStore?.viewportHeight ?? 0
+  }
+  set viewportHeight(value: number) {
+    if (this._viewportStore) {
+      this._viewportStore.updateViewportSize(this._viewportStore.viewportWidth, value)
+    }
+  }
+
+  get scrollLeft(): number {
+    return this._viewportStore?.scrollLeft ?? 0
+  }
+  set scrollLeft(value: number) {
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(this._viewportStore.scrollTop, value)
+    }
+  }
+
+  get scrollTop(): number {
+    return this._viewportStore?.scrollTop ?? 0
+  }
+  set scrollTop(value: number) {
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(value, this._viewportStore.scrollLeft)
+    }
   }
 
   /**
@@ -208,10 +260,7 @@ export class VisualStateStore implements IStore {
     this.columnWidths = {}
     this.columnVisibility = {}
     this.columnOrder = []
-    this.viewportWidth = 0
-    this.viewportHeight = 0
-    this.scrollLeft = 0
-    this.scrollTop = 0
+    // Viewport state reset is handled by ViewportStore.reset()
     this.rowCount = 0
     this.rowHeight = 40
     this.sortBy = []
@@ -330,18 +379,20 @@ export class VisualStateStore implements IStore {
   /**
    * Visible row range based on scroll position (variable-height aware)
    * INCLUDES BUFFER_ROWS for smooth scrolling (render rows before they're visible)
+   *
+   * Delegates to ViewportStore when available for scroll/viewport data.
    */
   @computed get visibleRowRange(): { start: number; end: number } {
     const buffer = GRID_DIMENSIONS.BUFFER_ROWS // 10 rows buffer
+    const scrollTop = this.scrollTop
+    const viewportHeight = this.viewportHeight
 
     // Use offset-based calculation for variable-height rows if available
     if (this.tableCoreStore?.findRowAtScrollPosition) {
-      const visibleStart = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
+      const visibleStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
       const visibleEnd = Math.min(
         this.rowCount - 1,
-        this.tableCoreStore.findRowAtScrollPosition(
-          this.scrollTop + Math.max(this.viewportHeight, 400),
-        ) + 1,
+        this.tableCoreStore.findRowAtScrollPosition(scrollTop + Math.max(viewportHeight, 400)) + 1,
       )
 
       return {
@@ -351,9 +402,8 @@ export class VisualStateStore implements IStore {
     }
 
     // Fallback to constant-height calculation if TableCoreStore not set
-    const visibleStart = Math.floor(this.scrollTop / this.rowHeight)
-    const visibleEnd =
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / this.rowHeight) + 1
+    const visibleStart = Math.floor(scrollTop / this.rowHeight)
+    const visibleEnd = Math.ceil((scrollTop + Math.max(viewportHeight, 400)) / this.rowHeight) + 1
 
     return {
       start: Math.max(0, visibleStart - buffer),
@@ -447,10 +497,7 @@ export class VisualStateStore implements IStore {
     this.columnWidths = defaultWidths
     this.columnVisibility = defaultVisibility
     this.columnOrder = defaultOrder
-    this.viewportWidth = 0
-    this.viewportHeight = 0
-    this.scrollLeft = 0
-    this.scrollTop = 0
+    // Viewport state initialization is handled by ViewportStore
     this.rowCount = 0
     this.rowHeight = 40
     this.groupConfig = null

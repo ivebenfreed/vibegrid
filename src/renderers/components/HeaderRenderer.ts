@@ -1,9 +1,14 @@
 /**
  * HeaderRenderer - Specialized renderer for VibeGrid table headers
  * Handles column headers, sorting, resizing, and select-all functionality
+ *
+ * P3 Consolidation: HeaderRenderer is now PASSIVE for resize events.
+ * MouseController owns all resize mouse events (mousedown/mousemove/mouseup).
+ * HeaderRenderer only creates DOM elements with data attributes for MouseController detection.
+ * ResizePreviewController observes InteractionStore.columnResize via MobX reaction.
  */
 
-import { reaction, runInAction } from 'mobx'
+import { reaction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
@@ -239,9 +244,12 @@ export class HeaderRenderer {
     this.updateSortIndicator(headerCell, column)
 
     // Add resize handle only for resizable columns
+    // P3: HeaderRenderer is passive - just creates the DOM element with data attributes.
+    // MouseController owns all resize mouse events via global listeners.
     if (column.resizable !== false) {
       const resizeHandle = this.domFactory.createResizeHandle()
-      this.setupResizeHandler(resizeHandle, column)
+      // Add data attribute so MouseController can identify which column is being resized
+      resizeHandle.setAttribute('data-column-id', column.id)
       headerCell.appendChild(resizeHandle)
     }
 
@@ -350,119 +358,6 @@ export class HeaderRenderer {
   }
 
   /**
-   * Set up resize handler for column (MobX version)
-   */
-  private setupResizeHandler(resizeHandle: HTMLElement, column: any): void {
-    let isResizing = false
-    let startX = 0
-    let startWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
-
-    resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
-      e.stopPropagation()
-      isResizing = true
-      startX = e.pageX
-      startWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
-
-      fileLog.debug('🔧 Started column resize', {
-        columnId: column.id,
-        startWidth,
-        startX,
-      })
-
-      // Update interaction state (MobX)
-      runInAction(() => {
-        this.interactionStore.columnResize = {
-          isResizing: true,
-          columnId: column.id,
-          startWidth: startWidth,
-          newWidth: startWidth,
-        }
-      })
-
-      // Add document-level listeners for resize
-      let resizeRAF: number | null = null
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isResizing) return
-
-        // Throttle resize updates with requestAnimationFrame
-        if (!resizeRAF) {
-          resizeRAF = requestAnimationFrame(() => {
-            const deltaX = e.pageX - startX
-            const newWidth = Math.max(50, startWidth + deltaX) // Min width 50px
-
-            fileLog.debug('[RESIZE-PREVIEW] 📏 Updating resize state', {
-              columnId: column.id,
-              startWidth,
-              deltaX,
-              newWidth,
-              pageX: e.pageX,
-            })
-
-            // Update resize state (MobX)
-            runInAction(() => {
-              this.interactionStore.columnResize = {
-                isResizing: true,
-                columnId: column.id,
-                startWidth: startWidth,
-                newWidth: newWidth,
-              }
-            })
-
-            fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize state set', {
-              state: this.interactionStore.columnResize,
-            })
-
-            resizeRAF = null
-          })
-        }
-      }
-
-      const handleMouseUp = (e: MouseEvent) => {
-        if (!isResizing) return
-        isResizing = false
-
-        // FIX: Stop propagation to prevent sort trigger after resize
-        e.stopPropagation()
-        e.preventDefault()
-
-        // Cancel any pending resize RAF
-        if (resizeRAF) {
-          cancelAnimationFrame(resizeRAF)
-          resizeRAF = null
-        }
-
-        const resizeState = this.interactionStore.columnResize
-        if (resizeState && resizeState.newWidth) {
-          // Apply the new width (MobX action)
-          this.visualStateStore.updateColumnWidth(column.id, resizeState.newWidth)
-
-          fileLog.debug('✅ Column resize complete', {
-            columnId: column.id,
-            oldWidth: startWidth,
-            newWidth: resizeState.newWidth,
-          })
-        }
-
-        // Clear resize state and track end time to prevent sort trigger (MobX)
-        fileLog.debug('[RESIZE-PREVIEW] 🧹 Clearing columnResize state (mouseup)')
-        runInAction(() => {
-          this.interactionStore.columnResize = null
-          this.interactionStore.lastResizeEndTime = Date.now()
-        })
-        fileLog.debug('[RESIZE-PREVIEW] ✅ columnResize set to null, lastResizeEndTime set')
-
-        // Clean up listeners
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    })
-  }
-
-  /**
    * Update sort indicator for a column
    */
   private updateSortIndicator(headerCell: HTMLElement, column: any): void {
@@ -513,23 +408,6 @@ export class HeaderRenderer {
       fileLog.debug('☑️ Select all checkbox updated', {
         checked: state.checked,
         indeterminate: state.indeterminate,
-      })
-    }
-  }
-
-  /**
-   * Update header cell width during resize
-   */
-  updateHeaderCellWidth(columnId: string, newWidth: number): void {
-    const headerCell = this.headerContainer.querySelector(
-      `[data-field="${columnId}"]`,
-    ) as HTMLElement
-    if (headerCell) {
-      headerCell.style.flex = `0 0 ${newWidth}px`
-
-      fileLog.debug('📏 Header cell width updated', {
-        columnId,
-        newWidth,
       })
     }
   }

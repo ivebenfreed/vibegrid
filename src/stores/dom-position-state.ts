@@ -15,18 +15,9 @@ import type {
   PositionChangeEvent,
   PositionUpdateHandler,
 } from '../types/coordinate-types'
-import { CoordinateUtils } from '../types/coordinate-types'
+import type { ViewportStore } from './ViewportStore'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'dom-position-state.ts'])
-
-interface ViewportCache {
-  scrollLeft: number
-  scrollTop: number
-  clientWidth: number
-  clientHeight: number
-  containerRect: DOMRect | null
-  lastViewportUpdate: number
-}
 
 interface ColumnPositionCache {
   columnPositions: Map<string, { offset: number; width: number }>
@@ -41,14 +32,12 @@ class DOMPositionStore {
   // Observable properties
   @observable cellPositions: CellPositionMap = new Map()
 
-  @observable viewportCache: ViewportCache = {
-    scrollLeft: 0,
-    scrollTop: 0,
-    clientWidth: 0,
-    clientHeight: 0,
-    containerRect: null,
-    lastViewportUpdate: 0,
-  }
+  /**
+   * Container rect tracks absolute page position of the viewport container.
+   * ViewportStore does not track this (it only has scroll/viewport dimensions),
+   * so we keep it here.
+   */
+  @observable.ref containerRect: DOMRect | null = null
 
   @observable columnCache: ColumnPositionCache = {
     columnPositions: new Map(),
@@ -62,17 +51,27 @@ class DOMPositionStore {
   // Reference to coordinate mapping for reactive position calculation
   @observable coordinateMapping: any = null
 
+  /**
+   * ViewportStore reference for reading scroll/viewport state.
+   * Set once during init via setViewportStore(). Not observable - plain reference.
+   */
+  viewportStore: ViewportStore | null = null
+
   constructor() {
     makeObservable(this)
   }
 
   /**
+   * Set ViewportStore reference (dependency injection)
+   */
+  setViewportStore(store: ViewportStore): void {
+    this.viewportStore = store
+    fileLog.debug('ViewportStore set on DOMPositionStore')
+  }
+
+  /**
    * Computed cell positions derived from coordinate mapping
    * This eliminates expensive DOM scanning by calculating positions mathematically
-   *
-   * ⚠️ TODO (Phase 6.4): This duplicates ObservableCoordinateManager.getCellPosition()
-   * Should be refactored to use coordinateManager directly instead of re-computing
-   * Kept for now to avoid breaking positionTracker consumers
    *
    * @deprecated Use ObservableCoordinateManager.getCellPosition() instead
    */
@@ -106,7 +105,7 @@ class DOMPositionStore {
       })
     })
 
-    fileLog.debug('🧮 COMPUTED: Calculated cell positions from coordinate mapping', {
+    fileLog.debug('Calculated cell positions from coordinate mapping', {
       totalPositions: positions.size,
       rows: rows.length,
       columns: columns.length,
@@ -125,11 +124,11 @@ class DOMPositionStore {
   }
 
   /**
-   * Update viewport cache
+   * Update container rect (absolute page position of viewport container)
    */
   @action
-  updateViewportCache(cache: ViewportCache): void {
-    this.viewportCache = cache
+  updateContainerRect(rect: DOMRect): void {
+    this.containerRect = rect
   }
 
   /**
@@ -154,7 +153,7 @@ class DOMPositionStore {
   @action
   updateCoordinateMapping(mapping: any): void {
     this.coordinateMapping = mapping
-    fileLog.debug('🎯 COORDINATE: Updated coordinate mapping reference for computed positions', {
+    fileLog.debug('Updated coordinate mapping reference for computed positions', {
       hasRows: !!mapping?.rows,
       hasColumns: !!mapping?.columns,
       rowCount: mapping?.rows?.length || 0,
@@ -174,13 +173,6 @@ export const domPositions$ = {
     set: (positions: CellPositionMap) =>
       runInAction(() => {
         domPositionStore.cellPositions = positions
-      }),
-  },
-  viewportCache: {
-    get: () => domPositionStore.viewportCache,
-    set: (cache: ViewportCache) =>
-      runInAction(() => {
-        domPositionStore.viewportCache = cache
       }),
   },
   columnCache: {
@@ -219,15 +211,14 @@ let tableContainer: HTMLElement | null = null
  * and update the reactive observable automatically.
  */
 class ReactivePositionTracker {
-  private scrollHandler: ((event: Event) => void) | null = null
   private rafId: number | null = null
   private isInitialized = false
   private lastUpdateTime = 0
+  private lastContainerRectTime = 0
   private updateThrottle = 100 // ~10fps max (further reduced to prevent forced reflows during initialization)
   private isUpdating = false
   private pendingUpdate = false
   private scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null
-  private readonly SCROLL_DEBOUNCE_MS = 150 // Only update 150ms after scroll stops
 
   /**
    * Initialize tracking on a table container
@@ -271,39 +262,25 @@ class ReactivePositionTracker {
   /**
    * Setup scroll listener for position tracking
    *
-   * 🚀 PERF FIX: DISABLED scroll-based position tracking entirely!
+   * P3 Consolidation: Window resize listener REMOVED.
+   * Viewport resizing is now handled by a single ResizeObserver in VibeGrid.tsx
+   * which calls ViewportStore.updateViewportSize(). All downstream effects flow
+   * through MobX reactions on ViewportStore.
    *
-   * Why: Position tracking does querySelectorAll + getBoundingClientRect on every cell,
-   * causing 60-100ms forced reflows during scroll. This is only needed for overlay
-   * positioning during editing, not normal scrolling.
-   *
-   * Cell positions can be calculated mathematically from:
-   * - row position = rowIndex × ROW_HEIGHT
+   * Cell positions are calculated mathematically from coordinate mapping:
+   * - row position = rowIndex x ROW_HEIGHT
    * - column position = sum of previous column widths
    *
    * Overlays that need positions should use:
    * - computedCellPositions (mathematical calculation)
    * - Or call requestPositionUpdate() explicitly when editing starts
    */
-  private setupScrollListener(container: HTMLElement): void {
-    // 🚀 PERF: NO scroll listener - positions are calculated mathematically
-    // Only resize needs to trigger an update (viewport dimensions change)
-    this.scrollHandler = () => {
-      // Clear any pending update
-      if (this.scrollDebounceTimer) {
-        clearTimeout(this.scrollDebounceTimer)
-      }
-      // Schedule update after resize settles
-      this.scrollDebounceTimer = setTimeout(() => {
-        this.scrollDebounceTimer = null
-        this.schedulePositionUpdate()
-      }, this.SCROLL_DEBOUNCE_MS)
-    }
-
-    // Only listen to resize, NOT scroll
-    window.addEventListener('resize', this.scrollHandler, { passive: true })
-
-    fileLog.debug('✅ Position tracking initialized (resize only, no scroll listener)')
+  private setupScrollListener(_container: HTMLElement): void {
+    // P3: No event listeners here. Resize is handled by ResizeObserver in VibeGrid.tsx.
+    // Position updates can still be triggered explicitly via requestPositionUpdate().
+    fileLog.debug(
+      '✅ Position tracking initialized (no resize listener - handled by VibeGrid ResizeObserver)',
+    )
   }
 
   /**
@@ -381,69 +358,25 @@ class ReactivePositionTracker {
     const viewportContainer =
       (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
 
-    // VIEWPORT CACHE: Update viewport measurements once per batch
-    const currentViewportCache = domPositionStore.viewportCache
-    let viewportRect: DOMRect | null = null
-    let scrollLeft = 0
-    let scrollTop = 0
-    let clientWidth = 0
-    let clientHeight = 0
+    // Read scroll position from ViewportStore (single source of truth)
+    const vs = domPositionStore.viewportStore
+    const scrollLeft = vs ? vs.scrollLeft : 0
+    const scrollTop = vs ? vs.scrollTop : 0
 
-    // Check if viewport measurements need updating (throttled to avoid excessive reads)
+    // Container rect: still read from DOM since ViewportStore doesn't track absolute page position
+    let viewportRect: DOMRect | null = null
+    const lastContainerRectUpdate = domPositionStore.containerRect ? this.lastContainerRectTime : 0
     const viewportUpdateNeeded =
-      !currentViewportCache.containerRect ||
-      timestamp - currentViewportCache.lastViewportUpdate > 100 // 10fps max for viewport updates
+      !domPositionStore.containerRect || timestamp - lastContainerRectUpdate > 100 // 10fps max for container rect updates
 
     if (viewportContainer && viewportUpdateNeeded) {
-      // Single batch of layout reads for viewport
       viewportRect = viewportContainer.getBoundingClientRect()
-      scrollLeft = viewportContainer.scrollLeft || 0
-      scrollTop = viewportContainer.scrollTop || 0
-      clientWidth = viewportContainer.clientWidth || 0
-      clientHeight = viewportContainer.clientHeight || 0
-
-      // Cache the viewport measurements
+      this.lastContainerRectTime = timestamp
       runInAction(() => {
-        domPositionStore.updateViewportCache({
-          scrollLeft,
-          scrollTop,
-          clientWidth,
-          clientHeight,
-          containerRect: viewportRect,
-          lastViewportUpdate: timestamp,
-        })
-      })
-
-      fileLog.debug('📊 VIEWPORT CACHE: Updated viewport measurements', {
-        scrollLeft,
-        scrollTop,
-        clientWidth,
-        clientHeight,
-        viewportRect: {
-          left: viewportRect.left,
-          top: viewportRect.top,
-          width: viewportRect.width,
-          height: viewportRect.height,
-        },
+        domPositionStore.updateContainerRect(viewportRect!)
       })
     } else {
-      // Use cached viewport measurements
-      const cached = currentViewportCache
-      viewportRect = cached.containerRect
-      scrollLeft = cached.scrollLeft
-      scrollTop = cached.scrollTop
-      clientWidth = cached.clientWidth
-      clientHeight = cached.clientHeight
-
-      if (viewportUpdateNeeded) {
-        fileLog.debug('📊 VIEWPORT CACHE: Using cached viewport measurements', {
-          scrollLeft,
-          scrollTop,
-          clientWidth,
-          clientHeight,
-          cacheAge: timestamp - cached.lastViewportUpdate,
-        })
-      }
+      viewportRect = domPositionStore.containerRect
     }
 
     // Process all cells with pre-calculated viewport data
@@ -563,31 +496,10 @@ class ReactivePositionTracker {
   }
 
   /**
-   * Extract cell key from DOM element
-   */
-  private getCellKey(element: HTMLElement): string | null {
-    const rowId = element.getAttribute('data-row-id')
-    const columnId = element.getAttribute('data-column-id')
-    return rowId && columnId ? CoordinateUtils.createCellKey(rowId, columnId) : null
-  }
-
-  /**
-   * Check if element is a cell
-   */
-  private isCellElement(element: HTMLElement): boolean {
-    return element.hasAttribute('data-row-id') && element.hasAttribute('data-column-id')
-  }
-
-  /**
    * Cleanup all observers
    */
   cleanup(): void {
-    if (this.scrollHandler) {
-      // Only resize listener now (scroll listener removed for performance)
-      window.removeEventListener('resize', this.scrollHandler)
-      this.scrollHandler = null
-    }
-
+    // P3: No window resize listener to remove (handled by VibeGrid ResizeObserver)
     if (this.rafId) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
@@ -711,33 +623,30 @@ export const PositionEvents = {
   },
 
   /**
-   * Get cached viewport measurements (avoids layout-forcing reads)
-   */
-  getViewportCache(): ViewportCache {
-    return domPositionStore.viewportCache
-  },
-
-  /**
-   * Get cached scroll position
+   * Get scroll position from ViewportStore
    */
   getScrollPosition(): { scrollLeft: number; scrollTop: number } {
-    const cache = domPositionStore.viewportCache
-    return { scrollLeft: cache.scrollLeft, scrollTop: cache.scrollTop }
+    return {
+      scrollLeft: domPositionStore.viewportStore?.scrollLeft ?? 0,
+      scrollTop: domPositionStore.viewportStore?.scrollTop ?? 0,
+    }
   },
 
   /**
-   * Get cached viewport dimensions
+   * Get viewport dimensions from ViewportStore
    */
   getViewportDimensions(): { clientWidth: number; clientHeight: number } {
-    const cache = domPositionStore.viewportCache
-    return { clientWidth: cache.clientWidth, clientHeight: cache.clientHeight }
+    return {
+      clientWidth: domPositionStore.viewportStore?.viewportWidth ?? 0,
+      clientHeight: domPositionStore.viewportStore?.viewportHeight ?? 0,
+    }
   },
 
   /**
-   * Get cached container rect
+   * Get cached container rect (absolute page position)
    */
   getContainerRect(): DOMRect | null {
-    return domPositionStore.viewportCache.containerRect
+    return domPositionStore.containerRect
   },
 
   /**

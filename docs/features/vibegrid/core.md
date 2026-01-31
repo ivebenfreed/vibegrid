@@ -13,7 +13,7 @@ High-performance virtualized data grid component for rendering and editing large
 
 - **Domain:** vibegrid
 - **Status:** active
-- **Related Issues:** GH#187
+- **Related Issues:** GH#187, GH#1413
 
 ## Behaviors
 
@@ -64,6 +64,13 @@ High-performance virtualized data grid component for rendering and editing large
 - **Trigger:** Grid loads with no data (empty collection)
 - **Expected:** Empty state component displays with message like "No items yet" and optional "Create" button
 - **Verify:** Placeholder visible instead of empty grid, create action available if user has permissions, no loading spinner
+
+## Architecture (GH#1413)
+
+- **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
+- **InitStore** (`stores/InitStore.ts`) - Deterministic renderer lifecycle via MobX reaction: waits for columns > 0 + container + factory before creating renderer; destroys on cleanup
+- **Event handling** - Single scroll/resize path through ViewportStore; no duplicate listeners
+- Legacy dead code (`.backup` files, unused stores) removed
 
 ## Notes
 

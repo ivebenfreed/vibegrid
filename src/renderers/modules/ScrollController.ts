@@ -4,7 +4,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import type { VirtualViewportStore } from '../../stores/VirtualViewportStore'
+import type { ViewportStore } from '../../stores/ViewportStore'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'ScrollController.ts'])
 
@@ -12,7 +12,7 @@ export interface ScrollControllerOptions {
   viewport: HTMLElement
   headerViewport?: HTMLElement | null
   container?: HTMLElement
-  virtualViewportStore?: VirtualViewportStore
+  viewportStore?: ViewportStore
   onScroll?: (scrollLeft: number, scrollTop: number) => void
   onClickOutside?: (e: MouseEvent) => void
   keyboardNavController?: any
@@ -24,7 +24,7 @@ export class ScrollController {
   private viewport: HTMLElement
   private headerViewport: HTMLElement | null
   private container?: HTMLElement
-  private virtualViewportStore?: VirtualViewportStore
+  private viewportStore?: ViewportStore
   private scrollRAF: number | null = null
   private onScroll?: (scrollLeft: number, scrollTop: number) => void
   private onClickOutside?: (e: MouseEvent) => void
@@ -45,7 +45,7 @@ export class ScrollController {
     this.viewport = options.viewport
     this.headerViewport = options.headerViewport || null
     this.container = options.container
-    this.virtualViewportStore = options.virtualViewportStore
+    this.viewportStore = options.viewportStore
     this.onScroll = options.onScroll
     this.onClickOutside = options.onClickOutside
     this.keyboardNavController = options.keyboardNavController
@@ -86,7 +86,7 @@ export class ScrollController {
   /**
    * Handle viewport scroll event
    */
-  private handleViewportScroll(event: Event): void {
+  private handleViewportScroll(_event: Event): void {
     const scrollLeft = this.viewport.scrollLeft
     const scrollTop = this.viewport.scrollTop
 
@@ -105,9 +105,9 @@ export class ScrollController {
 
       // ✅ PERFORMANCE: Throttle the expensive scroll handler to prevent excessive re-renders
       this.scrollRAF = requestAnimationFrame(() => {
-        // Update VirtualViewportStore with scroll position (MobX reactivity)
-        if (this.virtualViewportStore) {
-          this.virtualViewportStore.updateScroll(scrollTop, scrollLeft)
+        // Update ViewportStore with scroll position (MobX reactivity)
+        if (this.viewportStore) {
+          this.viewportStore.updateScroll(scrollTop, scrollLeft)
         }
 
         // Call external scroll handler (triggers viewport observer)

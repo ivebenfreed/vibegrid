@@ -15,7 +15,7 @@
 
 import { reaction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
-import { domPositions$, PositionEvents } from '../../../stores/dom-position-state'
+import { domPositions$ } from '../../../stores/dom-position-state'
 import type { EditingOverlay } from '../../../overlays/EditingOverlay'
 import type { EditingStore } from '../../../stores/EditingStore'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
@@ -159,7 +159,6 @@ export class EditingOverlayController extends OverlayController {
    * 6. Mark cell with data-editing="true" to hide content
    */
   private showEditingOverlay(editingCell: string, editValue: any): void {
-    console.log('🔥 SHOW_EDITING_OVERLAY CALLED', { editingCell, editValue })
     const [rowId, columnId] = editingCell.split(':')
     const columns = this.tableCoreStore.columns
     const column = columns.find((c: any) => c.id === columnId)

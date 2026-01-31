@@ -10,6 +10,7 @@ import { useSchemaRegistry } from '@/app/stores'
 import { getLogger } from '@/shared/lib/logging'
 import { createVibeGridXCoordinateManager } from '../coordinates/VibeGridXCoordinateManager'
 import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
+import { domPositionStore } from './dom-position-state'
 import { DebugStore } from './DebugStore'
 import { EditingStore } from './EditingStore'
 import { GanttViewStore } from './GanttViewStore'
@@ -20,7 +21,7 @@ import { KanbanViewStore } from './KanbanViewStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
 import { ViewModeStore } from './ViewModeStore'
-import { VirtualViewportStore } from './VirtualViewportStore'
+import { ViewportStore } from './ViewportStore'
 import { VisualStateStore } from './VisualStateStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'context'])
@@ -36,7 +37,7 @@ export interface VibeGridStores {
   editingStore: EditingStore
   persistenceStore: PersistenceStore
   initStore: InitStore
-  virtualViewportStore: VirtualViewportStore
+  viewportStore: ViewportStore
   viewModeStore: ViewModeStore
   ganttViewStore: GanttViewStore
   kanbanViewStore: KanbanViewStore
@@ -135,7 +136,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const editingStore = new EditingStore(tableCoreStore, visualStateStore)
     const persistenceStore = new PersistenceStore(entityType, orgId)
     const initStore = new InitStore(tableId, entityType)
-    const virtualViewportStore = new VirtualViewportStore()
+    const viewportStore = new ViewportStore()
     const viewModeStore = new ViewModeStore()
     const ganttViewStore = new GanttViewStore()
     const kanbanViewStore = new KanbanViewStore()
@@ -148,6 +149,18 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
 
     // VisualStateStore needs InteractionStore for clearing selections
     visualStateStore.setInteractionStore(interactionStore)
+
+    // VisualStateStore needs ViewportStore for scroll/viewport state (P2 consolidation)
+    visualStateStore.setViewportStore(viewportStore)
+
+    // ViewportStore needs CoordinateManager for coordinate queries
+    viewportStore.setCoordinateManager(coordinateManager)
+
+    // ViewportStore needs TableCoreStore for variable-height virtual scrolling
+    viewportStore.setTableCoreStore(tableCoreStore)
+
+    // DOMPositionStore needs ViewportStore for scroll/viewport state (P2 consolidation)
+    domPositionStore.setViewportStore(viewportStore)
 
     // VisualStateStore needs TableCoreStore for variable-height virtual scrolling
     visualStateStore.setTableCoreStore(tableCoreStore)
@@ -188,6 +201,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     initStore.setVisualStateStore(visualStateStore)
     initStore.setInteractionStore(interactionStore)
     initStore.setPersistenceStore(persistenceStore)
+    initStore.setViewportStore(viewportStore)
 
     // GanttViewStore needs TableCoreStore for row data
     ganttViewStore.setTableCoreStore(tableCoreStore)
@@ -225,7 +239,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       editingStore,
       persistenceStore,
       initStore,
-      virtualViewportStore,
+      viewportStore,
       viewModeStore,
       ganttViewStore,
       kanbanViewStore,
@@ -250,6 +264,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.editingStore.dispose()
       stores.persistenceStore.dispose()
       stores.initStore.dispose()
+      stores.viewportStore.dispose()
       stores.viewModeStore.dispose()
       stores.ganttViewStore.dispose()
       stores.kanbanViewStore.dispose()
@@ -267,6 +282,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     stores.kanbanViewStore.dispose,
     stores.persistenceStore.dispose, // Dispose ALL stores to clear timeouts and prevent memory leaks
     stores.tableCoreStore.dispose,
+    stores.viewportStore.dispose,
     stores.viewModeStore.dispose,
     stores.visualStateStore.dispose,
     tableId,
@@ -338,6 +354,10 @@ export function usePersistenceStore(): PersistenceStore {
 
 export function useInitStore(): InitStore {
   return useVibeGridStores().initStore
+}
+
+export function useViewportStore(): ViewportStore {
+  return useVibeGridStores().viewportStore
 }
 
 export function useCoordinateManager(): ObservableCoordinateManager {

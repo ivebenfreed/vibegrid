@@ -11,7 +11,7 @@
  */
 
 import { useLiveQuery } from '@tanstack/react-db'
-import { autorun, reaction } from 'mobx'
+import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useRef } from 'react'
@@ -171,8 +171,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onCellClick,
     onCellDoubleClick: _onCellDoubleClick,
     onSelectionChange: _onSelectionChange,
-    onEditingChange,
-    onPerformanceUpdate,
+    onEditingChange: _onEditingChange,
+    onPerformanceUpdate: _onPerformanceUpdate,
     onEntityUpdate,
     onBatchEntityUpdate,
     rowActions,
@@ -180,11 +180,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableDelete,
     onDelete,
     deleteConfirmation,
-    enableVirtualScrolling = true,
+    enableVirtualScrolling: _enableVirtualScrolling = true,
     bufferSize = 10,
     enableGrouping = true,
-    enableFiltering = true,
-    enableSorting = true,
+    enableFiltering: _enableFiltering = true,
+    enableSorting: _enableSorting = true,
     enableDragAndDrop = true,
     enableHierarchy = false,
     viewMode = 'table',
@@ -193,7 +193,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     skipDataFetching = false,
     collectionOverride: _collectionOverride, // Used by context provider, not directly here
     enableEntityAdd = true,
-    showToolbar = true,
+    showToolbar: _showToolbar = true,
     showHeader = true,
     rowExpansionConfig,
     onRowExpansionChange,
@@ -228,7 +228,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // Props-based view mode (no MobX toggle)
   const isGanttMode = viewMode === 'gantt'
   const isKanbanMode = viewMode === 'kanban'
-  const isTableMode = viewMode === 'table'
+  const _isTableMode = viewMode === 'table'
   const cutoffWidth = viewModeStore.cutoffWidth
 
   // ====================================
@@ -247,7 +247,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     collection,
     createEntity,
     updateEntity,
-    deleteEntity,
+    deleteEntity: _deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
     skip: skipDataFetching,
     collectionOverride,
@@ -266,7 +266,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enabled: rowExpansionConfig?.enabled,
     enabledFallback: rowExpansionConfig?.enabled ?? false,
   })
-  const rowExpansion = useRowExpansion(interactionStore, {
+  const _rowExpansion = useRowExpansion(interactionStore, {
     enabled: rowExpansionConfig?.enabled ?? false,
     allowMultiple: rowExpansionConfig?.allowMultiple ?? true,
     loadData: rowExpansionConfig?.loadExpandedData,
@@ -368,6 +368,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // Initialize baseline snapshot when both schema AND data are ready
   // CRITICAL: This ensures baseline is created on initial load, not on first edit
   // Without this, detectChangedCells() returns empty on first edit → versions don't increment → observer doesn't fire
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally specific deps - only re-run when these exact hydration fields change
   useEffect(() => {
     if (!stores || !stores.initStore || !tableCoreStore) return
 
@@ -564,123 +565,84 @@ function VibeGridInnerBase(props: VibeGridProps) {
   }, [kanbanViewStore, isKanbanMode, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
-  // INITIALIZATION
+  // INITIALIZATION (P4 - Deterministic via InitStore)
   // ====================================
 
+  // Renderer creation is now deterministic via InitStore.
+  // VibeGrid.tsx provides: container ref + renderer factory.
+  // InitStore's MobX reaction watches columns.length > 0 && container && factory,
+  // then creates the renderer synchronously. No race conditions.
+
   useEffect(() => {
-    const initializeRenderer = async () => {
-      try {
-        logger.info('🚀 Initializing VibeGrid renderer', {
-          tableId,
-          entityType,
-          storesReady: !!stores,
-          rowCount: tableCoreStore?.processedRows?.length || 0,
-        })
-
-        // Check if stores are available
-        if (!stores || !stores.initStore) {
-          logger.warn('[VGDEBUG] ⚠️ Stores not ready for initialization')
-          return
-        }
-
-        // Wait for container
-        if (!containerRef.current) {
-          logger.warn('[VGDEBUG] ⚠️ Container ref not available')
-          return
-        }
-
-        // Mark container as ready
-        stores.initStore.markReady('containerReady')
-        logger.info('[VGDEBUG] ✅ Container ready')
-
-        // Wait for stores to be initialized
-        if (!visualStateStore.columns.length) {
-          logger.info('[VGDEBUG] ⏳ Waiting for columns to load...', {
-            columnCount: visualStateStore.columns.length,
-          })
-          return
-        }
-
-        logger.info('[VGDEBUG] ✅ About to create SimplePassiveRenderer', {
-          columnCount: visualStateStore.columns.length,
-        })
-
-        // Create the SimplePassiveRenderer with MobX stores
-        const renderer = new SimplePassiveRenderer({
-          container: containerRef.current,
-          stores, // Pass MobX stores directly
-          entityType,
-          enableSelectionColumn,
-          bufferSize,
-          // Use updateEntity from hook as fallback if onEntityUpdate prop not provided
-          onEntityUpdate: onEntityUpdate || updateEntity,
-          onBatchEntityUpdate,
-          onCellClick, // ✅ Thread onCellClick to InteractionCoordinator
-        })
-
-        rendererRef.current = renderer
-
-        logger.info('✅ SimplePassiveRenderer created successfully')
-
-        // Set up resize observer
-        const resizeObserver = new ResizeObserver(() => {
-          if (containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect()
-            visualStateStore.updateViewportDimensions(rect.width, rect.height)
-          }
-        })
-
-        resizeObserver.observe(containerRef.current)
-        ;(renderer as any).resizeObserver = resizeObserver
-
-        // Initial viewport update
-        const initialRect = containerRef.current.getBoundingClientRect()
-        visualStateStore.updateViewportDimensions(initialRect.width, initialRect.height)
-
-        logger.info('🎯 VibeGrid fully initialized', {
-          entityType,
-          tableId,
-          rowCount: tableCoreStore?.processedRows?.length || 0,
-        })
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
-        logger.error('❌ Failed to initialize VibeGrid', { err })
-      }
+    if (!stores || !stores.initStore) {
+      logger.warn('[VGDEBUG] Stores not ready for initialization')
+      return
     }
 
-    // Use MobX autorun to reactively trigger initialization when columns are ready
-    // This allows us to avoid having visualStateStore.columns in React dependencies
-    // NOTE: Field types are already initialized by InitStore.initializeStores() before columns load
-    const disposer = autorun(() => {
-      // Read columns.length inside autorun to track it
-      const hasColumns = visualStateStore.columns.length > 0
+    if (!containerRef.current) {
+      logger.warn('[VGDEBUG] Container ref not available')
+      return
+    }
 
-      if (stores && hasColumns && !rendererRef.current) {
-        logger.info('🎯 MobX autorun: Columns ready, initializing renderer', {
-          columnCount: visualStateStore.columns.length,
-        })
-        initializeRenderer()
-      }
+    // Mark container as ready (hydration tracking)
+    stores.initStore.markReady('containerReady')
+    logger.info('[VGDEBUG] Container ready')
+
+    // Provide the container to InitStore
+    stores.initStore.setContainer(containerRef.current)
+
+    // Provide a renderer factory that captures the current closure variables.
+    // InitStore will call this when columns are ready (via MobX reaction).
+    stores.initStore.setRendererFactory((container: HTMLElement) => {
+      logger.info('Renderer factory called by InitStore', {
+        tableId,
+        entityType,
+        columnCount: visualStateStore.columns.length,
+      })
+
+      return new SimplePassiveRenderer({
+        container,
+        stores,
+        entityType,
+        enableSelectionColumn,
+        bufferSize,
+        onEntityUpdate: onEntityUpdate || updateEntity,
+        onBatchEntityUpdate,
+        onCellClick,
+      })
     })
 
-    // Cleanup only on unmount
+    // Sync rendererRef with initStore.renderer for cleanup on unmount
+    const rendererSyncDisposer = reaction(
+      () => stores.initStore.renderer,
+      (renderer) => {
+        rendererRef.current = renderer
+      },
+      { fireImmediately: true },
+    )
+
+    // Cleanup on unmount or dependency change (e.g. callback prop changes)
     return () => {
-      // Dispose MobX autorun
-      disposer()
+      rendererSyncDisposer()
 
-      if (rendererRef.current) {
-        logger.debug('🧹 Cleaning up VibeGrid')
-
-        // Cleanup resize observer
-        if ((rendererRef.current as any).resizeObserver) {
-          ;(rendererRef.current as any).resizeObserver.disconnect()
-        }
-
-        rendererRef.current.destroy()
-        rendererRef.current = null
+      // Destroy renderer so a fresh one can be created with updated callbacks
+      if (stores?.initStore) {
+        stores.initStore.destroyRenderer()
       }
+      rendererRef.current = null
     }
-  }, [stores, onCellClick]) // Depend on stores and onCellClick to recreate renderer when callback changes
+  }, [
+    stores,
+    onCellClick,
+    visualStateStore.columns.length,
+    onEntityUpdate,
+    onBatchEntityUpdate,
+    updateEntity,
+    enableSelectionColumn,
+    entityType,
+    tableId,
+    bufferSize,
+  ]) // Depend on stores and callbacks to recreate renderer when they change
 
   // ====================================
   // ROW ACTIONS HELPER
@@ -766,9 +728,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // DERIVED STATE
   // ====================================
 
-  // Use rendererRef to determine if ready - avoids MobX tracking of visualStateStore.columns
+  // isReady: basic data readiness (stores exist, data loaded)
+  // isRendered: renderer has fully painted (header + body + browser paint complete)
+  // Uses InitStore.isFullyHydrated (MobX computed) instead of checking rendererRef
+  // because the ref is set when the renderer object is created, before it has actually
+  // painted rows. isFullyHydrated waits for rendererInitialized (Phase 6 RAF).
   const isReady = stores && !isDataLoading
-  const isRendered = !!rendererRef.current
+  const isRendered = initStore?.isFullyHydrated ?? false
 
   // Header should show as soon as stores are ready (don't wait for renderer)
   // GH#1240: Respect showHeader prop for nested grids that don't need headers
@@ -871,6 +837,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
             width: isKanbanMode ? 0 : isGanttMode ? cutoffWidth : '100%',
             flexShrink: 0,
             position: 'relative',
+            zIndex: 0, // Creates stacking context so renderer's internal z-indexes (header z-10) don't escape above the loading overlay (z-10)
             outline: 'none',
             overflow: isKanbanMode ? 'hidden' : 'auto',
             visibility: isKanbanMode ? 'hidden' : 'visible',
@@ -920,10 +887,16 @@ function VibeGridInnerBase(props: VibeGridProps) {
         {(rowActions || enableDelete) && (
           <FloatingActionsMenu
             rowActions={rowActions}
-            onRowAction={onRowAction ? (actionId, rowData) => onRowAction(actionId, [rowData.id], [rowData]) : undefined}
+            onRowAction={
+              onRowAction
+                ? (actionId, rowData) => onRowAction(actionId, [rowData.id], [rowData])
+                : undefined
+            }
             enableDelete={enableDelete}
             onDelete={onDelete ? (rowId, rowData) => onDelete([rowId], [rowData]) : undefined}
-            deleteConfirmation={deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined}
+            deleteConfirmation={
+              deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined
+            }
             getRowData={getRowData}
           />
         )}
