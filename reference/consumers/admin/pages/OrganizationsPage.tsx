@@ -40,7 +40,7 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [orgName, setOrgName] = useState('')
   const [orgSlug, setOrgSlug] = useState('')
-  const [ownerEmail, setOwnerEmail] = useState('')
+  const [ownerId, setOwnerId] = useState('')
   const [isCreating, setIsCreating] = useState(false)
 
   // Auto-generate slug from name
@@ -56,7 +56,7 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
   }
 
   const handleCreateOrganization = async (): Promise<void> => {
-    if (!orgName.trim() || !orgSlug.trim() || !ownerEmail.trim()) {
+    if (!orgName.trim() || !orgSlug.trim() || !ownerId.trim()) {
       toast.error('Please fill in all required fields')
       return
     }
@@ -66,13 +66,13 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
       await adminStore.createOrganization({
         name: orgName.trim(),
         slug: orgSlug.trim(),
-        ownerId: ownerEmail.trim(), // Backend resolves email to user ID
+        ownerId: ownerId.trim(),
       })
       toast.success(`Organization "${orgName}" created`)
       setCreateDialogOpen(false)
       setOrgName('')
       setOrgSlug('')
-      setOwnerEmail('')
+      setOwnerId('')
       // Reload page to refresh grid data
       window.location.reload()
     } catch (error) {
@@ -213,13 +213,12 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="owner-email">Owner Email</Label>
+              <Label htmlFor="owner-id">Owner User ID</Label>
               <Input
-                id="owner-email"
-                type="email"
-                placeholder="owner@example.com"
-                value={ownerEmail}
-                onChange={(e) => setOwnerEmail(e.target.value)}
+                id="owner-id"
+                placeholder="User ID (from Users tab)"
+                value={ownerId}
+                onChange={(e) => setOwnerId(e.target.value)}
               />
             </div>
           </div>
