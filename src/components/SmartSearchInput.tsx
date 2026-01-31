@@ -40,7 +40,7 @@ export const SmartSearchInput = observer(function SmartSearchInput({
   // Create debounced update (300ms per spec)
   const debouncedUpdate = useDebouncedCallback(
     (value: string) => visualStateStore.setGlobalSearchText(value),
-    300
+    300,
   )
   debouncedUpdateRef.current = debouncedUpdate
 
