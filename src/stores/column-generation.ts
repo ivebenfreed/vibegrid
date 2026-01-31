@@ -214,6 +214,16 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(platformUserColumns) as any
   }
 
+  // Special case: Platform organizations (admin-only, not DataForge entities)
+  if (entityType === 'PlatformOrganization') {
+    fileLog.debug('🏢 Using platform organization schema (system entity)', { entityType })
+    const { platformOrganizationColumns } = await import(
+      '@/features/admin/schemas/platform-organization-schema'
+    )
+    // Enrich columns with field types for fast path in ModularCellBridge
+    return enrichColumnsWithFieldTypes(platformOrganizationColumns) as any
+  }
+
   // Special case: Email threads (Communications worker, not DataForge entities)
   if (entityType === 'EmailThread') {
     fileLog.debug('📧 Using email thread schema (communications entity)', { entityType })
