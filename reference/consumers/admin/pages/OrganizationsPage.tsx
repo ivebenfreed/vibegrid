@@ -9,12 +9,7 @@ import { useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { Archive, ArchiveRestore, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { Search as SearchComponent } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
-import { ConfigDrawer } from '@/shared/components/config-drawer'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import { useAdminStore } from '@/features/admin/stores/AdminStoreContext'
@@ -142,16 +137,6 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
 
   return (
     <>
-      {/* Page Header */}
-      <Header>
-        <SearchComponent />
-        <div className="ms-auto flex items-center space-x-4">
-          <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
-        </div>
-      </Header>
-
       <Main className="flex flex-col gap-4 sm:gap-6">
         {/* Page Header with Actions */}
         <div className="flex items-center justify-between">

@@ -10,12 +10,7 @@ import { UserCog, Mail, KeyRound, Building, X, Plus, Loader2 } from 'lucide-reac
 import { toast } from 'sonner'
 import { useAuth } from '@/app/stores'
 import { useAdminStore } from '@/features/admin/stores/AdminStoreContext'
-import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { Search as SearchComponent } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
-import { ConfigDrawer } from '@/shared/components/config-drawer'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import { getLogger } from '@/shared/lib/logging'
@@ -395,16 +390,6 @@ export const UsersPage = observer(function UsersPage() {
 
   return (
     <>
-      {/* Page Header */}
-      <Header>
-        <SearchComponent />
-        <div className="ms-auto flex items-center space-x-4">
-          <ThemeSwitch />
-          <ConfigDrawer />
-          <ProfileDropdown />
-        </div>
-      </Header>
-
       <Main className="flex flex-col gap-4 sm:gap-6">
         {/* Page Header with Actions */}
         <div className="flex items-center justify-between">
