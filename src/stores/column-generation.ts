@@ -210,8 +210,27 @@ export async function generateColumnsFromEntitySchema<T = any>(
   if (entityType === 'PlatformUser') {
     fileLog.debug('🔑 Using platform user schema (system entity)', { entityType })
     const { platformUserColumns } = await import('@/features/admin/schemas/platform-user-schema')
+    // Shallow-copy columns so we don't mutate the module-level constant
+    const columns = platformUserColumns.map((c) => ({ ...c }))
+
+    // Inject dynamic organization options for multi-select column
+    try {
+      const response = await fetch('/api/admin/organizations', { credentials: 'include' })
+      if (response.ok) {
+        const data = (await response.json()) as {
+          organizations?: Array<{ id: string; name: string }>
+        }
+        const orgCol = columns.find((c) => c.id === 'organizations')
+        if (orgCol && data.organizations) {
+          orgCol.options = data.organizations.map((o) => ({ value: o.id, label: o.name }))
+        }
+      }
+    } catch {
+      fileLog.warn('Failed to fetch organizations for column options')
+    }
+
     // Enrich columns with field types for fast path in ModularCellBridge
-    return enrichColumnsWithFieldTypes(platformUserColumns) as any
+    return enrichColumnsWithFieldTypes(columns) as any
   }
 
   // Special case: Platform organizations (admin-only, not DataForge entities)
