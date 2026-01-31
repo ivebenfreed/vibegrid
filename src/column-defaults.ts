@@ -84,6 +84,9 @@ export const COLUMN_DEFAULTS: Record<
   'expiration-date': { width: 100, minWidth: 80, maxWidth: 150 },
   'row-expand': { width: 40, minWidth: 40, maxWidth: 40 },
 
+  // Admin/system types (GH#218)
+  'badge-list': { width: 250, minWidth: 150, maxWidth: 400 },
+
   // Entity field types
   'entity-name': { width: 200, minWidth: 150, maxWidth: 400 },
 } as const

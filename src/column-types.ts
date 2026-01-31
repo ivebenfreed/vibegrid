@@ -137,6 +137,8 @@ export type CellType =
   | 'additional-insured'
   | 'expiration-date'
   | 'row-expand' // Expandable row with chevron (B5)
+  // Admin/system types (GH#218)
+  | 'badge-list' // Many-to-many badge list with overflow (e.g., user → organizations)
   // Entity field types
   | 'entity-name' // Primary field with navigate affordance
 
