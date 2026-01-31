@@ -34,7 +34,7 @@ export const GRID_DIMENSIONS = {
   // PERF: Reduced from 15 to 10 - at ~0.8ms/row, 20 rows = 16ms frame budget
   // 10 rows × 36px = 360px buffer on each side
   BUFFER_ROWS: 10,
-  BUFFER_COLUMNS: 2,
+  BUFFER_COLUMNS: 4,
 
   // Performance thresholds
   RAF_THROTTLE_MS: 16, // 60fps

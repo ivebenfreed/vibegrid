@@ -78,6 +78,7 @@ type CoordinateChangeListener = (event: CoordinateChangeEvent) => void
  */
 export class VibeGridXCoordinateManager {
   private mapping: CoordinateMapping
+  private columnMap: Map<string, ColumnMapping> = new Map()
   private listeners = new Set<CoordinateChangeListener>()
   private version = 0
 
@@ -191,6 +192,12 @@ export class VibeGridXCoordinateManager {
       version: ++this.version,
     }
 
+    // Rebuild O(1) lookup map
+    this.columnMap.clear()
+    for (const col of newColumns) {
+      this.columnMap.set(col.columnId, col)
+    }
+
     // 🔧 CRITICAL FIX: Always notify when columns change (order, width, count)
     // Previous bug: Only notified when COUNT changed, not when reordered!
     const countChanged = oldMapping.columns.length !== newColumns.length
@@ -245,7 +252,7 @@ export class VibeGridXCoordinateManager {
    */
   cellRefToPosition(cellRef: CellRef): CoordinatePosition | null {
     const rowMapping = this.mapping.rows.find((r) => r.rowId === cellRef.rowId)
-    const columnMapping = this.mapping.columns.find((c) => c.columnId === cellRef.columnId)
+    const columnMapping = this.columnMap.get(cellRef.columnId)
 
     if (!rowMapping || !columnMapping) {
       fileLog.warn('VibeGridXCoordinateManager: Could not find mapping for cell', { cellRef })
@@ -262,7 +269,7 @@ export class VibeGridXCoordinateManager {
    * Get column by ID
    */
   getColumn(columnId: string): { id: string; width: number } | null {
-    const columnMapping = this.mapping.columns.find((c) => c.columnId === columnId)
+    const columnMapping = this.columnMap.get(columnId)
     if (!columnMapping) {
       return null
     }
@@ -579,16 +586,14 @@ export class VibeGridXCoordinateManager {
    * Get column offset for positioning
    */
   getColumnOffset(columnId: string): number {
-    const column = this.mapping.columns.find((c) => c.columnId === columnId)
-    return column?.offset || 0
+    return this.columnMap.get(columnId)?.offset || 0
   }
 
   /**
    * Get column width
    */
   getColumnWidth(columnId: string): number {
-    const column = this.mapping.columns.find((c) => c.columnId === columnId)
-    return column?.width || 120
+    return this.columnMap.get(columnId)?.width || 120
   }
 
   /**
@@ -602,7 +607,7 @@ export class VibeGridXCoordinateManager {
    * Check if a column exists in current mapping
    */
   hasColumn(columnId: string): boolean {
-    return this.mapping.columns.some((c) => c.columnId === columnId)
+    return this.columnMap.has(columnId)
   }
 
   /**
@@ -663,6 +668,7 @@ export class VibeGridXCoordinateManager {
       version: ++this.version,
       sortBy: [],
     }
+    this.columnMap.clear()
 
     this.notifyListeners({
       type: 'data-changed',

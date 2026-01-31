@@ -20,8 +20,6 @@ import { DragDropManager } from '../../utils/drag-drop-handlers'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
-// GH#1240: SubTableRenderer replaced by nested VibeGrid via React portals
-import type { SubTableColumn } from './SubTableRenderer'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'BodyRenderer.ts'])
 
@@ -77,6 +75,7 @@ export class BodyRenderer {
   private isGroupedMode: boolean = false
 
   // Store context for potential drag selection
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: used in cell click and drag handlers
   private lastClickedCell: { cellId: string; row: any; column: any } | null = null
 
   // Observer cleanup
@@ -327,7 +326,19 @@ export class BodyRenderer {
     // Defer remaining columns with requestIdleCallback for smoother initial render
     if (deferredColumns.length > 0) {
       const deferredRender = () => {
+        // GH#1435: Gate deferred render by current visible range to avoid creating
+        // out-of-range cells if horizontal scroll changed during the idle wait
+        const currentRange = this.visualStateStore.visibleColumnRange
+        const currentVisible = this.visualStateStore.visibleColumns
+        const inRangeIds = new Set<string>()
+        for (let i = currentRange.start; i < currentRange.end && i < currentVisible.length; i++) {
+          inRangeIds.add(currentVisible[i].id)
+        }
+
         deferredColumns.forEach((column, relativeIndex) => {
+          // Skip if column is no longer in visible range (scroll changed during defer)
+          if (!inRangeIds.has(column.id)) return
+
           const colIndex = essentialColumnCount + relativeIndex
           this.cellRenderingStats.cellsRequested++
 
@@ -515,7 +526,11 @@ export class BodyRenderer {
    * This creates a container for expanded content that will be rendered
    * by the React component via renderExpandedContent callback.
    */
-  createExpandedContentRowElement(expandedRow: any, rowIndex: number, parentRow: any): HTMLElement {
+  createExpandedContentRowElement(
+    expandedRow: any,
+    rowIndex: number,
+    _parentRow: any,
+  ): HTMLElement {
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-expanded-content-row')
     rowElement.dataset.rowId = expandedRow.id
     rowElement.dataset.parentRowId = expandedRow.parentRowId
@@ -716,56 +731,6 @@ export class BodyRenderer {
     `
 
     return groupLabel
-  }
-
-  // ====================================
-  // SUB-TABLE HELPERS (GH#1240)
-  // ====================================
-
-  /**
-   * Auto-detect columns from data object for sub-table rendering
-   */
-  private autoDetectColumns(dataItem: unknown): SubTableColumn[] {
-    if (!dataItem || typeof dataItem !== 'object') return []
-
-    const item = dataItem as Record<string, unknown>
-    return Object.keys(item)
-      .filter((key) => !key.startsWith('_') && key !== 'id') // Skip private fields and id
-      .slice(0, 6) // Limit to first 6 columns for readability
-      .map((key) => ({
-        id: key,
-        name: this.formatColumnName(key),
-        width: this.inferColumnWidth(key, item[key]),
-      }))
-  }
-
-  /**
-   * Format a column key into a human-readable name
-   */
-  private formatColumnName(key: string): string {
-    return key
-      .replace(/_/g, ' ')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .split(' ')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ')
-  }
-
-  /**
-   * Infer column width based on key and value
-   */
-  private inferColumnWidth(key: string, value: unknown): number {
-    // Date columns
-    if (key.includes('date') || key.includes('Date')) return 100
-    // Currency columns
-    if (key.includes('amount') || key.includes('limit') || key.includes('premium')) return 120
-    // Type/status columns
-    if (key.includes('type') || key.includes('status')) return 80
-    // Name columns
-    if (key.includes('name') || key.includes('Name')) return 150
-    // Default based on value length
-    if (typeof value === 'string' && value.length > 20) return 180
-    return 120
   }
 
   // ====================================

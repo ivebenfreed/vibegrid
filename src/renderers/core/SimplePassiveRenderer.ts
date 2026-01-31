@@ -89,6 +89,8 @@ export class SimplePassiveRenderer {
 
   // Basic row management
   private activeRows: Map<string, HTMLElement> = new Map()
+  // Cell tracking per row: rowId -> (columnId -> cellElement) for incremental column updates
+  private activeCells: Map<string, Map<string, HTMLElement>> = new Map()
   private lastVisibleColumns: { start: number; end: number } | null = null
   private lastVisibleRows: { start: number; end: number } | null = null
 
@@ -969,21 +971,24 @@ export class SimplePassiveRenderer {
 
         const previousColumnRange = this.lastVisibleColumns || { start: -1, end: -1 }
 
-        // Only update if column range changed (buffer prevents frequent updates)
         const needsUpdate =
-          previousColumnRange.start === -1 || // Initial render
+          previousColumnRange.start === -1 ||
           currentColumnRange.start !== previousColumnRange.start ||
           currentColumnRange.end !== previousColumnRange.end
 
         if (needsUpdate) {
-          fileLog.debug('🚀 HORIZONTAL SCROLL: Column virtualization update', {
+          fileLog.debug('HORIZONTAL SCROLL: Column virtualization update', {
             previousColumnRange: `${previousColumnRange.start}-${previousColumnRange.end}`,
             newColumnRange: `${currentColumnRange.start}-${currentColumnRange.end}`,
           })
 
+          // Always use incremental update - initial renderBody() already placed columns,
+          // so first horizontal scroll is a no-op (cellMap guard skips existing cells).
+          // Calling renderBody() here caused full row teardown/rebuild (40+ row churn).
+          if (previousColumnRange.start !== -1) {
+            this.updateVirtualColumns(previousColumnRange, currentColumnRange)
+          }
           this.lastVisibleColumns = currentColumnRange
-          // For column changes, need full body re-render
-          this.renderBody()
         }
       },
     )
@@ -1426,8 +1431,9 @@ export class SimplePassiveRenderer {
         count: currentRange.end - currentRange.start + 1,
       })
 
-      // Clear any stale entries in activeRows
+      // Clear any stale entries in activeRows and activeCells
       this.activeRows.clear()
+      this.activeCells.clear()
 
       const fragment = document.createDocumentFragment()
       for (let i = currentRange.start; i < currentRange.end && i < rows.length; i++) {
@@ -1443,6 +1449,8 @@ export class SimplePassiveRenderer {
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
           this.activeRows.set(row.id, rowElement)
+          // Track cells per row for incremental column updates
+          this.trackCellsForRow(row.id, rowElement)
         }
       }
       this.bodyContainer.appendChild(fragment)
@@ -1488,6 +1496,7 @@ export class SimplePassiveRenderer {
             // Remove from DOM but keep for recycling
             rowElement.remove()
             this.activeRows.delete(rowId)
+            this.activeCells.delete(rowId)
             // Only pool data rows (not expanded-content or group rows)
             const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
             if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
@@ -1508,6 +1517,7 @@ export class SimplePassiveRenderer {
             // Remove from DOM but keep for recycling
             rowElement.remove()
             this.activeRows.delete(rowId)
+            this.activeCells.delete(rowId)
             // Only pool data rows (not expanded-content or group rows)
             const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
             if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
@@ -1564,6 +1574,8 @@ export class SimplePassiveRenderer {
           // Prepend to fragment (reverse order since we're iterating backwards)
           fragment.insertBefore(rowElement, fragment.firstChild)
           this.activeRows.set(row.id, rowElement)
+          // Track cells per row for incremental column updates
+          this.trackCellsForRow(row.id, rowElement)
           rowsCreated++
         }
       }
@@ -1607,6 +1619,8 @@ export class SimplePassiveRenderer {
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
           this.activeRows.set(row.id, rowElement)
+          // Track cells per row for incremental column updates
+          this.trackCellsForRow(row.id, rowElement)
           rowsCreated++
         }
       }
@@ -1642,6 +1656,177 @@ export class SimplePassiveRenderer {
 
     // 🚀 PERF TEST: Skip logging to isolate forced reflow source
     // fileLog.debug('✅ INCREMENTAL UPDATE: Complete', { ... })
+  }
+
+  /**
+   * Populate activeCells tracking for a given row element.
+   * Queries the row's cells by data-column-id and stores them in the activeCells map.
+   */
+  private trackCellsForRow(rowId: string, rowElement: HTMLElement): void {
+    const cellMap = new Map<string, HTMLElement>()
+    const cells = rowElement.querySelectorAll('.vibegridx-cell[data-column-id]')
+    for (const cell of cells) {
+      const colId = (cell as HTMLElement).getAttribute('data-column-id')
+      if (colId) cellMap.set(colId, cell as HTMLElement)
+    }
+    this.activeCells.set(rowId, cellMap)
+  }
+
+  /**
+   * Incremental column update - add/remove only delta cells instead of full re-render.
+   * Modeled on updateVirtualRows() incremental pattern for horizontal scrolling performance.
+   */
+  private updateVirtualColumns(
+    previousRange: { start: number; end: number },
+    currentRange: { start: number; end: number },
+  ): void {
+    if (!this.bodyContainer || !this.bodyRenderer) return
+
+    const startTime = performance.now()
+    const visualState = this.visualStateStore
+    const allVisibleColumns = visualState.visibleColumns
+    const columns = this.tableCoreStore.columns
+
+    // Determine entering and leaving columns
+    const prevColumnIds = new Set<string>()
+    for (let i = previousRange.start; i < previousRange.end && i < allVisibleColumns.length; i++) {
+      prevColumnIds.add(allVisibleColumns[i].id)
+    }
+
+    const currentColumnIds = new Set<string>()
+    for (let i = currentRange.start; i < currentRange.end && i < allVisibleColumns.length; i++) {
+      currentColumnIds.add(allVisibleColumns[i].id)
+    }
+
+    // Columns entering viewport
+    const entering: typeof allVisibleColumns = []
+    for (let i = currentRange.start; i < currentRange.end && i < allVisibleColumns.length; i++) {
+      if (!prevColumnIds.has(allVisibleColumns[i].id)) {
+        entering.push(allVisibleColumns[i])
+      }
+    }
+
+    // Columns leaving viewport
+    const leaving: string[] = []
+    for (const colId of prevColumnIds) {
+      if (!currentColumnIds.has(colId)) {
+        leaving.push(colId)
+      }
+    }
+
+    if (entering.length === 0 && leaving.length === 0) return
+
+    fileLog.debug('INCREMENTAL COLUMN UPDATE', {
+      previousRange: `${previousRange.start}-${previousRange.end}`,
+      currentRange: `${currentRange.start}-${currentRange.end}`,
+      entering: entering.length,
+      leaving: leaving.length,
+    })
+
+    // Pre-compute lookup maps for O(1) access in the per-row loop
+    const rowMap = new Map<string, any>()
+    for (const row of this.tableCoreStore.processedRows) {
+      rowMap.set(row.id, row)
+    }
+    const columnMap = new Map<string, any>()
+    for (const col of columns) {
+      columnMap.set(col.id, col)
+    }
+
+    // Split rows into viewport (synchronous) and buffer (deferred) for frame budget
+    const rows = this.tableCoreStore.processedRows
+    const renderRange = this.visualStateStore.visibleRowRange // includes buffer
+    const startIdx = Math.max(0, renderRange.start)
+    const endIdx = Math.min(rows.length, renderRange.end)
+
+    // Compute viewport-only range (no buffer) — what the user actually sees
+    const scrollTop = this.visualStateStore.scrollTop
+    const viewportHeight = this.visualStateStore.viewportHeight
+    const vpStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
+    const vpEnd = Math.min(
+      rows.length,
+      this.tableCoreStore.findRowAtScrollPosition(scrollTop + viewportHeight) + 1,
+    )
+
+    // Helper: update columns for a single row
+    const processRow = (row: any, rowElement: HTMLElement) => {
+      let cellMap = this.activeCells.get(row.id)
+      if (!cellMap) {
+        cellMap = new Map<string, HTMLElement>()
+        this.activeCells.set(row.id, cellMap)
+      }
+
+      // Remove leaving cells
+      for (const colId of leaving) {
+        const cellEl = cellMap.get(colId)
+        if (cellEl) {
+          cellEl.remove()
+          cellMap.delete(colId)
+        }
+      }
+
+      // Add entering cells
+      for (const layout of entering) {
+        if (cellMap.has(layout.id)) continue
+        const column = columnMap.get(layout.id)
+        if (!column) continue
+
+        const cell = this.bodyRenderer!.createCellElement(
+          row,
+          { ...column, width: layout.width },
+          0,
+          layout.xOffset,
+          layout.width,
+        )
+        rowElement.appendChild(cell)
+        cellMap.set(layout.id, cell)
+      }
+    }
+
+    // Pass 1: viewport rows only (synchronous — what the user sees)
+    let viewportProcessed = 0
+    const deferredRows: Array<{ row: any; el: HTMLElement }> = []
+
+    for (let i = startIdx; i < endIdx; i++) {
+      const row = rows[i]
+      if (!row?.id) continue
+
+      const rowElement = this.activeRows.get(row.id)
+      if (!rowElement) continue
+
+      if (
+        rowElement.classList.contains('vibegridx-group-header') ||
+        rowElement.classList.contains('vibegridx-expanded-content-row')
+      ) {
+        continue
+      }
+
+      if (i >= vpStart && i < vpEnd) {
+        processRow(row, rowElement)
+        viewportProcessed++
+      } else {
+        deferredRows.push({ row, el: rowElement })
+      }
+    }
+
+    // Pass 2: buffer rows deferred — off-screen, don't block the frame
+    if (deferredRows.length > 0) {
+      requestIdleCallback(() => {
+        for (const { row, el } of deferredRows) {
+          if (!this.activeRows.has(row.id)) continue // row may have been removed
+          processRow(row, el)
+        }
+      })
+    }
+
+    const duration = performance.now() - startTime
+    if (duration > 10) {
+      fileLog.warn(
+        `COLUMN UPDATE: ${duration.toFixed(1)}ms | ` +
+          `entering: ${entering.length} | leaving: ${leaving.length} | ` +
+          `viewport: ${viewportProcessed} | deferred: ${deferredRows.length}`,
+      )
+    }
   }
 
   /**
@@ -1852,6 +2037,7 @@ export class SimplePassiveRenderer {
     // Clear active rows in RowRenderer AND our local tracking Map
     this.bodyRenderer.clearActiveRows()
     this.activeRows.clear()
+    this.activeCells.clear()
 
     // PERFORMANCE FIX: Clear body container more efficiently
     while (this.bodyContainer.firstChild) {
@@ -1958,6 +2144,8 @@ export class SimplePassiveRenderer {
       // Track in activeRows Map for O(1) lookups during scroll updates
       if (row.id) {
         this.activeRows.set(row.id, rowElement)
+        // Track cells per row for incremental column updates
+        this.trackCellsForRow(row.id, rowElement)
       }
 
       // PERFORMANCE FIX: Append to DocumentFragment instead of directly to DOM
@@ -1986,8 +2174,9 @@ export class SimplePassiveRenderer {
       viewportHeight: visualState.viewportHeight,
     })
 
-    // Initialize lastVisibleRows for scroll observer
+    // Initialize lastVisibleRows/Columns for scroll observers
     this.lastVisibleRows = { start: startIndex, end: endIndex }
+    this.lastVisibleColumns = visualState.visibleColumnRange
 
     // Build complete coordinate mapping for all rows (needed for overlays)
     // GH#1240: Use actual rowOffsets for variable-height rows (expanded content rows)
@@ -2314,6 +2503,7 @@ export class SimplePassiveRenderer {
 
     // Clear references
     this.activeRows.clear()
+    this.activeCells.clear()
     this.viewport = null
     this.headerContainer = null
     this.headerViewport = null

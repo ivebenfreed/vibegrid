@@ -13,7 +13,7 @@ High-performance virtualized data grid component for rendering and editing large
 
 - **Domain:** vibegrid
 - **Status:** active
-- **Related Issues:** GH#187, GH#1413
+- **Related Issues:** GH#187, GH#1413, GH#1435
 
 ## Behaviors
 
@@ -65,7 +65,15 @@ High-performance virtualized data grid component for rendering and editing large
 - **Expected:** Empty state component displays with message like "No items yet" and optional "Create" button
 - **Verify:** Placeholder visible instead of empty grid, create action available if user has permissions, no loading spinner
 
-## Architecture (GH#1413)
+### B9: Incremental column virtualization on horizontal scroll
+- **ID:** incremental-column-virtualization
+- **Status:** [x] Implemented (GH#1435)
+- **Trigger:** User scrolls horizontally in a grid with many columns
+- **Expected:** Only delta columns are added/removed from DOM (not full re-render), using binary search for visible range, Map-based O(1) lookups, and deferred render gating
+- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:964` (horizontal scroll observer), `stores/VisualStateStore.ts:355` (binary search), `coordinates/VibeGridXCoordinateManager.ts:81` (columnMap)
+- **Verify:** Horizontal scroll maintains 60fps, DOM cell count stays bounded, no duplicate cells appear
+
+## Architecture (GH#1413, GH#1435)
 
 - **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
 - **InitStore** (`stores/InitStore.ts`) - Deterministic renderer lifecycle via MobX reaction: waits for columns > 0 + container + factory before creating renderer; destroys on cleanup
@@ -74,6 +82,7 @@ High-performance virtualized data grid component for rendering and editing large
 
 ## Notes
 
+- Column virtualization uses incremental DOM updates - only visible columns + buffer rendered, delta adds/removes on scroll (GH#1435)
 - Virtual scrolling uses DOM recycling - only 30-50 row elements in DOM regardless of total rows
 - Performance target: <16ms frame time for 60fps, <5ms per cell update
 - MobX strict mode with `enforceActions: 'always'` for all state changes

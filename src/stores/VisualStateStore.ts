@@ -281,12 +281,21 @@ export class VisualStateStore implements IStore {
   /**
    * Column layouts with cumulative positioning
    */
+  @computed private get columnMapById(): Map<string, (typeof this.columns)[number]> {
+    const map = new Map<string, (typeof this.columns)[number]>()
+    for (const col of this.columns) {
+      map.set(col.id, col)
+    }
+    return map
+  }
+
   @computed get columnLayouts(): ColumnLayout[] {
     let cumulativeX = 70 // Start after drag column (30px) + row header (40px)
     const layouts: ColumnLayout[] = []
+    const colMap = this.columnMapById
 
     this.columnOrder.forEach((columnId, index) => {
-      const column = this.columns.find((c) => c.id === columnId)
+      const column = colMap.get(columnId)
       if (!column) return
 
       const width = this.columnWidths[columnId] || column.width || 150
@@ -349,29 +358,40 @@ export class VisualStateStore implements IStore {
       return { start: 0, end: 0 }
     }
 
-    const buffer = GRID_DIMENSIONS.BUFFER_COLUMNS // 2 columns buffer each side
+    const buffer = GRID_DIMENSIONS.BUFFER_COLUMNS
     const scrollLeft = this.scrollLeft
     const viewportWidth = this.viewportWidth
 
-    // Find first visible column (whose right edge is past scrollLeft)
-    let start = 0
-    for (let i = 0; i < columns.length; i++) {
-      const col = columns[i]
-      if (col.xOffset + col.width > scrollLeft) {
-        start = Math.max(0, i - buffer)
-        break
+    // Binary search for first visible column (whose right edge is past scrollLeft)
+    let lo = 0
+    let hi = columns.length - 1
+    let firstVisible = 0
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1
+      if (columns[mid].xOffset + columns[mid].width > scrollLeft) {
+        firstVisible = mid
+        hi = mid - 1
+      } else {
+        lo = mid + 1
       }
     }
+    const start = Math.max(0, firstVisible - buffer)
 
-    // Find last visible column (whose left edge is before scrollLeft + viewportWidth)
+    // Binary search for last visible column (whose left edge is past scrollLeft + viewportWidth)
+    const rightEdge = scrollLeft + viewportWidth
+    lo = firstVisible
+    hi = columns.length - 1
     let end = columns.length
-    for (let i = start; i < columns.length; i++) {
-      const col = columns[i]
-      if (col.xOffset > scrollLeft + viewportWidth) {
-        end = Math.min(columns.length, i + buffer)
-        break
+    while (lo <= hi) {
+      const mid = (lo + hi) >>> 1
+      if (columns[mid].xOffset > rightEdge) {
+        end = mid
+        hi = mid - 1
+      } else {
+        lo = mid + 1
       }
     }
+    end = Math.min(columns.length, end + buffer)
 
     return { start, end }
   }
