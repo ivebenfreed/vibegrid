@@ -78,7 +78,20 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     const rows = threads.map((thread) => {
       // Use latestSender from the client-side join with latest messages
       // Falls back to first participant if no latest message (defensive)
-      const sender = thread.latestSender || thread.participants?.[0]
+      // GH#1199: Parse participants if it's a JSON string (API returns string, not array)
+      let fallbackParticipant = null
+      if (!thread.latestSender && thread.participants) {
+        try {
+          const parsed =
+            typeof thread.participants === 'string'
+              ? JSON.parse(thread.participants)
+              : thread.participants
+          fallbackParticipant = Array.isArray(parsed) ? parsed[0] : null
+        } catch {
+          fallbackParticipant = null
+        }
+      }
+      const sender = thread.latestSender || fallbackParticipant
       const fromDisplay = sender ? sender.name || sender.email : '(Unknown)'
 
       // Format folders array to comma-separated string
