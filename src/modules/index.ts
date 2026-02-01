@@ -42,7 +42,7 @@ export function registerBuiltInModules(): void {
       icon: 'table',
       canHandle: () => true, // Default view, always available
       isEnabled: () => true,
-    }
+    },
   )
 
   // Kanban module (lazy - loads on first use)
@@ -61,7 +61,7 @@ export function registerBuiltInModules(): void {
         return true
       },
       isEnabled: () => true, // Always enabled for built-in modules
-    }
+    },
   )
 
   // Gantt module (lazy - loads on first use)
@@ -81,7 +81,7 @@ export function registerBuiltInModules(): void {
         return true
       },
       isEnabled: () => true,
-    }
+    },
   )
 
   // Set default

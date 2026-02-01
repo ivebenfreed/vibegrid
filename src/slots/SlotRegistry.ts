@@ -4,14 +4,17 @@
  * Consolidates FieldTypeRegistry + ModularCellBridge + CellFactory.
  * Single source of truth for cell rendering with priority-based resolution.
  *
- * This is a placeholder for the D2 implementation.
- * The full implementation will replace the existing 3-layer cell resolution system.
+ * Resolution Algorithm:
+ * 1. Filter slots by contextFilter(context) - scopes by viewMode, entityType, schemaId
+ * 2. Filter by canHandle(column, context) predicate OR exact fieldType match
+ * 3. Sort by priority descending (higher wins: view=100, domain=50, default=0)
+ * 4. Return highest priority match, or fallback to 'text' renderer
  *
  * @see Issue #1416 Section 3 for full D2 spec
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import { observable, makeObservable } from 'mobx'
+import { action, observable, makeObservable } from 'mobx'
 import type { Column } from '../types'
 
 const logger = getLogger(['vibegrid', 'slots', 'SlotRegistry'])
@@ -19,6 +22,11 @@ const logger = getLogger(['vibegrid', 'slots', 'SlotRegistry'])
 /**
  * Context for cell rendering with full scoping information.
  * Used for slot resolution and cache invalidation.
+ *
+ * DESIGN DECISIONS (from spec):
+ * - organizationId IS included: Multi-tenant apps may have org-specific renderers
+ * - gridId is NOT included: Renderers don't vary per grid instance
+ * - locale/permissions are NOT included: These affect formatting/actions, not renderer selection
  */
 export interface CellRendererContext {
   /** Current view mode (table, kanban, gantt, etc.) */
@@ -30,26 +38,34 @@ export interface CellRendererContext {
   /** Schema ID for custom entities */
   schemaId?: string
 
-  /** Grid instance ID (for multi-grid pages) */
+  /** Grid instance ID (for multi-grid pages) - NOT used in cache key */
   gridId?: string
 
   /** Current organization ID (for multi-tenant isolation) */
   organizationId?: string
 
-  /** Any additional context needed by renderers */
+  /** Relationship data cache (for relationship renderers) */
+  relationshipData?: Map<string, unknown>
+
+  /** Any additional context needed by renderers (not used for cache keys) */
   [key: string]: unknown
 }
 
 /**
  * CellRenderer: Interface for cell rendering.
- * Matches the existing VibeGridFieldType contract.
+ * Preserves ALL capabilities from FieldTypeRegistry's VibeGridFieldType.
  */
 export interface CellRenderer {
   /** Render cell content (read-only mode) */
   render(value: unknown, column: Column, context: CellRendererContext): HTMLElement
 
   /** Optional: Update cell value (inline editing) */
-  update?(value: unknown, newValue: unknown, column: Column, context: CellRendererContext): Promise<void>
+  update?(
+    value: unknown,
+    newValue: unknown,
+    column: Column,
+    context: CellRendererContext,
+  ): Promise<void>
 
   /** Optional: Render editor UI */
   renderEditor?(value: unknown, column: Column, context: CellRendererContext): HTMLElement
@@ -59,6 +75,12 @@ export interface CellRenderer {
 
   /** Optional: Format value for display */
   format?(value: unknown, column: Column, context: CellRendererContext): string
+
+  /** Optional: Async data loader for relationship/rollup cells */
+  asyncDataLoader?(value: unknown, column: Column, context: CellRendererContext): Promise<void>
+
+  /** Optional: Rollup calculation function */
+  rollupCalculator?(relatedData: unknown[], column: Column, context: CellRendererContext): unknown
 
   /** Optional: Cell affordance metadata */
   affordances?: {
@@ -70,12 +92,32 @@ export interface CellRenderer {
     groupable?: boolean
   }
 
+  /** Optional: Interaction policy for cell behaviors */
+  interactionPolicy?: {
+    clickable?: boolean
+    hoverable?: boolean
+    draggable?: boolean
+    selectable?: boolean
+  }
+
+  /** Optional: Renderer metadata */
+  metadata?: {
+    category?: 'basic' | 'relationship' | 'rollup' | 'computed'
+    description?: string
+    [key: string]: unknown
+  }
+
   /** Optional: Cleanup when cell is removed */
   dispose?(): void
 }
 
 /**
  * Slot: A cell renderer registration with priority and context scoping.
+ *
+ * Priority levels (convention):
+ * - 0: Default renderers (base field types)
+ * - 50: Domain-specific renderers (entity type overrides)
+ * - 100: View mode-specific renderers (gantt bars, kanban cards)
  */
 export interface Slot {
   /** Slot identifier (e.g., 'text', 'currency-abbreviated', 'gantt-bar') */
@@ -84,10 +126,28 @@ export interface Slot {
   /** Priority: higher values win in conflict (view=100, domain=50, default=0) */
   priority?: number
 
-  /** Context filter for scoping slot to specific contexts */
+  /**
+   * Context filter for scoping slot to specific contexts.
+   * Return true to match, false to skip.
+   *
+   * @example
+   * // Gantt-specific slot (only in Gantt view)
+   * contextFilter: (ctx) => ctx.viewMode === 'gantt'
+   *
+   * @example
+   * // Project-specific slot (only for Project entities)
+   * contextFilter: (ctx) => ctx.entityType === 'Project'
+   */
   contextFilter?: (context: CellRendererContext) => boolean
 
-  /** Optional: Custom match predicate (overrides fieldType matching) */
+  /**
+   * Custom match predicate (overrides fieldType matching).
+   * Use for slots that match based on column properties, not just fieldType.
+   *
+   * @example
+   * // Match columns by ID (e.g., entity-name for 'name' or 'title' columns)
+   * canHandle: (column) => column.id === 'name' || column.id === 'title'
+   */
   canHandle?: (column: Column, context: CellRendererContext) => boolean
 
   /** Renderer implementation (factory pattern for lazy loading) */
@@ -97,121 +157,365 @@ export interface Slot {
 /**
  * SlotRegistry: Unified cell renderer resolution system.
  *
- * This is a placeholder implementation for D2.
- * The full implementation will:
- * 1. Replace the 3-layer cell resolution system
- * 2. Support priority-based resolution
- * 3. Support view mode and domain scoping
- * 4. Integrate with ViewModeRegistry for module slots
+ * Consolidates FieldTypeRegistry + ModularCellBridge + CellFactory.
+ * Single source of truth for cell rendering with priority-based resolution.
+ *
+ * Usage:
+ * 1. Register slots at app startup (or lazily via module.registerSlots())
+ * 2. Call preloadForColumns() during grid initialization
+ * 3. Call resolve() synchronously during render (uses cache)
  */
 export class SlotRegistry {
   private slots: Slot[] = []
   private resolvedCache = new Map<string, CellRenderer>()
+  private loadingPromises = new Map<string, Promise<void>>()
 
   /**
    * Preload ready flag (observable for reactive UIs).
+   * Set to true when preloadForColumns() completes successfully.
+   * VibeGrid gates cell rendering on this flag to prevent sync resolve() errors.
    */
   @observable
   public preloadReady = false
 
   constructor() {
     makeObservable(this)
-    logger.debug('SlotRegistry created (D2 placeholder)')
+    logger.debug('SlotRegistry created')
   }
 
   /**
    * Register a slot (cell renderer).
+   *
+   * Supports multiple slots with the same field type but different scopes.
+   * Priority and contextFilter determine which slot is selected during resolution.
+   *
+   * IDEMPOTENCY: If a slot with identical (id, priority, contextFilter) is already
+   * registered, it is skipped to prevent duplicate registrations on module reload.
    */
   register(slot: Slot): void {
-    // Check for duplicate registration
+    // Check for idempotent registration (same id, priority, and contextFilter reference)
     const isDuplicate = this.slots.some(
       (existing) =>
         existing.id === slot.id &&
         (existing.priority ?? 0) === (slot.priority ?? 0) &&
-        existing.contextFilter === slot.contextFilter
+        existing.contextFilter === slot.contextFilter,
     )
 
     if (isDuplicate) {
-      logger.debug(`Skipping duplicate slot registration: "${slot.id}"`)
+      logger.debug(
+        `Skipping duplicate slot registration: "${slot.id}" (priority ${slot.priority ?? 0})`,
+      )
       return
     }
 
+    // Add slot to array (allows multiple slots per field type)
     this.slots.push(slot)
+
+    // Clear cache when new slot registered
     this.resolvedCache.clear()
     logger.debug(`Registered slot: ${slot.id} (priority: ${slot.priority ?? 0})`)
   }
 
   /**
    * Unregister a slot by ID.
+   * Removes ALL slots with matching ID (regardless of priority/context).
+   * Used when view mode deactivates to free memory.
    */
   unregister(id: string): void {
     const initialLength = this.slots.length
     this.slots = this.slots.filter((s) => s.id !== id)
-    if (this.slots.length < initialLength) {
+    const removedCount = initialLength - this.slots.length
+
+    if (removedCount > 0) {
       this.resolvedCache.clear()
-      logger.debug(`Unregistered slot: ${id}`)
+      logger.debug(`Unregistered ${removedCount} slot(s) with id="${id}"`)
     }
   }
 
   /**
-   * Get all registered slot IDs.
+   * Get all registered slot IDs (may include duplicates for same id with different priorities).
    */
   getRegisteredIds(): string[] {
     return this.slots.map((s) => s.id)
   }
 
   /**
+   * Generate cache key for a column + context combination.
+   *
+   * Cache key format: fieldType::columnId::entityType::schemaId::viewMode::organizationId
+   *
+   * Note: columnId IS included because canHandle() predicates may differentiate by column.
+   * Note: gridId is NOT included because renderers don't vary per grid instance.
+   */
+  private getCacheKey(column: Column, context: CellRendererContext): string {
+    return [
+      column.fieldType ?? 'unknown',
+      column.id ?? 'unknown',
+      context.entityType ?? 'unknown',
+      context.schemaId ?? 'default',
+      context.viewMode ?? 'table',
+      context.organizationId ?? 'default',
+    ].join('::')
+  }
+
+  /**
    * Preload and cache all slot renderers for given columns and context.
    *
-   * CRITICAL: This method MUST be called during grid initialization
-   * BEFORE the render path begins.
+   * CRITICAL: This method MUST be called during grid initialization (in InitStore)
+   * BEFORE the render path begins. The synchronous resolve() method
+   * will throw if preload hasn't completed.
+   *
+   * Called when:
+   * - Grid first mounts (InitStore initialization)
+   * - View mode changes (VibeGrid.tsx useEffect)
+   * - Columns change (VibeGrid.tsx useEffect on columns prop)
    */
+  @action
   async preloadForColumns(columns: Column[], context: CellRendererContext): Promise<void> {
-    this.preloadReady = false
+    this.preloadReady = false // Reset flag at start
     logger.debug('Preloading slots for columns', { count: columns.length, context })
 
-    // Placeholder: In full D2 implementation, this would:
-    // 1. Find matching slots for each column
-    // 2. Load renderers asynchronously
-    // 3. Cache results
+    const preloadPromises: Promise<void>[] = []
 
-    this.preloadReady = true
-    logger.debug('Slot preload complete')
+    for (const column of columns) {
+      const cacheKey = this.getCacheKey(column, context)
+
+      // Skip if already cached
+      if (this.resolvedCache.has(cacheKey)) {
+        continue
+      }
+
+      // Skip if already loading (dedup concurrent calls)
+      if (this.loadingPromises.has(cacheKey)) {
+        preloadPromises.push(this.loadingPromises.get(cacheKey)!)
+        continue
+      }
+
+      // Preload asynchronously
+      const preloadPromise = this.resolveAsync(column, context, cacheKey)
+      this.loadingPromises.set(cacheKey, preloadPromise)
+      preloadPromises.push(preloadPromise)
+    }
+
+    // Wait for all preloads to complete
+    await Promise.all(preloadPromises)
+
+    // Clean up loading promises
+    for (const column of columns) {
+      const cacheKey = this.getCacheKey(column, context)
+      this.loadingPromises.delete(cacheKey)
+    }
+
+    this.preloadReady = true // Set flag when complete
+    logger.debug('Slot preload complete', { cachedCount: this.resolvedCache.size })
+  }
+
+  /**
+   * Internal async resolution (used by preloadForColumns).
+   * Resolves and caches renderer for a column + context.
+   *
+   * Resolution algorithm:
+   * 1. Filter slots by contextFilter(context) - must pass if present
+   * 2. Filter by canHandle(column, context) OR exact fieldType match
+   * 3. Sort by priority descending (higher wins)
+   * 4. Return highest priority match, or fallback to 'text' renderer
+   */
+  private async resolveAsync(
+    column: Column,
+    context: CellRendererContext,
+    cacheKey: string,
+  ): Promise<void> {
+    // Find matching slots (iterate all slots, may match multiple)
+    const candidates: Slot[] = []
+
+    for (const slot of this.slots) {
+      // Step 1: Context filter check (if present, must pass)
+      if (slot.contextFilter && !slot.contextFilter(context)) {
+        continue
+      }
+
+      // Step 2: Match by canHandle() predicate OR exact fieldType match
+      if (slot.canHandle) {
+        if (slot.canHandle(column, context)) {
+          candidates.push(slot)
+        }
+        // canHandle takes precedence - don't fall through to fieldType match
+        continue
+      }
+
+      // Match by exact fieldType (slot.id === column.fieldType)
+      if (column.fieldType === slot.id) {
+        candidates.push(slot)
+      }
+    }
+
+    // Step 3: Sort by priority (descending: highest priority wins)
+    candidates.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+
+    // Step 4: Load highest priority match
+    if (candidates.length > 0) {
+      const slot = candidates[0]
+      try {
+        const renderer =
+          typeof slot.renderer === 'function'
+            ? await Promise.resolve(slot.renderer())
+            : slot.renderer
+
+        this.resolvedCache.set(cacheKey, renderer)
+        logger.debug(
+          `Resolved slot for "${column.fieldType}": ${slot.id} (priority ${slot.priority ?? 0})`,
+        )
+        return
+      } catch (error) {
+        logger.error(`Failed to load renderer for slot "${slot.id}"`, { error })
+        throw error
+      }
+    }
+
+    // Step 4 fallback: Try text renderer as fallback
+    if (column.fieldType !== 'text') {
+      logger.warn(`No renderer for fieldType="${column.fieldType}", falling back to text`)
+
+      // Find text renderer
+      const textSlots = this.slots.filter((s) => s.id === 'text')
+      if (textSlots.length > 0) {
+        // Sort text slots by priority (in case there are multiple)
+        textSlots.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+        const textSlot = textSlots[0]
+
+        try {
+          const renderer =
+            typeof textSlot.renderer === 'function'
+              ? await Promise.resolve(textSlot.renderer())
+              : textSlot.renderer
+
+          this.resolvedCache.set(cacheKey, renderer)
+          return
+        } catch (error) {
+          logger.error('Failed to load text fallback renderer', { error })
+        }
+      }
+    }
+
+    // No renderer found and no fallback available
+    logger.warn(
+      `No renderer found for fieldType="${column.fieldType}" and no text fallback available`,
+    )
   }
 
   /**
    * Resolve cell renderer for a column + context (SYNCHRONOUS).
    *
-   * IMPORTANT: This is a placeholder. The full D2 implementation
-   * will provide the actual resolution logic.
+   * CRITICAL: This method is SYNCHRONOUS and used in the hot render path.
+   * It performs a CACHE LOOKUP ONLY. If the renderer hasn't been preloaded
+   * via preloadForColumns(), this method throws an error.
+   *
+   * @throws Error if preload has not completed (preloadReady is false)
    */
   resolve(column: Column, context: CellRendererContext): CellRenderer | null {
-    // Placeholder: Return null to indicate no slot found
-    // In full D2, this would use the cache populated by preloadForColumns
-    logger.debug('SlotRegistry.resolve called (D2 placeholder)', {
-      columnId: column.id,
-      fieldType: column.fieldType,
-    })
-    return null
+    const cacheKey = this.getCacheKey(column, context)
+
+    // Check cache (MUST be preloaded)
+    if (this.resolvedCache.has(cacheKey)) {
+      return this.resolvedCache.get(cacheKey)!
+    }
+
+    // Graceful degradation: Return fallback text renderer if preload complete
+    if (this.preloadReady) {
+      logger.warn(
+        `Renderer for "${column.fieldType}" not preloaded, using fallback. ` +
+          `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
+      )
+
+      // Try to find any text renderer in cache
+      for (const [key, renderer] of this.resolvedCache.entries()) {
+        if (key.startsWith('text::')) {
+          return renderer
+        }
+      }
+
+      // No text renderer in cache - return null for graceful degradation
+      return null
+    }
+
+    // If preload not ready, throw error (preload phase was skipped)
+    throw new Error(
+      `[SlotRegistry] Preload not complete. ` +
+        `Call slotRegistry.preloadForColumns() and wait for completion before rendering. ` +
+        `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
+    )
   }
 
   /**
-   * Clear cache for a specific context.
+   * Clear cache for specific context (partial invalidation).
+   *
+   * INVALIDATION TRIGGERS:
+   * - Schema change: clearCacheForContext({ schemaId: 'schema-123' })
+   * - Org switch: clearCacheForContext({ organizationId: 'org-456' })
+   * - View mode change: clearCacheForContext({ viewMode: 'gantt' })
+   * - Entity type change: clearCacheForContext({ entityType: 'Project' })
    */
-  clearCacheForContext(_context: Partial<CellRendererContext>): void {
-    // In full D2, this would selectively clear cache entries matching the context
-    this.resolvedCache.clear()
-    logger.debug('Cleared slot cache')
+  @action
+  clearCacheForContext(contextFilter: Partial<CellRendererContext>): void {
+    const keysToDelete: string[] = []
+
+    for (const key of this.resolvedCache.keys()) {
+      // Cache key format: fieldType::columnId::entityType::schemaId::viewMode::organizationId
+      const parts = key.split('::')
+      const [, , entityType, schemaId, viewMode, organizationId] = parts
+
+      let shouldDelete = false
+
+      if (contextFilter.entityType && entityType === contextFilter.entityType) {
+        shouldDelete = true
+      }
+      if (contextFilter.schemaId && schemaId === contextFilter.schemaId) {
+        shouldDelete = true
+      }
+      if (contextFilter.viewMode && viewMode === contextFilter.viewMode) {
+        shouldDelete = true
+      }
+      if (contextFilter.organizationId && organizationId === contextFilter.organizationId) {
+        shouldDelete = true
+      }
+
+      if (shouldDelete) {
+        keysToDelete.push(key)
+      }
+    }
+
+    for (const key of keysToDelete) {
+      this.resolvedCache.delete(key)
+    }
+
+    if (keysToDelete.length > 0) {
+      logger.debug(`Cleared ${keysToDelete.length} cache entries for context filter`, {
+        contextFilter,
+      })
+    }
   }
 
   /**
-   * Clear all caches.
+   * Clear all caches and registrations.
    */
+  @action
   clear(): void {
     this.slots = []
     this.resolvedCache.clear()
+    this.loadingPromises.clear()
     this.preloadReady = false
-    logger.debug('Cleared all slots')
+    logger.debug('Cleared all slots and cache')
+  }
+
+  /**
+   * Clear just the resolved cache (keep registrations).
+   * Used for testing/hot reload.
+   */
+  @action
+  clearCache(): void {
+    this.resolvedCache.clear()
+    this.loadingPromises.clear()
+    logger.debug('Cleared slot cache')
   }
 }
 

@@ -75,17 +75,11 @@ interface ModuleErrorFallbackProps {
   onSwitchToTable?: () => void
 }
 
-export function ModuleErrorFallback({
-  error,
-  onReset,
-  onSwitchToTable,
-}: ModuleErrorFallbackProps) {
+export function ModuleErrorFallback({ error, onReset, onSwitchToTable }: ModuleErrorFallbackProps) {
   return (
     <div className="vibegrid-module-error flex flex-col items-center justify-center h-full p-8 bg-destructive/10 rounded-lg">
       <div className="text-center max-w-md">
-        <h3 className="text-lg font-semibold text-destructive mb-2">
-          View mode failed to load
-        </h3>
+        <h3 className="text-lg font-semibold text-destructive mb-2">View mode failed to load</h3>
         <p className="text-sm text-muted-foreground mb-4">{error.message}</p>
         <div className="flex gap-2 justify-center">
           <button

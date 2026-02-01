@@ -108,7 +108,9 @@ class ViewModeRegistry {
     // Load module
     const factory = this.modules.get(id)
     if (!factory) {
-      throw new Error(`[ViewModeRegistry] Module "${id}" not registered. Available: ${this.getRegisteredIds().join(', ')}`)
+      throw new Error(
+        `[ViewModeRegistry] Module "${id}" not registered. Available: ${this.getRegisteredIds().join(', ')}`,
+      )
     }
 
     try {
@@ -154,7 +156,9 @@ class ViewModeRegistry {
   getRegisteredIds(): string[] {
     // Fail-fast validation: Registry should never be empty after import
     if (this.modules.size === 0) {
-      throw new Error('[ViewModeRegistry] Registry is empty - built-in modules failed to register. Check systems/vibegrid/modules/index.ts')
+      throw new Error(
+        '[ViewModeRegistry] Registry is empty - built-in modules failed to register. Check systems/vibegrid/modules/index.ts',
+      )
     }
     return Array.from(this.modules.keys())
   }
@@ -169,7 +173,9 @@ class ViewModeRegistry {
   getRegisteredMeta(): Map<string, ModuleMetadata> {
     // Fail-fast validation: Registry should never be empty after import
     if (this.metadata.size === 0) {
-      throw new Error('[ViewModeRegistry] Registry is empty - built-in modules failed to register. Check systems/vibegrid/modules/index.ts')
+      throw new Error(
+        '[ViewModeRegistry] Registry is empty - built-in modules failed to register. Check systems/vibegrid/modules/index.ts',
+      )
     }
     return new Map(this.metadata)
   }

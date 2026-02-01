@@ -24,12 +24,7 @@ const logger = getLogger(['vibegrid', 'modules', 'TableModule'])
  * The table view doesn't need its own React component - the DOM rendering
  * is handled by SimplePassiveRenderer which is initialized by InitStore.
  */
-function TableModuleContent({
-  stores,
-}: {
-  props: GridModuleRenderProps
-  stores: VibeGridStores
-}) {
+function TableModuleContent({ stores }: { props: GridModuleRenderProps; stores: VibeGridStores }) {
   // Table view content is rendered directly by SimplePassiveRenderer
   // This component just indicates that table mode is active
   // The actual rendering happens in the containerRef element

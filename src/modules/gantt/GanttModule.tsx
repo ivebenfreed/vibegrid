@@ -77,7 +77,12 @@ export const GanttModule: GridModule = {
     // Auto-detect date fields for Gantt
     const columns = tableCoreStore.columns
     if (columns && columns.length > 0) {
-      const updates: { startField?: string; endField?: string; statusField?: string; progressField?: string } = {}
+      const updates: {
+        startField?: string
+        endField?: string
+        statusField?: string
+        progressField?: string
+      } = {}
 
       // Find start date field
       const startDateCol = columns.find((col: any) => {
@@ -93,7 +98,13 @@ export const GanttModule: GridModule = {
       const endDateCol = columns.find((col: any) => {
         const id = col.id?.toLowerCase() || ''
         const name = (col.name || '').toLowerCase()
-        return id === 'end_date' || id === 'enddate' || id === 'due_date' || name.includes('end date') || name.includes('due date')
+        return (
+          id === 'end_date' ||
+          id === 'enddate' ||
+          id === 'due_date' ||
+          name.includes('end date') ||
+          name.includes('due date')
+        )
       })
       if (endDateCol && !ganttViewStore.fieldMapping.endField) {
         updates.endField = endDateCol.id
@@ -114,8 +125,14 @@ export const GanttModule: GridModule = {
       const progressCol = columns.find((col: any) => {
         const id = col.id?.toLowerCase() || ''
         const name = (col.name || '').toLowerCase()
-        return id.includes('progress') || id.includes('percent') || id.includes('completion') ||
-               name.includes('progress') || name.includes('percent') || name.includes('completion')
+        return (
+          id.includes('progress') ||
+          id.includes('percent') ||
+          id.includes('completion') ||
+          name.includes('progress') ||
+          name.includes('percent') ||
+          name.includes('completion')
+        )
       })
       if (progressCol && !ganttViewStore.fieldMapping.progressField) {
         updates.progressField = progressCol.id
