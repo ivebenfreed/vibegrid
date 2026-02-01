@@ -6,17 +6,20 @@ relatedFeatures:
   - vibegrid/row-expansion
   - vibegrid/gantt
   - vibegrid/core
+  - vibegrid/modules
+  - vibegrid/slots
 ---
 
 # VibeGrid Interactions
 
-Patterns for expandable rows, custom field types, and event handling.
+Patterns for expandable rows, custom cell renderers, view module slots, and event handling.
 
 ## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
-| Custom Field Type | Domain-specific cell renderer via fieldTypeRegistry |
+| Slot Registration | Cell renderer registered via SlotRegistry with priority + context filter |
+| View Module Slots | View modes register custom slots via `registerSlots()` hook |
 | Expandable Row | Row expansion with lazy-loaded nested data |
 | Event Delegation | Parent handles clicks (no per-row listeners) |
 
@@ -57,27 +60,56 @@ const rowExpansionConfig: RowExpansionConfig = {
 
 **When to use:** One-to-many relationships, detail breakdowns, inline editing
 
-## Custom Field Types
+## Custom Cell Renderers (via SlotRegistry)
 
-**Pattern:** Register with fieldTypeRegistry for domain-specific rendering
+**Pattern:** Register with SlotRegistry for domain-specific or view-specific rendering.
 
+SlotRegistry replaces the old FieldTypeRegistry + ModularCellBridge + CellFactory layers.
+
+**Domain-specific renderer:**
 ```typescript
-fieldTypeRegistry.registerFieldType({
-  typeName: 'currency-abbreviated',
-  renderer: new CurrencyAbbreviatedRenderer(),
-  affordances: ['sortable', 'filterable'],
+slotRegistry.register({
+  id: 'currency-abbreviated',
+  priority: 50,
+  contextFilter: (ctx) => ctx.entityType === 'Budget',
+  renderer: () => new CurrencyAbbreviatedRenderer(),
+  affordances: { sortable: true, filterable: true },
 })
 ```
 
+**View mode renderer (via GridModule.registerSlots):**
+```typescript
+// Inside a GridModule implementation
+registerSlots: (slotRegistry) => {
+  slotRegistry.register({
+    id: 'gantt-bar',
+    priority: 100,
+    contextFilter: (ctx) => ctx.viewMode === 'gantt',
+    renderer: () => new GanttBarRenderer(),
+  })
+}
+```
+
+**Priority levels:** view mode (100) > domain (50) > default (0)
+
 **Directory structure:**
 ```
+systems/vibegrid/
+├── modules/{mode}/         # View mode implementations (GridModule)
+├── slots/SlotRegistry.ts   # Unified cell renderer resolution
+├── field-types/            # Built-in field type renderers
+└── processors/             # Row interaction processors
+
 features/{domain}/
-├── schemas/{entity}-field-types.ts  # Custom renderers
+├── schemas/{entity}-field-types.ts  # Domain slot registrations
 ├── schemas/{entity}-schema.ts       # Column definitions
 └── styles/{entity}-grid.css         # Grid styles
 ```
 
-**Anti-pattern:** Inline rendering logic in column definitions
+**Anti-patterns:**
+- Inline rendering logic in column definitions
+- Registering renderers in multiple places (use SlotRegistry only)
+- Global slot overrides without contextFilter (use entityType or schemaId scoping)
 
 ## MutationObserver Pattern for DOM-React Bridge
 
@@ -119,7 +151,8 @@ mutationObserver.observe(container, {
 
 | File | Purpose |
 |------|---------|
-| `systems/vibegrid/field-types/FieldTypeRegistry.ts` | Field type registration |
+| `systems/vibegrid/slots/SlotRegistry.ts` | Unified cell renderer resolution |
+| `systems/vibegrid/modules/GridModule.ts` | View module interface (includes registerSlots) |
 | `systems/vibegrid/column-types.ts` | BaseCellType union |
 | `systems/vibegrid/components/ExpandedContentPortals.tsx` | React portal bridge for row expansion |
 | `systems/vibegrid/processors/RowExpansionProcessor.ts` | Expansion state and data loading |
