@@ -368,7 +368,7 @@ describe('SlotRegistry', () => {
       await registry.preloadForColumns(columns, context)
 
       expect(registry.preloadReady).toBe(true)
-      const renderer = registry.resolve(columns[0], context)
+      const renderer = registry.resolve(columns[0], context)!
       const element = renderer.render(null, columns[0], context)
       expect(element.className).toBe('renderer-text-async')
     })
@@ -401,7 +401,7 @@ describe('SlotRegistry', () => {
       const context = createMockContext({ entityType: 'Task', viewMode: 'table' })
 
       await registry.preloadForColumns([column], context)
-      const renderer = registry.resolve(column, context)
+      const renderer = registry.resolve(column, context)!
 
       const element = renderer.render(null, column, context)
       expect(element.className).toBe('renderer-text-default')
@@ -412,7 +412,7 @@ describe('SlotRegistry', () => {
       const context = createMockContext({ entityType: 'Project', viewMode: 'table' })
 
       await registry.preloadForColumns([column], context)
-      const renderer = registry.resolve(column, context)
+      const renderer = registry.resolve(column, context)!
 
       const element = renderer.render(null, column, context)
       expect(element.className).toBe('renderer-text-project')
@@ -423,7 +423,7 @@ describe('SlotRegistry', () => {
       const context = createMockContext({ entityType: 'Task', viewMode: 'gantt' })
 
       await registry.preloadForColumns([column], context)
-      const renderer = registry.resolve(column, context)
+      const renderer = registry.resolve(column, context)!
 
       const element = renderer.render(null, column, context)
       expect(element.className).toBe('renderer-text-gantt')
@@ -435,7 +435,7 @@ describe('SlotRegistry', () => {
       const context = createMockContext({ entityType: 'Project', viewMode: 'gantt' })
 
       await registry.preloadForColumns([column], context)
-      const renderer = registry.resolve(column, context)
+      const renderer = registry.resolve(column, context)!
 
       const element = renderer.render(null, column, context)
       expect(element.className).toBe('renderer-text-gantt')
@@ -461,7 +461,7 @@ describe('SlotRegistry', () => {
       // Table view should get default
       const tableContext = createMockContext({ viewMode: 'table' })
       await registry.preloadForColumns([column], tableContext)
-      const tableRenderer = registry.resolve(column, tableContext)
+      const tableRenderer = registry.resolve(column, tableContext)!
       expect(tableRenderer.render(null, column, tableContext).className).toBe(
         'renderer-custom-default',
       )
@@ -469,7 +469,7 @@ describe('SlotRegistry', () => {
       // Kanban view should get kanban-specific
       const kanbanContext = createMockContext({ viewMode: 'kanban' })
       await registry.preloadForColumns([column], kanbanContext)
-      const kanbanRenderer = registry.resolve(column, kanbanContext)
+      const kanbanRenderer = registry.resolve(column, kanbanContext)!
       expect(kanbanRenderer.render(null, column, kanbanContext).className).toBe(
         'renderer-custom-kanban',
       )
@@ -493,13 +493,13 @@ describe('SlotRegistry', () => {
       // Task entity should get task-specific
       const taskContext = createMockContext({ entityType: 'Task' })
       await registry.preloadForColumns([column], taskContext)
-      const taskRenderer = registry.resolve(column, taskContext)
+      const taskRenderer = registry.resolve(column, taskContext)!
       expect(taskRenderer.render(null, column, taskContext).className).toBe('renderer-status-task')
 
       // Project entity should get default
       const projectContext = createMockContext({ entityType: 'Project' })
       await registry.preloadForColumns([column], projectContext)
-      const projectRenderer = registry.resolve(column, projectContext)
+      const projectRenderer = registry.resolve(column, projectContext)!
       expect(projectRenderer.render(null, column, projectContext).className).toBe(
         'renderer-status-default',
       )
@@ -523,7 +523,7 @@ describe('SlotRegistry', () => {
       // Specific schema should get schema-specific
       const schemaContext = createMockContext({ schemaId: 'schema-123' })
       await registry.preloadForColumns([column], schemaContext)
-      const schemaRenderer = registry.resolve(column, schemaContext)
+      const schemaRenderer = registry.resolve(column, schemaContext)!
       expect(schemaRenderer.render(null, column, schemaContext).className).toBe(
         'renderer-custom-field-schema-123',
       )
@@ -531,7 +531,7 @@ describe('SlotRegistry', () => {
       // Default schema should get default
       const defaultContext = createMockContext({ schemaId: 'default' })
       await registry.preloadForColumns([column], defaultContext)
-      const defaultRenderer = registry.resolve(column, defaultContext)
+      const defaultRenderer = registry.resolve(column, defaultContext)!
       expect(defaultRenderer.render(null, column, defaultContext).className).toBe(
         'renderer-custom-field-default',
       )
@@ -555,7 +555,7 @@ describe('SlotRegistry', () => {
       // Invoice in table view should match
       const invoiceTableContext = createMockContext({ entityType: 'Invoice', viewMode: 'table' })
       await registry.preloadForColumns([column], invoiceTableContext)
-      const invoiceTableRenderer = registry.resolve(column, invoiceTableContext)
+      const invoiceTableRenderer = registry.resolve(column, invoiceTableContext)!
       expect(invoiceTableRenderer.render(null, column, invoiceTableContext).className).toBe(
         'renderer-amount-invoice-table',
       )
@@ -563,7 +563,7 @@ describe('SlotRegistry', () => {
       // Invoice in kanban view should not match (only table)
       const invoiceKanbanContext = createMockContext({ entityType: 'Invoice', viewMode: 'kanban' })
       await registry.preloadForColumns([column], invoiceKanbanContext)
-      const invoiceKanbanRenderer = registry.resolve(column, invoiceKanbanContext)
+      const invoiceKanbanRenderer = registry.resolve(column, invoiceKanbanContext)!
       expect(invoiceKanbanRenderer.render(null, column, invoiceKanbanContext).className).toBe(
         'renderer-amount-default',
       )
@@ -589,13 +589,13 @@ describe('SlotRegistry', () => {
       // 'name' column should use entity-name renderer
       const nameColumn = createMockColumn('text', 'name')
       await registry.preloadForColumns([nameColumn], context)
-      const nameRenderer = registry.resolve(nameColumn, context)
+      const nameRenderer = registry.resolve(nameColumn, context)!
       expect(nameRenderer.render(null, nameColumn, context).className).toBe('renderer-entity-name')
 
       // 'title' column should also use entity-name renderer
       const titleColumn = createMockColumn('text', 'title')
       await registry.preloadForColumns([titleColumn], context)
-      const titleRenderer = registry.resolve(titleColumn, context)
+      const titleRenderer = registry.resolve(titleColumn, context)!
       expect(titleRenderer.render(null, titleColumn, context).className).toBe(
         'renderer-entity-name',
       )
@@ -603,7 +603,7 @@ describe('SlotRegistry', () => {
       // 'description' column should use default text renderer
       const descColumn = createMockColumn('text', 'description')
       await registry.preloadForColumns([descColumn], context)
-      const descRenderer = registry.resolve(descColumn, context)
+      const descRenderer = registry.resolve(descColumn, context)!
       expect(descRenderer.render(null, descColumn, context).className).toBe('renderer-text-default')
     })
 
@@ -626,7 +626,7 @@ describe('SlotRegistry', () => {
       // Project entity with name column should get project-name renderer
       const projectContext = createMockContext({ entityType: 'Project' })
       await registry.preloadForColumns([nameColumn], projectContext)
-      const projectRenderer = registry.resolve(nameColumn, projectContext)
+      const projectRenderer = registry.resolve(nameColumn, projectContext)!
       expect(projectRenderer.render(null, nameColumn, projectContext).className).toBe(
         'renderer-project-name',
       )
@@ -634,7 +634,7 @@ describe('SlotRegistry', () => {
       // Task entity with name column should get default
       const taskContext = createMockContext({ entityType: 'Task' })
       await registry.preloadForColumns([nameColumn], taskContext)
-      const taskRenderer = registry.resolve(nameColumn, taskContext)
+      const taskRenderer = registry.resolve(nameColumn, taskContext)!
       expect(taskRenderer.render(null, nameColumn, taskContext).className).toBe(
         'renderer-text-default',
       )
@@ -653,7 +653,7 @@ describe('SlotRegistry', () => {
       const context = createMockContext()
 
       await registry.preloadForColumns([unknownColumn], context)
-      const renderer = registry.resolve(unknownColumn, context)
+      const renderer = registry.resolve(unknownColumn, context)!
 
       const element = renderer.render(null, unknownColumn, context)
       expect(element.className).toBe('renderer-text-fallback')
