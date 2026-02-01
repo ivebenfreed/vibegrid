@@ -23,13 +23,6 @@ import {
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
 import { Textarea } from '@/shared/components/ui/textarea'
 import { toast } from 'sonner'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
@@ -75,7 +68,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   const [isOpen, setIsOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Record<string, FieldValue>>({})
-  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
+  const [_hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
 
   // Get reactive data from MobX stores
   const columns = tableCoreStore.columns
@@ -180,7 +173,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       value !== null
     ) {
       const numValue = typeof value === 'string' ? parseFloat(value) : value
-      if (isNaN(numValue)) {
+      if (Number.isNaN(numValue)) {
         const errorMessage =
           validation?.messages?.custom?.INVALID_NUMBER || 'Please enter a valid number'
         return { isValid: false, error: errorMessage }
@@ -221,7 +214,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       formData,
       allFields: Object.keys(formData),
       invalidFields: Object.entries(formData)
-        .filter(([key, field]) => !field.isValid)
+        .filter(([_key, field]) => !field.isValid)
         .map(([key]) => key),
       isValid: Object.values(formData).every((field) => field.isValid),
     })
@@ -368,33 +361,49 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
             field.systemOptionType
 
           if (isSelectField) {
-            // For select fields, we need to provide some common options based on the field
-            const getOptionsForField = (fieldId: string, fieldType: string) => {
-              const lowerFieldId = fieldId.toLowerCase()
-
+            // Normalize options: prefer column.options from schema, fall back to name patterns
+            const normalizeOptions = (): Array<{
+              value: string
+              label: string
+            }> => {
+              // 1. Use schema-defined options (primary source)
+              if (field.options && Array.isArray(field.options) && field.options.length > 0) {
+                return field.options.map((opt: any) =>
+                  typeof opt === 'string'
+                    ? { value: opt, label: opt }
+                    : { value: opt.value, label: opt.label || opt.value },
+                )
+              }
+              // 2. Use editor-defined options
+              if (
+                field.editor?.options &&
+                Array.isArray(field.editor.options) &&
+                field.editor.options.length > 0
+              ) {
+                return field.editor.options.map((opt: any) => ({
+                  value: opt.value,
+                  label: opt.label || opt.value,
+                }))
+              }
+              // 3. Fall back to field name patterns
+              const lowerFieldId = field.id.toLowerCase()
               if (lowerFieldId.includes('status')) {
-                return ['draft', 'active', 'inactive', 'pending', 'archived']
-              } else if (lowerFieldId.includes('industry')) {
-                return [
-                  'Technology',
-                  'Healthcare',
-                  'Finance',
-                  'Retail',
-                  'Manufacturing',
-                  'Education',
-                  'Government',
-                ]
-              } else if (lowerFieldId.includes('size')) {
-                return ['Startup', 'Small', 'Medium', 'Large', 'Enterprise']
-              } else if (lowerFieldId.includes('tier')) {
-                return ['Bronze', 'Silver', 'Gold', 'Platinum']
+                return ['draft', 'active', 'inactive', 'pending', 'archived'].map((v) => ({
+                  value: v,
+                  label: v,
+                }))
               } else if (lowerFieldId.includes('priority')) {
-                return ['low', 'medium', 'high', 'urgent']
+                return ['low', 'medium', 'high', 'urgent'].map((v) => ({
+                  value: v,
+                  label: v,
+                }))
               }
               return []
             }
 
-            const options = getOptionsForField(field.id, field.type)
+            const options = normalizeOptions()
+
+            const selectedOption = options.find((opt) => opt.value === fieldValue.value)
 
             return (
               <Popover>
@@ -404,12 +413,8 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                     role="combobox"
                     className={getInputClassName('w-full justify-between')}
                   >
-                    {fieldValue.value
-                      ? (options
-                          .find((option) => option === fieldValue.value)
-                          ?.charAt(0)
-                          .toUpperCase() || '') +
-                        (options.find((option) => option === fieldValue.value)?.slice(1) || '')
+                    {selectedOption
+                      ? selectedOption.label
                       : `Select ${fieldLabel.toLowerCase()}...`}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -422,16 +427,16 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
                       <CommandGroup>
                         {options.map((option) => (
                           <CommandItem
-                            key={option}
-                            value={option}
-                            onSelect={() => updateFieldValue(field.id, option)}
+                            key={option.value}
+                            value={option.value}
+                            onSelect={() => updateFieldValue(field.id, option.value)}
                           >
                             <Check
                               className={`mr-2 h-4 w-4 ${
-                                fieldValue.value === option ? 'opacity-100' : 'opacity-0'
+                                fieldValue.value === option.value ? 'opacity-100' : 'opacity-0'
                               }`}
                             />
-                            {option.charAt(0).toUpperCase() + option.slice(1)}
+                            {option.label}
                           </CommandItem>
                         ))}
                       </CommandGroup>
