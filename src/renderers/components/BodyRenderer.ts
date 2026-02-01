@@ -137,8 +137,8 @@ export class BodyRenderer {
       () => {
         // Update all row checkboxes when selection changes
         this.updateAllRowCheckboxes()
-        // Update cell selection classes (for .vibegridx-selected)
-        this.updateAllCellSelectionClasses()
+        // GH#1437 P4: Cell selection classes now handled by delta reaction in SimplePassiveRenderer
+        // Only update row checkboxes here
         fileLog.debug('📦 Selection states updated due to selection change')
       },
     )
@@ -217,6 +217,7 @@ export class BodyRenderer {
       columnLayouts: any[]
       totalWidth: number
     },
+    _useShellCells: boolean = false, // deprecated — always creates full rows now
   ): HTMLElement {
     // Track row rendering for debugging invisible cells
     this.cellRenderingStats.rowsRequested++
@@ -316,7 +317,6 @@ export class BodyRenderer {
         return
       }
 
-      // Use the layout's xOffset for absolute positioning (already includes cumulative positioning)
       const cell = this.createCellElement(row, column, colIndex, layout.xOffset, layout.width)
       rowElement.appendChild(cell)
 
@@ -352,7 +352,6 @@ export class BodyRenderer {
             return
           }
 
-          // Use the layout's xOffset for absolute positioning
           const cell = this.createCellElement(row, column, colIndex, layout.xOffset, layout.width)
           rowElement.appendChild(cell)
 
@@ -746,6 +745,7 @@ export class BodyRenderer {
     colIndex: number,
     xPosition?: number,
     widthOverride?: number,
+    _context: 'scroll' | 'initial' | 'manual' = 'initial',
   ): HTMLElement {
     // PERFORMANCE: Simplified cell creation using ModularCellBridge efficiently
     const baseRowData = row.data || row
@@ -1470,25 +1470,72 @@ export class BodyRenderer {
     // Get all cells in the row
     const cells = rowElement.querySelectorAll('.vibegridx-cell')
 
+    // 6. Reset cells to shell state for upgrade scheduling (GH#1437 P3)
     visibleColumnsOnly.forEach((column, colIndex) => {
       const cell = cells[colIndex] as HTMLElement
       if (!cell) return
 
       const value = rowData[column.id]
 
-      // Update cell attributes
+      // Update cell identity
       cell.dataset.rowId = newRow.id
+      cell.dataset.columnId = column.id
 
-      // CRITICAL: Update cell position and width from current layout
-      // Without this, recycled rows keep old cell dimensions after column reorder/resize
+      // Update position from current layout
       const layout = layoutMap.get(column.id)
       if (layout) {
         cell.style.left = `${layout.xOffset}px`
         cell.style.width = `${layout.width}px`
       }
 
-      // Update cell content using fast path
-      this.updateCellContentFast(cell, value, column, rowData)
+      // Update cell content directly (full rich rendering)
+      cell.className = 'vibegridx-cell'
+      cell.textContent = ''
+      cell.removeAttribute('data-field')
+      cell.removeAttribute('data-testid')
+      cell.removeAttribute('data-field-type')
+      // Remove old affordance attrs
+      for (const attr of Array.from(cell.attributes)) {
+        if (attr.name.startsWith('data-affordance') || attr.name.startsWith('data-cell-')) {
+          cell.removeAttribute(attr.name)
+        }
+      }
+      cell.classList.remove('vibegridx-selected')
+
+      // Re-render cell content via ModularCellBridge
+      if (this.modularCellBridge) {
+        try {
+          const cellContent = this.modularCellBridge.createCell(value, column, rowData, {
+            rowIndex: newRowIndex,
+            columnIndex: colIndex,
+            xPosition: layout?.xOffset,
+            width: layout?.width ?? column.width ?? 150,
+          })
+          // Transfer the inner content from the new element
+          cell.dataset.field = column.field || column.id
+          cell.setAttribute('data-testid', `cell-${newRow.id}-${column.id}`)
+          if (column.fieldType) {
+            cell.setAttribute('data-field-type', column.fieldType.type || column.cellType || 'text')
+          }
+          // Copy children from rendered cell
+          while (cellContent.firstChild) {
+            cell.appendChild(cellContent.firstChild)
+          }
+          // Copy text content if no children (simple text cells)
+          if (!cell.firstChild && cellContent.textContent) {
+            cell.textContent = cellContent.textContent
+          }
+        } catch (_error) {
+          // Fallback to formatter
+          cell.textContent = column.formatter
+            ? column.formatter(value, rowData, column)
+            : String(value ?? '')
+        }
+      } else {
+        cell.textContent = column.formatter
+          ? column.formatter(value, rowData, column)
+          : String(value ?? '')
+      }
     })
 
     // Track in activeRows map (remove old, add new)
@@ -1498,40 +1545,6 @@ export class BodyRenderer {
     this.activeRows.set(newRow.id, rowElement)
 
     return rowElement
-  }
-
-  /**
-   * 🚀 PERF: Fast cell content update without recreating DOM
-   */
-  private updateCellContentFast(cell: HTMLElement, value: any, column: any, rowData: any): void {
-    // Clear existing content
-    cell.innerHTML = ''
-
-    // Use the field type renderer if available (fast path)
-    if (column.fieldType?.renderer) {
-      try {
-        // CRITICAL: Enhance column with tableCoreStore like createCellElement does
-        // Some renderers (UserReferenceFieldType) need this to look up user data
-        const columnForRender = {
-          ...column,
-          tableCoreStore: this.tableCoreStore,
-          tableCore$: this.tableCoreStore,
-        }
-        const content = column.fieldType.renderer.render(value, columnForRender, rowData)
-        cell.appendChild(content)
-        return
-      } catch {
-        // Fall through to formatter
-      }
-    }
-
-    // Fallback to formatter
-    if (column.formatter) {
-      const displayValue = column.formatter(value, rowData, column)
-      cell.textContent = displayValue
-    } else {
-      cell.textContent = value != null ? String(value) : ''
-    }
   }
 }
 

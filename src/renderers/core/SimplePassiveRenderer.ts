@@ -25,6 +25,7 @@ import type { GroupRenderer } from '../components/GroupRenderer'
 import { HeaderRenderer } from '../components/HeaderRenderer'
 // New modular architecture imports - ObserverManager will be removed
 // import { ObserverManager, type ObserverManagerOptions, type VisualState } from './ObserverManager';
+import { RowPreRenderBuffer } from './RowPreRenderBuffer'
 import { DOMElementFactory } from '../factories/DOMElementFactory'
 import { EventManager } from '../managers/EventManager'
 import { ColumnWidthManager } from '../modules/ColumnWidthManager'
@@ -143,6 +144,8 @@ export class SimplePassiveRenderer {
   private dragSelectionObserverDisposer: (() => void) | null = null
   private expansionObserverDisposer: (() => void) | null = null // GH#1240: Row expansion observer
   private searchFilterObserverDisposer: (() => void) | null = null // GH#1391: Smart text search observer
+  private selectionDeltaDisposer: (() => void) | null = null // GH#1437 P4: Delta-based selection reaction
+  private _lastSelectedCells: Set<string> = new Set() // GH#1437 P4: Previous selection for delta computation
   private pendingRAF: number | null = null // Track pending RAF to prevent cascades
   private observersEnabled: boolean = false // Prevent observers from running during initialization
 
@@ -157,6 +160,9 @@ export class SimplePassiveRenderer {
   private bodyRenderer: BodyRenderer | null = null
   private eventManager: EventManager | null = null
   private dragDropManager: DragDropManager | null = null
+
+  // GH#1437: Row pre-render buffer for scroll performance
+  private preRenderBuffer: RowPreRenderBuffer
 
   private rendererInstanceId = Math.random().toString(36).substring(7)
   private isDestroyed = false
@@ -187,6 +193,9 @@ export class SimplePassiveRenderer {
     this.debugStore = options.stores.debugStore
     this.hierarchyStore = options.stores.hierarchyStore
     this.entityType = options.entityType
+
+    // GH#1437: Instantiate row pre-render buffer
+    this.preRenderBuffer = new RowPreRenderBuffer()
 
     fileLog.debug('✅ MobX stores assigned', {
       entityType: this.entityType,
@@ -431,6 +440,56 @@ export class SimplePassiveRenderer {
     // Note: initializeOverlay() is called later in postInitialization() after DOM is ready
 
     fileLog.debug('✅ Overlay manager initialized')
+  }
+
+  /**
+   * GH#1437 P4: Delta-based selection reaction.
+   * Instead of scanning ALL cells on every selection change (O(n)),
+   * computes the delta between previous and current selection and
+   * only updates the CHANGED cells (O(delta)).
+   */
+  private setupSelectionDeltaReaction(): void {
+    this.selectionDeltaDisposer = reaction(
+      () => this.interactionStore.selectionVersion,
+      () => {
+        const newSelected = this.interactionStore.selectedCells
+        const added: string[] = []
+        const removed: string[] = []
+
+        for (const cellId of newSelected) {
+          if (!this._lastSelectedCells.has(cellId)) added.push(cellId)
+        }
+        for (const cellId of this._lastSelectedCells) {
+          if (!newSelected.has(cellId)) removed.push(cellId)
+        }
+        this._lastSelectedCells = new Set(newSelected)
+
+        // O(delta) DOM updates
+        for (const cellId of added) {
+          const [rowId, columnId] = cellId.split(':')
+          const cell = this.findCellElement(rowId, columnId)
+          if (cell) {
+            cell.classList.add('vibegridx-selected')
+          }
+        }
+        for (const cellId of removed) {
+          const [rowId, columnId] = cellId.split(':')
+          const cell = this.findCellElement(rowId, columnId)
+          if (cell) {
+            cell.classList.remove('vibegridx-selected')
+          }
+        }
+      },
+    )
+  }
+
+  /**
+   * GH#1437 P4: Find a cell element by rowId and columnId via DOM query.
+   */
+  private findCellElement(rowId: string, columnId: string): HTMLElement | null {
+    const rowElement = this.bodyContainer?.querySelector(`[data-row-id="${rowId}"]`)
+    if (!rowElement) return null
+    return rowElement.querySelector(`[data-column-id="${columnId}"]`) as HTMLElement | null
   }
 
   /**
@@ -1009,6 +1068,9 @@ export class SimplePassiveRenderer {
       { fireImmediately: true },
     )
 
+    // GH#1437 P4: Delta-based selection reaction (O(delta) instead of O(n))
+    this.setupSelectionDeltaReaction()
+
     fileLog.debug('✅ Focused observers initialized')
   }
 
@@ -1326,6 +1388,54 @@ export class SimplePassiveRenderer {
   }
 
   /**
+   * GH#1437: Set up the RowPreRenderBuffer context with current store/renderer data.
+   * Called at the start of renderBody() and whenever stores change.
+   */
+  private setupPreRenderContext(): void {
+    if (!this.bodyRenderer) return
+
+    const rows = this.tableCoreStore.processedRows
+    const columns = this.tableCoreStore.columns
+    const columnVisibility = this.visualStateStore.columnVisibility
+    const visualState = this.visualStateStore
+    const allVisibleColumnLayouts = visualState.visibleColumns
+    const baseOffset = GRID_DIMENSIONS.CONTENT_OFFSET_X
+
+    // Pre-compute values once for all rows built by the buffer
+    const visibleColumns = allVisibleColumnLayouts
+      .map((layout) => {
+        const column = columns.find((col: any) => col.id === layout.id)
+        if (!column) return null
+        return { ...column, width: layout.width }
+      })
+      .filter(Boolean) as any[]
+    const precomputed = {
+      visibleColumns,
+      columnLayouts: allVisibleColumnLayouts,
+      totalWidth: visualState.geometry.totalWidth,
+    }
+
+    this.preRenderBuffer.setContext({
+      buildRow: (rowIndex: number) => {
+        const row = rows[rowIndex]
+        if (!row) return null
+        // Group/expanded-content rows bypass the buffer
+        if (row.type === 'group' || row.type === 'expanded-content') return null
+        return this.createRowElementByType(
+          row,
+          rowIndex,
+          columns,
+          columnVisibility,
+          baseOffset,
+          precomputed,
+          false, // full rich rows, not shell cells
+        )
+      },
+      totalRows: () => this.tableCoreStore.processedRows.length,
+    })
+  }
+
+  /**
    * Incremental virtual scrolling - only add/remove rows that changed
    */
   /**
@@ -1343,6 +1453,7 @@ export class SimplePassiveRenderer {
       columnLayouts: any[]
       totalWidth: number
     },
+    _useShellCells: boolean = false, // deprecated — always creates full rows now
   ): HTMLElement | null {
     // Guard against undefined rows (race condition during data updates)
     if (!row) {
@@ -1357,7 +1468,6 @@ export class SimplePassiveRenderer {
 
     // GH#1240: Handle expanded content rows
     if (row.type === 'expanded-content' && this.bodyRenderer) {
-      // Find the parent row data for the expanded content
       const parentRow = this.tableCoreStore.processedRows.find((r: any) => r.id === row.parentRowId)
       return this.bodyRenderer.createExpandedContentRowElement(row, rowIndex, parentRow)
     }
@@ -1369,6 +1479,7 @@ export class SimplePassiveRenderer {
       columnVisibility,
       baseOffset,
       precomputed,
+      false, // always create full rich rows (no shell cells)
     )
   }
 
@@ -1444,16 +1555,18 @@ export class SimplePassiveRenderer {
           columns,
           columnVisibility,
           baseOffset,
-          precomputed, // PERF: Pass pre-computed values
+          precomputed,
         )
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
           this.activeRows.set(row.id, rowElement)
-          // Track cells per row for incremental column updates
           this.trackCellsForRow(row.id, rowElement)
         }
       }
       this.bodyContainer.appendChild(fragment)
+
+      // GH#1437: Queue pre-render buffer for rows ahead
+      this.preRenderBuffer.queueAhead(currentRange, 'down', rows.length)
 
       const duration = performance.now() - startTime
       this.debugStore.recordRender(duration, currentRange.end - currentRange.start)
@@ -1547,8 +1660,14 @@ export class SimplePassiveRenderer {
 
         let rowElement: HTMLElement | null = null
 
-        // 🚀 TRY RECYCLING: Reuse existing row from pool
-        if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+        // FAST PATH: check pre-render buffer first
+        rowElement = this.preRenderBuffer.getRow(i)
+        if (rowElement) {
+          // Just update position
+          const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
+          rowElement.style.transform = `translateY(${offset}px)`
+        } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+          // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
           rowElement = this.bodyRenderer.recycleRowForNewData(
             recycledRow,
@@ -1559,7 +1678,7 @@ export class SimplePassiveRenderer {
           )
           rowsRecycled++
         } else {
-          // Create new row (fallback or for group rows)
+          // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
           rowElement = this.createRowElementByType(
             row,
             i,
@@ -1567,14 +1686,13 @@ export class SimplePassiveRenderer {
             columnVisibility,
             baseOffset,
             precomputed,
+            false,
           )
         }
 
         if (rowElement && row?.id) {
-          // Prepend to fragment (reverse order since we're iterating backwards)
           fragment.insertBefore(rowElement, fragment.firstChild)
           this.activeRows.set(row.id, rowElement)
-          // Track cells per row for incremental column updates
           this.trackCellsForRow(row.id, rowElement)
           rowsCreated++
         }
@@ -1593,8 +1711,14 @@ export class SimplePassiveRenderer {
 
         let rowElement: HTMLElement | null = null
 
-        // 🚀 TRY RECYCLING: Reuse existing row from pool
-        if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+        // FAST PATH: check pre-render buffer first
+        rowElement = this.preRenderBuffer.getRow(i)
+        if (rowElement) {
+          // Just update position
+          const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
+          rowElement.style.transform = `translateY(${offset}px)`
+        } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
+          // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
           rowElement = this.bodyRenderer.recycleRowForNewData(
             recycledRow,
@@ -1605,7 +1729,7 @@ export class SimplePassiveRenderer {
           )
           rowsRecycled++
         } else {
-          // Create new row (fallback or for group rows)
+          // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
           rowElement = this.createRowElementByType(
             row,
             i,
@@ -1613,18 +1737,17 @@ export class SimplePassiveRenderer {
             columnVisibility,
             baseOffset,
             precomputed,
+            false,
           )
         }
 
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
           this.activeRows.set(row.id, rowElement)
-          // Track cells per row for incremental column updates
           this.trackCellsForRow(row.id, rowElement)
           rowsCreated++
         }
       }
-      // Append to the end of the container
       if (fragment.childNodes.length > 0) {
         this.bodyContainer.appendChild(fragment)
       }
@@ -1656,6 +1779,10 @@ export class SimplePassiveRenderer {
 
     // 🚀 PERF TEST: Skip logging to isolate forced reflow source
     // fileLog.debug('✅ INCREMENTAL UPDATE: Complete', { ... })
+
+    // GH#1437: Queue pre-render buffer fill for rows beyond the current range
+    const scrollDirection = currentRange.start > previousRange.start ? 'down' : 'up'
+    this.preRenderBuffer.queueAhead(currentRange, scrollDirection, rows.length)
   }
 
   /**
@@ -1748,8 +1875,8 @@ export class SimplePassiveRenderer {
       this.tableCoreStore.findRowAtScrollPosition(scrollTop + viewportHeight) + 1,
     )
 
-    // Helper: update columns for a single row
-    const processRow = (row: any, rowElement: HTMLElement) => {
+    // Helper: update columns for a single row — creates full rich cells directly
+    const processRow = (row: any, rowElement: HTMLElement, _isViewportRow: boolean) => {
       let cellMap = this.activeCells.get(row.id)
       if (!cellMap) {
         cellMap = new Map<string, HTMLElement>()
@@ -1765,7 +1892,7 @@ export class SimplePassiveRenderer {
         }
       }
 
-      // Add entering cells
+      // Add entering cells (full rich cells — no shell cells)
       for (const layout of entering) {
         if (cellMap.has(layout.id)) continue
         const column = columnMap.get(layout.id)
@@ -1802,7 +1929,7 @@ export class SimplePassiveRenderer {
       }
 
       if (i >= vpStart && i < vpEnd) {
-        processRow(row, rowElement)
+        processRow(row, rowElement, true)
         viewportProcessed++
       } else {
         deferredRows.push({ row, el: rowElement })
@@ -1814,7 +1941,7 @@ export class SimplePassiveRenderer {
       requestIdleCallback(() => {
         for (const { row, el } of deferredRows) {
           if (!this.activeRows.has(row.id)) continue // row may have been removed
-          processRow(row, el)
+          processRow(row, el, false)
         }
       })
     }
@@ -1994,6 +2121,10 @@ export class SimplePassiveRenderer {
   private renderBody(): void {
     if (!this.bodyContainer || !this.bodyRenderer) return
 
+    // GH#1437: Invalidate pre-render buffer on full re-render and refresh context
+    this.preRenderBuffer.invalidate()
+    this.setupPreRenderContext()
+
     const renderStartTime = performance.now()
     fileLog.debug('🎨 DOM RENDER START', {
       event: 'renderBody_start',
@@ -2137,7 +2268,8 @@ export class SimplePassiveRenderer {
           virtualColumns,
           columnVisibility,
           startX,
-          precomputed, // PERF: Pass pre-computed values
+          precomputed,
+          false, // GH#1437: always create full rich rows (pre-render buffer handles scroll perf)
         )
       }
 
@@ -2163,6 +2295,10 @@ export class SimplePassiveRenderer {
       rows.length,
       Math.ceil((visualState.scrollTop + visualState.viewportHeight) / rowHeight),
     )
+
+    // GH#1437: Queue pre-render buffer for rows beyond initial render
+    this.preRenderBuffer.queueAhead({ start: startIndex, end: endIndex }, 'down', rows.length)
+
     this.debugStore.updateVirtualScrollMetrics({
       visibleRowStart: trulyVisibleStart,
       visibleRowEnd: trulyVisibleEnd,
@@ -2435,6 +2571,14 @@ export class SimplePassiveRenderer {
       this.searchFilterObserverDisposer()
       this.searchFilterObserverDisposer = null
     }
+    // GH#1437 P4: Clean up selection delta observer
+    if (this.selectionDeltaDisposer) {
+      this.selectionDeltaDisposer()
+      this.selectionDeltaDisposer = null
+    }
+
+    // GH#1437: Dispose row pre-render buffer
+    this.preRenderBuffer?.dispose()
 
     // Clean up Phase 2 managers
     if (this.eventManager) {
