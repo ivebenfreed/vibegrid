@@ -33,9 +33,13 @@ import { getOrCreateEntityCollection } from '@/shared/data/db/collections/regist
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
+import {
+  IncrementalRowProcessor,
+  DEFAULT_CONFIG as INCREMENTAL_CONFIG,
+} from '../processors/IncrementalRowProcessor'
 import { processExpandedRows } from '../processors/RowExpansionProcessor'
 import type { RowExpansionConfig } from '../types/row-expansion'
-import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
+import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
 import type { HierarchyStore } from './HierarchyStore'
 import { applyNestedFilters, applyTextSearch } from '../utils/filter-utils'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
@@ -269,6 +273,33 @@ export class TableCoreStore implements IStore {
   @observable lastChangeMetadata: ChangeMetadata | null = null
 
   // ====================================
+  // INCREMENTAL PROCESSING STATE (GH#1422)
+  // ====================================
+
+  /**
+   * Incremental processing cache for large datasets
+   * Contains progressively computed rows during background processing
+   */
+  @observable.shallow private incrementalCache: {
+    rows: VirtualRow[]
+    version: number
+    isComplete: boolean
+  } = {
+    rows: [],
+    version: 0,
+    isComplete: true,
+  }
+
+  /** Processing progress (0-100%) for UI feedback */
+  @observable processingProgress: number = 100
+
+  /** Whether incremental processing is currently active */
+  @observable isIncrementalProcessing: boolean = false
+
+  /** Incremental row processor instance */
+  private incrementalProcessor: IncrementalRowProcessor | null = null
+
+  // ====================================
   // DEPENDENCIES (injected)
   // ====================================
 
@@ -351,6 +382,12 @@ export class TableCoreStore implements IStore {
           hasFilterGroup: !!this.visualStateStore?.filterGroup,
           groupFieldCount: this.visualStateStore?.groupConfig?.fields?.length ?? 0,
         })
+
+        // GH#1422: Trigger incremental processing for large datasets
+        // when visual config (sort/filter) changes
+        if (this.rawRows.length >= INCREMENTAL_CONFIG.SYNC_THRESHOLD) {
+          this.startIncrementalProcessing()
+        }
       },
       { fireImmediately: false },
     )
@@ -978,6 +1015,9 @@ export class TableCoreStore implements IStore {
    * Wraps rows in VirtualRow structure for renderer consumption
    * This is the main data processing pipeline output
    *
+   * GH#1422: For large datasets (>1000 rows), uses incremental processing
+   * to avoid blocking the main thread during sort/filter operations.
+   *
    * keepAlive: true ensures this computed stays cached even when not observed by reactions.
    * This prevents suspension and recomputation on every access from other computeds (e.g., rowOffsets).
    */
@@ -991,6 +1031,25 @@ export class TableCoreStore implements IStore {
       return []
     }
 
+    // GH#1422: Check if we should use incremental cache for large datasets
+    // When incremental processing is active, return the cached rows
+    // (which may be partial during processing)
+    const rawRowCount = this.rawRows.length
+    const useIncremental =
+      rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD && !this.hasGrouping && !this.hasHierarchy
+
+    if (useIncremental && this.isIncrementalProcessing) {
+      // Return incremental cache while processing is in progress
+      // The cache is progressively updated by the background processor
+      logger.debug('📊 processedRows: Using incremental cache', {
+        cacheRowCount: this.incrementalCache.rows.length,
+        isComplete: this.incrementalCache.isComplete,
+        progress: this.processingProgress,
+      })
+      return this.applyRowExpansion(this.incrementalCache.rows)
+    }
+
+    // Standard synchronous path for small datasets or when grouping/hierarchy is active
     const rows = this.groupedOrOrderedRows
 
     // If rows are already VirtualRows (from grouping), use as-is
@@ -1010,6 +1069,30 @@ export class TableCoreStore implements IStore {
       }))
     }
 
+    return this.applyRowExpansion(virtualRows)
+  }
+
+  /**
+   * GH#1422: Check if grouping is currently active
+   */
+  @computed
+  private get hasGrouping(): boolean {
+    const groupConfig = this.visualStateStore?.groupConfig
+    return !!(groupConfig && groupConfig.fields && groupConfig.fields.length > 0)
+  }
+
+  /**
+   * GH#1422: Check if hierarchy is currently active
+   */
+  @computed
+  private get hasHierarchy(): boolean {
+    return !!this.hierarchyStore?.isHierarchyActive
+  }
+
+  /**
+   * GH#1422: Apply row expansion processing (extracted for reuse)
+   */
+  private applyRowExpansion(virtualRows: any[]): any[] {
     // GH#1240: Process row expansion if enabled
     // CRITICAL: Access expansionVersion FIRST to ensure MobX tracks it as a dependency
     // This forces processedRows to recompute when expansion state changes
@@ -1019,17 +1102,16 @@ export class TableCoreStore implements IStore {
     const expandedRowIds = interactionStore?.expandedRowIds ?? new Set<string>()
     const expandedRowStates = interactionStore?.expandedRowStates ?? new Map()
 
-    logger.info('📊 processedRows expansion check', {
+    logger.debug('📊 processedRows expansion check', {
       hasInteractionStore: !!interactionStore,
       hasExpansionConfig: !!expansionConfig,
       expansionEnabled: expansionConfig?.enabled,
       expansionVersion, // Track version to ensure MobX dependency
       expandedCount: expandedRowIds.size,
-      expandedRowIdsArray: Array.from(expandedRowIds),
     })
 
     if (expansionConfig?.enabled && expandedRowIds.size > 0) {
-      logger.info('🔄 Processing expanded rows', {
+      logger.debug('🔄 Processing expanded rows', {
         expandedCount: expandedRowIds.size,
         rowCount: virtualRows.length,
       })
@@ -1039,9 +1121,6 @@ export class TableCoreStore implements IStore {
         expandedRowStates,
         expansionConfig,
       )
-      logger.info('✅ Expanded rows processed', {
-        outputRowCount: virtualRows.length,
-      })
     }
 
     return virtualRows
@@ -1808,6 +1887,11 @@ export class TableCoreStore implements IStore {
    * Cleanup resources
    */
   dispose(): void {
+    // GH#1422: Dispose incremental processor
+    if (this.incrementalProcessor) {
+      this.incrementalProcessor.dispose()
+      this.incrementalProcessor = null
+    }
     this.disposers.dispose()
     logger.debug('TableCoreStore disposed', { entityType: this.entityType })
   }
@@ -1841,7 +1925,143 @@ export class TableCoreStore implements IStore {
     // Reset searchable columns (GH#1391)
     this.searchableColumns = undefined
 
+    // GH#1422: Reset incremental processing state
+    if (this.incrementalProcessor) {
+      this.incrementalProcessor.cancel()
+    }
+    this.incrementalCache = { rows: [], version: 0, isComplete: true }
+    this.processingProgress = 100
+    this.isIncrementalProcessing = false
+
     logger.info('🔄 TableCoreStore reset', { entityType: this.entityType })
+  }
+
+  // ====================================
+  // INCREMENTAL PROCESSING (GH#1422)
+  // ====================================
+
+  /**
+   * GH#1422: Start incremental processing for large datasets
+   *
+   * Called when:
+   * 1. Raw rows are set and count >= SYNC_THRESHOLD
+   * 2. Config version changes (sort/filter/group changes)
+   *
+   * @param viewportRange Optional viewport range for viewport-first processing
+   */
+  @action
+  startIncrementalProcessing(viewportRange?: { start: number; end: number }): void {
+    const rowCount = this.rawRows.length
+
+    // Skip if not enough rows for incremental processing
+    if (rowCount < INCREMENTAL_CONFIG.SYNC_THRESHOLD) {
+      logger.debug('Skipping incremental processing - below threshold', {
+        rowCount,
+        threshold: INCREMENTAL_CONFIG.SYNC_THRESHOLD,
+      })
+      return
+    }
+
+    // Skip if grouping or hierarchy is active (not yet supported)
+    if (this.hasGrouping || this.hasHierarchy) {
+      logger.debug('Skipping incremental processing - grouping/hierarchy active')
+      return
+    }
+
+    logger.info('🚀 Starting incremental processing', {
+      rowCount,
+      hasViewportRange: !!viewportRange,
+    })
+
+    // Initialize processor if needed
+    if (!this.incrementalProcessor) {
+      this.incrementalProcessor = new IncrementalRowProcessor({
+        onViewportReady: (rows) => {
+          runInAction(() => {
+            this.incrementalCache = {
+              rows,
+              version: this.incrementalProcessor?.getVersion() ?? 0,
+              isComplete: false,
+            }
+            this.processingProgress = this.incrementalProcessor?.getProgress() ?? 0
+            logger.info('📊 Viewport ready (incremental)', { rowCount: rows.length })
+          })
+        },
+        onBatchComplete: (rows, _startIndex, progress) => {
+          runInAction(() => {
+            this.incrementalCache = {
+              rows,
+              version: this.incrementalProcessor?.getVersion() ?? 0,
+              isComplete: false,
+            }
+            this.processingProgress = progress
+            logger.debug('📊 Batch complete (incremental)', {
+              rowCount: rows.length,
+              progress,
+            })
+          })
+        },
+        onComplete: (rows) => {
+          runInAction(() => {
+            this.incrementalCache = {
+              rows,
+              version: this.incrementalProcessor?.getVersion() ?? 0,
+              isComplete: true,
+            }
+            this.processingProgress = 100
+            this.isIncrementalProcessing = false
+            logger.info('✅ Incremental processing complete', { rowCount: rows.length })
+          })
+        },
+      })
+    }
+
+    // Mark as processing
+    this.isIncrementalProcessing = true
+    this.processingProgress = 0
+
+    // Build pipeline config from current visual state
+    const pipelineConfig = {
+      searchText: this.visualStateStore?.globalSearchText || '',
+      filters: this.visualStateStore?.filters || [],
+      sortBy: this.visualStateStore?.sortBy || [],
+      groupConfig: null, // Grouping not supported in incremental mode
+      columns: this.columns,
+      viewportRange,
+      searchableColumns: this.searchableColumns,
+    }
+
+    // Start processing
+    this.incrementalProcessor.start(this.rawRows, pipelineConfig)
+  }
+
+  /**
+   * GH#1422: Cancel any active incremental processing
+   */
+  @action
+  cancelIncrementalProcessing(): void {
+    if (this.incrementalProcessor) {
+      this.incrementalProcessor.cancel()
+    }
+    this.isIncrementalProcessing = false
+    logger.debug('Incremental processing cancelled')
+  }
+
+  /**
+   * GH#1422: Get incremental processing statistics
+   */
+  getIncrementalStats(): {
+    isProcessing: boolean
+    progress: number
+    rowCount: number
+    isComplete: boolean
+  } {
+    return {
+      isProcessing: this.isIncrementalProcessing,
+      progress: this.processingProgress,
+      rowCount: this.incrementalCache.rows.length,
+      isComplete: this.incrementalCache.isComplete,
+    }
   }
 
   // ====================================

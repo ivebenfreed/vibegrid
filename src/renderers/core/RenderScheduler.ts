@@ -40,6 +40,18 @@ export interface RenderCallbacks {
    * Re-render header only (column changes)
    */
   renderHeader: () => void
+
+  /**
+   * GH#1422: Called when viewport rows are ready during incremental processing
+   * Allows immediate render of visible rows while background processing continues
+   */
+  renderViewportReady?: () => void
+
+  /**
+   * GH#1422: Called during incremental processing with progress updates
+   * @param progress Progress percentage (0-100)
+   */
+  renderProgressUpdate?: (progress: number) => void
 }
 
 /**
@@ -216,6 +228,41 @@ export class RenderScheduler {
     )
 
     this.disposers.push(dataDisposer)
+
+    // GH#1422: Incremental processing progress observer
+    const incrementalDisposer = reaction(
+      () => ({
+        isProcessing: this.tableCoreStore.isIncrementalProcessing,
+        progress: this.tableCoreStore.processingProgress,
+      }),
+      ({ isProcessing, progress }) => {
+        // GUARD: Skip if not enabled
+        if (!this.enabled) return
+
+        // GUARD: Skip if not processing
+        if (!isProcessing) return
+
+        fileLog.debug('Incremental processing progress', { progress })
+
+        // Notify progress update
+        if (this.callbacks.renderProgressUpdate) {
+          this.callbacks.renderProgressUpdate(progress)
+        }
+
+        // When viewport is ready (progress > 0), trigger viewport render
+        if (progress > 0 && progress < 100 && this.callbacks.renderViewportReady) {
+          this.callbacks.renderViewportReady()
+        }
+
+        // When complete, trigger full render to ensure final state
+        if (progress === 100) {
+          fileLog.info('Incremental processing complete, triggering final render')
+          this.callbacks.renderFull()
+        }
+      },
+    )
+
+    this.disposers.push(incrementalDisposer)
 
     fileLog.info('Version-based data observer initialized')
   }

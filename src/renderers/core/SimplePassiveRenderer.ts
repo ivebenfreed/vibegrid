@@ -792,6 +792,52 @@ export class SimplePassiveRenderer {
       },
     )
 
+    // GH#1422: INCREMENTAL PROCESSING OBSERVER - handles viewport-first rendering for large datasets
+    const incrementalProcessingDisposer = reaction(
+      () => ({
+        isProcessing: this.tableCoreStore.isIncrementalProcessing,
+        progress: this.tableCoreStore.processingProgress,
+      }),
+      ({ isProcessing, progress }) => {
+        // GUARD: Skip if observers are not enabled yet
+        if (!this.observersEnabled) {
+          fileLog.debug('⏸️ INCREMENTAL: Observers not enabled yet')
+          return
+        }
+
+        // GUARD: Only render if grid is fully initialized
+        if (this.initStore && !this.initStore.isFullyHydrated) {
+          fileLog.debug('⏸️ INCREMENTAL: Skipping render during initialization')
+          return
+        }
+
+        // GUARD: Skip if not in incremental processing mode
+        if (!isProcessing && progress === 100) {
+          return
+        }
+
+        fileLog.info('📊 INCREMENTAL PROCESSING UPDATE', {
+          isProcessing,
+          progress,
+          timestamp: Date.now(),
+        })
+
+        // When viewport is first ready (progress > 0), do an immediate render
+        // to show the user something while background processing continues
+        if (progress > 0 && progress < 100) {
+          fileLog.info('🎯 Viewport ready - triggering incremental render', { progress })
+          this.handleIncrementalViewportReady()
+        }
+
+        // When processing completes, do a final full render
+        if (progress === 100 && !isProcessing) {
+          fileLog.info('✅ Incremental processing complete - triggering final render')
+          this.renderBody()
+        }
+      },
+    )
+    this.disposers.push(incrementalProcessingDisposer)
+
     // COLUMN ORDER OBSERVER: MobX reaction for column order changes
     this.columnOrderObserverDisposer = reaction(
       () => this.visualStateStore.columnOrder,
@@ -2142,13 +2188,50 @@ export class SimplePassiveRenderer {
   }
 
   /**
+   * GH#1422: Handle incremental viewport ready
+   *
+   * Called when the first batch of rows (viewport rows) are ready during
+   * incremental processing. This allows immediate rendering of visible rows
+   * while background processing continues.
+   *
+   * Unlike renderBody(), this method:
+   * - Does NOT invalidate the pre-render buffer (incremental updates)
+   * - Uses the partial processedRows from incremental cache
+   * - Shows a progress indicator (optional)
+   */
+  private handleIncrementalViewportReady(): void {
+    if (!this.bodyContainer || !this.bodyRenderer) return
+
+    fileLog.info('🚀 GH#1422: Incremental viewport render', {
+      progress: this.tableCoreStore.processingProgress,
+      cacheRowCount: this.tableCoreStore.processedRows.length,
+    })
+
+    // Debounce rapid viewport updates - only render if not already rendering
+    if (this.pendingRAF !== null) {
+      fileLog.debug('⏸️ Skipping incremental render - RAF pending')
+      return
+    }
+
+    this.pendingRAF = requestAnimationFrame(() => {
+      this.pendingRAF = null
+      // Reuse renderBody for actual rendering - processedRows will return
+      // the incremental cache when isIncrementalProcessing is true
+      this.renderBody()
+    })
+  }
+
+  /**
    * Render table body
    */
   private renderBody(): void {
     if (!this.bodyContainer || !this.bodyRenderer) return
 
     // GH#1437: Invalidate pre-render buffer on full re-render and refresh context
-    this.preRenderBuffer.invalidate()
+    // GH#1422: Skip invalidation during incremental processing to preserve buffer
+    if (!this.tableCoreStore.isIncrementalProcessing) {
+      this.preRenderBuffer.invalidate()
+    }
     this.setupPreRenderContext()
 
     const renderStartTime = performance.now()
