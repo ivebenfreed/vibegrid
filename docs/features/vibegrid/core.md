@@ -13,7 +13,7 @@ High-performance virtualized data grid component for rendering and editing large
 
 - **Domain:** vibegrid
 - **Status:** active
-- **Related Issues:** GH#187, GH#1413, GH#1435, GH#1437
+- **Related Issues:** GH#187, GH#1413, GH#1435, GH#1437, GH#1442
 
 ## Behaviors
 
@@ -89,6 +89,14 @@ High-performance virtualized data grid component for rendering and editing large
 - **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:445` (delta reaction), `systems/vibegrid/renderers/components/BodyRenderer.ts:133` (checkbox-only reaction)
 - **Verify:** Selecting 1 cell in 1000-row grid updates only that cell, no full-grid flash
 
+### B12: Canvas grid lines visible during scroll jumps
+- **ID:** canvas-grid-lines
+- **Status:** [ ] Planned (GH#1442)
+- **Trigger:** User performs large scroll jump (scrollbar drag, Ctrl+End, Page Down) to a distant row range
+- **Expected:** Grid lines remain visible immediately via background canvas, even before row DOM elements are created. Canvas redraws on scroll via MobX reaction, reading column positions from VisualStateStore and row offsets from TableCoreStore. Replaces CSS-based cell borders with single canvas rendering path.
+- **Source:** `systems/vibegrid/renderers/core/GridLineCanvas.ts` (canvas renderer), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (integration)
+- **Verify:** Scrollbar drag to row 5000 shows grid lines immediately (no blank white/dark flash), canvas redraw <1ms, theme-aware (light/dark mode)
+
 ## Architecture (GH#1413, GH#1435, GH#1437)
 
 - **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
@@ -100,6 +108,7 @@ High-performance virtualized data grid component for rendering and editing large
 
 ## Notes
 
+- Canvas grid lines: background `<canvas>` element draws body grid lines independently of DOM row availability, replacing CSS borders for scroll-jump resilience (GH#1442)
 - Dual-layer cell rendering: shell cells (~0.05ms) at scroll time, rich cells (~0.67ms) upgraded during idle via CellUpgradeScheduler (GH#1437)
 - Column virtualization uses incremental DOM updates - only visible columns + buffer rendered, delta adds/removes on scroll (GH#1435)
 - Virtual scrolling uses DOM recycling - only 30-50 row elements in DOM regardless of total rows
