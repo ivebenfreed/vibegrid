@@ -77,7 +77,7 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   const displayName =
     entityDisplayName || (entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity')
 
-  // Get form fields from columns (excluding system columns and non-editable fields)
+  // Get form fields from columns (excluding system columns and non-editable read-only columns)
   const formFields = useMemo(() => {
     if (!columns || !Array.isArray(columns)) return []
 
@@ -91,8 +91,11 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
         'createdAt',
         'updatedAt',
       ].includes(column.id)
-      const isNonEditable = column.editable === false
-      return isValidColumn && !isSystemField && !isNonEditable
+      // Include addFormOnly fields (like password) even if hidden/non-editable
+      if ((column as any).addFormOnly) return isValidColumn && !isSystemField
+      // Exclude hidden non-editable fields that aren't meant for the form
+      if (column.hidden && !column.editable) return false
+      return isValidColumn && !isSystemField
     })
   }, [columns])
 
@@ -170,6 +173,29 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
       const errorMessage =
         validation.messages?.minLength || `Too short (minimum ${validation.minLength} characters)`
       return { isValid: false, error: errorMessage }
+    }
+
+    // Password-specific validation (matches server-side password-policy.ts)
+    if (fieldId.toLowerCase().includes('password') && value !== '' && value !== null) {
+      const pw = String(value)
+      if (!/[A-Z]/.test(pw)) {
+        return { isValid: false, error: 'Must contain at least one uppercase letter' }
+      }
+      if (!/[a-z]/.test(pw)) {
+        return { isValid: false, error: 'Must contain at least one lowercase letter' }
+      }
+      if (!/\d/.test(pw)) {
+        return { isValid: false, error: 'Must contain at least one number' }
+      }
+      if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>?]/.test(pw)) {
+        return { isValid: false, error: 'Must contain at least one special character (!@#$%^&*)' }
+      }
+      if (/(.)\1{2,}/.test(pw)) {
+        return {
+          isValid: false,
+          error: 'Must not contain more than 2 repeated characters in a row',
+        }
+      }
     }
 
     // Number range validation
