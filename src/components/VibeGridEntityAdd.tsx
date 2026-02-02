@@ -77,16 +77,22 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   const displayName =
     entityDisplayName || (entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity')
 
-  // Get form fields from columns (excluding system columns)
+  // Get form fields from columns (excluding system columns and non-editable fields)
   const formFields = useMemo(() => {
     if (!columns || !Array.isArray(columns)) return []
 
     return columns.filter((column) => {
       const isValidColumn = column && column.id
-      const isSystemField = ['id', 'created_at', 'updated_at', 'organization_id'].includes(
-        column.id,
-      )
-      return isValidColumn && !isSystemField
+      const isSystemField = [
+        'id',
+        'created_at',
+        'updated_at',
+        'organization_id',
+        'createdAt',
+        'updatedAt',
+      ].includes(column.id)
+      const isNonEditable = column.editable === false
+      return isValidColumn && !isSystemField && !isNonEditable
     })
   }, [columns])
 
@@ -585,6 +591,20 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
             default: {
               // Detect field types from field ID patterns
               const lowerFieldId = field.id.toLowerCase()
+
+              if (lowerFieldId.includes('password')) {
+                return (
+                  <Input
+                    id={field.id}
+                    type="password"
+                    value={fieldValue.value}
+                    onChange={(e) => updateFieldValue(field.id, e.target.value)}
+                    placeholder={placeholder}
+                    className={getInputClassName()}
+                    autoComplete="new-password"
+                  />
+                )
+              }
 
               if (lowerFieldId.includes('email')) {
                 return (

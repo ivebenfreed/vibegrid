@@ -126,6 +126,7 @@ interface VibeGridProps<_T = any> {
 
   // Entity Add button (shows in toolbar)
   enableEntityAdd?: boolean
+  onEntityCreate?: (data: Record<string, any>) => void | Promise<void>
 
   // Toolbar and header visibility (GH#1240)
   showToolbar?: boolean
@@ -193,6 +194,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     skipDataFetching = false,
     collectionOverride: _collectionOverride, // Used by context provider, not directly here
     enableEntityAdd = true,
+    onEntityCreate,
     showToolbar: _showToolbar = true,
     showHeader = true,
     rowExpansionConfig,
@@ -815,7 +817,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           entityName={enableEntityAdd ? entityType : undefined}
           entityDisplayName={entityDisplayName}
           orgId={orgId}
-          createEntity={createEntity}
+          createEntity={onEntityCreate || createEntity}
           searchConfig={searchConfig}
         />
       )}
