@@ -27,6 +27,8 @@ export class ModularCellBridge {
   private rollupCalculationManager: RollupCalculationManager
   // PERF: Cache affordance attributes per column to avoid re-resolving for each cell
   private affordanceCache: Map<string, Record<string, string>> = new Map()
+  // GH#1429 ML2: Max cache size to prevent unbounded growth with dynamic columns
+  private static readonly MAX_AFFORDANCE_CACHE_SIZE = 500
 
   constructor() {
     this.relationshipDataManager = new RelationshipDataManager()
@@ -46,6 +48,22 @@ export class ModularCellBridge {
   precomputeAffordances(columns: Column[]): void {
     const startTime = performance.now()
     let precomputedCount = 0
+
+    // GH#1429 ML2: Prune cache if it would exceed max size
+    // This handles dynamic column scenarios (pivot tables, computed fields)
+    const newColumnsCount = columns.filter(
+      (c) => c.fieldType && !this.affordanceCache.has(c.id),
+    ).length
+    if (this.affordanceCache.size + newColumnsCount > ModularCellBridge.MAX_AFFORDANCE_CACHE_SIZE) {
+      // Clear and rebuild - simpler than LRU for column affordances
+      const oldSize = this.affordanceCache.size
+      this.affordanceCache.clear()
+      fileLog.debug('🧹 [PERF] Affordance cache pruned (exceeded max size)', {
+        oldSize,
+        maxSize: ModularCellBridge.MAX_AFFORDANCE_CACHE_SIZE,
+        newColumnsCount,
+      })
+    }
 
     for (const column of columns) {
       // Skip if already cached

@@ -732,27 +732,53 @@ export class SimplePassiveRenderer {
         }
 
         // GH#1240: Trigger data loading for expanded rows
+        // GH#1429 ML4: Guard against destroyed state to prevent memory leaks from async callbacks
         const expansionConfig = this.tableCoreStore.getRowExpansionConfig()
         if (expansionConfig?.enabled && expansionConfig.loadExpandedData) {
           for (const rowId of this.interactionStore.expandedRowIds) {
+            // GH#1429 ML4: Check destroyed state before each async operation
+            if (this.isDestroyed) {
+              fileLog.debug('⏭️ Skipping expansion load - instance destroyed', { rowId })
+              return
+            }
             const state = this.interactionStore.expandedRowStates.get(rowId)
             // Only load if not already loaded or loading
             if (!state?.data && !state?.isLoading) {
               this.interactionStore.setExpandedDataLoading(rowId)
               try {
                 const data = await expansionConfig.loadExpandedData(rowId, null)
+                // GH#1429 ML4: Check destroyed state after async operation completes
+                if (this.isDestroyed) {
+                  fileLog.debug('⏭️ Skipping expansion data set - instance destroyed after load', {
+                    rowId,
+                  })
+                  return
+                }
                 this.interactionStore.setExpandedData(rowId, data as unknown[], null)
                 fileLog.info('✅ Expanded data loaded', {
                   rowId,
                   itemCount: (data as unknown[])?.length,
                 })
               } catch (error) {
+                // GH#1429 ML4: Check destroyed state before error handling
+                if (this.isDestroyed) {
+                  fileLog.debug('⏭️ Skipping expansion error handling - instance destroyed', {
+                    rowId,
+                  })
+                  return
+                }
                 const err = error instanceof Error ? error : new Error(String(error))
                 this.interactionStore.setExpandedData(rowId, null, err)
                 fileLog.error('❌ Failed to load expanded data', { rowId, error: err.message })
               }
             }
           }
+        }
+
+        // GH#1429 ML4: Final guard before re-render
+        if (this.isDestroyed) {
+          fileLog.debug('⏭️ Skipping expansion re-render - instance destroyed')
+          return
         }
 
         fileLog.info('🔄 Expansion state changed - triggering body re-render', {

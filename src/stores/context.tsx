@@ -270,9 +270,12 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.kanbanViewStore.dispose()
       stores.hierarchyStore.dispose()
       stores.debugStore.dispose()
+      // GH#1429 ML1: Dispose coordinateManager to clear listener subscriptions
+      stores.coordinateManager.dispose()
     }
   }, [
     entityType,
+    stores.coordinateManager.dispose, // GH#1429 ML1
     stores.debugStore.dispose,
     stores.editingStore.dispose,
     stores.ganttViewStore.dispose,

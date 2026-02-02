@@ -137,6 +137,9 @@ export const ExpandedContentPortals = observer(function ExpandedContentPortals({
     // Initial update
     updatePortals()
 
+    // GH#1429 ML6: Debounce MutationObserver to prevent cascade of updates during rapid DOM changes
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
     // Observe DOM mutations to detect new expanded content containers
     const mutationObserver = new MutationObserver((mutations) => {
       // Check if any mutations affect expanded content containers
@@ -164,7 +167,14 @@ export const ExpandedContentPortals = observer(function ExpandedContentPortals({
       })
 
       if (hasRelevantMutation) {
-        updatePortals()
+        // GH#1429 ML6: Debounce by 16ms (one frame) to coalesce rapid mutations
+        if (debounceTimer) {
+          clearTimeout(debounceTimer)
+        }
+        debounceTimer = setTimeout(() => {
+          updatePortals()
+          debounceTimer = null
+        }, 16)
       }
     })
 
@@ -179,6 +189,10 @@ export const ExpandedContentPortals = observer(function ExpandedContentPortals({
     // This is handled by the observer() wrapper
 
     return () => {
+      // GH#1429 ML6: Clear debounce timer on cleanup
+      if (debounceTimer) {
+        clearTimeout(debounceTimer)
+      }
       mutationObserver.disconnect()
     }
   }, [containerRef, rowExpansionConfig?.enabled, interactionStore, tableCoreStore])
