@@ -150,6 +150,30 @@ export class KanbanViewStore implements IStore {
     return strValue === '' ? null : strValue
   }
 
+  /**
+   * When persisting a drag to an unmapped (data-discovered) column, preserve the
+   * original casing from the underlying row data rather than writing the
+   * normalized/lowercased column id.
+   */
+  private resolveOriginalGroupValue(normalizedValue: string): string | null {
+    if (!this.tableCoreStore) return null
+
+    const rows = this.tableCoreStore.processedRows
+    for (const row of rows) {
+      const rowData = row.data || row
+      const raw = (rowData as any)?.[this.groupByField]
+      if (raw == null) continue
+
+      const normalized = this.normalizeStatusValue(raw)
+      if (normalized === normalizedValue) {
+        const original = String(raw).trim()
+        return original === '' ? null : original
+      }
+    }
+
+    return null
+  }
+
   @computed
   get columns(): KanbanColumn[] {
     if (!this.tableCoreStore) return []
@@ -344,8 +368,10 @@ export class KanbanViewStore implements IStore {
     let newStatus: string | null = null
     if (targetColumnId !== '__no_status__') {
       const colorOption = this.statusColorMap.get(targetColumnId)
-      // Use the original value from the schema if available, otherwise use column ID
-      newStatus = colorOption?.value ?? targetColumnId
+      // Use the original value from the schema if available. If this is a
+      // data-discovered column, resolve the original casing from row data to
+      // avoid persisting the normalized/lowercased column id.
+      newStatus = colorOption?.value ?? this.resolveOriginalGroupValue(targetColumnId) ?? targetColumnId
     }
 
     logger.info('Moving card to new column', {
