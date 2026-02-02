@@ -5,8 +5,6 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { formatFieldForDisplay } from '@/server/domain/dataforge/fields/display-formatters'
-import { getLogger } from '@/shared/lib/logging'
 import type { FieldTypeAffordance } from '../../../affordances/types'
 import { getOptionIconDisplay } from '../../../utils/icon-mapping'
 import type {
@@ -15,16 +13,11 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
-
-const logger = getLogger(
-  'components/custom/vibegrid/field-types/implementations/basic/SelectFieldType',
-)
 
 interface SelectOption {
   value: string
@@ -40,7 +33,7 @@ interface SelectOption {
  * Select Cell Renderer
  */
 export class SelectRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     // 🚀 PERFORMANCE: Removed expensive logging from hot path
 
     const container = document.createElement('span')
@@ -103,6 +96,7 @@ export class SelectRenderer implements CellRenderer {
       'select',
       'single-select',
       'multi-select',
+      'select-multi',
       'enum',
       'custom_option_reference',
       'status',
@@ -280,7 +274,7 @@ export class SelectRenderer implements CellRenderer {
   }
 
   private isMultiSelect(fieldType: string): boolean {
-    return fieldType === 'multi-select'
+    return fieldType === 'multi-select' || fieldType === 'select-multi'
   }
 }
 
@@ -367,7 +361,7 @@ export class SelectEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -504,7 +498,7 @@ export class SelectEditor implements CellEditor {
   }
 
   private isMultiSelect(fieldType: string): boolean {
-    return fieldType === 'multi-select'
+    return fieldType === 'multi-select' || fieldType === 'select-multi'
   }
 
   private handleSave(): void {
@@ -531,7 +525,7 @@ export class SelectEditor implements CellEditor {
  * Select Cell Formatter
  */
 export class SelectFormatter implements CellFormatter {
-  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
+  format(value: any, column: EnhancedColumn, _context?: FormattingContext): string {
     if (value == null) return ''
 
     const fieldType = column.cellType || column.type || 'select'
@@ -563,7 +557,7 @@ export class SelectFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     if (value == null) return ''
 
     if (Array.isArray(value)) {
@@ -615,7 +609,7 @@ export class SelectFormatter implements CellFormatter {
   }
 
   private isMultiSelect(fieldType: string): boolean {
-    return fieldType === 'multi-select'
+    return fieldType === 'multi-select' || fieldType === 'select-multi'
   }
 }
 
@@ -688,7 +682,7 @@ export const SelectFieldType: VibeGridFieldType & { affordance: FieldTypeAfforda
   // 🚀 Simple formatter interface for pre-computation
   getFormatter(): (value: any, rowData?: any, column?: any) => string {
     const formatter = new SelectFormatter()
-    return (value: any, rowData?: any, column?: any) => {
+    return (value: any, _rowData?: any, column?: any) => {
       if (!column) return String(value || '')
 
       // Use reactive options from schema store if available
@@ -700,7 +694,7 @@ export const SelectFieldType: VibeGridFieldType & { affordance: FieldTypeAfforda
             const tempColumn = { ...column, options }
             return formatter.format(value, tempColumn)
           }
-        } catch (error) {
+        } catch {
           // Fallback to column options
         }
       }
@@ -726,6 +720,7 @@ export const SelectFieldType: VibeGridFieldType & { affordance: FieldTypeAfforda
 fieldTypeRegistry.register('select', SelectFieldType)
 fieldTypeRegistry.register('single-select', SelectFieldType)
 fieldTypeRegistry.register('multi-select', SelectFieldType)
+fieldTypeRegistry.register('select-multi', SelectFieldType)
 fieldTypeRegistry.register('enum', SelectFieldType)
 fieldTypeRegistry.register('custom_select', SelectFieldType)
 fieldTypeRegistry.register('custom_option_reference', SelectFieldType)
