@@ -3,9 +3,10 @@
  *
  * Renders entity fields as vertical label:value rows:
  * - Label on left, value on right
+ * - Click field to enter edit mode (uses FieldTypeRegistry editors)
  * - Tab/ArrowUp/Down navigation between fields
  * - Integrates with InteractionStore for selection state
- * - Uses existing VibeGrid field type renderers
+ * - Uses existing VibeGrid field type renderers for display
  *
  * Layout:
  * ┌────────────────────────────────┐
@@ -18,9 +19,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Column } from '../types'
 import { PropertySheetAdapter } from '../adapters/PropertySheetAdapter'
+import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 import { modularCellBridge } from '../field-types/ModularCellBridge'
 import type { InteractionStore } from '../stores/InteractionStore'
 import './PropertySheet.css'
@@ -53,6 +55,7 @@ export const PropertySheet = observer(function PropertySheet({
 }: PropertySheetProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<PropertySheetAdapter | null>(null)
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
 
   // Initialize adapter
   useEffect(() => {
@@ -69,12 +72,34 @@ export const PropertySheet = observer(function PropertySheet({
     })
   }, [columns, labelWidth, gap])
 
-  // Handle keyboard navigation
+  // Commit edit: save value and exit edit mode
+  const commitEdit = useCallback(
+    (fieldId: string, newValue: any) => {
+      logger.debug('PropertySheet commit edit', { fieldId, newValue })
+      setEditingFieldId(null)
+
+      if (onFieldChange) {
+        onFieldChange(fieldId, newValue)
+      }
+    },
+    [onFieldChange],
+  )
+
+  // Cancel edit: exit edit mode without saving
+  const cancelEdit = useCallback(() => {
+    logger.debug('PropertySheet cancel edit', { editingFieldId })
+    setEditingFieldId(null)
+  }, [editingFieldId])
+
+  // Handle keyboard navigation (only when not editing - editing fields handle their own keys)
   useEffect(() => {
     const container = containerRef.current
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't intercept keyboard events while editing
+      if (editingFieldId) return
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -96,6 +121,16 @@ export const PropertySheet = observer(function PropertySheet({
             nextFieldId = neighbors.up || null
           }
           break
+        case 'Enter':
+        case 'F2': {
+          // Enter edit mode for focused field
+          event.preventDefault()
+          const column = columns.find((c) => c.id === focusedFieldId)
+          if (column && column.editable !== false) {
+            setEditingFieldId(focusedFieldId)
+          }
+          return
+        }
       }
 
       if (nextFieldId) {
@@ -120,15 +155,35 @@ export const PropertySheet = observer(function PropertySheet({
 
     container.addEventListener('keydown', handleKeyDown)
     return () => container.removeEventListener('keydown', handleKeyDown)
-  }, [interactionStore])
+  }, [interactionStore, editingFieldId, columns])
 
-  // Handle field click to set focus
-  const handleFieldClick = (fieldId: string) => {
-    if (interactionStore) {
-      interactionStore.focusField(fieldId)
-      logger.debug('PropertySheet field clicked', { fieldId })
+  // Handle field click to set focus and enter edit mode
+  const handleFieldClick = useCallback(
+    (fieldId: string, column: Column) => {
+      if (interactionStore) {
+        interactionStore.focusField(fieldId)
+      }
+
+      // Enter edit mode if field is editable
+      if (column.editable !== false) {
+        setEditingFieldId(fieldId)
+        logger.debug('PropertySheet field clicked → edit mode', { fieldId })
+      }
+    },
+    [interactionStore],
+  )
+
+  // Restore focus to container after edit ends
+  useEffect(() => {
+    if (!editingFieldId && interactionStore?.focusedFieldId) {
+      const fieldElement = containerRef.current?.querySelector(
+        `[data-testid="property-sheet-field-${interactionStore.focusedFieldId}"]`,
+      ) as HTMLElement
+      if (fieldElement) {
+        fieldElement.focus()
+      }
     }
-  }
+  }, [editingFieldId, interactionStore?.focusedFieldId])
 
   return (
     // biome-ignore lint/a11y/noNoninteractiveTabindex: Container needs to be focusable for keyboard navigation
@@ -137,23 +192,25 @@ export const PropertySheet = observer(function PropertySheet({
         const fieldId = column.id
         const value = data[column.field || column.id]
         const isFocused = interactionStore?.focusedFieldId === fieldId
+        const isEditing = editingFieldId === fieldId
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for edit mode
           <div
             key={fieldId}
-            className={`property-sheet-field ${isFocused ? 'property-sheet-field--focused' : ''}`}
+            className={`property-sheet-field ${isFocused ? 'property-sheet-field--focused' : ''} ${isEditing ? 'property-sheet-field--editing' : ''}`}
             data-testid={`property-sheet-field-${fieldId}`}
-            onClick={() => handleFieldClick(fieldId)}
+            onClick={() => handleFieldClick(fieldId, column)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
-                handleFieldClick(fieldId)
+                handleFieldClick(fieldId, column)
               }
             }}
             tabIndex={-1}
           >
             <div className="property-sheet-field__label">
-              <label htmlFor={`field-${fieldId}`}>{column.label || column.id}</label>
+              <label htmlFor={`field-${fieldId}`}>{column.label || column.name || column.id}</label>
               {column.required && <span className="property-sheet-field__required">*</span>}
             </div>
             <div className="property-sheet-field__value">
@@ -163,6 +220,29 @@ export const PropertySheet = observer(function PropertySheet({
                 column={column}
                 rowData={data}
                 rowIndex={index}
+                isEditing={isEditing}
+                onCommit={(newValue) => commitEdit(fieldId, newValue)}
+                onCancel={cancelEdit}
+                onNavigateNext={() => {
+                  // Commit and move to next field
+                  if (adapterRef.current && interactionStore) {
+                    const neighbors = adapterRef.current.getFieldNeighbors(fieldId)
+                    const nextId = neighbors.down || null
+                    if (nextId) {
+                      interactionStore.focusField(nextId)
+                      const nextColumn = columns.find((c) => c.id === nextId)
+                      if (nextColumn && nextColumn.editable !== false) {
+                        setEditingFieldId(nextId)
+                      } else {
+                        setEditingFieldId(null)
+                      }
+                    } else {
+                      setEditingFieldId(null)
+                    }
+                  } else {
+                    setEditingFieldId(null)
+                  }
+                }}
               />
             </div>
           </div>
@@ -174,6 +254,7 @@ export const PropertySheet = observer(function PropertySheet({
 
 /**
  * PropertySheetFieldValue - Renders field value using existing VibeGrid cell renderers
+ * Switches between display mode (modularCellBridge) and edit mode (FieldTypeRegistry editor)
  */
 const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
   fieldId,
@@ -181,14 +262,25 @@ const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
   column,
   rowData,
   rowIndex,
+  isEditing,
+  onCommit,
+  onCancel,
+  onNavigateNext,
 }: {
   fieldId: string
   value: any
   column: Column
   rowData: any
   rowIndex: number
+  isEditing: boolean
+  onCommit: (newValue: any) => void
+  onCancel: () => void
+  onNavigateNext: () => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<{ element: HTMLElement; destroy?: () => void } | null>(null)
+  const pendingValueRef = useRef<any>(value)
+  const committedRef = useRef(false)
 
   useEffect(() => {
     const container = containerRef.current
@@ -197,31 +289,157 @@ const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
     // Clear existing content
     container.innerHTML = ''
 
-    try {
-      // Use ModularCellBridge to create cell element
-      const cellElement = modularCellBridge.createCell(value, column, rowData, {
-        rowIndex,
-        columnIndex: 0,
-      })
-
-      // Remove absolute positioning styles (property sheet uses flexbox)
-      cellElement.style.position = 'static'
-      cellElement.style.left = 'auto'
-      cellElement.style.width = '100%'
-
-      // Add property sheet specific class
-      cellElement.classList.add('property-sheet-cell')
-
-      container.appendChild(cellElement)
-    } catch (error) {
-      logger.error('Error rendering property sheet field value', {
-        fieldId,
-        error,
-      })
-      // Fallback to plain text
-      container.textContent = String(value || '')
+    // Clean up previous editor
+    if (editorRef.current?.destroy) {
+      editorRef.current.destroy()
     }
-  }, [value, column, rowData, rowIndex, fieldId])
+    editorRef.current = null
+    committedRef.current = false
+    pendingValueRef.current = value
+
+    if (isEditing) {
+      // ====================================
+      // EDIT MODE: Create editor via FieldTypeRegistry
+      // ====================================
+      try {
+        const fieldType = fieldTypeRegistry.getFieldType(column as any)
+
+        if (!fieldType?.editor) {
+          logger.warn('No editor found for field type, falling back to text input', {
+            fieldId,
+            columnType: column.cellType,
+          })
+          // Fallback: create a basic text input
+          const input = document.createElement('input')
+          input.type = 'text'
+          input.value = value == null ? '' : String(value)
+          input.className = 'property-sheet-editor-fallback'
+          input.style.cssText =
+            'width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font: inherit;'
+
+          input.addEventListener('input', () => {
+            pendingValueRef.current = input.value
+          })
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onCommit(pendingValueRef.current)
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              onCancel()
+            } else if (e.key === 'Tab') {
+              e.preventDefault()
+              onCommit(pendingValueRef.current)
+              onNavigateNext()
+            }
+          })
+          input.addEventListener('blur', () => {
+            if (!committedRef.current) {
+              committedRef.current = true
+              onCommit(pendingValueRef.current)
+            }
+          })
+
+          container.appendChild(input)
+          setTimeout(() => input.focus(), 0)
+          editorRef.current = { element: input }
+          return
+        }
+
+        // Create editor using FieldTypeRegistry
+        const editorElement = fieldType.editor.create(value, column as any, (newValue: any) => {
+          // onSave callback from editor - commit the value
+          if (!committedRef.current) {
+            committedRef.current = true
+            onCommit(newValue)
+          }
+        })
+
+        // Style editor for property sheet context
+        editorElement.style.width = '100%'
+        editorElement.classList.add('property-sheet-editor')
+
+        // Track pending value via input events on the editor
+        const inputEl = editorElement.querySelector('input, textarea, select') || editorElement
+        if (inputEl instanceof HTMLInputElement || inputEl instanceof HTMLTextAreaElement) {
+          inputEl.addEventListener('input', () => {
+            pendingValueRef.current = fieldType.editor.getValue(editorElement)
+          })
+        }
+
+        // Add keyboard handling for Tab navigation and Escape cancel
+        const handleEditorKeyDown = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            e.preventDefault()
+            e.stopPropagation()
+            onCancel()
+          } else if (e.key === 'Tab') {
+            e.preventDefault()
+            e.stopPropagation()
+            const currentValue = fieldType.editor.getValue(editorElement)
+            if (!committedRef.current) {
+              committedRef.current = true
+              onCommit(currentValue)
+            }
+            onNavigateNext()
+          }
+        }
+        editorElement.addEventListener('keydown', handleEditorKeyDown)
+
+        container.appendChild(editorElement)
+        editorRef.current = {
+          element: editorElement,
+          destroy: () => {
+            editorElement.removeEventListener('keydown', handleEditorKeyDown)
+            fieldType.editor.destroy(editorElement)
+          },
+        }
+      } catch (error) {
+        logger.error('Error creating editor for property sheet field', {
+          fieldId,
+          error,
+        })
+        // Fallback to plain text
+        container.textContent = String(value || '')
+      }
+    } else {
+      // ====================================
+      // DISPLAY MODE: Use ModularCellBridge (existing logic)
+      // ====================================
+      try {
+        // Use ModularCellBridge to create cell element
+        const cellElement = modularCellBridge.createCell(value, column, rowData, {
+          rowIndex,
+          columnIndex: 0,
+        })
+
+        // Remove absolute positioning styles (property sheet uses flexbox)
+        cellElement.style.position = 'static'
+        cellElement.style.left = 'auto'
+        cellElement.style.width = '100%'
+
+        // Add property sheet specific class
+        cellElement.classList.add('property-sheet-cell')
+
+        container.appendChild(cellElement)
+      } catch (error) {
+        logger.error('Error rendering property sheet field value', {
+          fieldId,
+          error,
+        })
+        // Fallback to plain text
+        container.textContent = String(value || '')
+      }
+    }
+
+    // Cleanup
+    return () => {
+      if (editorRef.current?.destroy) {
+        editorRef.current.destroy()
+        editorRef.current = null
+      }
+    }
+  }, [value, column, rowData, rowIndex, fieldId, isEditing, onCommit, onCancel, onNavigateNext])
 
   return <div ref={containerRef} id={`field-${fieldId}`} className="property-sheet-field-value" />
 })

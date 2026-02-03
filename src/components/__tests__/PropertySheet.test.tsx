@@ -152,9 +152,8 @@ describe('PropertySheet', () => {
         <PropertySheet data={mockData} columns={mockColumns} interactionStore={interactionStore} />,
       )
 
-      // Focus first field
-      const titleField = screen.getByTestId('property-sheet-field-title')
-      fireEvent.click(titleField)
+      // Set focus programmatically (click enters edit mode, so use store directly for nav tests)
+      interactionStore.focusField('title')
 
       // Press ArrowDown
       const container = screen.getByTestId('property-sheet')
@@ -170,9 +169,8 @@ describe('PropertySheet', () => {
         <PropertySheet data={mockData} columns={mockColumns} interactionStore={interactionStore} />,
       )
 
-      // Focus second field
-      const statusField = screen.getByTestId('property-sheet-field-status')
-      fireEvent.click(statusField)
+      // Set focus programmatically (click enters edit mode, so use store directly for nav tests)
+      interactionStore.focusField('status')
 
       // Press ArrowUp
       const container = screen.getByTestId('property-sheet')
@@ -188,9 +186,8 @@ describe('PropertySheet', () => {
         <PropertySheet data={mockData} columns={mockColumns} interactionStore={interactionStore} />,
       )
 
-      // Focus first field
-      const titleField = screen.getByTestId('property-sheet-field-title')
-      fireEvent.click(titleField)
+      // Set focus programmatically (click enters edit mode, so use store directly for nav tests)
+      interactionStore.focusField('title')
 
       // Press Tab
       const container = screen.getByTestId('property-sheet')
@@ -206,9 +203,8 @@ describe('PropertySheet', () => {
         <PropertySheet data={mockData} columns={mockColumns} interactionStore={interactionStore} />,
       )
 
-      // Focus second field
-      const statusField = screen.getByTestId('property-sheet-field-status')
-      fireEvent.click(statusField)
+      // Set focus programmatically (click enters edit mode, so use store directly for nav tests)
+      interactionStore.focusField('status')
 
       // Press Shift+Tab
       const container = screen.getByTestId('property-sheet')

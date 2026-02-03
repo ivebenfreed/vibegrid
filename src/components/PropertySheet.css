@@ -38,6 +38,14 @@
   outline-offset: 2px;
 }
 
+.property-sheet-field--editing {
+  background-color: hsl(var(--accent));
+}
+
+.property-sheet-field--editing .property-sheet-field__value {
+  z-index: 1;
+}
+
 .property-sheet-field__label {
   display: flex;
   align-items: center;
@@ -104,6 +112,40 @@
 .property-sheet-cell--auto-expand textarea {
   overflow-y: hidden;
   resize: none;
+}
+
+/* Editor styles (inline editing via FieldTypeRegistry) */
+.property-sheet-editor,
+.property-sheet-editor-fallback {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid hsl(var(--ring));
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background-color: hsl(var(--background));
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+}
+
+.property-sheet-editor input,
+.property-sheet-editor textarea,
+.property-sheet-editor select {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+.property-sheet-editor input:focus,
+.property-sheet-editor textarea:focus,
+.property-sheet-editor select:focus {
+  outline: none;
 }
 
 /* Dark mode adjustments */

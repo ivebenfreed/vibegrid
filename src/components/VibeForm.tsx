@@ -29,6 +29,8 @@ import { SingleColumnForm } from './SingleColumnForm'
 import { TwoColumnForm } from './TwoColumnForm'
 import { InlineRow } from './InlineRow'
 import { GroupedForm } from './GroupedForm'
+import { InteractionStore } from '../stores/InteractionStore'
+import { useVibeGridStoresOptional } from '../stores/context'
 import { useCreateRecordMutation } from '@/shared/data/mutations/entity-data.mutations'
 import { getLogger } from '@/shared/lib/logging'
 import './VibeForm.css'
@@ -62,6 +64,8 @@ export interface VibeFormProps {
   groups?: FieldGroup[]
   /** Group toggle callback */
   onGroupToggle?: (groupId: string, collapsed: boolean) => void
+  /** TanStack DB collection for auto-save (passed from dialog context) */
+  collection?: any
 }
 
 /**
@@ -87,12 +91,44 @@ export const VibeForm = observer(function VibeForm({
   columns,
   data,
   onSave,
-  onCancel,
+  onCancel: _onCancel,
   schema,
   disableAutoCreate = false,
   groups,
   onGroupToggle,
+  collection,
 }: VibeFormProps) {
+  // ====================================
+  // STORES
+  // ====================================
+
+  // Try to get stores from VibeGridStoreProvider context (e.g., when inside entity list grid)
+  const contextStores = useVibeGridStoresOptional()
+
+  // Create a local InteractionStore when not inside a VibeGridStoreProvider
+  const localInteractionStore = useMemo(() => {
+    if (contextStores) return null
+    return new InteractionStore()
+  }, [contextStores])
+
+  const interactionStore = contextStores?.interactionStore ?? localInteractionStore!
+  const editingStore = contextStores?.editingStore ?? null
+
+  // Set layout mode for PropertySheet navigation
+  useEffect(() => {
+    interactionStore.setLayout('property-sheet')
+    return () => {
+      interactionStore.setLayout('grid')
+    }
+  }, [interactionStore])
+
+  // Set collection on EditingStore for auto-save (when available)
+  useEffect(() => {
+    if (editingStore && collection) {
+      editingStore.setCollection(collection)
+    }
+  }, [editingStore, collection])
+
   // ====================================
   // STATE
   // ====================================
@@ -111,6 +147,7 @@ export const VibeForm = observer(function VibeForm({
   // ====================================
 
   // Only initialize mutation if entityName is provided and we're in create mode
+  // biome-ignore lint/correctness/useHookAtTopLevel: entityName is stable per mount
   const createMutation = entityName ? useCreateRecordMutation(entityName) : null
 
   // ====================================
@@ -269,7 +306,7 @@ export const VibeForm = observer(function VibeForm({
           <PropertySheet
             data={createFlow.localValues}
             columns={columns}
-            interactionStore={null as any} // TODO: Pass actual InteractionStore
+            interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
           />
         )
@@ -279,7 +316,7 @@ export const VibeForm = observer(function VibeForm({
           <SingleColumnForm
             data={createFlow.localValues}
             columns={columns}
-            interactionStore={null as any}
+            interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
           />
         )
@@ -289,7 +326,7 @@ export const VibeForm = observer(function VibeForm({
           <TwoColumnForm
             data={createFlow.localValues}
             columns={columns}
-            interactionStore={null as any}
+            interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
           />
         )
@@ -299,7 +336,7 @@ export const VibeForm = observer(function VibeForm({
           <InlineRow
             data={createFlow.localValues}
             columns={columns}
-            interactionStore={null as any}
+            interactionStore={interactionStore}
             showLabels={layoutConfig.showLabels}
             onFieldChange={handleFieldChange}
           />
@@ -312,7 +349,7 @@ export const VibeForm = observer(function VibeForm({
             <PropertySheet
               data={createFlow.localValues}
               columns={columns}
-              interactionStore={null as any}
+              interactionStore={interactionStore}
               onFieldChange={handleFieldChange}
             />
           )
@@ -322,21 +359,20 @@ export const VibeForm = observer(function VibeForm({
             data={createFlow.localValues}
             columns={columns}
             groups={groups}
-            interactionStore={null as any}
+            interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
             onGroupToggle={onGroupToggle}
           />
         )
 
       case 'grid':
-        // Grid layout falls back to property-sheet for now
-        // TODO: Implement grid layout adapter for VibeForm
+        // Grid layout falls back to property-sheet for now (GH#1464 Phase 5)
         logger.debug('Grid layout not yet implemented for VibeForm, using property-sheet')
         return (
           <PropertySheet
             data={createFlow.localValues}
             columns={columns}
-            interactionStore={null as any}
+            interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
           />
         )
