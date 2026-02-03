@@ -586,9 +586,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
       return
     }
 
-    // Mark container as ready (hydration tracking)
-    stores.initStore.markReady('containerReady')
-    logger.info('[VGDEBUG] Container ready')
+    // Mark container as ready (hydration tracking) — only on first run;
+    // this effect re-fires when callback props change to recreate the renderer,
+    // but the container itself is already ready.
+    if (!stores.initStore.hydrationState.containerReady) {
+      stores.initStore.markReady('containerReady')
+      logger.info('[VGDEBUG] Container ready')
+    }
 
     // Provide the container to InitStore
     stores.initStore.setContainer(containerRef.current)

@@ -734,6 +734,12 @@ export class InitStore implements IStore {
     if (this.renderer) {
       this.renderer.destroy()
       this.renderer = null
+
+      // Reset renderer-related hydration flags so the renderer creation
+      // reaction can fire again when a new factory is provided.
+      this.hydrationState.rendererInitialized = false
+      this.hydrationState.viewportReady = false
+      this.hydrationState.eventHandlersReady = false
     }
   }
 
