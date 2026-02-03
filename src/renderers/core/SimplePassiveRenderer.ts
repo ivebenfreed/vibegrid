@@ -26,6 +26,7 @@ import { HeaderRenderer } from '../components/HeaderRenderer'
 // New modular architecture imports - ObserverManager will be removed
 // import { ObserverManager, type ObserverManagerOptions, type VisualState } from './ObserverManager';
 import { RowPreRenderBuffer } from './RowPreRenderBuffer'
+import { GridLineCanvas } from './GridLineCanvas'
 import { DOMElementFactory } from '../factories/DOMElementFactory'
 import { EventManager } from '../managers/EventManager'
 import { ColumnWidthManager } from '../modules/ColumnWidthManager'
@@ -164,6 +165,11 @@ export class SimplePassiveRenderer {
   // GH#1437: Row pre-render buffer for scroll performance
   private preRenderBuffer: RowPreRenderBuffer
 
+  // GH#1442: Canvas-based grid lines for scroll jump visual feedback
+  private gridLineCanvas: GridLineCanvas | null = null
+  private gridLineCanvasDisposer: (() => void) | null = null
+  private gridLineCanvasScrollHandler: (() => void) | null = null
+
   private rendererInstanceId = Math.random().toString(36).substring(7)
   private isDestroyed = false
 
@@ -215,6 +221,10 @@ export class SimplePassiveRenderer {
     this.initDOMFactory()
     this.initOverlayManager() // ✅ MUST be before initPhase2Managers (creates EditSessionManager)
     this.initPhase2Managers() // ✅ MUST be after initOverlayManager (accesses EditSessionManager) - CREATES bodyRenderer!
+
+    // GH#1442: Canvas-based grid lines for scroll jump visual feedback
+    this.initGridLineCanvas()
+
     this.initHeaderRenderer()
 
     this.postInitialization()
@@ -1143,7 +1153,94 @@ export class SimplePassiveRenderer {
     // GH#1437 P4: Delta-based selection reaction (O(delta) instead of O(n))
     this.setupSelectionDeltaReaction()
 
+    // GH#1442: Canvas grid line reactions
+    this.initGridLineCanvasReactions()
+
     fileLog.debug('✅ Focused observers initialized')
+  }
+
+  /**
+   * GH#1442: Initialize canvas-based grid lines
+   * Canvas replaces CSS cell borders for consistent grid line visibility
+   * during scroll jumps and buffer misses.
+   */
+  private initGridLineCanvas(): void {
+    if (!this.viewport) return
+
+    const viewportStore = this.stores.viewportStore
+    this.gridLineCanvas = new GridLineCanvas(this.visualStateStore, viewportStore)
+    this.gridLineCanvas.mount(this.viewport)
+    this.gridLineCanvas.updateCanvasSize()
+    this.gridLineCanvas.draw()
+
+    // Draw canvas lines directly from native scroll events using actual DOM
+    // scroll values. This bypasses MobX stores entirely for scroll-driven
+    // redraws, so grid lines stay visible during fast scrolling even when
+    // the virtual DOM hasn't caught up. drawFromScroll() calculates visible
+    // line range from geometry, independent of viewportStore.visibleRowRange.
+    const canvas = this.gridLineCanvas
+    const onScroll = () => {
+      const { scrollLeft, scrollTop } = this.viewport!
+      canvas.drawFromScroll(scrollLeft, scrollTop)
+    }
+    this.viewport.addEventListener('scroll', onScroll)
+    this.gridLineCanvasScrollHandler = onScroll
+  }
+
+  /**
+   * GH#1442: Set up MobX reactions for canvas grid line redraws
+   */
+  private initGridLineCanvasReactions(): void {
+    if (!this.gridLineCanvas) return
+    const canvas = this.gridLineCanvas
+
+    // NOTE: No MobX scroll reaction needed here. The native scroll listener
+    // in initGridLineCanvas() calls drawFromScroll() with actual DOM scroll
+    // values, bypassing MobX entirely. This makes grid lines independent of
+    // the virtual scroll lifecycle that controls DOM row creation.
+
+    // Column layout reaction: redraw on column width/order/visibility changes
+    const columnDisposer = reaction(
+      () => this.visualStateStore.columnLayouts,
+      () => {
+        canvas.draw()
+      },
+    )
+
+    // Viewport size reaction: resize canvas and redraw
+    const viewportDisposer = reaction(
+      () => ({
+        width: this.visualStateStore.viewportWidth,
+        height: this.visualStateStore.viewportHeight,
+      }),
+      () => {
+        canvas.updateCanvasSize()
+        canvas.draw()
+      },
+    )
+
+    // Row offsets sync: wire tableCoreStore.rowOffsets into viewportStore
+    // so canvas grid lines reflect variable-height rows (e.g., expanded rows)
+    const viewportStore = this.stores.viewportStore
+    const rowOffsetsSyncDisposer = reaction(
+      () => this.tableCoreStore.rowOffsets,
+      (offsets) => {
+        viewportStore.setRowOffsets(offsets)
+        canvas.draw()
+      },
+      { fireImmediately: true },
+    )
+
+    // Combine all disposers
+    this.gridLineCanvasDisposer = () => {
+      columnDisposer()
+      viewportDisposer()
+      rowOffsetsSyncDisposer()
+      if (this.gridLineCanvasScrollHandler && this.viewport) {
+        this.viewport.removeEventListener('scroll', this.gridLineCanvasScrollHandler)
+        this.gridLineCanvasScrollHandler = null
+      }
+    }
   }
 
   /**
@@ -2627,6 +2724,16 @@ export class SimplePassiveRenderer {
     if (this.pendingRAF !== null) {
       cancelAnimationFrame(this.pendingRAF)
       this.pendingRAF = null
+    }
+
+    // GH#1442: Clean up canvas grid lines
+    if (this.gridLineCanvasDisposer) {
+      this.gridLineCanvasDisposer()
+      this.gridLineCanvasDisposer = null
+    }
+    if (this.gridLineCanvas) {
+      this.gridLineCanvas.dispose()
+      this.gridLineCanvas = null
     }
 
     // Clean up focused observers

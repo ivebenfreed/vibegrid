@@ -129,7 +129,7 @@ describe('ViewportStore', () => {
       runInAction(() => {
         store.setRowOffsets([0, 40, 80, 120, 160])
       })
-      expect(store.totalRows).toBe(5)
+      expect(store.totalRows).toBe(4)
     })
 
     it('should compute totalRows from content height when no offsets', () => {

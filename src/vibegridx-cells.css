@@ -14,17 +14,12 @@
   overflow: hidden;
   cursor: default;
   box-sizing: border-box;
-  border-right: 1px solid var(--border) !important;
 }
 
 /* Flex-based cell variant (for non-absolute positioning) */
 .vibegridx-cell--flex {
   position: relative;
   flex: 0 0 auto;
-}
-
-.dark .vibegridx-cell {
-  border-right: 1px solid var(--border) !important;
 }
 
 /* Base Cell Styles */
@@ -647,15 +642,6 @@
   background-color: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
   border-color: hsl(var(--border));
-}
-
-/* Cell borders with dark mode support */
-.vibegridx-cell {
-  border-right: 1px solid hsl(var(--border));
-}
-
-.dark .vibegridx-cell {
-  border-right: 1px solid hsl(var(--border));
 }
 
 /* ====================================

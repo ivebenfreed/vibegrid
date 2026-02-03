@@ -6,8 +6,6 @@ relatedFeatures:
   - vibegrid/row-expansion
   - vibegrid/gantt
   - vibegrid/core
-  - vibegrid/modules
-  - vibegrid/slots
 ---
 
 # VibeGrid Interactions

@@ -1166,12 +1166,14 @@ body.vibegridx-dragging-active * {
 .vibegridx-row .vibegridx-row-header-cell {
   background: var(--background) !important;
   border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border);
 }
 
 .vibegridx-row-alt .vibegridx-drag-column,
 .vibegridx-row-alt .vibegridx-row-header-cell {
   background: var(--muted) !important;
   border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border);
 }
 
 .vibegridx-row-header-cell {
@@ -1182,12 +1184,14 @@ body.vibegridx-dragging-active * {
 .dark .vibegridx-row .vibegridx-row-header-cell {
   background: var(--background) !important;
   border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border);
 }
 
 .dark .vibegridx-row-alt .vibegridx-drag-column,
 .dark .vibegridx-row-alt .vibegridx-row-header-cell {
   background: var(--muted) !important;
   border-right: 1px solid var(--border) !important;
+  border-bottom: 1px solid var(--border);
 }
 
 .dark .vibegridx-row-header-cell {
@@ -1197,7 +1201,6 @@ body.vibegridx-dragging-active * {
 /* Row backgrounds with dark mode support */
 .vibegridx-row {
   background: var(--background) !important;
-  border-bottom: 1px solid var(--border) !important;
 }
 
 .vibegridx-row-alt {
@@ -1206,7 +1209,6 @@ body.vibegridx-dragging-active * {
 
 .dark .vibegridx-row {
   background: var(--background) !important;
-  border-bottom: 1px solid var(--border) !important;
 }
 
 .dark .vibegridx-row-alt {

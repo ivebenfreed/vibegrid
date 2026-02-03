@@ -211,7 +211,7 @@ export class ViewportStore implements IStore {
   @computed
   get totalRows(): number {
     if (this.rowOffsets) {
-      return this.rowOffsets.length
+      return this.rowOffsets.length - 1
     }
     if (this.totalContentHeight > 0) {
       return Math.ceil(this.totalContentHeight / ROW_HEIGHT)

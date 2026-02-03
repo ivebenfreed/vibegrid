@@ -91,13 +91,13 @@ High-performance virtualized data grid component for rendering and editing large
 
 ### B12: Canvas grid lines visible during scroll jumps
 - **ID:** canvas-grid-lines
-- **Status:** [ ] Planned (GH#1442)
+- **Status:** [x] Implemented (GH#1442)
 - **Trigger:** User performs large scroll jump (scrollbar drag, Ctrl+End, Page Down) to a distant row range
 - **Expected:** Grid lines remain visible immediately via background canvas, even before row DOM elements are created. Canvas redraws on scroll via MobX reaction, reading column positions from VisualStateStore and row offsets from TableCoreStore. Replaces CSS-based cell borders with single canvas rendering path.
 - **Source:** `systems/vibegrid/renderers/core/GridLineCanvas.ts` (canvas renderer), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (integration)
 - **Verify:** Scrollbar drag to row 5000 shows grid lines immediately (no blank white/dark flash), canvas redraw <1ms, theme-aware (light/dark mode)
 
-## Architecture (GH#1413, GH#1435, GH#1437)
+## Architecture (GH#1413, GH#1435, GH#1437, GH#1442)
 
 - **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
 - **InitStore** (`stores/InitStore.ts`) - Deterministic renderer lifecycle via MobX reaction: waits for columns > 0 + container + factory before creating renderer; destroys on cleanup
