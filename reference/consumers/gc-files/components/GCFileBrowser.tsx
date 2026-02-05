@@ -26,7 +26,7 @@ import {
   useTableCoreStore,
   useInitStore,
 } from '@/systems/vibegrid/stores/context'
-import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
+import { useEntityRecord } from '@/shared/data/db/hooks/useEntityRecord'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
@@ -596,7 +596,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   }, [])
 
   // Fetch project to get external_id for filtering
-  const { data: project, isLoading: projectLoading } = useEntityRecordQuery('GCProject', projectId)
+  const { record: project, isReady: projectReady } = useEntityRecord('GCProject', projectId)
 
   // Update project context
   useEffect(() => {
@@ -609,7 +609,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   const tableId = `project-${projectId}-files`
 
   // Loading state
-  if (projectLoading) {
+  if (!projectReady) {
     return (
       <>
         <Header>
