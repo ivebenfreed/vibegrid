@@ -77,25 +77,53 @@ export const VibeGridEntityAdd = observer(function VibeGridEntityAdd({
   const displayName =
     entityDisplayName || (entityName ? EntityNameUtils.toDisplayFormat(entityName) : 'Entity')
 
-  // Get form fields from columns (excluding system columns and non-editable read-only columns)
+  // Get form fields from columns (excluding system columns, internal fields, and non-editable read-only columns)
   const formFields = useMemo(() => {
     if (!columns || !Array.isArray(columns)) return []
 
-    return columns.filter((column) => {
+    // System fields that are auto-populated
+    const systemFieldIds = new Set([
+      'id',
+      'created_at',
+      'updated_at',
+      'organization_id',
+      'createdAt',
+      'updatedAt',
+      'created_by',
+    ])
+
+    // Internal/tracking fields that users should never fill in manually
+    const internalFieldIds = new Set([
+      'source_system',
+      'external_id',
+      'source_updated_at',
+      'sync_status',
+      'progress_percentage',
+    ])
+
+    const filtered = columns.filter((column) => {
       const isValidColumn = column && column.id
-      const isSystemField = [
-        'id',
-        'created_at',
-        'updated_at',
-        'organization_id',
-        'createdAt',
-        'updatedAt',
-      ].includes(column.id)
+      if (!isValidColumn) return false
+      if (systemFieldIds.has(column.id)) return false
+      if (internalFieldIds.has(column.id)) return false
       // Include addFormOnly fields (like password) even if hidden/non-editable
-      if ((column as any).addFormOnly) return isValidColumn && !isSystemField
+      if ((column as any).addFormOnly) return true
       // Exclude hidden non-editable fields that aren't meant for the form
       if (column.hidden && !column.editable) return false
-      return isValidColumn && !isSystemField
+      return true
+    })
+
+    // Sort fields: name first, then required fields, then optional fields
+    return filtered.sort((a, b) => {
+      // 'name' always comes first
+      if (a.id === 'name') return -1
+      if (b.id === 'name') return 1
+      // Required fields before optional
+      const aReq = a.required || a.validation?.required || false
+      const bReq = b.required || b.validation?.required || false
+      if (aReq && !bReq) return -1
+      if (!aReq && bReq) return 1
+      return 0
     })
   }, [columns])
 

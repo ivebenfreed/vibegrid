@@ -20,6 +20,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
+import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
@@ -141,7 +142,9 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         {/* Page Header with Actions */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{schema.entityName}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {EntityNameUtils.toDisplayFormat(schema.entityName)}
+            </h1>
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">
                 {listResult.pagination.total}{' '}
@@ -170,7 +173,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             disabled={isTransitionPending}
           >
             <PlusIcon className="mr-2 h-4 w-4" />
-            New {schema.entityName}
+            New {EntityNameUtils.toDisplayFormat(schema.entityName)}
           </Button>
         </div>
 
