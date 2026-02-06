@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { Page } from 'puppeteer-core'
+import type { Page } from 'playwright-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../setup/helpers'
 
 let page: Page

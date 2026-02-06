@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { Page, ElementHandle } from 'puppeteer-core'
+import type { Page, ElementHandle } from 'playwright-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
 
 let page: Page

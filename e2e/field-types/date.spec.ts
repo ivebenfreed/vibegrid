@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import type { Page, ElementHandle } from 'puppeteer-core'
+import type { Page, ElementHandle } from 'playwright-core'
 import { getTestPage, cleanupPage, BASE_URL } from '../../setup/helpers'
 
 let page: Page
@@ -290,7 +290,8 @@ describe('VibeGrid Date Field Type', () => {
       )
     })
 
-    const clearBtnElement = clearButton.asElement()
+    // In Playwright, JSHandle from evaluateHandle can be used directly as ElementHandle
+    const clearBtnElement = clearButton as ElementHandle | null
     if (clearBtnElement && (await isElementVisible(clearBtnElement))) {
       await clearBtnElement.click()
       await new Promise((r) => setTimeout(r, 500))

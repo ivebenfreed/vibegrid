@@ -5,7 +5,7 @@
  * Import these in test files instead of duplicating code.
  */
 
-import type { Page, ElementHandle } from 'puppeteer-core'
+import type { Page, ElementHandle } from 'playwright-core'
 
 /**
  * Check if an element is visible (has non-zero dimensions)
