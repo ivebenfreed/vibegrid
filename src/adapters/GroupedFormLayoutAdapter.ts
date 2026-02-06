@@ -170,7 +170,7 @@ export class GroupedFormLayoutAdapter implements CellLayoutAdapter {
     if (numColumns === 2) {
       // Two-column layout within group
       const isLeftColumn = location.fieldIndexInGroup % 2 === 0
-      const rowInGroup = Math.floor(location.fieldIndexInGroup / 2)
+      const _rowInGroup = Math.floor(location.fieldIndexInGroup / 2)
 
       // Left/Right navigation
       if (isLeftColumn && location.fieldIndexInGroup + 1 < group.fieldIds.length) {
@@ -264,7 +264,7 @@ export class GroupedFormLayoutAdapter implements CellLayoutAdapter {
   /**
    * Get field ID at specific position within a group
    */
-  getFieldAtPosition(row: number, col: number): string | null {
+  getFieldAtPosition(_row: number, _col: number): string | null {
     // This method doesn't make sense for grouped layout
     // since position is relative to group
     return null

@@ -47,4 +47,3 @@ describe('KanbanViewStore', () => {
     expect(updates[0]?.draft?.status).toBe('InProgress')
   })
 })
-

@@ -12,7 +12,7 @@ import React from 'react'
 import { getLogger } from '@/shared/lib/logging'
 // TODO: MultiSelect component doesn't exist - needs to be created or use ComboboxEditor with isMultiSelect
 // import { MultiSelect } from '@/shared/components/ui/multi-select';
-import type { CellRef, Column, EnumOption } from '../../types'
+import type { CellRef, Column } from '../../types'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'MultiSelectEditor'])
 
@@ -34,7 +34,7 @@ export function MultiSelectEditor({
   const [hasCommitted, setHasCommitted] = React.useState(false)
 
   // Convert column options to MultiSelect format, or generate from current value for tags
-  const options = React.useMemo(() => {
+  const _options = React.useMemo(() => {
     let rawOptions = column.options || column.enumOptions || []
 
     // For tags fields with no predefined options, generate from current value
@@ -66,7 +66,7 @@ export function MultiSelectEditor({
     })
   }, [column.options, column.enumOptions, initialValue])
 
-  const handleValueChange = (values: string[]) => {
+  const _handleValueChange = (values: string[]) => {
     if (hasCommitted) return
     setHasCommitted(true)
     onCommit(values)

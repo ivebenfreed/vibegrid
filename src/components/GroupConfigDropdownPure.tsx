@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, GripVertical, Plus, Settings2, X } from 'lucide-react'
+import { ChevronDown, GripVertical, Settings2, X } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { Badge } from '@/shared/components/ui/badge'
@@ -30,7 +30,7 @@ import {
 } from '@/shared/components/ui/dropdown-menu'
 import { formatFieldName } from '../column-defaults'
 import type { VibeGridStores } from '../stores/context'
-import type { Column, GroupConfig, GroupField } from '../types'
+import type { GroupConfig, GroupField } from '../types'
 
 interface GroupConfigDropdownPureProps {
   stores: VibeGridStores

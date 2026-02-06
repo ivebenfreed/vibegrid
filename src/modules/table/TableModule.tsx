@@ -8,7 +8,6 @@
  * @see Issue #1416 for architecture overview
  */
 
-import React from 'react'
 import type { GridModule, GridModuleRenderProps } from '../GridModule'
 import type { VibeGridStores } from '../../stores/context'
 import { getLogger } from '@/shared/lib/logging'

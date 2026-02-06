@@ -173,7 +173,7 @@ function MockVibeGridDragDrop() {
   // Create mock collection for TanStack DB integration
   const mockCollection = useMemo(() => {
     return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
+  }, [mockData])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -214,7 +214,7 @@ function MockVibeGridDragDrop() {
     setEnableFillHandle(true)
     setMockData(generateMockTasks(SCENARIOS.small.rowCount))
     setDataVersion((v) => v + 1)
-  }, [collectionId])
+  }, [])
 
   // Shuffle rows
   const handleShuffleRows = useCallback(() => {

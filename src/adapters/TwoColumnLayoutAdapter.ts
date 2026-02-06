@@ -171,9 +171,9 @@ export class TwoColumnLayoutAdapter implements CellLayoutAdapter {
    * Get field-specific CSS styles
    */
   getFieldStyle(fieldId: string): CSSProperties {
-    const position = this.getCellPosition(fieldId)
+    const _position = this.getCellPosition(fieldId)
     const index = this.fieldIdToIndex.get(fieldId) ?? 0
-    const isLastRow =
+    const _isLastRow =
       Math.floor(index / this.numCols) === Math.floor((this.columns.length - 1) / this.numCols)
     const isOddFieldCount = this.columns.length % 2 === 1
     const isLastField = index === this.columns.length - 1

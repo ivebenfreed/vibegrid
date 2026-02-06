@@ -1,5 +1,5 @@
 import { Clipboard, Copy, Minus, Plus, Scissors } from 'lucide-react'
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
 
 // ====================================
@@ -327,7 +327,7 @@ function ContextMenuContent({
 // LEGACY COMPONENT FOR DIRECT USE
 // ====================================
 
-export function ContextMenu(props: ContextMenuProps) {
+export function ContextMenu(_props: ContextMenuProps) {
   // For backward compatibility, render nothing - use ContextMenuManager instead
   return null
 }

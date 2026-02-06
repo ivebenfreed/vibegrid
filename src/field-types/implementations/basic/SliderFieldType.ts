@@ -27,7 +27,7 @@ export class SliderRenderer implements CellRenderer {
     const numValue = Number(value) || 0
     const min = column.validation?.min || 0
     const max = column.validation?.max || 100
-    const step = column.editor?.step || 1
+    const _step = column.editor?.step || 1
 
     // Progress bar representation
     const progressBar = document.createElement('div')
@@ -71,9 +71,6 @@ export class SliderRenderer implements CellRenderer {
 }
 
 export class SliderEditor implements CellEditor {
-  private currentElement: HTMLElement | null = null
-  private onSaveCallback: ((value: any) => void) | null = null
-
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 
@@ -134,7 +131,7 @@ export class SliderEditor implements CellEditor {
     const max = column.validation?.max || 100
     const errors: string[] = []
 
-    if (isNaN(numValue)) {
+    if (Number.isNaN(numValue)) {
       errors.push(`${column.name} must be a number`)
     } else if (numValue < min || numValue > max) {
       errors.push(`${column.name} must be between ${min} and ${max}`)
@@ -176,7 +173,7 @@ export const SliderFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🎯 Affordance Group System

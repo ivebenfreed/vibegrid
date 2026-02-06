@@ -61,7 +61,7 @@ export const ImageFieldType: VibeGridFieldType = {
   category: 'basic',
   renderer: new ImageRenderer(),
   editor: new (class implements CellEditor {
-    create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+    create(_value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
       const input = document.createElement('input')
       input.type = 'file'
       input.accept = 'image/*'

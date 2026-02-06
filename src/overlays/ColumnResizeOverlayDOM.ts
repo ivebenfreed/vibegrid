@@ -18,7 +18,6 @@ export interface ColumnResizeOverlayConfig {
 export class ColumnResizeOverlayDOM {
   private container: HTMLElement
   private config: ColumnResizeOverlayConfig
-  private coordinateMapping: CoordinateMapping | null = null
 
   // DOM elements
   private overlayContainer: HTMLDivElement | null = null

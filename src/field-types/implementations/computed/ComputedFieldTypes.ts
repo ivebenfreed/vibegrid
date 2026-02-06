@@ -9,7 +9,6 @@ import type {
   CellFormatter,
   CellRenderer,
   EnhancedColumn,
-  ValidationResult,
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 
@@ -28,7 +27,7 @@ export class ComputedRenderer implements CellRenderer {
           column.editor?.expression || column.validation?.expression,
           rowData,
         )
-      } catch (error) {
+      } catch (_error) {
         displayValue = 'Error'
       }
     }
@@ -67,7 +66,7 @@ export class ComputedRenderer implements CellRenderer {
     return ['computed_expression', 'computed_formula'].includes(type)
   }
 
-  private evaluateExpression(expression: string, rowData: any): number {
+  private evaluateExpression(expression: string, _rowData: any): number {
     // Simple expression evaluation for demo
     // In reality, this would use the backend ExpressionEvaluator
     try {

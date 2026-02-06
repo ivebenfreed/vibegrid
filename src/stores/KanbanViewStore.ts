@@ -8,7 +8,7 @@
  * - Status color mapping
  */
 
-import { action, computed, makeObservable, observable, runInAction } from 'mobx'
+import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
@@ -371,7 +371,8 @@ export class KanbanViewStore implements IStore {
       // Use the original value from the schema if available. If this is a
       // data-discovered column, resolve the original casing from row data to
       // avoid persisting the normalized/lowercased column id.
-      newStatus = colorOption?.value ?? this.resolveOriginalGroupValue(targetColumnId) ?? targetColumnId
+      newStatus =
+        colorOption?.value ?? this.resolveOriginalGroupValue(targetColumnId) ?? targetColumnId
     }
 
     logger.info('Moving card to new column', {

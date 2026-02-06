@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 
-const fileLog = getLogger(['vibegrid', 'components', 'TableSkeleton'])
+const _fileLog = getLogger(['vibegrid', 'components', 'TableSkeleton'])
 
 // ====================================
 // TABLE SKELETON COMPONENT

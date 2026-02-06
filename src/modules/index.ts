@@ -55,7 +55,7 @@ export function registerBuiltInModules(): void {
     {
       displayName: 'Kanban Board',
       icon: 'kanban',
-      canHandle: (props: GridModuleRenderProps) => {
+      canHandle: (_props: GridModuleRenderProps) => {
         // Kanban needs columns with a status-like field for grouping
         // For now, always return true - the module will auto-detect
         return true
@@ -74,7 +74,7 @@ export function registerBuiltInModules(): void {
     {
       displayName: 'Gantt Timeline',
       icon: 'gantt',
-      canHandle: (props: GridModuleRenderProps) => {
+      canHandle: (_props: GridModuleRenderProps) => {
         // Gantt needs date fields (start_date, end_date)
         // For now, always return true - the module will work without dates
         // but won't show bars

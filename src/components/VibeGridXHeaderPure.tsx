@@ -87,7 +87,16 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
     return () => {
       logger.info('🧹 VibeGridXHeaderPure UNMOUNTED')
     }
-  }, [])
+  }, [
+    createEntity,
+    enableGrouping,
+    entityName,
+    hiddenColumnCount,
+    orgId,
+    stores,
+    viewMode,
+    visualStateStore,
+  ])
 
   // Log on every render (data changes)
   logger.debug('🔄 VibeGridXHeaderPure RENDER', {

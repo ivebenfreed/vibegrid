@@ -12,7 +12,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -22,7 +21,7 @@ import type {
  * Color Cell Renderer
  */
 export class ColorRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     const container = document.createElement('div')
     const isEditable = column.editable !== false
 
@@ -144,7 +143,7 @@ export class ColorRenderer implements CellRenderer {
     return (type as string) === 'color'
   }
 
-  private formatValue(value: any, column: EnhancedColumn): string {
+  private formatValue(value: any, _column: EnhancedColumn): string {
     if (value == null) return ''
 
     const colorValue = String(value).trim()
@@ -214,7 +213,7 @@ export class ColorRenderer implements CellRenderer {
   }
 
   private applyDisplayMetadata(
-    container: HTMLElement,
+    _container: HTMLElement,
     swatch: HTMLElement,
     displayMetadata: any,
   ): void {
@@ -370,7 +369,7 @@ export class ColorEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -497,21 +496,6 @@ export class ColorEditor implements CellEditor {
     return 'named'
   }
 
-  private applyDisplayMetadata(
-    container: HTMLElement,
-    swatch: HTMLElement,
-    displayMetadata: any,
-  ): void {
-    if (displayMetadata.showColorPreview === false) {
-      swatch.style.display = 'none'
-    }
-
-    if (displayMetadata.swatchSize) {
-      swatch.style.width = `${displayMetadata.swatchSize}px`
-      swatch.style.height = `${displayMetadata.swatchSize}px`
-    }
-  }
-
   private handleSave(): void {
     if (this.currentElement && this.onSaveCallback) {
       const value = this.getValue(this.currentElement)
@@ -552,13 +536,12 @@ export class ColorFormatter implements CellFormatter {
         return this.hexToRgb(normalizedHex)
       case 'hsl':
         return this.hexToHsl(normalizedHex)
-      case 'hex':
       default:
         return normalizedHex
     }
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     if (text.trim() === '') return null
     return this.normalizeColor(text)
   }
@@ -567,7 +550,7 @@ export class ColorFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     return value == null ? '' : this.normalizeColor(value)
   }
 
@@ -681,7 +664,7 @@ export const ColorFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🎯 Affordance Group System

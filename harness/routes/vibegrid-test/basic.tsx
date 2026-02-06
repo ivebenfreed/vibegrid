@@ -111,7 +111,7 @@ function MockVibeGridBasic() {
   // This collection is passed to VibeGridStoreProvider to bypass API calls
   const mockCollection = useMemo(() => {
     return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion]) // Recreate when data version changes
+  }, [mockData]) // Recreate when data version changes
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -150,7 +150,7 @@ function MockVibeGridBasic() {
     setCustomCount(10)
     setMockData(generateMockTasks(SCENARIOS.small.rowCount))
     setDataVersion((v) => v + 1)
-  }, [collectionId])
+  }, [])
 
   return (
     <>

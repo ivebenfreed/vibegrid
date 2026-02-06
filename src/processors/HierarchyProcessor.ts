@@ -14,7 +14,7 @@ const fileLog = getLogger(['HierarchyProcessor'])
 // CONSTANTS
 // ====================================
 
-const DATA_ROW_HEIGHT = 40
+const _DATA_ROW_HEIGHT = 40
 const HIERARCHY_ROW_HEIGHT = 40 // Same as data rows, indentation shows hierarchy
 
 // ====================================

@@ -96,7 +96,7 @@ function FieldTypeTestRoute() {
   // Create mock collection for TanStack DB integration
   const mockCollection = useMemo(() => {
     return createMockEntityCollection(collectionId, mockData as any)
-  }, [collectionId, dataVersion])
+  }, [mockData])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -140,7 +140,7 @@ function FieldTypeTestRoute() {
     setCustomCount(10)
     setMockData(generateFieldTypeTestEntities(SCENARIOS.small.rowCount, { seed: 12345 }))
     setDataVersion((v) => v + 1)
-  }, [collectionId])
+  }, [])
 
   // Load test fixtures (known values for E2E assertions)
   const handleLoadFixtures = useCallback(() => {

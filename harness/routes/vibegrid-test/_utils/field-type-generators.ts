@@ -8,7 +8,7 @@
  */
 
 import { faker } from '@faker-js/faker'
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from './field-type-schema'
+import { STATUS_OPTIONS } from './field-type-schema'
 
 /**
  * Interface for field type test entity

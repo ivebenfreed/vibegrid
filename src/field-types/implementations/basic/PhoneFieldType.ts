@@ -12,7 +12,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -22,7 +21,7 @@ import type {
  * Phone Cell Renderer
  */
 export class PhoneRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     const container = document.createElement('span')
     const isEditable = column.editable !== false
     container.className = isEditable ? 'vibegridx-cell-phone-editable' : 'vibegridx-cell-phone'
@@ -111,7 +110,6 @@ export class PhoneRenderer implements CellRenderer {
         return this.formatNational(cleaned)
       case 'e164':
         return this.formatE164(cleaned)
-      case 'international':
       default:
         return this.formatInternational(cleaned)
     }
@@ -280,7 +278,7 @@ export class PhoneEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -339,7 +337,7 @@ export class PhoneEditor implements CellEditor {
     return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`
   }
 
-  private getPhoneFormat(input: HTMLInputElement): string {
+  private getPhoneFormat(_input: HTMLInputElement): string {
     // Would get from column metadata in real implementation
     return 'international'
   }
@@ -381,7 +379,7 @@ export class PhoneFormatter implements CellFormatter {
     return this.formatPhoneNumber(phoneValue, format)
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     if (text.trim() === '') return null
     return text.trim()
   }
@@ -390,7 +388,7 @@ export class PhoneFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     if (value == null) return ''
 
     // Export in E.164 format for consistency
@@ -414,7 +412,6 @@ export class PhoneFormatter implements CellFormatter {
         return this.formatNational(cleaned)
       case 'e164':
         return this.formatE164(cleaned)
-      case 'international':
       default:
         return this.formatInternational(cleaned)
     }
@@ -507,7 +504,7 @@ export const PhoneFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

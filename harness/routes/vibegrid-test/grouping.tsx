@@ -197,7 +197,7 @@ function MockVibeGridGrouping() {
   // Create mock collection for TanStack DB integration
   const mockCollection = useMemo(() => {
     return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
+  }, [mockData])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -250,7 +250,7 @@ function MockVibeGridGrouping() {
     setGroupBy('status')
     setMockData(generateMockTasksWithHierarchy(SCENARIOS.medium.rowCount))
     setDataVersion((v) => v + 1)
-  }, [collectionId])
+  }, [])
 
   // Toggle hierarchy
   const handleToggleHierarchy = useCallback(() => {

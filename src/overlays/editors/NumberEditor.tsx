@@ -71,7 +71,7 @@ export function NumberEditor({
       onCommit(null)
     } else {
       const numValue = parseFloat(value)
-      if (!isNaN(numValue)) {
+      if (!Number.isNaN(numValue)) {
         onCommit(numValue)
       } else {
         onCancel() // Invalid number, cancel edit

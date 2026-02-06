@@ -549,7 +549,7 @@ export class GanttViewStore implements IStore {
           progress = Math.max(0, Math.min(100, rawProgress))
         } else if (typeof rawProgress === 'string') {
           const parsed = parseFloat(rawProgress)
-          if (!isNaN(parsed)) {
+          if (!Number.isNaN(parsed)) {
             progress = Math.max(0, Math.min(100, parsed))
           }
         }
@@ -1489,7 +1489,7 @@ export class GanttViewStore implements IStore {
     if (value instanceof Date) return value
     if (typeof value === 'string') {
       const parsed = new Date(value)
-      return isNaN(parsed.getTime()) ? null : parsed
+      return Number.isNaN(parsed.getTime()) ? null : parsed
     }
     if (typeof value === 'number') return new Date(value)
     return null

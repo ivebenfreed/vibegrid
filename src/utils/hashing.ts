@@ -2,7 +2,7 @@ import { hash } from 'ohash'
 import { getLogger } from '@/shared/lib/logging'
 import type { Column } from '../types'
 
-const logger = getLogger(['vibegrid', 'utils', 'hashing'])
+const _logger = getLogger(['vibegrid', 'utils', 'hashing'])
 
 // Metadata columns excluded from change detection
 // Include both camelCase and snake_case variants since data may come in either format
@@ -102,7 +102,7 @@ export function normalizeValue(column: Column, value: any): any {
   // This handles complex field types consistently
   try {
     return JSON.stringify(value)
-  } catch (e) {
+  } catch (_e) {
     return String(value)
   }
 }

@@ -16,7 +16,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   RelationshipData,
   RelationshipOption,
   ValidationResult,
@@ -34,7 +33,7 @@ export class UserDataLoader implements AsyncDataLoader {
   async loadRelationshipData(
     column: EnhancedColumn,
     rowIds: string[],
-    tableCore$: TableCoreStore,
+    _tableCore$: TableCoreStore,
   ): Promise<RelationshipData> {
     const orgId = this.getOrgId()
 
@@ -57,7 +56,7 @@ export class UserDataLoader implements AsyncDataLoader {
 
   resolveDisplayValue(
     value: any,
-    column: EnhancedColumn,
+    _column: EnhancedColumn,
     relationshipData: RelationshipData,
   ): string {
     if (value == null) return ''
@@ -325,7 +324,7 @@ export class UserReferenceRenderer implements CellRenderer {
   private async loadAndRenderUser(
     container: HTMLElement,
     userId: string,
-    column: EnhancedColumn,
+    _column: EnhancedColumn,
     tableCoreStore?: TableCoreStore,
   ) {
     try {
@@ -371,10 +370,6 @@ export class UserReferenceRenderer implements CellRenderer {
  * User Reference Cell Editor - Uses ComboboxEditor with user data
  */
 export class UserReferenceEditor implements CellEditor {
-  private dataLoader = new UserDataLoader()
-  private currentElement: HTMLElement | null = null
-  private onSaveCallback: ((value: any) => void) | null = null
-
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
     // Create React ComboboxEditor with user options
@@ -472,7 +467,7 @@ export class UserReferenceEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -488,123 +483,6 @@ export class UserReferenceEditor implements CellEditor {
   requiresAsyncOptions(): boolean {
     return true
   }
-
-  private async handleSearch(
-    query: string,
-    column: EnhancedColumn,
-    container: HTMLElement,
-  ): Promise<void> {
-    if (query.length < 2) return
-
-    try {
-      const suggestions = await this.dataLoader.getSearchSuggestions(query, column, 5)
-      this.showSuggestions(suggestions, container, column)
-    } catch (error) {
-      logger.error('User search failed', { error, query })
-    }
-  }
-
-  private showSuggestions(
-    suggestions: RelationshipOption[],
-    container: HTMLElement,
-    column: EnhancedColumn,
-  ): void {
-    // Remove existing suggestions
-    const existingDropdown = container.querySelector('.vibegridx-user-suggestions')
-    if (existingDropdown) {
-      existingDropdown.remove()
-    }
-
-    if (suggestions.length === 0) return
-
-    // Create suggestions dropdown
-    const dropdown = document.createElement('div')
-    dropdown.className = 'vibegridx-user-suggestions'
-    dropdown.style.cssText = `
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: white;
-      border: 1px solid #d1d5db;
-      border-radius: 4px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      max-height: 200px;
-      overflow-y: auto;
-      z-index: 1000;
-    `
-
-    suggestions.forEach((suggestion) => {
-      const option = document.createElement('div')
-      option.className = 'vibegridx-user-option'
-      option.style.cssText = `
-        padding: 8px 12px;
-        cursor: pointer;
-        border-bottom: 1px solid #f3f4f6;
-        transition: background-color 0.1s;
-      `
-
-      option.innerHTML = `
-        <div style="font-weight: 500;">${suggestion.label}</div>
-        ${suggestion.metadata?.email ? `<div style="font-size: 12px; color: #6b7280;">${suggestion.metadata.email}</div>` : ''}
-      `
-
-      option.addEventListener('mouseenter', () => {
-        option.style.backgroundColor = '#f3f4f6'
-      })
-
-      option.addEventListener('mouseleave', () => {
-        option.style.backgroundColor = ''
-      })
-
-      option.addEventListener('click', () => {
-        this.selectUser(suggestion, container)
-      })
-
-      dropdown.appendChild(option)
-    })
-
-    container.appendChild(dropdown)
-  }
-
-  private selectUser(suggestion: RelationshipOption, container: HTMLElement): void {
-    const input = container.querySelector('input') as HTMLInputElement
-    if (input) {
-      input.value = suggestion.label
-      input.dataset.selectedUserId = suggestion.value
-    }
-
-    // Remove suggestions dropdown
-    const dropdown = container.querySelector('.vibegridx-user-suggestions')
-    if (dropdown) {
-      dropdown.remove()
-    }
-
-    // Save the selection
-    if (this.onSaveCallback) {
-      this.onSaveCallback(suggestion.value)
-    }
-  }
-
-  private handleSave(): void {
-    if (this.currentElement && this.onSaveCallback) {
-      const value = this.getValue(this.currentElement)
-      this.onSaveCallback(value)
-    }
-  }
-
-  private handleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      this.handleSave()
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      if (this.currentElement) {
-        const input = this.currentElement.querySelector('input')
-        if (input) input.blur()
-      }
-    }
-  }
 }
 
 /**
@@ -617,7 +495,7 @@ export class UserReferenceFormatter implements CellFormatter {
     return this.formatForDisplay(value, column)
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     // For user references, we typically need the user ID
@@ -637,7 +515,7 @@ export class UserReferenceFormatter implements CellFormatter {
     return value ? `User ${String(value).slice(-4)}` : ''
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     return value == null ? '' : String(value)
   }
 }
@@ -698,7 +576,7 @@ export const UserReferenceFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

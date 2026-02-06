@@ -137,7 +137,6 @@ export class InlineRowLayoutAdapter implements CellLayoutAdapter {
       case 'content':
         // Fields sized by content
         return `repeat(${this.columns.length}, auto)`
-      case 'auto':
       default:
         // Mix of auto and min-content based on field type
         return this.columns
@@ -187,7 +186,6 @@ export class InlineRowLayoutAdapter implements CellLayoutAdapter {
       case 'content':
         baseStyle.flex = '0 0 auto'
         break
-      case 'auto':
       default:
         // Use column width hint or auto
         if (column?.width) {

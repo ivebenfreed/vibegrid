@@ -202,7 +202,7 @@ function MockVibeGridGantt() {
   // Create mock collection for TanStack DB integration
   const mockCollection = useMemo(() => {
     return createMockEntityCollection(collectionId, mockData)
-  }, [collectionId, dataVersion])
+  }, [mockData])
 
   // Add a new row
   const handleAddRow = useCallback(() => {
@@ -246,7 +246,7 @@ function MockVibeGridGantt() {
     setMockData(generateMockTasksForGantt(SCENARIOS.small.rowCount))
     setDependencies([])
     setDataVersion((v) => v + 1)
-  }, [collectionId])
+  }, [])
 
   // Generate dependencies
   const handleGenerateDependencies = useCallback(() => {

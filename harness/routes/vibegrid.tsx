@@ -14,7 +14,7 @@ import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { DataControls } from './_components/DataControls'
 import { createSmallScenario, getScenarioById, type TestScenario } from './_mock-data/scenarios'
-import { generateMockTask, type MockTask } from './_mock-data/generators'
+import type { MockTask } from './_mock-data/generators'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
   component: DebugVibeGridPage,

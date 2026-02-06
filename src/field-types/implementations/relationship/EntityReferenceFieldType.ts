@@ -17,7 +17,6 @@ import type {
   EnhancedColumn,
   RelationshipData,
   RelationshipOption,
-  ValidationResult,
   VibeGridFieldType,
 } from '../../FieldTypeRegistry'
 
@@ -29,7 +28,7 @@ export class EntityDataLoader implements AsyncDataLoader {
   async loadRelationshipData(
     column: EnhancedColumn,
     rowIds: string[],
-    tableCore$: TableCoreStore,
+    _tableCore$: TableCoreStore,
   ): Promise<RelationshipData> {
     const orgId = this.getOrgId()
     const targetEntity =
@@ -131,7 +130,7 @@ export class EntityDataLoader implements AsyncDataLoader {
 export class EntityReferenceRenderer implements CellRenderer {
   private disposers: Array<() => void> = []
 
-  constructor(private dataLoader: EntityDataLoader) {}
+  constructor(_dataLoader: EntityDataLoader) {}
 
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
@@ -515,7 +514,7 @@ export const EntityReferenceFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 Interaction policy

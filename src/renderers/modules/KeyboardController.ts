@@ -165,7 +165,7 @@ export class KeyboardController {
    */
   private handleEditModeKey(event: KeyboardEvent): void {
     const key = event.key
-    const isCtrlKey = event.ctrlKey || event.metaKey
+    const _isCtrlKey = event.ctrlKey || event.metaKey
 
     // Allow native editor shortcuts (don't steal from editor)
     if (this.isNativeEditorShortcut(event)) {

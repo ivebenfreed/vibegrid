@@ -67,7 +67,7 @@ export const MarkdownFieldType: VibeGridFieldType = {
   category: 'basic',
   renderer: new MarkdownRenderer(),
   editor: new (class implements CellEditor {
-    create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+    create(value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
       const textarea = document.createElement('textarea')
       textarea.value = value || ''
       textarea.rows = 4

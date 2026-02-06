@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/components/ui/select'
-import { Plus, Trash2, RefreshCw, Download, RotateCcw } from 'lucide-react'
+import { Plus, Trash2, Download, RotateCcw } from 'lucide-react'
 
 // Scenario types
 export type ScenarioName = 'empty' | 'small' | 'medium' | 'large'
@@ -117,7 +117,7 @@ export function MockDataControls({
                 id="custom-count"
                 type="number"
                 value={customCount}
-                onChange={(e) => onCustomCountChange(Number.parseInt(e.target.value) || 0)}
+                onChange={(e) => onCustomCountChange(Number.parseInt(e.target.value, 10) || 0)}
                 className="w-24"
                 min={0}
                 max={1000}

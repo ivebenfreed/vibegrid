@@ -12,7 +12,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -27,7 +26,7 @@ interface CurrencyValue {
  * Currency Cell Renderer
  */
 export class CurrencyRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     const container = document.createElement('span')
     const isEditable = column.editable !== false
 
@@ -88,7 +87,7 @@ export class CurrencyRenderer implements CellRenderer {
     return (type as string) === 'currency'
   }
 
-  private formatValue(value: any, column: EnhancedColumn): string {
+  private formatValue(value: any, _column: EnhancedColumn): string {
     if (value == null) return ''
 
     const currencyData = this.parseCurrencyValue(value)
@@ -122,7 +121,7 @@ export class CurrencyEditor implements CellEditor {
   private currentElement: HTMLElement | null = null
   private onSaveCallback: ((value: any) => void) | null = null
 
-  create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
+  create(value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 
     const container = document.createElement('div')
@@ -198,7 +197,7 @@ export class CurrencyEditor implements CellEditor {
       const amount = parseFloat(amountInput.value)
       const currency = currencySelect.value
 
-      if (isNaN(amount)) return null
+      if (Number.isNaN(amount)) return null
 
       return {
         amount,
@@ -229,7 +228,7 @@ export class CurrencyEditor implements CellEditor {
 
     const currencyData = this.parseCurrencyValue(value)
 
-    if (isNaN(currencyData.amount)) {
+    if (Number.isNaN(currencyData.amount)) {
       errors.push(`${column.name} amount must be a valid number`)
     }
 
@@ -244,7 +243,7 @@ export class CurrencyEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -310,7 +309,7 @@ export class CurrencyEditor implements CellEditor {
  * Currency Cell Formatter
  */
 export class CurrencyFormatter implements CellFormatter {
-  format(value: any, column: EnhancedColumn, context?: FormattingContext): string {
+  format(value: any, _column: EnhancedColumn, context?: FormattingContext): string {
     if (value == null) return ''
 
     const currencyData = this.parseCurrencyValue(value)
@@ -322,7 +321,7 @@ export class CurrencyFormatter implements CellFormatter {
     }).format(currencyData.amount)
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     // Parse currency string like "$123.45" or "123.45 USD"
@@ -340,7 +339,7 @@ export class CurrencyFormatter implements CellFormatter {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     if (value == null) return ''
 
     const currencyData = this.parseCurrencyValue(value)
@@ -396,7 +395,7 @@ export const CurrencyFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🎯 Affordance Group System

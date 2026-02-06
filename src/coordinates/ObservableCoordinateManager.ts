@@ -56,7 +56,7 @@ export class ObservableCoordinateManager {
 
     // Subscribe to coordinator changes to update observable version
     // Must use runInAction since this callback runs outside of MobX action context
-    this.disposeListener = this.coordinator.subscribe((event) => {
+    this.disposeListener = this.coordinator.subscribe((_event) => {
       runInAction(() => {
         this.version++
       })

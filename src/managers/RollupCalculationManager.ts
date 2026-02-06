@@ -33,7 +33,7 @@ export abstract class BaseRollupCalculator implements RollupCalculator {
   getSourceData(
     rollupConfig: RollupConfig,
     currentRowId: string,
-    tableCore$: TableCoreStore,
+    _tableCore$: TableCoreStore,
   ): any[] {
     // This would integrate with the table's data to get related records
     // For now, return empty array - will be implemented when integrating with table
@@ -45,7 +45,7 @@ export abstract class BaseRollupCalculator implements RollupCalculator {
     return []
   }
 
-  shouldRecalculate(changeEvent: EntityChangeEvent): boolean {
+  shouldRecalculate(_changeEvent: EntityChangeEvent): boolean {
     // Base implementation - recalculate if the source entity type matches
     return true // For now, always recalculate
   }
@@ -67,7 +67,7 @@ export abstract class BaseRollupCalculator implements RollupCalculator {
  * Count rollup calculator
  */
 export class RollupCountCalculator extends BaseRollupCalculator {
-  calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): number {
+  calculate(rollupConfig: RollupConfig, sourceData: any[], _currentRowId: string): number {
     let filteredData = sourceData
 
     // Apply conditions if specified
@@ -89,7 +89,7 @@ export class RollupCountCalculator extends BaseRollupCalculator {
  * Sum rollup calculator
  */
 export class RollupSumCalculator extends BaseRollupCalculator {
-  calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): number {
+  calculate(rollupConfig: RollupConfig, sourceData: any[], _currentRowId: string): number {
     if (!rollupConfig.sourceField) {
       fileLog.warn('Sum rollup missing sourceField', { rollupConfig })
       return 0
@@ -107,7 +107,7 @@ export class RollupSumCalculator extends BaseRollupCalculator {
     const sum = filteredData.reduce((total, item) => {
       const value = item[rollupConfig.sourceField!]
       const numValue = Number(value)
-      return total + (isNaN(numValue) ? 0 : numValue)
+      return total + (Number.isNaN(numValue) ? 0 : numValue)
     }, 0)
 
     // Apply precision if specified
@@ -127,7 +127,7 @@ export class RollupSumCalculator extends BaseRollupCalculator {
  * Average rollup calculator
  */
 export class RollupAverageCalculator extends BaseRollupCalculator {
-  calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): number {
+  calculate(rollupConfig: RollupConfig, sourceData: any[], _currentRowId: string): number {
     if (!rollupConfig.sourceField) {
       fileLog.warn('Average rollup missing sourceField', { rollupConfig })
       return 0
@@ -147,7 +147,7 @@ export class RollupAverageCalculator extends BaseRollupCalculator {
     const sum = filteredData.reduce((total, item) => {
       const value = item[rollupConfig.sourceField!]
       const numValue = Number(value)
-      return total + (isNaN(numValue) ? 0 : numValue)
+      return total + (Number.isNaN(numValue) ? 0 : numValue)
     }, 0)
 
     const average = sum / filteredData.length
@@ -169,7 +169,7 @@ export class RollupAverageCalculator extends BaseRollupCalculator {
  * Concatenation rollup calculator
  */
 export class RollupConcatCalculator extends BaseRollupCalculator {
-  calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): string {
+  calculate(rollupConfig: RollupConfig, sourceData: any[], _currentRowId: string): string {
     if (!rollupConfig.sourceField) {
       fileLog.warn('Concat rollup missing sourceField', { rollupConfig })
       return ''

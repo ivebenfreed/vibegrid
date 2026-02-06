@@ -196,62 +196,6 @@ export class EventManager {
   }
 
   /**
-   * Handle insert row action
-   */
-  private handleInsertRowAction(): void {
-    fileLog.debug('➕ Insert row action triggered')
-
-    // Get the current selection to determine insertion point
-    const selectedCells = this.interactionStore.selectedCells
-    let insertionIndex = 0
-
-    if (selectedCells.size > 0) {
-      // Find the minimum row index from selected cells
-      const rowIds = Array.from(selectedCells).map((cellId) => cellId.split(':')[0])
-      const uniqueRowIds = [...new Set(rowIds)]
-      const rows = this.tableCoreStore.processedRows
-
-      const rowIndices = uniqueRowIds
-        .map((rowId) => rows.findIndex((row: any) => row.id === rowId))
-        .filter((index) => index !== -1)
-
-      if (rowIndices.length > 0) {
-        insertionIndex = Math.min(...rowIndices)
-      }
-    }
-
-    // Trigger row insertion via tableCoreStore
-    this.tableCoreStore.insertRow()
-
-    this.overlayManager?.hideContextMenu()
-  }
-
-  /**
-   * Handle delete row action
-   */
-  private handleDeleteRowAction(): void {
-    fileLog.debug('➖ Delete row action triggered')
-
-    const selectedCells = this.interactionStore.selectedCells
-    if (selectedCells.size === 0) {
-      fileLog.debug('➖ No cells selected for row deletion')
-      return
-    }
-
-    // Get unique row IDs from selected cells
-    const rowIds = Array.from(selectedCells).map((cellId) => cellId.split(':')[0])
-    const uniqueRowIds = [...new Set(rowIds)]
-
-    // Trigger row deletion via tableCoreStore
-    uniqueRowIds.forEach((rowId) => {
-      this.tableCoreStore.deleteRow()
-    })
-
-    fileLog.debug('➖ Delete rows completed', { rowCount: uniqueRowIds.length })
-    this.overlayManager?.hideContextMenu()
-  }
-
-  /**
    * Handle undo action
    */
   handleUndoAction(): void {

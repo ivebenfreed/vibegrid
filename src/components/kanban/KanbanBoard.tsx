@@ -6,7 +6,6 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import React from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import { useKanbanViewStore } from '../../stores/context'
 import { KanbanColumn } from './KanbanColumn'

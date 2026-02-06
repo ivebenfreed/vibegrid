@@ -12,7 +12,6 @@ import type {
   CellRenderer,
   CellValidator,
   EnhancedColumn,
-  FieldMetadata,
   FormattingContext,
   ValidationResult,
   VibeGridFieldType,
@@ -22,7 +21,7 @@ import type {
  * Number Cell Renderer
  */
 export class NumberRenderer implements CellRenderer {
-  render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
+  render(value: any, column: EnhancedColumn, _rowData: any): HTMLElement {
     const container = document.createElement('span')
     const isEditable = column.editable !== false
 
@@ -98,7 +97,7 @@ export class NumberRenderer implements CellRenderer {
     if (value == null) return ''
 
     const numValue = Number(value)
-    if (isNaN(numValue)) return String(value)
+    if (Number.isNaN(numValue)) return String(value)
 
     const type = column.cellType || column.type || 'number'
 
@@ -124,8 +123,6 @@ export class NumberRenderer implements CellRenderer {
           currency: currency,
         }).format(numValue)
       }
-
-      case 'number':
       default:
         return numValue.toLocaleString()
     }
@@ -165,7 +162,7 @@ export class NumberEditor implements CellEditor {
 
     // Set initial value
     const numValue = value != null ? Number(value) : ''
-    input.value = isNaN(Number(numValue)) ? '' : String(numValue)
+    input.value = Number.isNaN(Number(numValue)) ? '' : String(numValue)
 
     // Apply styling
     input.className = 'vibegridx-number-editor'
@@ -215,7 +212,7 @@ export class NumberEditor implements CellEditor {
       if (value === '') return null
 
       const numValue = Number(value)
-      return isNaN(numValue) ? null : numValue
+      return Number.isNaN(numValue) ? null : numValue
     }
     return null
   }
@@ -223,7 +220,7 @@ export class NumberEditor implements CellEditor {
   setValue(element: HTMLElement, value: any): void {
     if (element instanceof HTMLInputElement) {
       const numValue = value != null ? Number(value) : ''
-      element.value = isNaN(Number(numValue)) ? '' : String(numValue)
+      element.value = Number.isNaN(Number(numValue)) ? '' : String(numValue)
     }
   }
 
@@ -241,7 +238,7 @@ export class NumberEditor implements CellEditor {
     const numValue = Number(value)
 
     // Check if it's a valid number
-    if (isNaN(numValue)) {
+    if (Number.isNaN(numValue)) {
       errors.push(`${column.name} must be a valid number`)
       return { valid: false, errors, transformedValue: value }
     }
@@ -275,7 +272,7 @@ export class NumberEditor implements CellEditor {
     }
   }
 
-  destroy(element: HTMLElement): void {
+  destroy(_element: HTMLElement): void {
     this.currentElement = null
     this.onSaveCallback = null
   }
@@ -377,7 +374,7 @@ export class NumberFormatter implements CellFormatter {
     if (value == null) return ''
 
     const numValue = Number(value)
-    if (isNaN(numValue)) return String(value)
+    if (Number.isNaN(numValue)) return String(value)
 
     const type = column.cellType || column.type || 'number'
     const locale = context?.locale || 'en-US'
@@ -408,28 +405,26 @@ export class NumberFormatter implements CellFormatter {
           currency: currency,
         }).format(numValue)
       }
-
-      case 'number':
       default:
         return numValue.toLocaleString(locale)
     }
   }
 
-  parse(text: string, column: EnhancedColumn): any {
+  parse(text: string, _column: EnhancedColumn): any {
     if (text.trim() === '') return null
 
     // Remove common formatting characters
     const cleanText = text.replace(/[,$%]/g, '')
 
     const numValue = Number(cleanText)
-    return isNaN(numValue) ? null : numValue
+    return Number.isNaN(numValue) ? null : numValue
   }
 
   formatForDisplay(value: any, column: EnhancedColumn): string {
     return this.format(value, column)
   }
 
-  formatForExport(value: any, column: EnhancedColumn): string {
+  formatForExport(value: any, _column: EnhancedColumn): string {
     return value == null ? '' : String(value)
   }
 }
@@ -489,7 +484,7 @@ export const NumberFieldType: VibeGridFieldType = {
   },
   getFormatter() {
     const fmt = this.formatter
-    return (value: any, rowData?: any, column?: any) => fmt.format(value, column)
+    return (value: any, _rowData?: any, column?: any) => fmt.format(value, column)
   },
 
   // 🚀 NEW: Interaction policy

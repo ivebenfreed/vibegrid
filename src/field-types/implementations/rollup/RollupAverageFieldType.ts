@@ -49,7 +49,7 @@ export class RollupAverageRenderer implements CellRenderer {
     return container
   }
 
-  update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+  update(element: HTMLElement, value: any, _column: EnhancedColumn): void {
     const valueSpan = element.querySelector('.vibegridx-rollup-value')
     if (valueSpan) valueSpan.textContent = value ? Number(value).toFixed(2) : '0.00'
   }

@@ -71,7 +71,7 @@ export interface GridModule {
    * @param stores - The VibeGrid store context
    * @returns Cleanup function (called when view mode changes or grid unmounts)
    */
-  init?: (stores: VibeGridStores) => void | (() => void)
+  init?: (stores: VibeGridStores) => undefined | (() => void)
 
   /**
    * Render the view mode UI.
