@@ -22,6 +22,7 @@ export class ColumnDragOverlayDOM {
   private container: HTMLElement
   private config: ColumnDragOverlayConfig
   private coordinateMapping: CoordinateMapping | null = null
+  private dragState: ColumnDragState | null = null
 
   // DOM elements
   private overlayContainer: HTMLDivElement | null = null

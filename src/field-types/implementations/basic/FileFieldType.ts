@@ -168,6 +168,7 @@ export class FileRenderer implements CellRenderer {
 
 export class FileEditor implements CellEditor {
   private onSaveCallback: ((value: any) => void) | null = null
+  private currentElement: HTMLElement | null = null
 
   create(_value: any, _column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave

@@ -44,7 +44,7 @@ function createTestModule(
   id: string,
   displayName: string,
   options?: {
-    init?: (stores: VibeGridStores) => void | (() => void)
+    init?: (stores: VibeGridStores) => undefined | (() => void)
     registerSlots?: (slotRegistry: SlotRegistry) => void
   },
 ): GridModule {
@@ -988,6 +988,7 @@ describe('Edge Cases and Error Handling', () => {
         createTestModule('void-init', 'Void Init', {
           init: () => {
             // Init with no cleanup
+            return undefined
           },
         }),
       { displayName: 'Void Init' },

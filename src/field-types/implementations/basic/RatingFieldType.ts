@@ -63,6 +63,9 @@ export class RatingRenderer implements CellRenderer {
 }
 
 export class RatingEditor implements CellEditor {
+  private onSaveCallback: ((value: any) => void) | null = null
+  private currentElement: HTMLElement | null = null
+
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
     this.onSaveCallback = onSave
 

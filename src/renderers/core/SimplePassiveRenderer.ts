@@ -13,7 +13,7 @@ import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 import { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
 import { modularCellBridge } from '../../field-types'
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler'
-import { CellActionRouter } from '../../routing/CellActionRouter'
+import { CellActionRouter, type OnCellClickCallback } from '../../routing/CellActionRouter'
 import { SelectionService } from '../../services/SelectionService'
 import { positionTracker } from '../../stores/dom-position-state'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
@@ -1363,7 +1363,7 @@ export class SimplePassiveRenderer {
       )
 
       // Create CellActionRouter (using EditingStore directly)
-      this.cellActionRouter = new CellActionRouter(this.editingStore, this.options.onCellClick)
+      this.cellActionRouter = new CellActionRouter(this.editingStore, this.options.onCellClick as OnCellClickCallback | undefined)
 
       // Create InteractionCoordinator (using EditingStore directly)
       this.interactionCoordinator = new InteractionCoordinator(
