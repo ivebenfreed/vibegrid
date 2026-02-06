@@ -130,32 +130,7 @@ export function RichTextEditor({
     }
   }, [isOpen])
 
-  // Handle escape key to close modal
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        e.preventDefault()
-        e.stopPropagation()
-        handleCancel()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape, { capture: true })
-      return () => document.removeEventListener('keydown', handleEscape, { capture: true })
-    }
-  }, [isOpen, isDirty])
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-      return () => {
-        document.body.style.overflow = ''
-      }
-    }
-  }, [isOpen])
-
+  // Handler functions (declared before useEffect that uses them)
   const handleInput = () => {
     if (editorRef.current) {
       const newContent = editorRef.current.innerHTML
@@ -177,7 +152,7 @@ export function RichTextEditor({
     onCommit(content)
   }
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (isDirty) {
       const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
       if (!confirmed) return
@@ -188,7 +163,33 @@ export function RichTextEditor({
       isDirty,
     })
     onCancel()
-  }
+  }, [isDirty, cell.rowId, cell.columnId, onCancel])
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleCancel()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape, { capture: true })
+      return () => document.removeEventListener('keydown', handleEscape, { capture: true })
+    }
+  }, [isOpen, handleCancel])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [isOpen])
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === modalRef.current) {

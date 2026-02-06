@@ -1,10 +1,9 @@
 import { format, getHours, getMinutes, parseISO, set } from 'date-fns'
-import { CalendarIcon, ClockIcon, XIcon } from 'lucide-react'
+import { CalendarIcon, ClockIcon } from 'lucide-react'
 import React from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Calendar } from '@/shared/components/ui/calendar'
 import { Input } from '@/shared/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import type { CellRef, Column } from '../../types'
 
 interface DateEditorProps {
@@ -25,24 +24,12 @@ export function DateEditor({
   includeTime = false,
 }: DateEditorProps) {
   const [value, setValue] = React.useState(initialValue || '')
-  const [isCalendarOpen, setIsCalendarOpen] = React.useState(true) // Open by default
+  const [_isCalendarOpen, setIsCalendarOpen] = React.useState(true) // Open by default
   const [selectedTime, setSelectedTime] = React.useState({ hours: 12, minutes: 0 })
   const [showTimePicker, setShowTimePicker] = React.useState(false)
 
-  // Initialize time from existing value
-  React.useEffect(() => {
-    if (initialValue && includeTime) {
-      const parsedDate = parseDate(initialValue)
-      if (parsedDate) {
-        setSelectedTime({
-          hours: getHours(parsedDate),
-          minutes: getMinutes(parsedDate),
-        })
-      }
-    }
-  }, [initialValue, includeTime])
-
-  const parseDate = (dateString: string): Date | null => {
+  // Parse date helper (declared before useEffect that uses it)
+  const parseDate = React.useCallback((dateString: string): Date | null => {
     if (!dateString) return null
     try {
       // For date-only strings (YYYY-MM-DD), parse as local date
@@ -55,7 +42,20 @@ export function DateEditor({
     } catch {
       return null
     }
-  }
+  }, [])
+
+  // Initialize time from existing value
+  React.useEffect(() => {
+    if (initialValue && includeTime) {
+      const parsedDate = parseDate(initialValue)
+      if (parsedDate) {
+        setSelectedTime({
+          hours: getHours(parsedDate),
+          minutes: getMinutes(parsedDate),
+        })
+      }
+    }
+  }, [initialValue, includeTime, parseDate])
 
   const formatDate = (date: Date | null): string => {
     if (!date) return ''
@@ -65,7 +65,7 @@ export function DateEditor({
     return format(date, 'yyyy-MM-dd')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const _handleKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'Enter':
         e.preventDefault()

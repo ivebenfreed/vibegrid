@@ -6,7 +6,7 @@
  */
 
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ReactDOM from 'react-dom'
 import {
   AlertDialog,
@@ -78,32 +78,7 @@ export function LongTextEditor({
     }
   }, [isOpen])
 
-  // Handle escape key to close modal
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        e.preventDefault()
-        e.stopPropagation()
-        handleCancel()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape, { capture: true })
-      return () => document.removeEventListener('keydown', handleEscape, { capture: true })
-    }
-  }, [isOpen, isDirty])
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-      return () => {
-        document.body.style.overflow = ''
-      }
-    }
-  }, [isOpen])
-
+  // Handler functions (declared before useEffect that uses them)
   const handleChange = (newValue: string) => {
     setValue(newValue)
     setIsDirty(newValue !== initialValue)
@@ -118,7 +93,7 @@ export function LongTextEditor({
     onCommit(value)
   }
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (isDirty) {
       setShowDiscardDialog(true)
       return
@@ -129,7 +104,33 @@ export function LongTextEditor({
       isDirty,
     })
     onCancel()
-  }
+  }, [isDirty, cell.rowId, cell.columnId, onCancel])
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleCancel()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape, { capture: true })
+      return () => document.removeEventListener('keydown', handleEscape, { capture: true })
+    }
+  }, [isOpen, handleCancel])
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [isOpen])
 
   const handleConfirmDiscard = () => {
     setShowDiscardDialog(false)

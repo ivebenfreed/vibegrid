@@ -156,6 +156,7 @@ export class EditingStore implements IStore {
   // ====================================
 
   private tableCoreStore: TableCoreStore
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned in constructor for future use
   private visualStateStore: VisualStateStore
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for mutations
@@ -233,12 +234,16 @@ export class EditingStore implements IStore {
    */
   @action
   startEdit(cellId: string, column: any): void {
-    console.log('🔥 START_EDIT CALLED', { cellId, column: column?.id })
     const [rowId, columnId] = cellId.split(':')
 
     // CONSISTENT VALUE LOOKUP (fixes keyboard vs click desync)
     // Always use column.field + row.data[field]
-    const { row, rowData, currentValue, dataField } = untracked(() => {
+    const {
+      row: _row,
+      rowData,
+      currentValue,
+      dataField,
+    } = untracked(() => {
       const processedRows = this.tableCoreStore.processedRows || []
       const foundRow = processedRows.find((r: any) => r.id === rowId)
       const field = column.field || columnId
@@ -291,15 +296,6 @@ export class EditingStore implements IStore {
       fileLog.warn('updatePendingValue called but no active session')
       return
     }
-
-    console.log(
-      '🔥 UPDATE_PENDING_VALUE',
-      JSON.stringify({
-        cellId: this.currentSession.cellId,
-        oldValue: this.currentSession.pendingValue ?? 'null',
-        newValue: value ?? 'null',
-      }),
-    )
     fileLog.debug('Updating pending value', {
       cellId: this.currentSession.cellId,
       oldValue: this.currentSession.pendingValue,
@@ -425,18 +421,6 @@ export class EditingStore implements IStore {
 
     // Clear session BEFORE async save (prevents double-commit)
     const sessionToSave = this.currentSession
-    console.log(
-      '🔥 CLEARING SESSION in commitEdit',
-      JSON.stringify({
-        cellId,
-        reason,
-        explicitValue: explicitValue ?? 'undefined',
-        finalValue: valueToSave ?? 'null',
-        pendingValue: this.currentSession?.pendingValue ?? 'null',
-        originalValue: this.currentSession?.originalValue ?? 'null',
-      }),
-    )
-    console.trace('🔥 COMMIT STACK TRACE')
     this.currentSession = null
     this.sessionReady = false
 
@@ -473,9 +457,6 @@ export class EditingStore implements IStore {
 
     // Set cancelling flag to block any pending saves
     this.isCancelling = true
-
-    // Clear session
-    console.log('🔥 CLEARING SESSION in cancelEdit', { cellId })
     this.currentSession = null
     this.sessionReady = false
 
@@ -602,26 +583,14 @@ export class EditingStore implements IStore {
    * @param finalValue Value to save
    */
   private async saveToDatabase(session: EditSession, finalValue: any): Promise<void> {
-    const { cellId, originalValue } = session
+    const { cellId, originalValue: _originalValue } = session
     const [rowId, columnId] = cellId.split(':')
 
     // Get field name from column
     const field = session.column.field || columnId
 
-    console.log(
-      '🔥 SAVE_TO_DATABASE CALLED',
-      JSON.stringify({
-        cellId,
-        rowId,
-        field,
-        finalValue: finalValue ?? 'null',
-        hasCollection: !!this.collection,
-      }),
-    )
-
     // Check if collection available
     if (!this.collection) {
-      console.log('🔥 SAVE_TO_DATABASE - NO COLLECTION!')
       fileLog.error('Cannot save: TanStack DB collection not set', {
         cellId,
         rowId,
@@ -635,18 +604,8 @@ export class EditingStore implements IStore {
     const currentData = this.collection.get(String(rowId))
     const currentValue = currentData?.[field]
 
-    console.log(
-      '🔥 CHECKING VALUE CHANGE',
-      JSON.stringify({
-        currentValue: currentValue ?? 'null',
-        finalValue,
-        isEqual: currentValue === finalValue,
-      }),
-    )
-
     // OPTIMIZATION: Skip update if value hasn't changed
     if (currentValue === finalValue) {
-      console.log('🔥 SKIPPING SAVE - VALUE UNCHANGED')
       fileLog.info('Skipping save - value unchanged', {
         rowId,
         field,
@@ -657,22 +616,14 @@ export class EditingStore implements IStore {
 
     // Start performance timing
     const startTime = performance.now()
-
-    console.log('🔥 ABOUT TO CALL collection.update')
     // Optimistic update using TanStack DB collection
     try {
       const tx = this.collection.update(String(rowId), (draft: any) => {
-        console.log('🔥 INSIDE UPDATE CALLBACK - setting', field, 'to', finalValue)
         draft[field] = finalValue
         draft.updatedAt = new Date().toISOString()
       })
-      console.log('🔥 UPDATE CALL RETURNED', tx)
 
       const localDuration = performance.now() - startTime
-      console.log(
-        '🔥 OPTIMISTIC EDIT APPLIED',
-        JSON.stringify({ rowId, field, finalValue, localDuration: localDuration.toFixed(1) }),
-      )
       fileLog.info('Optimistic edit applied to collection', {
         rowId,
         field,
@@ -686,7 +637,6 @@ export class EditingStore implements IStore {
       tx.isPersisted.promise
         .then(() => {
           const totalDuration = performance.now() - startTime
-          console.log('🔥 EDIT PERSISTED TO SERVER', JSON.stringify({ rowId, field, finalValue }))
           fileLog.info('Edit persisted to server', {
             rowId,
             field,
@@ -699,10 +649,6 @@ export class EditingStore implements IStore {
         })
         .catch((error: any) => {
           const errorMessage = error instanceof Error ? error.message : String(error)
-          console.log(
-            '🔥 EDIT PERSISTENCE FAILED',
-            JSON.stringify({ rowId, field, finalValue, error: errorMessage }),
-          )
           fileLog.error('Edit persistence failed - TanStack DB auto-rollback', {
             rowId,
             field,
@@ -711,9 +657,7 @@ export class EditingStore implements IStore {
             note: 'Collection automatically rolled back, table will react via hook',
           })
         })
-    } catch (err) {
-      console.log('🔥 COLLECTION.UPDATE THREW ERROR', err)
-    }
+    } catch (_err) {}
   }
 
   // ====================================
