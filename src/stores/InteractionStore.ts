@@ -842,11 +842,13 @@ export class InteractionStore implements IStore {
       }
     }
 
-    // Select all cells in the range
+    // Select all cells in the range, skipping non-data rows (group headers, expanded content)
     const newSelection = new Set<string>()
     for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex++) {
+      const row = rows[rowIndex]
+      if (row.type && row.type !== 'data') continue
       for (let colIndex = minColIndex; colIndex <= maxColIndex; colIndex++) {
-        const rowId = rows[rowIndex].id
+        const rowId = row.id
         const columnId = visibleColumns[colIndex].id
         newSelection.add(`${rowId}:${columnId}`)
       }
