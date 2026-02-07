@@ -1363,7 +1363,10 @@ export class SimplePassiveRenderer {
       )
 
       // Create CellActionRouter (using EditingStore directly)
-      this.cellActionRouter = new CellActionRouter(this.editingStore, this.options.onCellClick as OnCellClickCallback | undefined)
+      this.cellActionRouter = new CellActionRouter(
+        this.editingStore,
+        this.options.onCellClick as OnCellClickCallback | undefined,
+      )
 
       // Create InteractionCoordinator (using EditingStore directly)
       this.interactionCoordinator = new InteractionCoordinator(

@@ -15,8 +15,10 @@ import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useRef } from 'react'
-import { membersCollection } from '@/shared/data/db/collections/member-collection'
-import { useDependencyCollection } from '@/shared/data/db/hooks/useEntityCollection'
+import {
+  useDependencyCollection,
+  useMembersCollection,
+} from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { CutoffResizer } from './components/CutoffResizer'
@@ -307,12 +309,19 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // GH#1240: Data loading is now handled by SimplePassiveRenderer's expansion observer
   // which is a proper MobX reaction that has access to the same interactionStore instance
 
-  // Fetch organization members for UserReference fields (automatic org context)
+  // Fetch organization members for UserReference fields
+  const membersCollection = useMembersCollection()
   const {
     data: members = [],
     isLoading: membersLoading,
     status: membersStatus,
-  } = useLiveQuery((q) => q.from({ members: membersCollection }))
+  } = useLiveQuery(
+    (q) => {
+      if (!membersCollection) return undefined
+      return q.from({ members: membersCollection })
+    },
+    [membersCollection],
+  )
 
   // Get dependency collection for Gantt (only when in gantt mode)
   const dependencyCollection = useDependencyCollection(isGanttMode ? entityType : '')

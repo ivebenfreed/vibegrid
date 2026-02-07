@@ -25,8 +25,8 @@ export function RelationshipEditor({
   initialValue,
   onCommit,
   onCancel,
-  onUpdate,
-  onBlur,
+  onUpdate: _onUpdate,
+  onBlur: _onBlur,
 }: EditorProps) {
   const cellType = (column.cellType || column.type) as CellType
 
@@ -48,7 +48,7 @@ export function RelationshipEditor({
 
     if (isUserReference) {
       // Load members collection - toArray is a getter, not a method call
-      const membersCollection = getOrCreateMembersCollection()
+      const membersCollection = getOrCreateMembersCollection(orgId)
       const members = membersCollection?.toArray || []
       return members.map((member: any) => ({
         value: member.user_id || member.userId || member.id,
