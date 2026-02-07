@@ -946,13 +946,14 @@ export class InteractionStore implements IStore {
       this.selectedCells = newSelection
       logger.info('Row cells deselected', { rowId })
     } else {
-      // Select row - add to existing selection (multi-select behavior)
-      const newSelection = new Set(this.selectedCells)
+      // Select row - replace existing selection to avoid mixing partial-column
+      // drag selections with full-row checkbox selections (causes overlay expansion)
+      const newSelection = new Set<string>()
       for (const cellId of rowCells) {
         newSelection.add(cellId)
       }
       this.selectedCells = newSelection
-      logger.info('Row cells selected (added to selection)', { rowId })
+      logger.info('Row cells selected (replaced selection)', { rowId })
     }
 
     // Increment version to trigger overlay updates
