@@ -1,0 +1,164 @@
+# VibeGrid
+
+> High-performance data grid — column types, filters, view modes, row expansion, and bulk actions.
+
+For the theory behind data grids, see [Three-View Model](../theory/experience.md#three-view-model) (Records view) and [Domains: Capabilities](../theory/domains.md#capabilities) (module capabilities).
+
+For implementation details (file paths, imports, API), see [Rules: VibeGrid](../../.claude/rules/vibegrid.md).
+
+---
+
+## Concept
+
+VibeGrid is the data grid primitive that powers every Records view and any other tabular data surface. It provides:
+
+- Virtual scrolling for large datasets
+- Pluggable view modes (Table, Kanban, Gantt, custom)
+- Unified cell rendering via a slot system
+- Row expansion for child/related data
+- Bulk selection and action toolbar
+- Filter bar with URL-persisted state
+- Sortable columns with type-aware ordering
+
+### Extend the Primitive
+
+Before building grid functionality in a module, check if it should be a VibeGrid primitive:
+
+| Question | If YES | If NO |
+|----------|--------|-------|
+| Could other entities use this? | Build as primitive | OK for module-specific |
+| Does it involve cell rendering? | Register via slot system | May be domain-specific |
+| Does it involve a new view mode? | Implement as view mode module | May not need VibeGrid |
+| Does it involve row interaction? | Check existing processors first | May be domain-specific |
+
+---
+
+## View Modes
+
+VibeGrid supports pluggable view modes through a module registry. Each mode provides a different visualization of the same data.
+
+### Table (Default)
+
+The standard tabular grid with sortable columns, row selection, and inline expansion.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ Filters: [dim ▾] [dim ▾] [dim ▾] [search...]             [Create]  │
+├──────────────────────────────────────────────────────────────────────┤
+│ □ Column A       Column B    Column C     Column D      Column E    │
+│ □ Value          Value       [Badge]      Value         Date        │
+│   └─ Expansion: child/related data for this row                     │
+│ □ Value          Value       [Badge]      Value         Date        │
+│ □ Value          Value       [Badge]      Value         Date        │
+├──────────────────────────────────────────────────────────────────────┤
+│ Bulk: [Action] [Action] [Export]                       N selected   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Kanban
+
+Card-based view organized by a status or category column. Cards move between columns via drag-and-drop.
+
+```
+┌────────────┬────────────┬────────────┬────────────┐
+│ Status A   │ Status B   │ Status C   │ Status D   │
+│ (count)    │ (count)    │ (count)    │ (count)    │
+├────────────┼────────────┼────────────┼────────────┤
+│ ┌────────┐ │ ┌────────┐ │ ┌────────┐ │            │
+│ │ Card   │ │ │ Card   │ │ │ Card   │ │            │
+│ │ Title  │ │ │ Title  │ │ │ Title  │ │            │
+│ │ Detail │ │ │ Detail │ │ │ Detail │ │            │
+│ └────────┘ │ └────────┘ │ └────────┘ │            │
+│ ┌────────┐ │ ┌────────┐ │            │            │
+│ │ Card   │ │ │ Card   │ │            │            │
+│ └────────┘ │ └────────┘ │            │            │
+└────────────┴────────────┴────────────┴────────────┘
+```
+
+### Gantt
+
+Timeline view with dependency arrows between tasks. Supports four dependency types.
+
+```
+┌──────────────┬──────────────────────────────────────────┐
+│ Task Name    │ Jan     Feb      Mar      Apr      May   │
+├──────────────┼──────────────────────────────────────────┤
+│ Task 1       │ ████████                                 │
+│ Task 2       │         ████████──→                      │
+│ Task 3       │                   ██████████             │
+│ Task 4       │                        ███████████       │
+└──────────────┴──────────────────────────────────────────┘
+```
+
+| Dependency Type | Abbr | Meaning |
+|-----------------|------|---------|
+| `finish_to_start` | FS | Predecessor finishes before successor starts (default) |
+| `start_to_start` | SS | Both start together |
+| `finish_to_finish` | FF | Both finish together |
+| `start_to_finish` | SF | Predecessor starts before successor finishes |
+
+---
+
+## Cell Rendering (Slot System)
+
+Cells render based on a priority-based slot system. Each slot declares what it can render and at what priority. Higher priority wins.
+
+| Level | Priority | Use For |
+|-------|----------|---------|
+| View mode slots | 100 | Gantt bar renderer, Kanban card renderer |
+| Domain slots | 50 | Module-specific renderers (e.g., COI currency format) |
+| Default slots | 0 | Built-in field types (text, number, date, badge) |
+
+**Resolution order:** context filter → exact field type match → priority (higher wins) → fallback to text.
+
+This allows modules to override how specific fields render without touching the grid primitive. A COI module can register a custom currency renderer that only activates for budget entities.
+
+---
+
+## Row Expansion
+
+Rows expand inline to reveal child or related data. This is the primary mechanism for showing one-to-many relationships without navigating away.
+
+```
+│ □ Vendor A        Project X  ✗ Expired   Hartford       2026-01-15   │
+│   └─ GL: $1M/$2M  Auto: $1M  Umbrella: $5M  WC: Statutory          │
+│ □ Vendor B        Project Y  ✓ OK        Liberty        2026-08-30   │
+```
+
+Expansion content is module-provided. The grid provides the expand/collapse mechanism and manages expansion state.
+
+---
+
+## Filter Bar
+
+Filters sit above the grid. All filter state lives in the URL (shareable, bookmarkable).
+
+| Filter Type | Description |
+|-------------|-------------|
+| Dimension dropdown | Select from a bounded set of values (status, project, assignee) |
+| Search field | Free-text filtering across configured columns |
+| Date range | From/to date selection |
+| Saved views | Named filter/column/sort configurations |
+
+Saved views are snapshots of URL state. Activating a view applies its filters. Personal views are per-user; shared views are team-visible.
+
+---
+
+## Bulk Action Toolbar
+
+Appears when one or more rows are selected. The toolbar provides:
+
+- **Universal actions**: Export, delete (with confirmation)
+- **Module-specific actions**: Send reminder, approve, assign — registered by the module
+- **Selection count**: Shows how many items are selected
+
+Bulk handlers receive arrays: `(rowIds[], rowsData[])`. All mutations go through the command system for undo/redo capability.
+
+---
+
+## Relationships
+
+- [View Shell: Records View](view-shell.md#records--show-me-everything) — layout context for the grid
+- [Experience: Three-View Model](../theory/experience.md#three-view-model) — theory behind Records as exhaustive view
+- [Domains: Capabilities](../theory/domains.md#capabilities) — module declaration of grid capabilities
+- [Rules: VibeGrid](../../.claude/rules/vibegrid.md) — code-level implementation details
