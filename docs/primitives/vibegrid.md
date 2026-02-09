@@ -1,3 +1,26 @@
+---
+implementation: partial
+rules_file: .claude/rules/vibegrid.md
+entry_points:
+  - apps/web/src/systems/vibegrid/**/*
+built:
+  - Table view module with virtual scrolling
+  - ViewModeRegistry with lazy loading
+  - SlotRegistry with priority-based cell renderer resolution
+  - Row expansion with detail panels
+  - Filter bar with field-type-aware controls
+  - Selection column and bulk handler plumbing
+  - InteractionStore (selection, menus, context)
+  - Non-DataForge data source support (collectionOverride)
+not_built:
+  - Kanban view module
+  - Gantt view module (partial — GanttViewStore exists, full module TBD)
+  - Bulk action toolbar UI
+  - Column reordering and persistence
+  - Export services (CSV, PDF)
+  - Saved filter presets
+---
+
 # VibeGrid
 
 > High-performance data grid — column types, filters, view modes, row expansion, and bulk actions.
