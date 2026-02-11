@@ -294,6 +294,7 @@ export class OverlayManager {
         editingStore: this.editingStore,
         editingOverlay: this.editingOverlay,
         tableCoreStore: this.tableCoreStore,
+        viewportStore: this.viewportStore,
       })
       this.editingController.init()
       fileLog.info('✅ EditingOverlayController initialized and active')

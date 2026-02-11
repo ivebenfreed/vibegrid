@@ -480,6 +480,7 @@ export class SimplePassiveRenderer {
           const cell = this.findCellElement(rowId, columnId)
           if (cell) {
             cell.classList.add('vibegridx-selected')
+            cell.setAttribute('aria-selected', 'true')
           }
         }
         for (const cellId of removed) {
@@ -487,6 +488,7 @@ export class SimplePassiveRenderer {
           const cell = this.findCellElement(rowId, columnId)
           if (cell) {
             cell.classList.remove('vibegridx-selected')
+            cell.removeAttribute('aria-selected')
           }
         }
       },
@@ -2155,9 +2157,13 @@ export class SimplePassiveRenderer {
 
     // Create main table container
     const table = this.createElement('div', 'vibegridx-table')
+    table.setAttribute('role', 'grid')
+    table.setAttribute('aria-label', this.entityType || 'Data grid')
 
     // Create header container first (will be populated by HeaderRenderer)
     this.headerContainer = this.createElement('div', 'vibegridx-header')
+    this.headerContainer.setAttribute('role', 'rowgroup')
+    this.headerContainer.setAttribute('aria-label', 'Column headers')
     this.headerContainer.style.cssText = `
       position: relative;
       white-space: nowrap;
@@ -2208,6 +2214,8 @@ export class SimplePassiveRenderer {
     `
 
     this.bodyContainer = this.createElement('div', 'vibegridx-body')
+    this.bodyContainer.setAttribute('role', 'rowgroup')
+    this.bodyContainer.setAttribute('aria-label', 'Data rows')
     this.bodyContainer.style.cssText = `
       position: relative;
       width: 100%;
@@ -2390,6 +2398,13 @@ export class SimplePassiveRenderer {
     runInAction(() => {
       this.visualStateStore.rowCount = rows.length // Use processedRows length (includes groups)
     })
+
+    // ARIA: Update row/column counts on the grid container
+    const gridTable = this.container.querySelector('.vibegridx-table')
+    if (gridTable) {
+      gridTable.setAttribute('aria-rowcount', String(rows.length + 1)) // +1 for header row
+      gridTable.setAttribute('aria-colcount', String(columns.length))
+    }
 
     // Update row coordinate mapping
     this.coordinateMapping.rows = []

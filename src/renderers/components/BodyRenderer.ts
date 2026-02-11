@@ -237,6 +237,10 @@ export class BodyRenderer {
     const rowElement = this.createElement('div', 'vibegridx-row')
     rowElement.dataset.rowId = row.id
 
+    // ARIA: Add row semantics (rowindex is 1-based, +2 because row 1 is header)
+    rowElement.setAttribute('role', 'row')
+    rowElement.setAttribute('aria-rowindex', String(rowIndex + 2))
+
     // Support custom row class names from row data (GH#1200)
     if (row._rowClassName) {
       rowElement.classList.add(row._rowClassName)
@@ -778,11 +782,16 @@ export class BodyRenderer {
           width: effectiveWidth,
         })
 
+        // ARIA: Add gridcell semantics
+        cellElement.setAttribute('role', 'gridcell')
+        cellElement.setAttribute('aria-colindex', String(colIndex + 1))
+
         // Check if this cell is selected and apply selection class
         const cellId = `${row.id}:${column.id}`
         const isSelected = this.interactionStore.selectedCells.has(cellId)
         if (isSelected) {
           cellElement.classList.add('vibegridx-selected')
+          cellElement.setAttribute('aria-selected', 'true')
         }
 
         // Add interaction handlers that the CellFactory doesn't handle
@@ -908,8 +917,10 @@ export class BodyRenderer {
           const isSelected = selectedCells.has(cellId)
           if (isSelected) {
             cellElement.classList.add('vibegridx-selected')
+            cellElement.setAttribute('aria-selected', 'true')
           } else {
             cellElement.classList.remove('vibegridx-selected')
+            cellElement.removeAttribute('aria-selected')
           }
         }
       })
@@ -1404,6 +1415,9 @@ export class BodyRenderer {
     // 2. Update row ID
     const oldRowId = rowElement.dataset.rowId
     rowElement.dataset.rowId = newRow.id
+
+    // ARIA: Update row index for recycled row
+    rowElement.setAttribute('aria-rowindex', String(newRowIndex + 2))
 
     // Update group ID if present
     if (newRow.type === 'data' && newRow.groupId) {

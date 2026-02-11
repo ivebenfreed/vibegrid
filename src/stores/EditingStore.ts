@@ -54,6 +54,7 @@ export type CancelReason =
   | 'focus-loss'
   | 'navigation'
   | 'user-action'
+  | 'scroll'
 export type BlurReason = 'outside-pointer' | 'focus-loss'
 export type BlurPolicy = 'commit' | 'cancel' | 'keep-open'
 

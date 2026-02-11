@@ -235,30 +235,37 @@ export class KanbanViewStore implements IStore {
   }
 
   /**
-   * Get card IDs for a specific column
+   * Pre-computed card grouping by column value.
+   * Replaces per-column scanning with single O(n) pass.
    */
-  private getCardIdsForColumn(columnValue: string | null): string[] {
-    if (!this.tableCoreStore) return []
+  @computed
+  private get cardsByColumn(): Map<string, string[]> {
+    if (!this.tableCoreStore) return new Map()
 
     const rows = this.tableCoreStore.processedRows
-    const cardIds: string[] = []
+    const groups = new Map<string, string[]>()
 
     for (const row of rows) {
       const rowData = row.data || row
       const value = rowData[this.groupByField]
-      const normalizedValue = this.normalizeStatusValue(value)
+      const normalized = this.normalizeStatusValue(value)
+      const columnKey = normalized ?? '__no_status__'
 
-      if (columnValue === null) {
-        // "No Status" column - match rows without a status value (null, undefined, empty string)
-        if (normalizedValue === null) {
-          cardIds.push(row.id)
-        }
-      } else if (normalizedValue === columnValue) {
-        cardIds.push(row.id)
+      if (!groups.has(columnKey)) {
+        groups.set(columnKey, [])
       }
+      groups.get(columnKey)!.push(row.id)
     }
 
-    return cardIds
+    return groups
+  }
+
+  /**
+   * Get card IDs for a specific column
+   */
+  private getCardIdsForColumn(columnValue: string | null): string[] {
+    const key = columnValue ?? '__no_status__'
+    return this.cardsByColumn.get(key) || []
   }
 
   /**

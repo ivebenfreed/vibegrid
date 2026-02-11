@@ -138,6 +138,8 @@ export class HeaderRenderer {
     this.headerContainer.innerHTML = ''
 
     const headerRow = this.domFactory.createElement('div', 'vibegridx-header-row')
+    headerRow.setAttribute('role', 'row')
+    headerRow.setAttribute('aria-rowindex', '1')
     headerRow.style.cssText = `
       position: relative;
       height: ${HEADER_HEIGHT}px;
@@ -188,11 +190,30 @@ export class HeaderRenderer {
 
     // Render ALL columns at their absolute positions
     // The header viewport transform will handle the scrolling
+    // Get current sort state for aria-sort attributes
+    const sortState = this.visualStateStore.sortBy
+
     allColumnLayouts.forEach((columnLayout, columnIndex) => {
       const column = columns.find((c) => c.id === columnLayout.id)
       if (!column) return
 
       const headerCell = this.createColumnHeader(column, columnIndex, 0)
+
+      // ARIA: Add columnheader semantics
+      headerCell.setAttribute('role', 'columnheader')
+      headerCell.setAttribute('aria-colindex', String(columnIndex + 1))
+      headerCell.setAttribute('aria-label', column.name || column.field || column.id)
+
+      // ARIA: Add sort state for sortable columns
+      const columnSort = sortState?.find((s: any) => s.field === (column.field || column.id))
+      if (columnSort) {
+        headerCell.setAttribute(
+          'aria-sort',
+          columnSort.direction === 'asc' ? 'ascending' : 'descending',
+        )
+      } else {
+        headerCell.setAttribute('aria-sort', 'none')
+      }
 
       // CRITICAL FIX: Use column layout's width and offset for consistency
       // This ensures header cells match body cells exactly
@@ -531,6 +552,16 @@ export class HeaderRenderer {
 
       // Update the sort icon using DOM factory method
       this.domFactory.updateSortIcon(headerCell as HTMLElement, direction)
+
+      // ARIA: Keep aria-sort in sync with sort state
+      if (columnSort) {
+        headerCell.setAttribute(
+          'aria-sort',
+          columnSort.direction === 'asc' ? 'ascending' : 'descending',
+        )
+      } else {
+        headerCell.setAttribute('aria-sort', 'none')
+      }
     })
 
     fileLog.debug('🎯 Reactive sort indicators updated', {

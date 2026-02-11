@@ -16,6 +16,7 @@ import type { DependencyRecord } from '@/shared/data/db/collections/dependency-c
 import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
 import { calculateCriticalPath } from '../utils/critical-path'
+import { wouldCreateCycle } from '../utils/dependency-validator'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -1259,6 +1260,16 @@ export class GanttViewStore implements IStore {
     const successorId = targetBarId // The bar that will WAIT (dragged TO)
     const predecessorId = sourceBarId // The bar that must finish first (dragged FROM)
 
+    // Check for cycle BEFORE creating dependency
+    if (wouldCreateCycle(successorId, predecessorId, this.dependencies)) {
+      logger.warn('Dependency would create a cycle, rejecting', {
+        successorId,
+        predecessorId,
+      })
+      this.cancelDependencyDrag()
+      return
+    }
+
     logger.info('Creating dependency', {
       predecessorId,
       successorId,
@@ -1381,6 +1392,18 @@ export class GanttViewStore implements IStore {
     // Prevent self-referencing dependency
     if (newSourceEntityId === newTargetEntityId) {
       logger.debug('Cannot create self-referencing dependency')
+      this.cancelDependencyDrag()
+      return
+    }
+
+    // Check for cycle before updating
+    const depsWithoutCurrent = this.dependencies.filter((d) => d.id !== dependencyId)
+    if (wouldCreateCycle(newSourceEntityId, newTargetEntityId, depsWithoutCurrent)) {
+      logger.warn('Updated dependency would create a cycle, rejecting', {
+        dependencyId,
+        newSourceEntityId,
+        newTargetEntityId,
+      })
       this.cancelDependencyDrag()
       return
     }

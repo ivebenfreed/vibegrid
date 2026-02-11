@@ -6,8 +6,8 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import { memo, useState } from 'react'
 import type React from 'react'
-import { useState } from 'react'
 import { cn } from '@/shared/lib/utils'
 import type {
   KanbanCard as KanbanCardType,
@@ -29,7 +29,7 @@ interface KanbanColumnProps {
   onCardClick?: (cardId: string) => void
 }
 
-export const KanbanColumn = observer(function KanbanColumn({
+const KanbanColumnInner = observer(function KanbanColumn({
   column,
   cards,
   isDragOver = false,
@@ -130,3 +130,5 @@ export const KanbanColumn = observer(function KanbanColumn({
     </article>
   )
 })
+
+export const KanbanColumn = memo(KanbanColumnInner)

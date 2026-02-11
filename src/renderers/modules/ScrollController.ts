@@ -14,6 +14,7 @@ export interface ScrollControllerOptions {
   container?: HTMLElement
   viewportStore?: ViewportStore
   onScroll?: (scrollLeft: number, scrollTop: number) => void
+  onRapidScroll?: (scrollLeft: number, scrollTop: number) => void
   onClickOutside?: (e: MouseEvent) => void
   keyboardNavController?: any
   selectionController?: any
@@ -27,12 +28,14 @@ export class ScrollController {
   private viewportStore?: ViewportStore
   private scrollRAF: number | null = null
   private onScroll?: (scrollLeft: number, scrollTop: number) => void
+  private onRapidScroll?: (scrollLeft: number, scrollTop: number) => void
   private onClickOutside?: (e: MouseEvent) => void
   private keyboardNavController?: any
   private selectionController?: any
   private interactionStore?: any
   private lastScrollLeft: number = 0
   private lastScrollTop: number = 0
+  private scrollVelocityThreshold: number = 200
 
   // Event listeners for cleanup
   private eventListeners: Array<{
@@ -47,6 +50,7 @@ export class ScrollController {
     this.container = options.container
     this.viewportStore = options.viewportStore
     this.onScroll = options.onScroll
+    this.onRapidScroll = options.onRapidScroll
     this.onClickOutside = options.onClickOutside
     this.keyboardNavController = options.keyboardNavController
     this.selectionController = options.selectionController
@@ -92,6 +96,16 @@ export class ScrollController {
 
     // Only process if scroll position actually changed
     if (scrollLeft !== this.lastScrollLeft || scrollTop !== this.lastScrollTop) {
+      // Detect rapid scrolling before updating last position
+      const deltaX = Math.abs(scrollLeft - this.lastScrollLeft)
+      const deltaY = Math.abs(scrollTop - this.lastScrollTop)
+      if (
+        (deltaX > this.scrollVelocityThreshold || deltaY > this.scrollVelocityThreshold) &&
+        this.onRapidScroll
+      ) {
+        this.onRapidScroll(scrollLeft, scrollTop)
+      }
+
       this.lastScrollLeft = scrollLeft
       this.lastScrollTop = scrollTop
 
