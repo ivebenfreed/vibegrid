@@ -215,6 +215,45 @@ describe('VibeForm', () => {
       expect(screen.getByTestId('grouped-form-section-details')).toBeInTheDocument()
     })
 
+    it('should render grid layout', () => {
+      render(
+        <VibeForm
+          entityId="entity-123"
+          layoutConfig={{ type: 'grid' }}
+          columns={mockColumns}
+          data={{ name: 'Test', description: 'Description', status: 'active', priority: 'high' }}
+        />,
+      )
+
+      expect(screen.getByTestId('vibe-form')).toBeInTheDocument()
+      expect(screen.getByTestId('grid-form')).toBeInTheDocument()
+    })
+
+    it('should render grid layout with field placements', () => {
+      render(
+        <VibeForm
+          entityId="entity-123"
+          layoutConfig={{
+            type: 'grid',
+            fields: [
+              { fieldId: 'description', row: 0, col: 0, span: 2 },
+              { fieldId: 'name', row: 1, col: 0 },
+              { fieldId: 'status', row: 1, col: 1 },
+            ],
+          }}
+          columns={mockColumns}
+          data={{ name: 'Test', description: 'Description', status: 'active', priority: 'high' }}
+        />,
+      )
+
+      expect(screen.getByTestId('vibe-form')).toBeInTheDocument()
+      expect(screen.getByTestId('grid-form')).toBeInTheDocument()
+      // Verify fields are rendered
+      expect(screen.getByTestId('grid-form-field-name')).toBeInTheDocument()
+      expect(screen.getByTestId('grid-form-field-description')).toBeInTheDocument()
+      expect(screen.getByTestId('grid-form-field-status')).toBeInTheDocument()
+    })
+
     it('should fall back to property-sheet when grouped layout has no groups', () => {
       render(
         <VibeForm

@@ -29,6 +29,7 @@ import { SingleColumnForm } from './SingleColumnForm'
 import { TwoColumnForm } from './TwoColumnForm'
 import { InlineRow } from './InlineRow'
 import { GroupedForm } from './GroupedForm'
+import { GridForm } from './GridForm'
 import { InteractionStore } from '../stores/InteractionStore'
 import { useVibeGridStoresOptional } from '../stores/context'
 import { useCreateRecordMutation } from '@/shared/data/mutations/entity-data.mutations'
@@ -366,13 +367,13 @@ export const VibeForm = observer(function VibeForm({
         )
 
       case 'grid':
-        // Grid layout falls back to property-sheet for now (GH#1464 Phase 5)
-        logger.debug('Grid layout not yet implemented for VibeForm, using property-sheet')
         return (
-          <PropertySheet
+          <GridForm
             data={createFlow.localValues}
             columns={columns}
             interactionStore={interactionStore}
+            fieldPlacements={layoutConfig.fields}
+            gridColumns={2}
             onFieldChange={handleFieldChange}
           />
         )
