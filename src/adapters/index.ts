@@ -23,6 +23,9 @@ export type { InlineRowLayoutAdapterOptions } from './InlineRowLayoutAdapter'
 export { GroupedFormLayoutAdapter } from './GroupedFormLayoutAdapter'
 export type { GroupedFormLayoutAdapterOptions, FieldGroup } from './GroupedFormLayoutAdapter'
 
+export { GridLayoutAdapter } from './GridLayoutAdapter'
+export type { GridLayoutAdapterOptions } from './GridLayoutAdapter'
+
 export type {
   CellLayoutAdapter,
   CellPosition,

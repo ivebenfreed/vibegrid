@@ -60,6 +60,8 @@ export class SelectionOverlayController extends OverlayController {
   // State tracking for deduplication and resize handling
   private lastSelectionVersion: number = -1
   private wasColumnResizing: boolean = false
+  // Re-entrancy guard to prevent concurrent overlay updates during rapid scroll
+  private isUpdating: boolean = false
 
   constructor(options: SelectionOverlayControllerOptions) {
     super(options)
@@ -216,27 +218,38 @@ export class SelectionOverlayController extends OverlayController {
       return
     }
 
-    // Convert selected cells to visual positions
-    const visualCells = this.getVisualCellPositions(selectedCells)
-
-    // Update viewport info
-    const viewportInfo = this.getViewportInfo()
-
-    // Update canvas overlay
-    this.canvasOverlay.updateViewport(viewportInfo)
-    this.canvasOverlay.updateSelectionWithVisualPositions(visualCells)
-
-    // Show/hide fill handle based on selection
-    if (visualCells.length > 0) {
-      this.canvasOverlay.renderFillHandle(visualCells, undefined, viewportInfo)
-    } else {
-      this.canvasOverlay.hideFillHandle()
+    // Re-entrancy guard: skip if already updating (prevents concurrent overlay updates)
+    if (this.isUpdating) {
+      fileLog.debug('Selection update already in progress, skipping')
+      return
     }
+    this.isUpdating = true
 
-    fileLog.debug('Selection updated', {
-      cellCount: selectedCells.size,
-      visualCellCount: visualCells.length,
-    })
+    try {
+      // Convert selected cells to visual positions
+      const visualCells = this.getVisualCellPositions(selectedCells)
+
+      // Update viewport info
+      const viewportInfo = this.getViewportInfo()
+
+      // Update canvas overlay
+      this.canvasOverlay.updateViewport(viewportInfo)
+      this.canvasOverlay.updateSelectionWithVisualPositions(visualCells)
+
+      // Show/hide fill handle based on selection
+      if (visualCells.length > 0) {
+        this.canvasOverlay.renderFillHandle(visualCells, undefined, viewportInfo)
+      } else {
+        this.canvasOverlay.hideFillHandle()
+      }
+
+      fileLog.debug('Selection updated', {
+        cellCount: selectedCells.size,
+        visualCellCount: visualCells.length,
+      })
+    } finally {
+      this.isUpdating = false
+    }
   }
 
   /**

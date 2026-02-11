@@ -19,6 +19,7 @@ import { domPositions$ } from '../../../stores/dom-position-state'
 import type { EditingOverlay } from '../../../overlays/EditingOverlay'
 import type { EditingStore } from '../../../stores/EditingStore'
 import type { TableCoreStore } from '../../../stores/TableCoreStore'
+import type { ViewportStore } from '../../../stores/ViewportStore'
 import { OverlayController, type OverlayControllerOptions } from './OverlayController'
 
 const fileLog = getLogger(['vibegrid', 'renderers', 'EditingOverlayController'])
@@ -34,6 +35,8 @@ export interface EditingOverlayControllerOptions extends OverlayControllerOption
   editingStore: EditingStore
   /** TableCoreStore for accessing columns and row data */
   tableCoreStore: TableCoreStore
+  /** ViewportStore for scroll-aware editing cancel (optional) */
+  viewportStore?: ViewportStore
 }
 
 /**
@@ -54,15 +57,22 @@ export class EditingOverlayController extends OverlayController {
   private editingOverlay: EditingOverlay
   private editingStore: EditingStore
   private tableCoreStore: TableCoreStore
+  private viewportStore?: ViewportStore
 
   // State tracking for deduplication
   private lastEditingCell: string | null = null
+
+  // Scroll position when editing started (for scroll-cancel threshold)
+  private lastEditScrollTop: number = 0
+  private lastEditScrollLeft: number = 0
+  private static readonly SCROLL_CANCEL_THRESHOLD = 40 // ~1 row height
 
   constructor(options: EditingOverlayControllerOptions) {
     super(options)
     this.editingOverlay = options.editingOverlay
     this.editingStore = options.editingStore
     this.tableCoreStore = options.tableCoreStore
+    this.viewportStore = options.viewportStore
   }
 
   /**
@@ -110,6 +120,37 @@ export class EditingOverlayController extends OverlayController {
     )
 
     this.disposers.push(dispose)
+
+    // Watch scroll changes while editing - cancel edit if scrolled beyond threshold
+    if (this.viewportStore) {
+      const scrollDispose = reaction(
+        () => ({
+          scrollTop: this.viewportStore!.scrollTop,
+          scrollLeft: this.viewportStore!.scrollLeft,
+        }),
+        (scroll) => {
+          if (!this.editingStore.isEditing) {
+            return
+          }
+
+          const deltaTop = Math.abs(scroll.scrollTop - this.lastEditScrollTop)
+          const deltaLeft = Math.abs(scroll.scrollLeft - this.lastEditScrollLeft)
+
+          if (
+            deltaTop > EditingOverlayController.SCROLL_CANCEL_THRESHOLD ||
+            deltaLeft > EditingOverlayController.SCROLL_CANCEL_THRESHOLD
+          ) {
+            fileLog.debug('Cancelling edit due to scroll', {
+              deltaTop,
+              deltaLeft,
+              threshold: EditingOverlayController.SCROLL_CANCEL_THRESHOLD,
+            })
+            this.editingStore.cancelEdit('scroll')
+          }
+        },
+      )
+      this.disposers.push(scrollDispose)
+    }
 
     fileLog.info('✅ EditingOverlayController initialized')
   }
@@ -159,6 +200,12 @@ export class EditingOverlayController extends OverlayController {
    * 6. Mark cell with data-editing="true" to hide content
    */
   private showEditingOverlay(editingCell: string, editValue: any): void {
+    // Capture scroll position at edit start for scroll-cancel detection
+    if (this.viewportStore) {
+      this.lastEditScrollTop = this.viewportStore.scrollTop
+      this.lastEditScrollLeft = this.viewportStore.scrollLeft
+    }
+
     const [rowId, columnId] = editingCell.split(':')
     const columns = this.tableCoreStore.columns
     const column = columns.find((c: any) => c.id === columnId)

@@ -7,6 +7,7 @@
 
 import { GripVertical } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
+import { memo } from 'react'
 import type React from 'react'
 import { Card, CardContent, CardHeader } from '@/shared/components/ui/card'
 import { cn } from '@/shared/lib/utils'
@@ -21,7 +22,7 @@ interface KanbanCardProps {
   onClick?: (cardId: string) => void
 }
 
-export const KanbanCard = observer(function KanbanCard({
+const KanbanCardInner = observer(function KanbanCard({
   card,
   isDragging = false,
   enableDragAndDrop = true,
@@ -87,3 +88,5 @@ export const KanbanCard = observer(function KanbanCard({
     </li>
   )
 })
+
+export const KanbanCard = memo(KanbanCardInner)
