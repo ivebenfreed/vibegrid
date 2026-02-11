@@ -139,19 +139,30 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
   const handleCellClick = useCallback(
     (rowId: string, _columnId: string) => {
       if (isSelectMode) {
-        onToggleSelect(rowId)
+        // In select mode, grid selection drives local state via onSelectionChange.
+        return
       } else {
         store.setSelectedThread(rowId)
         navigate({ to: '/inbox/thread/$threadId', params: { threadId: rowId } })
       }
     },
-    [isSelectMode, onToggleSelect, store, navigate],
+    [isSelectMode, store, navigate],
   )
 
-  // Handle row selection for bulk actions (TODO: wire up when selection is implemented)
-  const _handleSelectionChange = useCallback(
-    (selectedRowIds: Set<string>) => {
-      // Sync selection state
+  // Handle VibeGrid selection changes for bulk actions.
+  const handleSelectionChange = useCallback(
+    (selectedCells: Set<string>) => {
+      if (!isSelectMode) return
+
+      const selectedRowIds = new Set<string>()
+      for (const cellId of selectedCells) {
+        const rowId = cellId.split(':')[0]
+        if (rowId) {
+          selectedRowIds.add(rowId)
+        }
+      }
+
+      // Sync local selection state from grid selection state.
       for (const id of selectedRowIds) {
         if (!selectedIds.has(id)) {
           onToggleSelect(id)
@@ -163,7 +174,7 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         }
       }
     },
-    [selectedIds, onToggleSelect],
+    [isSelectMode, selectedIds, onToggleSelect],
   )
 
   // Row actions for the floating 3-dots menu
@@ -243,6 +254,7 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         enableSorting={true}
         enableDragAndDrop={false}
         onCellClick={handleCellClick}
+        onSelectionChange={handleSelectionChange}
         rowActions={rowActions}
         onRowAction={handleRowAction}
       />

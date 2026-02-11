@@ -529,25 +529,15 @@ const FileGrid = observer(function FileGrid({
     }
   }, [tableCoreStore, initStore, data])
 
-  // Handle row click to open file viewer
-  useEffect(() => {
-    if (!stores?.visualStateStore) return
-
-    const handleRowClick = (event: CustomEvent) => {
-      const rowData = event.detail?.rowData as GCFile | undefined
+  const handleCellClick = useCallback(
+    (rowId: string, _columnId: string) => {
+      const rowData = data?.items.find((item) => item.id === rowId) as GCFile | undefined
       if (rowData) {
         fileViewerStore.openFile(rowData)
       }
-    }
-
-    // Subscribe to row click events
-    const element = document.querySelector(`[data-table-id="${tableId}"]`)
-    element?.addEventListener('vibegrid:rowclick', handleRowClick as EventListener)
-
-    return () => {
-      element?.removeEventListener('vibegrid:rowclick', handleRowClick as EventListener)
-    }
-  }, [stores, tableId])
+    },
+    [data],
+  )
 
   return (
     <VibeGrid
@@ -559,6 +549,7 @@ const FileGrid = observer(function FileGrid({
       enableFiltering={true}
       enableSorting={true}
       skipDataFetching={true}
+      onCellClick={handleCellClick}
       rowActions={FILE_ROW_ACTIONS}
       searchableColumns={['name', '_file_type', 'entity_type', 'mime_type', 'status']}
       searchPlaceholder="Search files, photos, drawings..."

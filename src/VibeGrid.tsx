@@ -659,6 +659,21 @@ function VibeGridInnerBase(props: VibeGridProps) {
     bufferSize,
   ]) // Depend on stores and callbacks to recreate renderer when they change
 
+  // Bridge MobX selection state to optional external callback.
+  useEffect(() => {
+    if (!_onSelectionChange) return
+
+    const dispose = reaction(
+      () => Array.from(interactionStore.selectedCells),
+      (selectedCells) => {
+        _onSelectionChange(new Set(selectedCells))
+      },
+      { fireImmediately: true },
+    )
+
+    return () => dispose()
+  }, [_onSelectionChange, interactionStore])
+
   // ====================================
   // ROW ACTIONS HELPER
   // ====================================
