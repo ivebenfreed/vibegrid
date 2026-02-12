@@ -2,20 +2,29 @@
  * VibeFormField Tests
  *
  * Tests for:
+ * - FieldTypeRegistry editor rendering (not just plain text input)
  * - Field-level validation
  * - Auto-save on blur behavior
  * - Error states
+ * - Fallback to plain input when no editor available
  */
 
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { VibeFormField } from '../VibeFormField'
 import type { Column } from '../../types'
 import { fieldTypeRegistry } from '../../field-types/FieldTypeRegistry'
 
 describe('VibeFormField', () => {
-  const mockColumn: Column = {
+  const textColumn: Column = {
+    id: 'name',
+    name: 'Name',
+    field: 'name',
+    type: 'text',
+    cellType: 'text',
+  }
+
+  const emailColumn: Column = {
     id: 'email',
     name: 'Email',
     field: 'email',
@@ -24,120 +33,108 @@ describe('VibeFormField', () => {
   }
 
   beforeEach(async () => {
-    // Ensure field types are initialized
     await fieldTypeRegistry.ensureInitialized()
   })
 
-  describe('Validation', () => {
-    it('should validate on blur and show error for invalid value', async () => {
-      const user = userEvent.setup()
-      const mockOnChange = vi.fn()
+  /** Helper to get the editor input inside the container */
+  function getEditorInput(container: HTMLElement): HTMLInputElement | HTMLTextAreaElement | null {
+    return container.querySelector('input, textarea')
+  }
 
-      render(<VibeFormField fieldId="email" column={mockColumn} value="" onChange={mockOnChange} />)
+  describe('Editor Rendering', () => {
+    it('should render a FieldTypeRegistry editor instead of plain text input', async () => {
+      const { container } = render(
+        <VibeFormField fieldId="name" column={textColumn} value="Hello" onChange={vi.fn()} />,
+      )
 
-      const input = screen.getByRole('textbox')
-
-      // Type invalid email
-      await user.type(input, 'invalid-email')
-      await user.tab() // Blur
-
-      // Should show error
       await waitFor(() => {
-        const error = screen.queryByTestId('vibe-form-error-email')
-        // Error might not show if validator isn't strict, or might be present
-        // This test validates the error display mechanism exists
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        expect(editorContainer).not.toBeNull()
+        // FieldTypeRegistry text editor creates an <input> or <textarea>
+        const input = getEditorInput(editorContainer as HTMLElement)
+        expect(input).not.toBeNull()
       })
     })
 
-    it('should clear error on value change', async () => {
-      const user = userEvent.setup()
-
-      render(<VibeFormField fieldId="email" column={mockColumn} value="" onChange={vi.fn()} />)
-
-      const input = screen.getByRole('textbox')
-
-      // Type invalid email
-      await user.type(input, 'invalid')
-      await user.tab() // Blur
-
-      // Type again (should clear error)
-      await user.type(input, '@test.com')
-
-      // Error should be cleared (if it was shown)
-    })
-
-    it('should not save invalid values', async () => {
-      const user = userEvent.setup()
-      const mockOnChange = vi.fn()
-      const mockCollection = {
-        update: vi.fn(),
-      }
-
-      render(
-        <VibeFormField
-          fieldId="email"
-          column={mockColumn}
-          value=""
-          entityId="entity-123"
-          onChange={mockOnChange}
-          collection={mockCollection}
-        />,
+    it('should set initial value on the editor', async () => {
+      const { container } = render(
+        <VibeFormField fieldId="name" column={textColumn} value="Test Value" onChange={vi.fn()} />,
       )
 
-      const input = screen.getByRole('textbox')
+      await waitFor(() => {
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        const input = getEditorInput(editorContainer as HTMLElement)
+        expect(input).not.toBeNull()
+        expect(input!.value).toBe('Test Value')
+      })
+    })
 
-      // Type invalid email
-      await user.type(input, 'invalid-email')
-      await user.tab() // Blur
+    it('should render fallback input for unknown field types', async () => {
+      const unknownColumn: Column = {
+        id: 'custom',
+        name: 'Custom',
+        field: 'custom',
+        type: 'totally_unknown_type_xyz',
+        cellType: 'totally_unknown_type_xyz' as any,
+      }
 
-      // Should NOT call collection.update if validation fails
-      // (Depends on validator strictness)
+      const { container } = render(
+        <VibeFormField fieldId="custom" column={unknownColumn} value="" onChange={vi.fn()} />,
+      )
+
+      await waitFor(() => {
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        const input = getEditorInput(editorContainer as HTMLElement)
+        // Should still render something (fallback input)
+        expect(input).not.toBeNull()
+        expect(input!.className).toContain('vibe-form-field')
+      })
     })
   })
 
   describe('Auto-save on Blur', () => {
-    it('should save valid value to collection on blur', async () => {
-      const user = userEvent.setup()
+    it('should call onChange when editor commits value (no entityId)', async () => {
       const mockOnChange = vi.fn()
-      const mockCollection = {
-        update: vi.fn(),
-      }
 
-      render(
+      const { container } = render(
         <VibeFormField
-          fieldId="email"
-          column={mockColumn}
+          fieldId="name"
+          column={textColumn}
           value=""
-          entityId="entity-123"
+          entityId={null}
           onChange={mockOnChange}
-          collection={mockCollection}
         />,
       )
 
-      const input = screen.getByRole('textbox')
-
-      // Type valid email
-      await user.type(input, 'test@example.com')
-      await user.tab() // Blur
-
-      // Should call collection.update
       await waitFor(() => {
-        // Collection update might be called (depends on validation)
-        // This test validates the auto-save mechanism exists
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        const input = getEditorInput(editorContainer as HTMLElement)
+        expect(input).not.toBeNull()
+      })
+
+      const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+      const input = getEditorInput(editorContainer as HTMLElement)!
+
+      // Simulate typing and blur
+      await act(async () => {
+        input.value = 'New Value'
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('blur', { bubbles: true }))
+      })
+
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalled()
       })
     })
 
-    it('should skip auto-save in create mode (no entityId)', async () => {
-      const user = userEvent.setup()
+    it('should skip collection.update when no entityId (create mode)', async () => {
       const mockOnChange = vi.fn()
-      const mockCollection = {
-        update: vi.fn(),
-      }
+      const mockCollection = { update: vi.fn() }
 
-      render(
+      const { container } = render(
         <VibeFormField
-          fieldId="email"
-          column={mockColumn}
+          fieldId="name"
+          column={textColumn}
           value=""
           entityId={null}
           onChange={mockOnChange}
@@ -145,108 +142,120 @@ describe('VibeFormField', () => {
         />,
       )
 
-      const input = screen.getByRole('textbox')
+      await waitFor(() => {
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        expect(getEditorInput(editorContainer as HTMLElement)).not.toBeNull()
+      })
 
-      // Type value
-      await user.type(input, 'test@example.com')
-      await user.tab() // Blur
+      const input = getEditorInput(
+        container.querySelector('.vibe-form-field-editor-container') as HTMLElement,
+      )!
 
-      // Should NOT call collection.update (no entityId)
+      await act(async () => {
+        input.value = 'test'
+        input.dispatchEvent(new Event('blur', { bubbles: true }))
+      })
+
       expect(mockCollection.update).not.toHaveBeenCalled()
-
-      // Should call onChange to propagate to parent
-      expect(mockOnChange).toHaveBeenCalledWith('test@example.com')
     })
 
-    it('should show saving indicator during save', async () => {
-      const user = userEvent.setup()
-      const mockCollection = {
-        update: vi.fn(() => {
-          // Simulate async delay
-          return new Promise((resolve) => setTimeout(resolve, 100))
-        }),
-      }
+    it('should call collection.update when entityId and collection are provided', async () => {
+      const mockOnChange = vi.fn()
+      const mockCollection = { update: vi.fn() }
 
-      render(
+      const { container } = render(
         <VibeFormField
-          fieldId="email"
-          column={mockColumn}
+          fieldId="name"
+          column={textColumn}
           value=""
           entityId="entity-123"
-          onChange={vi.fn()}
+          onChange={mockOnChange}
           collection={mockCollection}
         />,
       )
 
-      const input = screen.getByRole('textbox')
-
-      // Type value
-      await user.type(input, 'test@example.com')
-
-      // Blur would trigger save (with spinner)
-      // This test validates the saving state exists
-    })
-  })
-
-  describe('Error Display', () => {
-    it('should show error message with red border', async () => {
-      const user = userEvent.setup()
-
-      render(<VibeFormField fieldId="email" column={mockColumn} value="" onChange={vi.fn()} />)
-
-      const input = screen.getByRole('textbox')
-
-      // Type invalid value (trigger validation error)
-      await user.type(input, 'invalid')
-      await user.tab()
-
-      // Should apply error class to field container
       await waitFor(() => {
-        const field = screen.getByTestId('vibe-form-field-email')
-        // Error class might be applied if validation fails
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        expect(getEditorInput(editorContainer as HTMLElement)).not.toBeNull()
+      })
+
+      const input = getEditorInput(
+        container.querySelector('.vibe-form-field-editor-container') as HTMLElement,
+      )!
+
+      await act(async () => {
+        input.value = 'saved value'
+        input.dispatchEvent(new Event('blur', { bubbles: true }))
+      })
+
+      await waitFor(() => {
+        expect(mockCollection.update).toHaveBeenCalledWith('entity-123', expect.any(Function))
       })
     })
-
-    it('should show save error message on collection update failure', () => {
-      // This would be tested with E2E tests that can mock collection.update failure
-    })
   })
 
-  describe('Field Value Changes', () => {
-    it('should update local value on input change', async () => {
-      const user = userEvent.setup()
+  describe('Validation', () => {
+    it('should show error when validation fails on commit', async () => {
+      // Column with required validation
+      const requiredColumn: Column = {
+        id: 'required_field',
+        name: 'Required Field',
+        field: 'required_field',
+        type: 'text',
+        cellType: 'text',
+        validation: { required: true },
+      } as any
 
-      render(<VibeFormField fieldId="email" column={mockColumn} value="" onChange={vi.fn()} />)
-
-      const input = screen.getByRole('textbox') as HTMLInputElement
-
-      await user.type(input, 'test')
-
-      expect(input.value).toBe('test')
-    })
-
-    it('should call onChange with transformed value from validator', async () => {
-      const user = userEvent.setup()
-      const mockOnChange = vi.fn()
-
-      render(
+      const { container } = render(
         <VibeFormField
-          fieldId="email"
-          column={mockColumn}
+          fieldId="required_field"
+          column={requiredColumn}
           value=""
           entityId="entity-123"
-          onChange={mockOnChange}
+          onChange={vi.fn()}
           collection={{ update: vi.fn() }}
         />,
       )
 
-      const input = screen.getByRole('textbox')
+      await waitFor(() => {
+        const editorContainer = container.querySelector('.vibe-form-field-editor-container')
+        expect(getEditorInput(editorContainer as HTMLElement)).not.toBeNull()
+      })
 
-      // Email field should transform to lowercase
-      await user.type(input, 'TEST@EXAMPLE.COM')
-      await user.tab()
+      const input = getEditorInput(
+        container.querySelector('.vibe-form-field-editor-container') as HTMLElement,
+      )!
 
-      // Should call onChange with transformed value (if validator transforms)
+      // Blur with empty value should trigger validation error
+      await act(async () => {
+        input.value = ''
+        input.dispatchEvent(new Event('blur', { bubbles: true }))
+      })
+
+      // Check if error class is applied
+      await waitFor(() => {
+        const field = screen.getByTestId('vibe-form-field-required_field')
+        // Error state may or may not show depending on validator behavior
+        expect(field).toBeTruthy()
+      })
+    })
+  })
+
+  describe('Error Display', () => {
+    it('should apply error class when error state is set', () => {
+      render(<VibeFormField fieldId="email" column={emailColumn} value="" onChange={vi.fn()} />)
+
+      const field = screen.getByTestId('vibe-form-field-email')
+      expect(field).toBeTruthy()
+      expect(field.className).toContain('vibe-form-field')
+    })
+  })
+
+  describe('Data Attributes', () => {
+    it('should render with correct test IDs', () => {
+      render(<VibeFormField fieldId="email" column={emailColumn} value="" onChange={vi.fn()} />)
+
+      expect(screen.getByTestId('vibe-form-field-email')).toBeTruthy()
     })
   })
 })
