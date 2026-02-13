@@ -20,8 +20,8 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
 import { SingleColumnLayoutAdapter } from '../adapters/SingleColumnLayoutAdapter'
-import { modularCellBridge } from '../field-types/ModularCellBridge'
 import type { InteractionStore } from '../stores/InteractionStore'
+import { FormFieldValue } from './FormFieldValue'
 import './SingleColumnForm.css'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -164,12 +164,14 @@ export const SingleColumnForm = observer(function SingleColumnForm({
               {column.required && <span className="single-column-form-field__required">*</span>}
             </div>
             <div className="single-column-form-field__value">
-              <SingleColumnFieldValue
+              <FormFieldValue
                 fieldId={fieldId}
                 value={value}
                 column={column}
                 rowData={data}
                 rowIndex={index}
+                cellClassName="single-column-form-cell"
+                containerClassName="single-column-form-field-value"
               />
             </div>
           </div>
@@ -179,58 +181,3 @@ export const SingleColumnForm = observer(function SingleColumnForm({
   )
 })
 
-/**
- * SingleColumnFieldValue - Renders field value using existing VibeGrid cell renderers
- */
-const SingleColumnFieldValue = observer(function SingleColumnFieldValue({
-  fieldId,
-  value,
-  column,
-  rowData,
-  rowIndex,
-}: {
-  fieldId: string
-  value: any
-  column: Column
-  rowData: any
-  rowIndex: number
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    // Clear existing content
-    container.innerHTML = ''
-
-    try {
-      // Use ModularCellBridge to create cell element
-      const cellElement = modularCellBridge.createCell(value, column, rowData, {
-        rowIndex,
-        columnIndex: 0,
-      })
-
-      // Remove absolute positioning styles (form uses flexbox)
-      cellElement.style.position = 'static'
-      cellElement.style.left = 'auto'
-      cellElement.style.width = '100%'
-
-      // Add form-specific class
-      cellElement.classList.add('single-column-form-cell')
-
-      container.appendChild(cellElement)
-    } catch (error) {
-      logger.error('Error rendering single column form field value', {
-        fieldId,
-        error,
-      })
-      // Fallback to plain text
-      container.textContent = String(value || '')
-    }
-  }, [value, column, rowData, rowIndex, fieldId])
-
-  return (
-    <div ref={containerRef} id={`field-${fieldId}`} className="single-column-form-field-value" />
-  )
-})

@@ -23,8 +23,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Column } from '../types'
 import { PropertySheetAdapter } from '../adapters/PropertySheetAdapter'
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
-import { modularCellBridge } from '../field-types/ModularCellBridge'
 import type { InteractionStore } from '../stores/InteractionStore'
+import { FormFieldValue } from './FormFieldValue'
 import './PropertySheet.css'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -277,6 +277,51 @@ const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
   onCancel: () => void
   onNavigateNext: () => void
 }) {
+  if (!isEditing) {
+    return (
+      <FormFieldValue
+        fieldId={fieldId}
+        value={value}
+        column={column}
+        rowData={rowData}
+        rowIndex={rowIndex}
+        cellClassName="property-sheet-cell"
+        containerClassName="property-sheet-field-value"
+      />
+    )
+  }
+
+  return (
+    <PropertySheetEditor
+      fieldId={fieldId}
+      value={value}
+      column={column}
+      onCommit={onCommit}
+      onCancel={onCancel}
+      onNavigateNext={onNavigateNext}
+    />
+  )
+})
+
+/**
+ * PropertySheetEditor - Edit mode for PropertySheet fields
+ * Uses FieldTypeRegistry editors for inline editing.
+ */
+const PropertySheetEditor = observer(function PropertySheetEditor({
+  fieldId,
+  value,
+  column,
+  onCommit,
+  onCancel,
+  onNavigateNext,
+}: {
+  fieldId: string
+  value: any
+  column: Column
+  onCommit: (newValue: any) => void
+  onCancel: () => void
+  onNavigateNext: () => void
+}) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<{ element: HTMLElement; destroy?: () => void } | null>(null)
   const pendingValueRef = useRef<any>(value)
@@ -286,10 +331,8 @@ const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
     const container = containerRef.current
     if (!container) return
 
-    // Clear existing content
     container.innerHTML = ''
 
-    // Clean up previous editor
     if (editorRef.current?.destroy) {
       editorRef.current.destroy()
     }
@@ -297,149 +340,108 @@ const PropertySheetFieldValue = observer(function PropertySheetFieldValue({
     committedRef.current = false
     pendingValueRef.current = value
 
-    if (isEditing) {
-      // ====================================
-      // EDIT MODE: Create editor via FieldTypeRegistry
-      // ====================================
-      try {
-        const fieldType = fieldTypeRegistry.getFieldType(column as any)
+    try {
+      const fieldType = fieldTypeRegistry.getFieldType(column as any)
 
-        if (!fieldType?.editor) {
-          logger.warn('No editor found for field type, falling back to text input', {
-            fieldId,
-            columnType: column.cellType,
-          })
-          // Fallback: create a basic text input
-          const input = document.createElement('input')
-          input.type = 'text'
-          input.value = value == null ? '' : String(value)
-          input.className = 'property-sheet-editor-fallback'
-          input.style.cssText =
-            'width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font: inherit;'
-
-          input.addEventListener('input', () => {
-            pendingValueRef.current = input.value
-          })
-          input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              onCommit(pendingValueRef.current)
-            } else if (e.key === 'Escape') {
-              e.preventDefault()
-              onCancel()
-            } else if (e.key === 'Tab') {
-              e.preventDefault()
-              onCommit(pendingValueRef.current)
-              onNavigateNext()
-            }
-          })
-          input.addEventListener('blur', () => {
-            if (!committedRef.current) {
-              committedRef.current = true
-              onCommit(pendingValueRef.current)
-            }
-          })
-
-          container.appendChild(input)
-          setTimeout(() => input.focus(), 0)
-          editorRef.current = { element: input }
-          return
-        }
-
-        // Create editor using FieldTypeRegistry
-        const editorElement = fieldType.editor.create(value, column as any, (newValue: any) => {
-          // onSave callback from editor - commit the value
-          if (!committedRef.current) {
-            committedRef.current = true
-            onCommit(newValue)
-          }
+      if (!fieldType?.editor) {
+        logger.warn('No editor found for field type, falling back to text input', {
+          fieldId,
+          columnType: column.cellType,
         })
+        const input = document.createElement('input')
+        input.type = 'text'
+        input.value = value == null ? '' : String(value)
+        input.className = 'property-sheet-editor-fallback'
+        input.style.cssText =
+          'width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font: inherit;'
 
-        // Style editor for property sheet context
-        editorElement.style.width = '100%'
-        editorElement.classList.add('property-sheet-editor')
-
-        // Track pending value via input events on the editor
-        const inputEl = editorElement.querySelector('input, textarea, select') || editorElement
-        if (inputEl instanceof HTMLInputElement || inputEl instanceof HTMLTextAreaElement) {
-          inputEl.addEventListener('input', () => {
-            pendingValueRef.current = fieldType.editor.getValue(editorElement)
-          })
-        }
-
-        // Add keyboard handling for Tab navigation and Escape cancel
-        const handleEditorKeyDown = (e: KeyboardEvent) => {
-          if (e.key === 'Escape') {
+        input.addEventListener('input', () => {
+          pendingValueRef.current = input.value
+        })
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
             e.preventDefault()
-            e.stopPropagation()
+            onCommit(pendingValueRef.current)
+          } else if (e.key === 'Escape') {
+            e.preventDefault()
             onCancel()
           } else if (e.key === 'Tab') {
             e.preventDefault()
-            e.stopPropagation()
-            const currentValue = fieldType.editor.getValue(editorElement)
-            if (!committedRef.current) {
-              committedRef.current = true
-              onCommit(currentValue)
-            }
+            onCommit(pendingValueRef.current)
             onNavigateNext()
           }
-        }
-        editorElement.addEventListener('keydown', handleEditorKeyDown)
-
-        container.appendChild(editorElement)
-        editorRef.current = {
-          element: editorElement,
-          destroy: () => {
-            editorElement.removeEventListener('keydown', handleEditorKeyDown)
-            fieldType.editor.destroy(editorElement)
-          },
-        }
-      } catch (error) {
-        logger.error('Error creating editor for property sheet field', {
-          fieldId,
-          error,
         })
-        // Fallback to plain text
-        container.textContent = String(value || '')
+        input.addEventListener('blur', () => {
+          if (!committedRef.current) {
+            committedRef.current = true
+            onCommit(pendingValueRef.current)
+          }
+        })
+
+        container.appendChild(input)
+        setTimeout(() => input.focus(), 0)
+        editorRef.current = { element: input }
+        return
       }
-    } else {
-      // ====================================
-      // DISPLAY MODE: Use ModularCellBridge (existing logic)
-      // ====================================
-      try {
-        // Use ModularCellBridge to create cell element
-        const cellElement = modularCellBridge.createCell(value, column, rowData, {
-          rowIndex,
-          columnIndex: 0,
+
+      const editorElement = fieldType.editor.create(value, column as any, (newValue: any) => {
+        if (!committedRef.current) {
+          committedRef.current = true
+          onCommit(newValue)
+        }
+      })
+
+      editorElement.style.width = '100%'
+      editorElement.classList.add('property-sheet-editor')
+
+      const inputEl = editorElement.querySelector('input, textarea, select') || editorElement
+      if (inputEl instanceof HTMLInputElement || inputEl instanceof HTMLTextAreaElement) {
+        inputEl.addEventListener('input', () => {
+          pendingValueRef.current = fieldType.editor.getValue(editorElement)
         })
-
-        // Remove absolute positioning styles (property sheet uses flexbox)
-        cellElement.style.position = 'static'
-        cellElement.style.left = 'auto'
-        cellElement.style.width = '100%'
-
-        // Add property sheet specific class
-        cellElement.classList.add('property-sheet-cell')
-
-        container.appendChild(cellElement)
-      } catch (error) {
-        logger.error('Error rendering property sheet field value', {
-          fieldId,
-          error,
-        })
-        // Fallback to plain text
-        container.textContent = String(value || '')
       }
+
+      const handleEditorKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          onCancel()
+        } else if (e.key === 'Tab') {
+          e.preventDefault()
+          e.stopPropagation()
+          const currentValue = fieldType.editor.getValue(editorElement)
+          if (!committedRef.current) {
+            committedRef.current = true
+            onCommit(currentValue)
+          }
+          onNavigateNext()
+        }
+      }
+      editorElement.addEventListener('keydown', handleEditorKeyDown)
+
+      container.appendChild(editorElement)
+      editorRef.current = {
+        element: editorElement,
+        destroy: () => {
+          editorElement.removeEventListener('keydown', handleEditorKeyDown)
+          fieldType.editor.destroy(editorElement)
+        },
+      }
+    } catch (error) {
+      logger.error('Error creating editor for property sheet field', {
+        fieldId,
+        error,
+      })
+      container.textContent = String(value || '')
     }
 
-    // Cleanup
     return () => {
       if (editorRef.current?.destroy) {
         editorRef.current.destroy()
         editorRef.current = null
       }
     }
-  }, [value, column, rowData, rowIndex, fieldId, isEditing, onCommit, onCancel, onNavigateNext])
+  }, [value, column, fieldId, onCommit, onCancel, onNavigateNext])
 
   return <div ref={containerRef} id={`field-${fieldId}`} className="property-sheet-field-value" />
 })

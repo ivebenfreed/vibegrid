@@ -21,8 +21,8 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
 import { TwoColumnLayoutAdapter } from '../adapters/TwoColumnLayoutAdapter'
-import { modularCellBridge } from '../field-types/ModularCellBridge'
 import type { InteractionStore } from '../stores/InteractionStore'
+import { FormFieldValue } from './FormFieldValue'
 import './TwoColumnForm.css'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -168,12 +168,14 @@ export const TwoColumnForm = observer(function TwoColumnForm({
               {column.required && <span className="two-column-form-field__required">*</span>}
             </div>
             <div className="two-column-form-field__value">
-              <TwoColumnFieldValue
+              <FormFieldValue
                 fieldId={fieldId}
                 value={value}
                 column={column}
                 rowData={data}
                 rowIndex={index}
+                cellClassName="two-column-form-cell"
+                containerClassName="two-column-form-field-value"
               />
             </div>
           </div>
@@ -183,50 +185,3 @@ export const TwoColumnForm = observer(function TwoColumnForm({
   )
 })
 
-/**
- * TwoColumnFieldValue - Renders field value using existing VibeGrid cell renderers
- */
-const TwoColumnFieldValue = observer(function TwoColumnFieldValue({
-  fieldId,
-  value,
-  column,
-  rowData,
-  rowIndex,
-}: {
-  fieldId: string
-  value: any
-  column: Column
-  rowData: any
-  rowIndex: number
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    container.innerHTML = ''
-
-    try {
-      const cellElement = modularCellBridge.createCell(value, column, rowData, {
-        rowIndex,
-        columnIndex: 0,
-      })
-
-      cellElement.style.position = 'static'
-      cellElement.style.left = 'auto'
-      cellElement.style.width = '100%'
-      cellElement.classList.add('two-column-form-cell')
-
-      container.appendChild(cellElement)
-    } catch (error) {
-      logger.error('Error rendering two column form field value', {
-        fieldId,
-        error,
-      })
-      container.textContent = String(value || '')
-    }
-  }, [value, column, rowData, rowIndex, fieldId])
-
-  return <div ref={containerRef} id={`field-${fieldId}`} className="two-column-form-field-value" />
-})

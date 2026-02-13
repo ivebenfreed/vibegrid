@@ -22,8 +22,8 @@ import { observer } from 'mobx-react-lite'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
 import { InlineRowLayoutAdapter } from '../adapters/InlineRowLayoutAdapter'
-import { modularCellBridge } from '../field-types/ModularCellBridge'
 import type { InteractionStore } from '../stores/InteractionStore'
+import { FormFieldValue } from './FormFieldValue'
 import './InlineRow.css'
 import { getLogger } from '@/shared/lib/logging'
 
@@ -164,12 +164,15 @@ export const InlineRow = observer(function InlineRow({
               </div>
             )}
             <div className="inline-row-field__value">
-              <InlineRowFieldValue
+              <FormFieldValue
                 fieldId={fieldId}
                 value={value}
                 column={column}
                 rowData={data}
                 rowIndex={index}
+                cellClassName="inline-row-cell"
+                cellWidth="auto"
+                containerClassName="inline-row-field-value"
               />
             </div>
           </div>
@@ -179,50 +182,3 @@ export const InlineRow = observer(function InlineRow({
   )
 })
 
-/**
- * InlineRowFieldValue - Renders field value using existing VibeGrid cell renderers
- */
-const InlineRowFieldValue = observer(function InlineRowFieldValue({
-  fieldId,
-  value,
-  column,
-  rowData,
-  rowIndex,
-}: {
-  fieldId: string
-  value: any
-  column: Column
-  rowData: any
-  rowIndex: number
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    container.innerHTML = ''
-
-    try {
-      const cellElement = modularCellBridge.createCell(value, column, rowData, {
-        rowIndex,
-        columnIndex: 0,
-      })
-
-      cellElement.style.position = 'static'
-      cellElement.style.left = 'auto'
-      cellElement.style.width = 'auto'
-      cellElement.classList.add('inline-row-cell')
-
-      container.appendChild(cellElement)
-    } catch (error) {
-      logger.error('Error rendering inline row field value', {
-        fieldId,
-        error,
-      })
-      container.textContent = String(value || '')
-    }
-  }, [value, column, rowData, rowIndex, fieldId])
-
-  return <div ref={containerRef} id={`field-${fieldId}`} className="inline-row-field-value" />
-})
