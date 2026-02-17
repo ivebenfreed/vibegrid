@@ -191,6 +191,11 @@ export class KeyboardController {
     const key = event.key
     const _isCtrlKey = event.ctrlKey || event.metaKey
 
+    if (this.editingStore.isActiveModalTextEditor && (key === 'Enter' || key === 'Tab')) {
+      fileLog.debug('⌨️ Modal text editor - delegating key to editor', { key })
+      return
+    }
+
     // Allow native editor shortcuts (don't steal from editor)
     if (this.isNativeEditorShortcut(event)) {
       fileLog.debug('⌨️ Native editor shortcut - letting editor handle', { key })

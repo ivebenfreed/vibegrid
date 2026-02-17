@@ -255,7 +255,7 @@ export class InteractionCoordinator {
       }
 
       // Enter commits edit; keep cursor behavior in editor for multiline fields
-      if (key === 'Enter' && !event?.shiftKey) {
+      if (key === 'Enter' && !event?.shiftKey && !this.editingStore.isActiveModalTextEditor) {
         event?.preventDefault?.()
         event?.stopPropagation?.()
         this.editingStore.commitEdit('enter')
@@ -264,7 +264,7 @@ export class InteractionCoordinator {
       }
 
       // Tab commits edit and then navigates
-      if (key === 'Tab') {
+      if (key === 'Tab' && !this.editingStore.isActiveModalTextEditor) {
         event?.preventDefault?.()
         event?.stopPropagation?.()
 

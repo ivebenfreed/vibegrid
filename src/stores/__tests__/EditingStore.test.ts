@@ -120,4 +120,33 @@ describe('EditingStore', () => {
 
     expect(store.isEditing).toBe(false)
   })
+
+  it('detects modal text editors by column cell type', () => {
+    const store = createStore()
+
+    store.startEdit('row-1:title', {
+      ...withMockColumn(),
+      cellType: 'longtext',
+    })
+
+    expect(store.isActiveModalTextEditor).toBe(true)
+  })
+
+  it('detects modal text editors by fieldType type fallback', () => {
+    const store = createStore()
+
+    store.startEdit('row-1:title', {
+      ...withMockColumn(),
+      cellType: undefined,
+      type: undefined,
+      fieldType: {
+        type: 'rich-text',
+        interactionPolicy: {
+          blurPolicy: 'commit',
+        },
+      },
+    })
+
+    expect(store.isActiveModalTextEditor).toBe(true)
+  })
 })

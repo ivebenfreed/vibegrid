@@ -136,6 +136,24 @@ export class EditingStore implements IStore {
   }
 
   /**
+   * Returns true when the active editor is modal/text-like and should keep
+   * multiline key handling inside the editor component.
+   */
+  get isActiveModalTextEditor(): boolean {
+    if (!this.currentSession) return false
+
+    const type = `${
+      this.currentSession.column.cellType ||
+      this.currentSession.column.type ||
+      this.currentSession.column.fieldType?.type ||
+      ''
+    }`
+      .toLowerCase()
+
+    return ['longtext', 'richtext', 'rich-text', 'html', 'markdown', 'textarea'].includes(type)
+  }
+
+  /**
    * Current validation errors (empty array if valid or no validation yet)
    */
   @computed

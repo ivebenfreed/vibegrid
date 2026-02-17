@@ -20,6 +20,7 @@ function withMockColumn(options: Record<string, any> = {}) {
   return {
     id: 'title',
     field: 'title',
+    cellType: 'text',
     fieldType: {
       interactionPolicy: {
         blurPolicy: 'commit',
@@ -104,5 +105,109 @@ describe('InteractionCoordinator', () => {
 
     expect(handleBlurSpy).toHaveBeenCalledWith('outside-pointer')
     expect(editingStore.isEditing).toBe(false)
+  })
+
+  it('does not intercept Enter for modal text editor', () => {
+    const { editingStore } = createStore()
+    const interactionStore = { clearSelection: vi.fn() }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    const coordinator = new InteractionCoordinator(
+      container,
+      interactionStore as any,
+      {} as any,
+      {} as any,
+      editingStore,
+      { columns: [withMockColumn({ cellType: 'longtext' })] } as any,
+      {} as any,
+    )
+
+    const commitSpy = vi
+      .spyOn(editingStore, 'commitEdit')
+      .mockImplementation(() => Promise.resolve(undefined) as Promise<void>)
+
+    editingStore.startEdit('row-1:title', withMockColumn({ cellType: 'longtext' }))
+
+    const handled = coordinator.handleKeyboardNavigation('Enter', {
+      ctrl: false,
+      shift: false,
+      alt: false,
+      meta: false,
+    })
+
+    expect(handled).toBe(false)
+    expect(commitSpy).not.toHaveBeenCalled()
+    expect(editingStore.isEditing).toBe(true)
+  })
+
+  it('does not intercept Tab for modal text editor', () => {
+    const { editingStore } = createStore()
+    const interactionStore = { clearSelection: vi.fn() }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    const coordinator = new InteractionCoordinator(
+      container,
+      interactionStore as any,
+      {} as any,
+      {} as any,
+      editingStore,
+      { columns: [withMockColumn({ cellType: 'markdown' })] } as any,
+      {} as any,
+    )
+
+    const commitSpy = vi
+      .spyOn(editingStore, 'commitEdit')
+      .mockImplementation(() => Promise.resolve(undefined) as Promise<void>)
+
+    editingStore.startEdit('row-1:title', withMockColumn({ cellType: 'markdown' }))
+
+    const handled = coordinator.handleKeyboardNavigation('Tab', {
+      ctrl: false,
+      shift: false,
+      alt: false,
+      meta: false,
+    })
+
+    expect(handled).toBe(false)
+    expect(commitSpy).not.toHaveBeenCalled()
+    expect(editingStore.isEditing).toBe(true)
+  })
+
+  it('keeps committing Enter for non-modal editors', () => {
+    const { editingStore } = createStore()
+    const interactionStore = { clearSelection: vi.fn() }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    const coordinator = new InteractionCoordinator(
+      container,
+      interactionStore as any,
+      {} as any,
+      {} as any,
+      editingStore,
+      { columns: [withMockColumn()] } as any,
+      {} as any,
+    )
+
+    const commitSpy = vi
+      .spyOn(editingStore, 'commitEdit')
+      .mockImplementation(() => Promise.resolve(undefined) as Promise<void>)
+
+    editingStore.startEdit('row-1:title', withMockColumn())
+
+    const handled = coordinator.handleKeyboardNavigation('Enter', {
+      ctrl: false,
+      shift: false,
+      alt: false,
+      meta: false,
+    })
+
+    expect(handled).toBe(true)
+    expect(commitSpy).toHaveBeenCalledWith('enter')
   })
 })
