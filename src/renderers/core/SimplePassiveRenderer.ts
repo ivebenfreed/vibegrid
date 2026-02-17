@@ -1978,8 +1978,8 @@ export class SimplePassiveRenderer {
     // Record render metrics
     const duration = performance.now() - startTime
 
-    // Log breakdown if significant time spent
-    if (duration > 10) {
+    // Log breakdown if significant time spent (50ms+ indicates a problem)
+    if (duration > 50) {
       const recycleInfo = rowsRecycled > 0 ? ` | ♻️ recycled: ${rowsRecycled}` : ''
       const poolInfo = ` | pool: ${this.rowPool.length}`
       fileLog.warn(
