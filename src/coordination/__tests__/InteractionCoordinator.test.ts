@@ -48,7 +48,7 @@ describe('InteractionCoordinator', () => {
       {} as any,
       editingStore,
       { columns: [withMockColumn()] } as any,
-      undefined,
+      {} as any,
     )
 
     const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur')
@@ -91,7 +91,7 @@ describe('InteractionCoordinator', () => {
       {
         columns: [cancelColumn],
       } as any,
-      undefined,
+      {} as any,
     )
 
     const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur')
