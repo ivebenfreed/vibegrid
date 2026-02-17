@@ -118,4 +118,6 @@ High-performance virtualized data grid component for rendering and editing large
 - Real-time collaboration via Yjs CRDTs (future integration, currently deferred)
 - Supports hierarchical data display via grouping and nesting (see GH#394)
 - Advanced views: Gantt (timeline), Tree (hierarchical), Table (default)
+- Editing lifecycle UX: outside-click blur now targets `.vibegridx-editing-portal[data-cell-id="..."]` so modal editors stay open on in-overlay interaction.
+- **2026-02-17 - Modal editor portal alignment:** LongText and RichText modal overlays now render with `vibegridx-editing-portal` + `data-cell-id` markers, allowing outside-click blur handling to treat body-portaled overlays as part of the active edit context.
 - **2026-02-17 - Keyboard UX gap closure:** Routed VibeGrid keyboard events through `InteractionCoordinator` for a single interaction entrypoint. `SimplePassiveRenderer` now injects `KeyboardNavigationController` into `InteractionCoordinator`, and `KeyboardController` delegates to `handleKeyboardNavigation` before its own legacy handling.

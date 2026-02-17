@@ -240,7 +240,8 @@ export function RichTextEditor({
   return ReactDOM.createPortal(
     <div
       ref={modalRef}
-      className="vibegrid-rich-text-editor-overlay fixed inset-0 bg-black/50 flex items-center justify-center p-5"
+      className="vibegridx-editing-portal vibegridx-modal-editor vibegrid-rich-text-editor-overlay fixed inset-0 bg-black/50 flex items-center justify-center p-5"
+      data-cell-id={`${cell.rowId}:${cell.columnId}`}
       style={{
         zIndex: GRID_DIMENSIONS.Z_INDEX.MODAL_BACKDROP,
       }}

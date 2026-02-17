@@ -489,23 +489,43 @@ export class EditingStore implements IStore {
   handleOutsideClick(target: HTMLElement): void {
     if (!this.currentSession) return
 
-    // Check if click is outside editing overlay
-    const editingOverlay = document.querySelector('.editing-overlay')
-    if (editingOverlay && !editingOverlay.contains(target)) {
-      const blurPolicy = this.getBlurPolicy(this.currentSession.column)
+    const blurPolicy = this.getBlurPolicy(this.currentSession.column)
+    const activeEditingPortal = this.getActiveEditingPortal()
 
-      fileLog.info('Outside click detected', {
-        cellId: this.currentSession.cellId,
-        blurPolicy,
-      })
-
-      if (blurPolicy === 'commit') {
-        this.commitEdit('outside-click')
-      } else if (blurPolicy === 'cancel') {
-        this.cancelEdit('outside-click')
-      }
-      // 'keep-open' = do nothing
+    // If we found the current editing portal and the click was inside it, do nothing.
+    if (activeEditingPortal && activeEditingPortal.contains(target)) {
+      return
     }
+
+    fileLog.info('Outside click detected', {
+      cellId: this.currentSession.cellId,
+      blurPolicy,
+      hasActivePortal: !!activeEditingPortal,
+      targetTagName: target.tagName,
+    })
+
+    if (blurPolicy === 'commit') {
+      this.commitEdit('outside-click')
+    } else if (blurPolicy === 'cancel') {
+      this.cancelEdit('outside-click')
+    }
+    // 'keep-open' = do nothing
+  }
+
+  /**
+   * Find the active portal node for the current editing session.
+   *
+   * The active portal uses `.vibegridx-editing-portal` and stores the active cell
+   * in `data-cell-id`, which makes matching deterministic in multi-grid pages.
+   */
+  private getActiveEditingPortal(): Element | null {
+    if (!this.currentSession) return null
+
+    const cellId = this.currentSession.cellId
+    return (
+      document.querySelector(`.vibegridx-editing-portal[data-cell-id="${cellId}"]`) ??
+      document.querySelector('.editing-overlay')
+    )
   }
 
   /**
