@@ -16,6 +16,7 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import type { EditingStore } from '../../stores/EditingStore'
+import type { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
 import type { KeyboardNavigationController } from './KeyboardNavigationController'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'KeyboardController.ts'])
@@ -23,6 +24,7 @@ const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'Keyboa
 export interface KeyboardControllerOptions {
   container: HTMLElement
   editingStore: EditingStore
+  interactionCoordinator?: InteractionCoordinator
   keyboardNavController?: KeyboardNavigationController
   // For clipboard operations
   onCopy?: () => void
@@ -35,6 +37,7 @@ export interface KeyboardControllerOptions {
 export class KeyboardController {
   private container: HTMLElement
   private editingStore: EditingStore
+  private interactionCoordinator?: InteractionCoordinator
   private keyboardNavController?: KeyboardNavigationController
   private onCopy?: () => void
   private onPaste?: () => void
@@ -53,6 +56,7 @@ export class KeyboardController {
   constructor(options: KeyboardControllerOptions) {
     this.container = options.container
     this.editingStore = options.editingStore
+    this.interactionCoordinator = options.interactionCoordinator
     this.keyboardNavController = options.keyboardNavController
     this.onCopy = options.onCopy
     this.onPaste = options.onPaste
@@ -72,26 +76,46 @@ export class KeyboardController {
   private setupKeyboardHandling(): void {
     fileLog.info('⌨️ Setting up document-level keyboard handling with capture phase')
 
-    const keydownHandler = (e: KeyboardEvent) => {
+    const keydownHandler = (e: Event) => {
+      const event = e as KeyboardEvent
       // Check if event is for this grid
-      if (!this.isEventForGrid(e)) {
+      if (!this.isEventForGrid(event)) {
         return
       }
 
       const isEditing = this.editingStore.isEditing
+      const modifiers = {
+        ctrl: event.ctrlKey || event.metaKey,
+        shift: event.shiftKey,
+        alt: event.altKey,
+        meta: event.metaKey,
+      }
+
+      // Route all keyboard events through coordinator when available.
+      // Fall back to legacy handling when coordinator declines.
+      if (this.interactionCoordinator) {
+        const handled = this.interactionCoordinator.handleKeyboardNavigation(
+          event.key,
+          modifiers,
+          event,
+        )
+        if (handled) {
+          return
+        }
+      }
 
       fileLog.debug('⌨️ Keyboard event', {
-        key: e.key,
+        key: event.key,
         isEditing,
-        target: (e.target as HTMLElement)?.tagName,
+        target: (event.target as HTMLElement)?.tagName,
         activeElement: document.activeElement?.tagName,
       })
 
       // Route based on editing state
       if (isEditing) {
-        this.handleEditModeKey(e)
+        this.handleEditModeKey(event)
       } else {
-        this.handleNavigationModeKey(e)
+        this.handleNavigationModeKey(event)
       }
     }
 
@@ -324,6 +348,14 @@ export class KeyboardController {
   setKeyboardNavController(controller: KeyboardNavigationController): void {
     this.keyboardNavController = controller
     fileLog.debug('⌨️ Keyboard navigation controller updated')
+  }
+
+  /**
+   * Update interaction coordinator reference
+   */
+  setInteractionCoordinator(coordinator: InteractionCoordinator): void {
+    this.interactionCoordinator = coordinator
+    fileLog.debug('⌨️ Interaction coordinator updated')
   }
 
   /**

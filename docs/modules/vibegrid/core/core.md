@@ -118,3 +118,4 @@ High-performance virtualized data grid component for rendering and editing large
 - Real-time collaboration via Yjs CRDTs (future integration, currently deferred)
 - Supports hierarchical data display via grouping and nesting (see GH#394)
 - Advanced views: Gantt (timeline), Tree (hierarchical), Table (default)
+- **2026-02-17 - Keyboard UX gap closure:** Routed VibeGrid keyboard events through `InteractionCoordinator` for a single interaction entrypoint. `SimplePassiveRenderer` now injects `KeyboardNavigationController` into `InteractionCoordinator`, and `KeyboardController` delegates to `handleKeyboardNavigation` before its own legacy handling.

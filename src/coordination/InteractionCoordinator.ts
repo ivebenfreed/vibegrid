@@ -15,6 +15,7 @@
 import { untracked } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
+import type { KeyboardNavigationController } from '../renderers/modules/KeyboardNavigationController'
 import type { CellActionRouter } from '../routing/CellActionRouter'
 import type { EditingStore } from '../stores/EditingStore'
 import type { SelectionService } from '../services/SelectionService'
@@ -73,13 +74,14 @@ export class InteractionCoordinator {
   private overlayManager?: any // Optional reference for fill handle delegation
 
   constructor(
-    _container: HTMLElement,
+    private container: HTMLElement,
     private interactionStore: InteractionStore,
     private selectionService: SelectionService,
     private cellActionRouter: CellActionRouter,
     private editingStore: EditingStore,
     private tableCoreStore: TableCoreStore,
     private visualStateStore: VisualStateStore,
+    private keyboardNavController?: KeyboardNavigationController,
   ) {
     fileLog.info('InteractionCoordinator initialized')
   }
@@ -169,7 +171,7 @@ export class InteractionCoordinator {
    * Some field types (like text) use double-click as edit trigger.
    */
   handleDoubleClick(context: ClickContext): void {
-    const { cellId, rowId, columnId, modifiers, target } = context
+    const { cellId, rowId, columnId, modifiers } = context
 
     fileLog.debug('handleDoubleClick', {
       cellId,
@@ -229,19 +231,96 @@ export class InteractionCoordinator {
    *
    * Moves focus and selection based on arrow keys, Enter, Tab, etc.
    */
-  handleKeyboardNavigation(key: string, modifiers: ModifierKeys): void {
+  handleKeyboardNavigation(key: string, modifiers: ModifierKeys, event?: KeyboardEvent): boolean {
     fileLog.debug('handleKeyboardNavigation', { key, modifiers })
 
     // If editing, let EditingStore handle it
     if (this.editingStore.isEditing) {
       fileLog.debug('Keyboard event during edit - delegating to EditingStore')
-      // EditingStore should handle Enter (commit), Escape (cancel), Tab (commit + move)
-      return
+
+      // Escape cancels editing
+      if (key === 'Escape') {
+        event?.preventDefault?.()
+        event?.stopPropagation?.()
+        this.editingStore.cancelEdit('escape')
+        this.container.focus()
+        return true
+      }
+
+      // Enter commits edit; keep cursor behavior in editor for multiline fields
+      if (key === 'Enter' && !event?.shiftKey) {
+        event?.preventDefault?.()
+        event?.stopPropagation?.()
+        this.editingStore.commitEdit('enter')
+        this.container.focus()
+        return true
+      }
+
+      // Tab commits edit and then navigates
+      if (key === 'Tab') {
+        event?.preventDefault?.()
+        event?.stopPropagation?.()
+
+        this.editingStore.commitEdit('tab')
+
+        if (!this.keyboardNavController) {
+          this.container.focus()
+          return true
+        }
+
+        const targetKey = event?.shiftKey ? 'ArrowLeft' : 'ArrowRight'
+        this.container.focus()
+        const navEvent = this.createKeyboardEvent(targetKey, {
+          ctrl: modifiers.ctrl || modifiers.meta,
+          shift: event?.shiftKey || false,
+          alt: modifiers.alt,
+          meta: modifiers.meta,
+        })
+
+        return this.keyboardNavController.handleKeyDown(navEvent)
+      }
+
+      // Default: editor handles the key
+      return false
     }
 
-    // Otherwise, handle navigation
-    // TODO: Implement keyboard navigation logic
-    fileLog.debug('Keyboard navigation not yet implemented', { key })
+    if (!this.keyboardNavController) {
+      fileLog.debug('Keyboard navigation unavailable: no KeyboardNavigationController', { key })
+      return false
+    }
+
+    const navEvent = event || this.createKeyboardEvent(key, modifiers)
+    return this.keyboardNavController.handleKeyDown(navEvent)
+  }
+
+  /**
+   * Build a KeyboardEvent-like object for keyboard controller delegates.
+   * Uses a synthetic object when KeyboardEvent is unavailable (tests) or for performance.
+   */
+  private createKeyboardEvent(key: string, modifiers: ModifierKeys): KeyboardEvent {
+    if (typeof KeyboardEvent === 'undefined') {
+      return {
+        key,
+        shiftKey: modifiers.shift,
+        altKey: modifiers.alt,
+        ctrlKey: modifiers.ctrl,
+        metaKey: modifiers.meta,
+        bubbles: true,
+        cancelable: true,
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      } as unknown as KeyboardEvent
+    }
+
+    return new KeyboardEvent('keydown', {
+      key,
+      shiftKey: modifiers.shift,
+      altKey: modifiers.alt,
+      ctrlKey: modifiers.ctrl,
+      metaKey: modifiers.meta,
+      bubbles: true,
+      cancelable: true,
+    })
   }
 
   /**

@@ -444,6 +444,7 @@ export class SimplePassiveRenderer {
     this.keyboardController = new KeyboardController({
       container: this.container,
       editingStore: this.editingStore,
+      interactionCoordinator: this.interactionCoordinator ?? undefined,
       keyboardNavController: this.keyboardNavController ?? undefined,
       onCopy: () => this.eventManager?.handleCopyAction(),
       onPaste: () => this.eventManager?.handlePasteAction(),
@@ -1410,7 +1411,11 @@ export class SimplePassiveRenderer {
         this.editingStore,
         this.tableCoreStore,
         this.visualStateStore,
+        this.keyboardNavController ?? undefined,
       )
+      if (this.keyboardController) {
+        this.keyboardController.setInteractionCoordinator(this.interactionCoordinator)
+      }
 
       // Initialize MouseController for centralized mouse event handling
       this.mouseController = new MouseController({
