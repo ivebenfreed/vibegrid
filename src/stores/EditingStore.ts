@@ -490,17 +490,17 @@ export class EditingStore implements IStore {
     if (!this.currentSession) return
 
     const blurPolicy = this.getBlurPolicy(this.currentSession.column)
-    const activeEditingPortal = this.getActiveEditingPortal()
+    const activeEditingPortals = this.getActiveEditingPortals()
 
-    // If we found the current editing portal and the click was inside it, do nothing.
-    if (activeEditingPortal && activeEditingPortal.contains(target)) {
+    // If the click is within any active editing portal, ignore it.
+    if (this.isTargetInActiveEditingPortal(target)) {
       return
     }
 
     fileLog.info('Outside click detected', {
       cellId: this.currentSession.cellId,
       blurPolicy,
-      hasActivePortal: !!activeEditingPortal,
+      hasActivePortal: activeEditingPortals.length > 0,
       targetTagName: target.tagName,
     })
 
@@ -518,14 +518,37 @@ export class EditingStore implements IStore {
    * The active portal uses `.vibegridx-editing-portal` and stores the active cell
    * in `data-cell-id`, which makes matching deterministic in multi-grid pages.
    */
-  private getActiveEditingPortal(): Element | null {
-    if (!this.currentSession) return null
+  /**
+   * Return all active editing portals for the current cell.
+   *
+   * Long text/rich text editors can render a modal portal in addition to
+   * the regular EditingOverlay portal.
+   */
+  private getActiveEditingPortals(): Element[] {
+    if (!this.currentSession) return []
 
     const cellId = this.currentSession.cellId
-    return (
-      document.querySelector(`.vibegridx-editing-portal[data-cell-id="${cellId}"]`) ??
-      document.querySelector('.editing-overlay')
+    const matchingPortals = document.querySelectorAll(
+      `.vibegridx-editing-portal[data-cell-id="${cellId}"]`,
     )
+
+    if (matchingPortals.length > 0) {
+      return Array.from(matchingPortals)
+    }
+
+    const legacyPortal = document.querySelector('.editing-overlay')
+    return legacyPortal ? [legacyPortal] : []
+  }
+
+  /**
+   * Returns true when a pointer/click target is inside the active editor portal.
+   */
+  isTargetInActiveEditingPortal(target: EventTarget | null): boolean {
+    if (!(target instanceof Element)) {
+      return false
+    }
+
+    return this.getActiveEditingPortals().some((portal) => portal.contains(target))
   }
 
   /**

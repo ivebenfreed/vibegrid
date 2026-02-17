@@ -65,6 +65,31 @@ describe('EditingStore', () => {
     expect(store.isEditing).toBe(true)
   })
 
+  it('keeps editing when clicking inside later matching modal portal', async () => {
+    const store = createStore()
+
+    store.startEdit('row-1:title', withMockColumn())
+
+    const stalePortal = document.createElement('div')
+    stalePortal.className = 'vibegridx-editing-portal'
+    stalePortal.setAttribute('data-cell-id', 'row-1:title')
+    const staleButton = document.createElement('button')
+    stalePortal.appendChild(staleButton)
+    document.body.appendChild(stalePortal)
+
+    const activePortal = document.createElement('div')
+    activePortal.className =
+      'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
+    activePortal.setAttribute('data-cell-id', 'row-1:title')
+    const activeButton = document.createElement('button')
+    activePortal.appendChild(activeButton)
+    document.body.appendChild(activePortal)
+
+    await store.handleOutsideClick(activeButton)
+
+    expect(store.isEditing).toBe(true)
+  })
+
   it('keeps editing when clicking inside modal text editor portal', async () => {
     const store = createStore()
 

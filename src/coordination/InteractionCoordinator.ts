@@ -212,12 +212,19 @@ export class InteractionCoordinator {
    * When user clicks outside the grid, either commit editing or clear selection.
    */
   handleOutsidePointer(event: PointerEvent): void {
+    const target = event.target as EventTarget | null
+
     fileLog.debug('handleOutsidePointer', {
       isEditing: this.editingStore.isEditing,
-      target: (event.target as HTMLElement)?.tagName,
+      target: (target as HTMLElement)?.tagName,
     })
 
     if (this.editingStore.isEditing) {
+      if (this.editingStore.isTargetInActiveEditingPortal(target)) {
+        fileLog.info('Outside pointer hit active editor portal - preserving edit session')
+        return
+      }
+
       fileLog.info('Outside pointer while editing - triggering blur handler')
       this.editingStore.handleBlur('outside-pointer')
     } else {
