@@ -1,0 +1,108 @@
+/* @vitest-environment jsdom */
+
+import { describe, expect, it, vi } from 'vitest'
+import { InteractionCoordinator } from '../InteractionCoordinator'
+import { EditingStore } from '../../stores/EditingStore'
+import { beforeEach } from 'vitest'
+
+function createStore() {
+  const tableCoreStore = {
+    processedRows: [{ id: 'row-1', title: 'Initial value' }],
+  } as any
+  const visualStateStore = {
+    columns: [{ id: 'title' }],
+  } as any
+
+  return { editingStore: new EditingStore(tableCoreStore, visualStateStore) }
+}
+
+function withMockColumn(options: Record<string, any> = {}) {
+  return {
+    id: 'title',
+    field: 'title',
+    fieldType: {
+      interactionPolicy: {
+        blurPolicy: 'commit',
+      },
+    },
+    ...options,
+  } as any
+}
+
+describe('InteractionCoordinator', () => {
+  beforeEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('does not blur editing when pointer is inside active editor portal', () => {
+    const { editingStore } = createStore()
+    const interactionStore = { clearSelection: vi.fn() }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    const coordinator = new InteractionCoordinator(
+      container,
+      interactionStore as any,
+      {} as any,
+      {} as any,
+      editingStore,
+      { columns: [withMockColumn()] } as any,
+      undefined,
+    )
+
+    const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur')
+    editingStore.startEdit('row-1:title', withMockColumn())
+
+    const portal = document.createElement('div')
+    portal.className =
+      'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
+    portal.setAttribute('data-cell-id', 'row-1:title')
+    const button = document.createElement('button')
+    portal.appendChild(button)
+    document.body.appendChild(portal)
+
+    coordinator.handleOutsidePointer({ target: button } as unknown as PointerEvent)
+
+    expect(handleBlurSpy).not.toHaveBeenCalled()
+    expect(editingStore.isEditing).toBe(true)
+  })
+
+  it('blurs editing when pointer is outside active editor portal', () => {
+    const { editingStore } = createStore()
+    const interactionStore = { clearSelection: vi.fn() }
+    const cancelColumn = withMockColumn({
+      fieldType: {
+        interactionPolicy: {
+          blurPolicy: 'cancel',
+        },
+      },
+    })
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+
+    const coordinator = new InteractionCoordinator(
+      container,
+      interactionStore as any,
+      {} as any,
+      {} as any,
+      editingStore,
+      {
+        columns: [cancelColumn],
+      } as any,
+      undefined,
+    )
+
+    const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur')
+    editingStore.startEdit('row-1:title', cancelColumn)
+
+    const outside = document.createElement('div')
+    document.body.appendChild(outside)
+
+    coordinator.handleOutsidePointer({ target: outside } as unknown as PointerEvent)
+
+    expect(handleBlurSpy).toHaveBeenCalledWith('outside-pointer')
+    expect(editingStore.isEditing).toBe(false)
+  })
+})
