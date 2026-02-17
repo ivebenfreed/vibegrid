@@ -1242,20 +1242,23 @@ export class SimplePassiveRenderer {
     )
 
     // Viewport size reaction: resize canvas and redraw
+    // FIX: Read from viewportStore directly (observable), not visualStateStore
+    // delegates which are plain getters that MobX can't track.
+    const viewportStore = this.stores.viewportStore
     const viewportDisposer = reaction(
       () => ({
-        width: this.visualStateStore.viewportWidth,
-        height: this.visualStateStore.viewportHeight,
+        width: viewportStore.viewportWidth,
+        height: viewportStore.viewportHeight,
       }),
       () => {
         canvas.updateCanvasSize()
         canvas.draw()
       },
+      { fireImmediately: true },
     )
 
     // Row offsets sync: wire tableCoreStore.rowOffsets into viewportStore
     // so canvas grid lines reflect variable-height rows (e.g., expanded rows)
-    const viewportStore = this.stores.viewportStore
     const rowOffsetsSyncDisposer = reaction(
       () => this.tableCoreStore.rowOffsets,
       (offsets) => {
@@ -1861,10 +1864,15 @@ export class SimplePassiveRenderer {
     // Focus optimization on per-row time, not limiting row count
 
     // Add new rows that became visible - TRY RECYCLING FIRST
+    // FIX: Clamp add loops to currentRange to prevent filling gaps on large scroll jumps.
+    // Without clamping, jumping from range {0,25} to {1250,1275} would create rows 25-1274
+    // (the entire gap), leaking thousands of orphan DOM elements with opaque backgrounds.
     if (currentRange.start < previousRange.start) {
       // Insert new rows at the top in correct order
+      // Clamp: don't add rows beyond currentRange.end (they'd be outside visible range)
+      const addFrom = Math.min(previousRange.start - 1, currentRange.end - 1)
       const fragment = document.createDocumentFragment()
-      for (let i = previousRange.start - 1; i >= currentRange.start; i--) {
+      for (let i = addFrom; i >= currentRange.start; i--) {
         const row = rows[i]
         if (!row) continue
 
@@ -1914,8 +1922,10 @@ export class SimplePassiveRenderer {
     }
 
     if (currentRange.end > previousRange.end) {
+      // Clamp: don't add rows before currentRange.start (they'd be outside visible range)
+      const addStart = Math.max(previousRange.end, currentRange.start)
       const fragment = document.createDocumentFragment()
-      for (let i = previousRange.end; i < currentRange.end && i < rows.length; i++) {
+      for (let i = addStart; i < currentRange.end && i < rows.length; i++) {
         const row = rows[i]
         if (!row) continue
 
