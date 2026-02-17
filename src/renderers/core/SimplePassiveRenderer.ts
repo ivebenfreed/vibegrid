@@ -379,13 +379,44 @@ export class SimplePassiveRenderer {
     this.dragDropManager = new DragDropManager({
       onRowMove: (draggedRowId: string, targetGroupId: string, newIndex: number) => {
         fileLog.debug('🎯 Row moved', { draggedRowId, targetGroupId, newIndex })
-        // TODO: Implement row move logic
-        return true
+        // Get current group structure to determine the source group
+        const processedRows = this.tableCoreStore.processedRows
+        const draggedRow = processedRows.find((r) => r.id === draggedRowId)
+        if (!draggedRow || draggedRow.type !== 'data') {
+          fileLog.error('❌ Invalid dragged row or not a data row', { draggedRowId })
+          return false
+        }
+
+        const sourceGroupId = draggedRow.groupId || this.findRowGroupId(draggedRowId)
+        if (!sourceGroupId) {
+          fileLog.error('❌ Could not determine source group for dragged row', { draggedRowId })
+          return false
+        }
+
+        try {
+          // Move row in grouped mode using data store
+          this.tableCoreStore.moveRowInGroup(sourceGroupId, targetGroupId, draggedRowId, newIndex)
+          fileLog.debug('✅ Row move delegated to drag handler', {
+            draggedRowId,
+            sourceGroupId,
+            targetGroupId,
+            newIndex,
+          })
+          return true
+        } catch (error) {
+          fileLog.error('❌ Row move failed', { error })
+          return false
+        }
       },
       onFlatRowMove: (fromIndex: number, toIndex: number) => {
         fileLog.debug('🎯 Flat row moved', { fromIndex, toIndex })
-        // TODO: Implement flat row move logic
-        return true
+        const success = this.tableCoreStore.moveRowInFlat(fromIndex, toIndex)
+        fileLog.debug('✅ Flat row moved via drag handler', {
+          success,
+          fromIndex,
+          toIndex,
+        })
+        return success
       },
       onDragStart: (rowId: string, groupId?: string) => {
         fileLog.debug('🎯 Row drag started', { rowId, groupId })
@@ -2905,6 +2936,25 @@ export class SimplePassiveRenderer {
   // handleArrowKey method removed - now handled by KeyboardNavigationController
 
   // selectKeyboardRange method removed - now handled by SelectionController
+
+  /**
+   * Find the group ID for a given row ID by traversing the processed rows
+   * (used when dragging a row after grouping state is computed in the rendered order).
+   */
+  private findRowGroupId(rowId: string): string | null {
+    const processedRows = this.tableCoreStore.processedRows
+    let currentGroupId: string | null = null
+
+    for (const row of processedRows) {
+      if (row.type === 'group') {
+        currentGroupId = row.id
+      } else if (row.type === 'data' && row.id === rowId) {
+        return currentGroupId
+      }
+    }
+
+    return null
+  }
 
   /**
    * Update the select all checkbox visual state based on computed observable state
