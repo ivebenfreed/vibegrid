@@ -9,7 +9,11 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1rem;
+  padding: 1.125rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.875rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.03);
 }
 
 /* Status indicator */
@@ -17,35 +21,52 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem;
+  flex-wrap: wrap;
+  min-height: 2rem;
+  padding: 0.45rem 0.6rem;
   border-radius: 0.25rem;
   font-size: 0.875rem;
+  background: hsl(var(--accent) / 0.12);
+  border: 1px dashed hsl(var(--border));
+  color: hsl(var(--foreground));
+  animation: vibe-form-fade-in 0.18s ease;
 }
 
 .vibe-form-status-draft {
-  color: var(--color-text-muted);
+  color: hsl(var(--muted-foreground));
   font-style: italic;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.vibe-form-status-draft::before {
+  content: '•';
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
 }
 
 .vibe-form-status-saving {
-  color: var(--color-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 .vibe-form-status-saving::before {
   content: "";
   width: 1rem;
   height: 1rem;
-  border: 2px solid var(--color-primary);
+  border: 2px solid hsl(var(--primary));
   border-top-color: transparent;
   border-radius: 50%;
   animation: vibe-form-spin 0.6s linear infinite;
 }
 
 .vibe-form-status-saved {
-  color: var(--color-success);
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 .vibe-form-status-saved::before {
@@ -53,30 +74,50 @@
   margin-right: 0.25rem;
 }
 
+.vibe-form-status-idle {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
+}
+
 /* Error banner */
 .vibe-form-error-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background-color: var(--color-error-bg, #fee);
-  color: var(--color-error, #c00);
+  background-color: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
   border-radius: 0.25rem;
-  border: 1px solid var(--color-error, #c00);
+  border: 1px solid hsl(var(--destructive) / 0.4);
 }
 
 .vibe-form-retry-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.25rem 0.75rem;
-  background-color: var(--color-error, #c00);
-  color: white;
+  background-color: hsl(var(--destructive));
+  color: hsl(var(--foreground));
   border: none;
   border-radius: 0.25rem;
   cursor: pointer;
   font-size: 0.875rem;
+  font-weight: 600;
+  transition: opacity 0.2s ease, transform 0.15s ease;
 }
 
 .vibe-form-retry-button:hover {
   opacity: 0.8;
+}
+
+.vibe-form-retry-button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.vibe-form-retry-button:active {
+  transform: translateY(1px);
 }
 
 /* Placeholder for unimplemented layouts */
@@ -90,9 +131,22 @@
 
 .vibe-form-error {
   padding: 1rem;
-  background-color: var(--color-error-bg, #fee);
-  color: var(--color-error, #c00);
+  background-color: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
   border-radius: 0.25rem;
+  border: 1px solid hsl(var(--destructive) / 0.4);
+}
+
+@keyframes vibe-form-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Spinner animation */

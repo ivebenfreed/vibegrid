@@ -249,6 +249,7 @@ export const VibeFormField = observer(function VibeFormField({
     <div
       className={`vibe-form-field ${hasError ? 'vibe-form-field--error' : ''}`}
       data-testid={`vibe-form-field-${fieldId}`}
+      aria-live={hasError ? 'polite' : undefined}
     >
       {/* Editor container — FieldTypeRegistry mounts DOM elements here */}
       <div ref={containerRef} className="vibe-form-field-editor-container" />
@@ -262,7 +263,11 @@ export const VibeFormField = observer(function VibeFormField({
 
       {/* Error message */}
       {hasError && (
-        <div className="vibe-form-field-error" data-testid={`vibe-form-error-${fieldId}`}>
+        <div
+          className="vibe-form-field-error"
+          data-testid={`vibe-form-error-${fieldId}`}
+          id={`${fieldId}-error`}
+        >
           {error}
         </div>
       )}
@@ -288,10 +293,9 @@ function mountFallbackInput(
   const input = document.createElement('input')
   input.type = 'text'
   input.value = value == null ? '' : String(value)
-  input.className = 'vibe-form-field-input'
+  input.className = 'vibe-form-field-input vibe-form-field-input-fallback'
   input.placeholder = column.label || column.name || fieldId
-  input.style.cssText =
-    'width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font: inherit;'
+  input.setAttribute('aria-label', column.label || column.name || fieldId)
 
   input.addEventListener('blur', () => {
     commitRef.current(input.value.trim() === '' ? null : input.value)

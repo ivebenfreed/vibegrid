@@ -23,7 +23,9 @@
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
   font-size: 0.875rem;
-  transition: border-color 0.2s;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .vibe-form-field-input:focus {
@@ -32,13 +34,30 @@
   box-shadow: 0 0 0 3px var(--color-primary-alpha, rgba(0, 100, 200, 0.1));
 }
 
+.vibe-form-field-input:focus-visible {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+}
+
 .vibe-form-field-input:disabled {
   background-color: var(--color-bg-disabled, #f5f5f5);
   cursor: not-allowed;
 }
 
+.vibe-form-field-input-fallback {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  background: hsl(var(--background));
+}
+
 .vibe-form-field--error .vibe-form-field-input {
   border-color: var(--color-error, #c00);
+}
+
+.vibe-form-field--error .vibe-form-field-editor {
+  outline: 2px solid var(--color-error, #c00);
+  outline-offset: -2px;
 }
 
 .vibe-form-field--error .vibe-form-field-input:focus {

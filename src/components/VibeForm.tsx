@@ -391,24 +391,36 @@ export const VibeForm = observer(function VibeForm({
   return (
     <div className="vibe-form" data-testid="vibe-form">
       {/* Save status indicator */}
-      <div className="vibe-form-status" data-testid="vibe-form-save-status">
-        {createFlow.mode === 'local' && <span className="vibe-form-status-draft">Draft</span>}
+      <div className="vibe-form-status" data-testid="vibe-form-save-status" role="status" aria-live="polite">
+        {createFlow.mode === 'local' && (
+          <span className="vibe-form-status-draft" aria-label="Form in draft mode">
+            Draft
+          </span>
+        )}
         {createFlow.mode === 'creating' && (
-          <span className="vibe-form-status-saving">Saving...</span>
+          <span className="vibe-form-status-saving" aria-label="Auto-save in progress">
+            Saving...
+          </span>
         )}
         {createFlow.mode === 'persisted' && isDirty && (
-          <span className="vibe-form-status-saved">Saved</span>
+          <span className="vibe-form-status-saved" aria-label="Changes saved">
+            Saved
+          </span>
+        )}
+        {!isDirty && createFlow.mode !== 'creating' && (
+          <span className="vibe-form-status-idle">No pending changes</span>
         )}
       </div>
 
       {/* Error message */}
       {createFlow.createError && (
-        <div className="vibe-form-error-banner">
+        <div className="vibe-form-error-banner" role="alert">
           <span>{createFlow.createError}</span>
           <button
             type="button"
             onClick={() => handleAutoCreate(createFlow.localValues)}
             className="vibe-form-retry-button"
+            aria-label="Retry create flow"
           >
             Retry
           </button>
