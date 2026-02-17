@@ -246,6 +246,41 @@ export class KeyboardNavigationController {
         break
       }
 
+      case 'Tab': {
+        event.preventDefault()
+        event.stopPropagation()
+        this.handleArrowKey(event.shiftKey ? 'left' : 'right', false)
+        return true
+      }
+
+      case 'F2':
+      case 'f2': {
+        const focusedCell = this.interactionStore.focusedCell
+        if (focusedCell) {
+          const [rowId, columnId] = focusedCell.split(':')
+          const cellId = `${rowId}:${columnId}`
+
+          // Check if column is editable before starting edit mode
+          const columns = this.getVisibleColumns()
+          const column = columns.find((c) => c.id === columnId)
+          if (column && column.editable === false) {
+            return true // Consume the event but don't start editing
+          }
+
+          if (!column) {
+            logger.warn('Column not found for editing', { columnId })
+            return true
+          }
+
+          // FIXED: Now uses EditingStore with full column object
+          // This ensures consistent value lookup (column.field + row.data[field])
+          // Fixes Issue #3 from detailed-issues.md (keyboard vs click desync)
+          this.editingStore.startEdit(cellId, column)
+          return true
+        }
+        break
+      }
+
       case 'Escape':
         // If currently editing, just cancel the edit and keep selection
         if (this.editingStore.isEditing) {
