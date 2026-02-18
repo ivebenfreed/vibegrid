@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { VibeGrid } from '@/systems/vibegrid'
 import {
@@ -12,6 +12,9 @@ import { Main } from '@/shared/components/layout/main'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { ProfileDropdown } from '@/shared/components/profile-dropdown'
+import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
+import { createMockEntityCollection } from '@/shared/data/db/collections/mock-collections'
+import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
 import { DataControls } from './_components/DataControls'
 import { createSmallScenario, getScenarioById, type TestScenario } from './_mock-data/scenarios'
 import type { MockTask } from './_mock-data/generators'
@@ -22,6 +25,7 @@ export const Route = createFileRoute('/_authenticated/debug/vibegrid')({
 
 function DebugVibeGridPage() {
   const [entityType] = useState('WorkTask')
+  const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [useMockData, setUseMockData] = useState(false)
   const [scenario, setScenario] = useState<TestScenario | null>(null)
   const [mockTasks, setMockTasks] = useState<MockTask[]>([])
@@ -69,6 +73,15 @@ function DebugVibeGridPage() {
     }
   }, [scenario])
 
+  // Mock schema registry so column-generation.ts can find MockTask schema
+  const mockSchemaRegistry = useMemo(() => createMockSchemaRegistry([MOCK_TASK_SCHEMA]), [])
+
+  // Mock collection so VibeGrid data layer works without API calls
+  const mockCollection = useMemo(
+    () => (useMockData ? createMockEntityCollection('debug-grid-mock', mockTasks) : undefined),
+    [useMockData, mockTasks],
+  )
+
   return (
     <>
       <Header>
@@ -105,8 +118,11 @@ function DebugVibeGridPage() {
 
           <div className="flex-1 w-full" data-testid="vibegrid-container">
             <VibeGridStoreProvider
+              key={useMockData ? 'mock' : 'live'}
               tableId="debug-grid-1"
               entityType={useMockData ? 'MockTask' : entityType}
+              schemaRegistryOverride={useMockData ? mockSchemaRegistry : undefined}
+              collectionOverride={useMockData ? mockCollection : undefined}
             >
               {useMockData ? (
                 <MockDataInjector tasks={mockTasks}>
@@ -114,10 +130,14 @@ function DebugVibeGridPage() {
                     tableId="debug-grid-1"
                     entityType="MockTask"
                     height={600}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
                     enableSelectionColumn={true}
                     enableGrouping={true}
                     enableFiltering={true}
                     enableSorting={true}
+                    enableKanban={true}
+                    enableGantt={true}
                     skipDataFetching={true}
                   />
                 </MockDataInjector>
@@ -126,6 +146,8 @@ function DebugVibeGridPage() {
                   tableId="debug-grid-1"
                   entityType={entityType}
                   height={600}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
                   enableSelectionColumn={true}
                   enableGrouping={true}
                   enableFiltering={true}
