@@ -6,7 +6,9 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import { useMemo } from 'react'
 import { getLogger } from '@/shared/lib/logging'
+import type { KanbanCard as KanbanCardType } from '../../stores/KanbanViewStore'
 import { useKanbanViewStore } from '../../stores/context'
 import { KanbanColumn } from './KanbanColumn'
 
@@ -25,6 +27,20 @@ export const KanbanBoard = observer(function KanbanBoard({
 }: KanbanBoardProps) {
   const kanbanStore = useKanbanViewStore()
   const { columns, cards, dragState } = kanbanStore
+
+  // Pre-split cards by column in O(n) — eliminates O(n^2) per-column filtering
+  const cardsByColumnId = useMemo(() => {
+    const map = new Map<string, KanbanCardType[]>()
+    for (const card of cards) {
+      let bucket = map.get(card.columnId)
+      if (!bucket) {
+        bucket = []
+        map.set(card.columnId, bucket)
+      }
+      bucket.push(card)
+    }
+    return map
+  }, [cards])
 
   // Drag handlers
   const handleCardDragStart = (cardId: string, columnId: string) => {
@@ -89,7 +105,7 @@ export const KanbanBoard = observer(function KanbanBoard({
         <KanbanColumn
           key={column.id}
           column={column}
-          cards={cards}
+          cards={cardsByColumnId.get(column.id) ?? []}
           isDragOver={dragState.targetColumnId === column.id}
           draggingCardId={dragState.cardId}
           enableDragAndDrop={enableDragAndDrop}

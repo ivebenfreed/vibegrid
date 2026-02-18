@@ -292,10 +292,22 @@ export class KanbanViewStore implements IStore {
   }
 
   /**
-   * Get a specific card by ID
+   * O(1) card lookup map. Recomputed only when cards change.
+   */
+  @computed
+  private get cardsById(): Map<string, KanbanCard> {
+    const map = new Map<string, KanbanCard>()
+    for (const card of this.cards) {
+      map.set(card.id, card)
+    }
+    return map
+  }
+
+  /**
+   * Get a specific card by ID (O(1) via computed Map)
    */
   getCard(cardId: string): KanbanCard | undefined {
-    return this.cards.find((card) => card.id === cardId)
+    return this.cardsById.get(cardId)
   }
 
   // ====================================

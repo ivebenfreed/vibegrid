@@ -5,8 +5,9 @@
  * Handles drop zone for drag-and-drop reordering.
  */
 
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { observer } from 'mobx-react-lite'
-import { memo, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import type React from 'react'
 import { cn } from '@/shared/lib/utils'
 import type {
@@ -73,8 +74,18 @@ const KanbanColumnInner = observer(function KanbanColumn({
     onDrop?.(column.id)
   }
 
-  // Filter cards that belong to this column
-  const columnCards = cards.filter((card) => column.cardIds.includes(card.id))
+  // Cards are already pre-filtered by KanbanBoard (O(n) pre-split)
+  const columnCards = cards
+
+  // Virtualize card list for large columns
+  const parentRef = useRef<HTMLDivElement>(null)
+  const rowVirtualizer = useVirtualizer({
+    count: columnCards.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+    gap: 8,
+  })
 
   return (
     <article
@@ -107,26 +118,41 @@ const KanbanColumnInner = observer(function KanbanColumn({
         </span>
       </div>
 
-      {/* Cards Container */}
-      <ul className="flex-1 overflow-y-auto p-2 space-y-2 min-h-[100px] list-none">
+      {/* Cards Container — virtualized for large columns */}
+      <div ref={parentRef} className="flex-1 overflow-y-auto p-2 min-h-[100px]">
         {columnCards.length === 0 ? (
-          <li className="flex items-center justify-center h-20 text-sm text-muted-foreground/50 border-2 border-dashed border-muted-foreground/20 rounded-lg">
+          <div className="flex items-center justify-center h-20 text-sm text-muted-foreground/50 border-2 border-dashed border-muted-foreground/20 rounded-lg">
             No items
-          </li>
+          </div>
         ) : (
-          columnCards.map((card) => (
-            <KanbanCard
-              key={card.id}
-              card={card}
-              isDragging={draggingCardId === card.id}
-              enableDragAndDrop={enableDragAndDrop}
-              onDragStart={onCardDragStart}
-              onDragEnd={onCardDragEnd}
-              onClick={onCardClick}
-            />
-          ))
+          <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}>
+            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+              const card = columnCards[virtualItem.index]
+              return (
+                <div
+                  key={card.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <KanbanCard
+                    card={card}
+                    isDragging={draggingCardId === card.id}
+                    enableDragAndDrop={enableDragAndDrop}
+                    onDragStart={onCardDragStart}
+                    onDragEnd={onCardDragEnd}
+                    onClick={onCardClick}
+                  />
+                </div>
+              )
+            })}
+          </div>
         )}
-      </ul>
+      </div>
     </article>
   )
 })

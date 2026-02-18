@@ -52,7 +52,7 @@ const KanbanCardInner = observer(function KanbanCard({
   }
 
   return (
-    <li className="list-none">
+    <div>
       <Card
         className={cn(
           'vibegridx-kanban-card transition-all duration-200',
@@ -85,7 +85,7 @@ const KanbanCardInner = observer(function KanbanCard({
           </CardContent>
         )}
       </Card>
-    </li>
+    </div>
   )
 })
 

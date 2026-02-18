@@ -8,8 +8,10 @@
  * @see Issue #1416 for architecture overview
  */
 
+import { useCallback } from 'react'
 import type { GridModule, GridModuleRenderProps } from '../GridModule'
 import type { VibeGridStores } from '../../stores/context'
+import { CutoffResizer } from '../../components/CutoffResizer'
 import { GanttTimeline } from '../../components/GanttTimeline'
 import { getLogger } from '@/shared/lib/logging'
 import type { SlotRegistry } from '../../slots/SlotRegistry'
@@ -17,31 +19,54 @@ import type { SlotRegistry } from '../../slots/SlotRegistry'
 const logger = getLogger(['vibegrid', 'modules', 'GanttModule'])
 
 /**
- * GanttModuleContent - Wrapper for GanttTimeline with module props
+ * GanttModuleContent - Self-contained split-pane: CutoffResizer + GanttTimeline
  *
- * Note: The split-pane layout with table on left is handled by VibeGrid.tsx
- * This module only provides the timeline portion (right pane).
+ * The table pane (left) is always rendered by VibeGrid.tsx's containerRef.
+ * This module renders the resizer handle and timeline pane (right).
  */
 function GanttModuleContent({
-  props,
   stores,
 }: {
   props: GridModuleRenderProps
   stores: VibeGridStores
 }) {
-  const { interactionStore } = stores
+  const { interactionStore, viewModeStore } = stores
+
+  const handleCutoffResize = useCallback(
+    (newWidth: number) => {
+      viewModeStore.setCutoffWidth(newWidth)
+    },
+    [viewModeStore],
+  )
+
+  const handleResizeEnd = useCallback(() => {
+    logger.debug('Cutoff resize ended', { width: viewModeStore.cutoffWidth })
+  }, [viewModeStore.cutoffWidth])
+
+  const handleCutoffReset = useCallback(() => {
+    viewModeStore.resetCutoffWidth()
+  }, [viewModeStore])
 
   logger.debug('GanttModule render', {
     hasGanttStore: !!stores.ganttViewStore,
   })
 
   return (
-    <GanttTimeline
-      onBarClick={(rowId: string) => {
-        logger.info('Gantt bar clicked', { rowId })
-        interactionStore.selectRow(rowId)
-      }}
-    />
+    <>
+      <CutoffResizer
+        onResize={(deltaX) => handleCutoffResize(viewModeStore.cutoffWidth + deltaX)}
+        onResizeEnd={handleResizeEnd}
+        onReset={handleCutoffReset}
+      />
+      <div className="flex-1 h-full min-w-0 overflow-auto">
+        <GanttTimeline
+          onBarClick={(rowId: string) => {
+            logger.info('Gantt bar clicked', { rowId })
+            interactionStore.selectRow(rowId)
+          }}
+        />
+      </div>
+    </>
   )
 }
 

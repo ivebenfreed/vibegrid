@@ -14,26 +14,25 @@ import { useLiveQuery } from '@tanstack/react-db'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   useDependencyCollection,
   useMembersCollection,
 } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
-import { CutoffResizer } from './components/CutoffResizer'
 import { DebugOverlay } from './components/DebugOverlay'
 import { FloatingActionsMenu } from './components/FloatingActionsMenu'
 // GH#1240: ExpandedContentPortals renders nested VibeGrid via React portals
 import { ExpandedContentPortals } from './components/ExpandedContentPortals'
-import { GanttTimeline } from './components/GanttTimeline'
 import { GanttToolbar } from './components/GanttToolbar'
-import { KanbanBoard } from './components/kanban'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
+import { viewModeRegistry } from './modules'
+import type { GridModule, GridModuleRenderProps } from './modules'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
@@ -229,11 +228,29 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
   // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
 
-  // Props-based view mode (no MobX toggle)
-  const isGanttMode = viewMode === 'gantt'
-  const isKanbanMode = viewMode === 'kanban'
-  const _isTableMode = viewMode === 'table'
   const cutoffWidth = viewModeStore.cutoffWidth
+
+  // ViewModeRegistry: load + activate module on viewMode change
+  const [activeModule, setActiveModule] = useState<GridModule | null>(null)
+  const moduleCleanupRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    moduleCleanupRef.current?.()
+    moduleCleanupRef.current = null
+
+    viewModeRegistry.get(viewMode).then((module) => {
+      if (cancelled) return
+      const cleanup = module.init?.(stores)
+      moduleCleanupRef.current = cleanup ?? null
+      setActiveModule(module)
+    })
+
+    return () => {
+      cancelled = true
+      moduleCleanupRef.current?.()
+    }
+  }, [viewMode, stores])
 
   // ====================================
   // TANSTACK DB INTEGRATION
@@ -324,7 +341,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   )
 
   // Get dependency collection for Gantt (only when in gantt mode)
-  const dependencyCollection = useDependencyCollection(isGanttMode ? entityType : '')
+  const dependencyCollection = useDependencyCollection(viewMode === 'gantt' ? entityType : '')
 
   // Fetch dependencies reactively using TanStack DB live query
   const { data: rawDependencies = [] } = useLiveQuery(
@@ -337,7 +354,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Sync dependencies to GanttViewStore for arrow rendering
   useEffect(() => {
-    if (!ganttViewStore || !isGanttMode) return
+    if (!ganttViewStore || viewMode !== 'gantt') return
 
     // Convert raw dependencies to GanttDependency format
     const ganttDeps = rawDependencies.map((dep: any) => ({
@@ -352,7 +369,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       count: ganttDeps.length,
       entityType,
     })
-  }, [rawDependencies, ganttViewStore, isGanttMode, entityType])
+  }, [rawDependencies, ganttViewStore, viewMode, entityType])
 
   // Log members query status
   useEffect(() => {
@@ -472,14 +489,14 @@ function VibeGridInnerBase(props: VibeGridProps) {
     logger.info('Setting TanStack DB dependency collection on GanttViewStore', {
       hasDependencyCollection: !!dependencyCollection,
       entityType,
-      isGanttMode,
+      isGanttMode: viewMode === 'gantt',
     })
     ganttViewStore.setDependencyCollection(dependencyCollection)
-  }, [dependencyCollection, ganttViewStore, entityType, isGanttMode])
+  }, [dependencyCollection, ganttViewStore, entityType, viewMode])
 
   // Auto-detect status and progress fields for Gantt bar coloring
   useEffect(() => {
-    if (!ganttViewStore || !isGanttMode || !tableCoreStore) return
+    if (!ganttViewStore || viewMode !== 'gantt' || !tableCoreStore) return
 
     const columns = tableCoreStore.columns
     if (!columns || columns.length === 0) return
@@ -535,11 +552,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
       logger.info('Auto-detected Gantt field mappings', updates)
       ganttViewStore.setFieldMapping(updates)
     }
-  }, [ganttViewStore, isGanttMode, tableCoreStore, tableCoreStore?.columns])
+  }, [ganttViewStore, viewMode, tableCoreStore, tableCoreStore?.columns])
 
   // Auto-detect status field and colors for Kanban view
   useEffect(() => {
-    if (!kanbanViewStore || !isKanbanMode || !tableCoreStore) return
+    if (!kanbanViewStore || viewMode !== 'kanban' || !tableCoreStore) return
 
     const columns = tableCoreStore.columns
     if (!columns || columns.length === 0) return
@@ -573,7 +590,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         }
       }
     }
-  }, [kanbanViewStore, isKanbanMode, tableCoreStore, tableCoreStore?.columns])
+  }, [kanbanViewStore, viewMode, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
   // INITIALIZATION (P4 - Deterministic via InitStore)
@@ -683,32 +700,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
     return tableCoreStore.processedRows.find((row) => row.id === rowId)
   }
 
-  // ====================================
-  // GANTT VIEW CALLBACKS
-  // ====================================
-
-  // Handle cutoff resize (updates MobX store)
-  const handleCutoffResize = useCallback(
-    (newWidth: number) => {
-      viewModeStore.setCutoffWidth(newWidth)
-    },
-    [viewModeStore],
-  )
-
-  // Handle resize end (could persist to localStorage/backend later)
-  const handleResizeEnd = useCallback(() => {
-    logger.debug('Cutoff resize ended', { width: viewModeStore.cutoffWidth })
-  }, [viewModeStore.cutoffWidth])
-
-  // Handle double-click reset
-  const handleCutoffReset = useCallback(() => {
-    viewModeStore.resetCutoffWidth()
-  }, [viewModeStore])
-
   // Sync vertical scroll between table (VisualStateStore) and Gantt (GanttViewStore)
   // This ensures both panes scroll together vertically
   useEffect(() => {
-    if (!isGanttMode) return
+    if (viewMode !== 'gantt') return
 
     // Track which store initiated the scroll to avoid infinite loops
     let scrollSource: 'table' | 'gantt' | null = null
@@ -752,7 +747,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       disposeTableToGantt()
       disposeGanttToTable()
     }
-  }, [isGanttMode, visualStateStore, ganttViewStore])
+  }, [viewMode, visualStateStore, ganttViewStore])
 
   // ====================================
   // DERIVED STATE
@@ -851,7 +846,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       )}
 
       {/* Gantt toolbar - spans full width above split pane */}
-      {isGanttMode && <GanttToolbar />}
+      {viewMode === 'gantt' && <GanttToolbar />}
 
       {/* Main content area - Table, Split Pane (Gantt), or Kanban */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
@@ -864,45 +859,37 @@ function VibeGridInnerBase(props: VibeGridProps) {
           data-testid={`vibegrid-pure-renderer-${tableId}`}
           data-vibegrid-container="true"
           style={{
-            width: isKanbanMode ? 0 : isGanttMode ? cutoffWidth : '100%',
+            width: viewMode === 'kanban' ? 0 : viewMode === 'gantt' ? cutoffWidth : '100%',
             flexShrink: 0,
             position: 'relative',
             zIndex: 0, // Creates stacking context so renderer's internal z-indexes (header z-10) don't escape above the loading overlay (z-10)
             outline: 'none',
-            overflow: isKanbanMode ? 'hidden' : 'auto',
-            visibility: isKanbanMode ? 'hidden' : 'visible',
+            overflow: viewMode === 'kanban' ? 'hidden' : 'auto',
+            visibility: viewMode === 'kanban' ? 'hidden' : 'visible',
           }}
         />
 
-        {/* Gantt Mode: Resizer and Timeline pane */}
-        {isGanttMode && (
-          <>
-            <CutoffResizer
-              onResize={(deltaX) => handleCutoffResize(viewModeStore.cutoffWidth + deltaX)}
-              onResizeEnd={handleResizeEnd}
-              onReset={handleCutoffReset}
-            />
-            {/* Right pane: Timeline */}
-            <div className="flex-1 h-full min-w-0 overflow-auto">
-              <GanttTimeline onBarClick={(rowId: string) => interactionStore.selectRow(rowId)} />
-            </div>
-          </>
-        )}
-
-        {/* Kanban Mode: Full-width Kanban board */}
-        {isKanbanMode && (
-          <KanbanBoard
-            className="flex-1"
-            enableDragAndDrop={enableDragAndDrop}
-            onCardClick={(cardId) => {
-              logger.info('Kanban card clicked', { cardId })
-              // Could open detail view or trigger selection
-            }}
-          />
-        )}
+        {/* Non-table view modes — rendered by activeModule via ViewModeRegistry */}
+        {activeModule && activeModule.id !== 'table' &&
+          activeModule.render(
+            {
+              tableId,
+              entityType,
+              entityDisplayName,
+              orgId,
+              className: '',
+              enableDragAndDrop,
+              enableSelectionColumn,
+              enableGrouping,
+              enableHierarchy,
+              onCellClick,
+              onEntityUpdate: onEntityUpdate || updateEntity,
+            },
+            stores,
+          )}
 
         {/* Actions bar - appears when rows are selected (not in Kanban mode) */}
-        {!isKanbanMode && enableSelectionColumn && (rowActions || enableDelete) && (
+        {viewMode !== 'kanban' && enableSelectionColumn && (rowActions || enableDelete) && (
           <ActionsBar
             rowActions={rowActions}
             onRowAction={onRowAction}

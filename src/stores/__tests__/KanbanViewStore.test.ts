@@ -103,4 +103,103 @@ describe('KanbanViewStore', () => {
     expect(mockCollection.update).toHaveBeenCalledTimes(1)
     expect(updates[0]?.draft?.status).toBe('InProgress')
   })
+
+  // ============================================================================
+  // getCard() — O(1) cardsById computed Map (added in performance refactor)
+  // ============================================================================
+
+  describe('getCard() — O(1) lookup via cardsById computed', () => {
+    it('returns a card by ID when it exists', () => {
+      const store = new KanbanViewStore()
+
+      store.setTableCoreStore({
+        processedRows: [
+          { id: 'card-1', data: { status: 'Open', name: 'Alpha' } },
+          { id: 'card-2', data: { status: 'Closed', name: 'Beta' } },
+        ],
+        columns: [],
+      } as any)
+
+      const card = store.getCard('card-1')
+      expect(card).toBeDefined()
+      expect(card!.id).toBe('card-1')
+      expect(card!.title).toBe('Alpha')
+    })
+
+    it('returns undefined for an ID that does not exist', () => {
+      const store = new KanbanViewStore()
+
+      store.setTableCoreStore({
+        processedRows: [{ id: 'card-1', data: { status: 'Open', name: 'Alpha' } }],
+        columns: [],
+      } as any)
+
+      expect(store.getCard('nonexistent-id')).toBeUndefined()
+    })
+
+    it('returns undefined when no tableCoreStore is set (empty cards)', () => {
+      const store = new KanbanViewStore()
+      // No tableCoreStore injected
+      expect(store.getCard('any-id')).toBeUndefined()
+    })
+
+    it('returns the correct card for each ID across multiple cards', () => {
+      const store = new KanbanViewStore()
+
+      const rows = [
+        { id: 'a', data: { status: 'Open', name: 'A' } },
+        { id: 'b', data: { status: 'Open', name: 'B' } },
+        { id: 'c', data: { status: 'Closed', name: 'C' } },
+      ]
+
+      store.setTableCoreStore({ processedRows: rows, columns: [] } as any)
+
+      expect(store.getCard('a')?.title).toBe('A')
+      expect(store.getCard('b')?.title).toBe('B')
+      expect(store.getCard('c')?.title).toBe('C')
+    })
+
+    it('reflects updates reactively — new rows are findable by getCard() after tableCoreStore update', () => {
+      const store = new KanbanViewStore()
+
+      // Start with one row
+      store.setTableCoreStore({
+        processedRows: [{ id: 'card-1', data: { status: 'Open', name: 'Original' } }],
+        columns: [],
+      } as any)
+
+      expect(store.getCard('card-1')?.title).toBe('Original')
+
+      // Swap in an updated store with a new row (simulates reactive data change)
+      store.setTableCoreStore({
+        processedRows: [
+          { id: 'card-1', data: { status: 'Open', name: 'Original' } },
+          { id: 'card-2', data: { status: 'Closed', name: 'New Card' } },
+        ],
+        columns: [],
+      } as any)
+
+      const newCard = store.getCard('card-2')
+      expect(newCard).toBeDefined()
+      expect(newCard!.title).toBe('New Card')
+    })
+
+    it('card returned by getCard() has correct columnId matching its normalized status', () => {
+      const store = new KanbanViewStore()
+
+      store.setTableCoreStore({
+        processedRows: [
+          { id: 'c1', data: { status: 'In Progress', name: 'Task' } },
+          { id: 'c2', data: { status: null, name: 'Unassigned' } },
+        ],
+        columns: [],
+      } as any)
+
+      const inProgressCard = store.getCard('c1')
+      expect(inProgressCard!.columnId).toBe('in progress')
+
+      const noStatusCard = store.getCard('c2')
+      expect(noStatusCard!.columnId).toBe('__no_status__')
+    })
+  })
 })
