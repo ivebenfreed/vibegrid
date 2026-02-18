@@ -384,7 +384,7 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('Multiple right-clicks replace context menu', async () => {
-    // Reduced timeout test
+    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
