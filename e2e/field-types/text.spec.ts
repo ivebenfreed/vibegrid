@@ -27,7 +27,7 @@ describe('VibeGrid Text Field Type', () => {
     page = await getTestPage()
 
     // Set wide viewport so all columns are visible without scrolling
-    await page.setViewport({ width: 2400, height: 900 })
+    await page.setViewportSize({ width: 2400, height: 900 })
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {

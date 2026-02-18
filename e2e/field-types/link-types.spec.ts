@@ -26,7 +26,7 @@ describe('VibeGrid Link Field Types', () => {
     page = await getTestPage()
 
     // Set wide viewport so all columns are visible
-    await page.setViewport(VIBEGRID_VIEWPORT)
+    await page.setViewportSize(VIBEGRID_VIEWPORT)
 
     const currentUrl = page.url()
     if (!currentUrl.includes('/debug/vibegrid-test/field-types')) {

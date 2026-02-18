@@ -97,11 +97,11 @@ async function navigateAndWaitForGrid(p: Page): Promise<boolean> {
   try {
     const currentUrl = p.url()
     if (!currentUrl.includes('/debug/vibegrid-test/basic')) {
-      await p.goto(BASIC_URL, { waitUntil: 'domcontentloaded', timeout: 15000 })
+      await p.goto(BASIC_URL, { waitUntil: 'networkidle', timeout: 15000 })
     }
 
-    await p.waitForSelector('[data-testid="vibegrid-test-basic"]', { timeout: 30000 })
-    await p.waitForSelector('[data-testid="vibegrid-container"]', { timeout: 15000 })
+    await p.waitForSelector('.vibegridx-container', { timeout: 10000 })
+    // container already waited above
     await new Promise((r) => setTimeout(r, 1500))
     return true
   } catch {
