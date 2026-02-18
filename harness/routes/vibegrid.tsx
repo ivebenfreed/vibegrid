@@ -137,7 +137,6 @@ function DebugVibeGridPage() {
                     enableFiltering={true}
                     enableSorting={true}
                     enableKanban={true}
-                    enableGantt={true}
                     skipDataFetching={true}
                   />
                 </MockDataInjector>
