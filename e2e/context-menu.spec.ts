@@ -385,7 +385,6 @@ describe('VibeGrid Context Menus', () => {
 
   it('Multiple right-clicks replace context menu', async () => {
     if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
-    // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
 
     if (cells.length < 2) {
@@ -406,7 +405,10 @@ describe('VibeGrid Context Menus', () => {
       return
     }
 
-    // Right-click on second cell
+    // Dismiss first menu by pressing Escape, then right-click second cell
+    await page.keyboard.press('Escape')
+    await new Promise((r) => setTimeout(r, 300))
+
     await secondCell.click({ button: 'right' })
     await new Promise((r) => setTimeout(r, 500))
 
