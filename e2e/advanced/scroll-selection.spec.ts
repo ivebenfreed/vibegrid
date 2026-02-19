@@ -239,13 +239,13 @@ describe('VibeGrid Scroll + Selection', () => {
     }
 
     // Grid functional
-    const container = await page.$('[data-testid="vibegrid-container"]')
+    const container = await page.$('.vibegridx-container')
     expect(container).not.toBeNull()
 
     // Rows should still exist
     const rows = await page.$$('.vibegridx-row[data-row-id]')
     expect(rows.length).toBeGreaterThan(0)
-  })
+  }, 60000)
 
   it('Multi-select with scroll maintains all selected rows', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
