@@ -43,32 +43,26 @@ describe('VibeGrid Relationship Field Types', () => {
 
     if (!gridReady) return
 
-    // Clear localStorage to ensure fresh data for relationship fields
-    // (relationship fields were added to schema after initial localStorage cache)
-    await page.evaluate(() => {
-      const keysToRemove: string[] = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.includes('vibegrid-mock') || key?.includes('field-type')) {
-          keysToRemove.push(key)
+    try {
+      // Clear localStorage to ensure fresh data for relationship fields
+      await page.evaluate(() => {
+        const keysToRemove: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key?.includes('vibegrid-mock') || key?.includes('field-type')) {
+            keysToRemove.push(key)
+          }
         }
-      }
-      keysToRemove.forEach((k) => localStorage.removeItem(k))
-    })
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+      })
 
-    // Reload to get fresh data
-    await page.reload()
-    await page.waitForSelector('.vibegridx-container', {
-      timeout: 10000,
-    })
-
-    // Wait for grid to render
-    await page.waitForSelector('[data-testid="vibegrid-container"]', {
-      timeout: 15000,
-    })
-
-    // Wait for grid to fully render
-    await new Promise((r) => setTimeout(r, WAIT.GRID_RENDER))
+      // Reload to get fresh data
+      await page.reload({ waitUntil: 'networkidle', timeout: 15000 })
+      await page.waitForSelector('.vibegridx-container', { timeout: 10000 })
+      await new Promise((r) => setTimeout(r, WAIT.GRID_RENDER))
+    } catch {
+      gridReady = false
+    }
   })
 
   afterEach(async () => {

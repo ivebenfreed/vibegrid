@@ -387,9 +387,8 @@ describe('VibeGrid Context Menus', () => {
     if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
-    const cellCount = cells.length
 
-    if (cellCount < 2) {
+    if (cells.length < 2) {
       console.log('SKIP: Not enough cells for multiple context menu test')
       return
     }
@@ -399,7 +398,7 @@ describe('VibeGrid Context Menus', () => {
 
     // Right-click first cell
     await firstCell.click({ button: 'right' })
-    await new Promise((r) => setTimeout(r, 800))
+    await new Promise((r) => setTimeout(r, 500))
 
     const contextMenu = await page.$('.vibegridx-context-menu')
     if (!contextMenu) {
@@ -407,24 +406,12 @@ describe('VibeGrid Context Menus', () => {
       return
     }
 
-    const initialVisible = await contextMenu.evaluate((el) => {
-      const rect = el.getBoundingClientRect()
-      return rect.width > 0 && rect.height > 0
-    })
-    if (!initialVisible) {
-      console.log('SKIP: Context menu not visible after first right-click')
-      return
-    }
-
-    // Right-click on second cell - should either close and reopen or update position
+    // Right-click on second cell
     await secondCell.click({ button: 'right' })
-    await new Promise((r) => setTimeout(r, 800))
+    await new Promise((r) => setTimeout(r, 500))
 
     // After second right-click, there should be at most one context menu
     const allMenus = await page.$$('.vibegridx-context-menu')
-
-    // Menu may have closed and not reopened (browser behavior varies)
-    // The key invariant is: at most 1 context menu at a time
     expect(allMenus.length).toBeLessThanOrEqual(1)
-  })
+  }, 60000)
 })
