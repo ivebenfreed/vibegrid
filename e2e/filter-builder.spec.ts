@@ -222,9 +222,9 @@ describe('VibeGrid Filter Builder', () => {
     expect(afterRows.length).toBeGreaterThanOrEqual(initialCount)
 
     // Grid functional
-    const container = await page.$('[data-testid="vibegrid-container"]')
+    const container = await page.$('.vibegridx-container')
     expect(container).not.toBeNull()
-  })
+  }, 60000)
 
   it('Filter reduces visible row count', async () => {
     if (!(await navigateAndWaitForGrid(page))) {

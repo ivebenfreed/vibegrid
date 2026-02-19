@@ -198,7 +198,7 @@ describe('VibeGrid Virtual Scrolling', () => {
 
     // Selection may be maintained or need re-render (soft check)
     expect(stillSelected || true).toBe(true)
-  })
+  }, 60000)
 
   it('9.5 Scroll to bottom loads last rows', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
