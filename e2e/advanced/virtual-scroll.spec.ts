@@ -31,7 +31,6 @@ async function navigateAndWaitForGrid(p: Page): Promise<boolean> {
     }
 
     await p.waitForSelector('.vibegridx-container', { timeout: 30000 })
-    await p.waitForSelector('.vibegridx-container', { timeout: 15000 })
     await new Promise((r) => setTimeout(r, 1500))
     return true
   } catch {
@@ -128,7 +127,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     }
 
     // Find the grid container
-    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
+    const gridContainer = await page.$('.vibegridx-container')
 
     if (!gridContainer) {
       console.log('SKIP: Grid container not visible')
@@ -178,7 +177,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     expect(isSelected).toBe(true)
 
     // Scroll the grid
-    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
+    const gridContainer = await page.$('.vibegridx-container')
     if (gridContainer) {
       await gridContainer.evaluate((el: HTMLElement) => {
         el.scrollTop = 500
@@ -214,7 +213,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     }
 
     // Find the grid container
-    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
+    const gridContainer = await page.$('.vibegridx-container')
 
     if (!gridContainer) {
       console.log('SKIP: Grid container not visible')
@@ -291,7 +290,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     expect(rowCount).toBeLessThan(100) // Should not render all 500
 
     // Scroll and check again
-    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
+    const gridContainer = await page.$('.vibegridx-container')
     if (gridContainer) {
       await gridContainer.evaluate((el: HTMLElement) => {
         el.scrollTop = el.scrollHeight / 2

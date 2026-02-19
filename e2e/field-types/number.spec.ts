@@ -52,8 +52,7 @@ describe('VibeGrid Number Field Type', () => {
     } catch {
       gridReady = false
     }
-  }, 60000)
-
+  }, 90000)
 
   afterEach(async () => {
     if (page) {
