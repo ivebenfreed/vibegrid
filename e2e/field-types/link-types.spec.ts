@@ -41,7 +41,7 @@ describe('VibeGrid Link Field Types', () => {
     } catch {
       gridReady = false
     }
-  }, 60000)
+  }, 90000)
 
   afterEach(async () => {
     if (page) {

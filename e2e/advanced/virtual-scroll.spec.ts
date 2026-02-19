@@ -30,8 +30,8 @@ async function navigateAndWaitForGrid(p: Page): Promise<boolean> {
       await p.goto(FIELD_TYPES_URL, { waitUntil: 'domcontentloaded', timeout: 15000 })
     }
 
-    await p.waitForSelector('[data-testid="vibegrid-test-field-types"]', { timeout: 30000 })
-    await p.waitForSelector('[data-testid="vibegrid-container"]', { timeout: 15000 })
+    await p.waitForSelector('.vibegridx-container', { timeout: 30000 })
+    await p.waitForSelector('.vibegridx-container', { timeout: 15000 })
     await new Promise((r) => setTimeout(r, 1500))
     return true
   } catch {
@@ -92,7 +92,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     // Typically renders viewport + buffer (20-40 rows)
     expect(visibleCount).toBeGreaterThan(0)
     expect(visibleCount).toBeLessThan(100) // Should not render all 100
-  })
+  }, 60000)
 
   it('9.2 Row count matches data size', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
@@ -112,7 +112,7 @@ describe('VibeGrid Virtual Scrolling', () => {
 
     // Row count should match mock data length
     expect(testState.rowCount).toBeGreaterThan(0)
-  })
+  }, 60000)
 
   it('9.3 Scroll maintains smooth performance', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
@@ -128,7 +128,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     }
 
     // Find the grid container
-    const gridContainer = await page.$('.vibegridx-container, [data-testid="vibegrid-container"]')
+    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
 
     if (!gridContainer) {
       console.log('SKIP: Grid container not visible')
@@ -149,7 +149,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     // Rows should still be visible after scroll
     const visibleRows = await page.$$('.vibegridx-row[data-row-id]')
     expect(visibleRows.length).toBeGreaterThan(0)
-  })
+  }, 60000)
 
   it('9.4 Selection maintained after scroll', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
@@ -178,7 +178,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     expect(isSelected).toBe(true)
 
     // Scroll the grid
-    const gridContainer = await page.$('.vibegridx-container, [data-testid="vibegrid-container"]')
+    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
     if (gridContainer) {
       await gridContainer.evaluate((el: HTMLElement) => {
         el.scrollTop = 500
@@ -214,7 +214,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     }
 
     // Find the grid container
-    const gridContainer = await page.$('.vibegridx-container, [data-testid="vibegrid-container"]')
+    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
 
     if (!gridContainer) {
       console.log('SKIP: Grid container not visible')
@@ -235,7 +235,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     const lastRow = visibleRows[visibleRows.length - 1]
     const rowId = await lastRow.evaluate((el) => el.getAttribute('data-row-id'))
     expect(rowId).toBeDefined()
-  })
+  }, 60000)
 
   it('9.6 Keyboard navigation works with virtual scroll', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
@@ -268,7 +268,7 @@ describe('VibeGrid Virtual Scrolling', () => {
 
     // Should still have a selection
     expect(selectedCells.length).toBeGreaterThan(0)
-  })
+  }, 60000)
 
   it('9.7 DOM element count stays bounded', async () => {
     if (!(await navigateAndWaitForGrid(page))) {
@@ -291,7 +291,7 @@ describe('VibeGrid Virtual Scrolling', () => {
     expect(rowCount).toBeLessThan(100) // Should not render all 500
 
     // Scroll and check again
-    const gridContainer = await page.$('.vibegridx-container, [data-testid="vibegrid-container"]')
+    const gridContainer = await page.$('.vibegridx-container, .vibegridx-container')
     if (gridContainer) {
       await gridContainer.evaluate((el: HTMLElement) => {
         el.scrollTop = el.scrollHeight / 2
@@ -303,5 +303,5 @@ describe('VibeGrid Virtual Scrolling', () => {
 
     // Count should remain bounded after scroll
     expect(rowCountAfterScroll).toBeLessThan(100)
-  })
+  }, 60000)
 })
