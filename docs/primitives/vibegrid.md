@@ -167,6 +167,39 @@ Saved views are snapshots of URL state. Activating a view applies its filters. P
 
 ---
 
+## Saved Views
+
+The current grid state — view mode, active filters, sort, grouping, visible columns — is always a saveable configuration. There is no separate "create view" wizard. A user configures the grid, then saves what they see.
+
+```
+[Submittals table, filtered: status=open, grouped by trade, board view]
+
+                              ┌──────────────────────┐
+  [Save as view ▼]         → │ Name:  Morning Board  │
+                              │ Share: Just me ▼      │
+                              │ [Save]  [Cancel]      │
+                              └──────────────────────┘
+```
+
+Saved views also appear as sidebar entries under their entity type, with live counts from liveQuery:
+
+```
+     Submittals
+     ├─ All               (41)   ← org default
+     └─ Overdue by Trade  (23)   ← saved view (shared)
+```
+
+| Property | Behavior |
+|----------|----------|
+| **Created** | Save current grid state, or describe to Copilot ("set up a board of RFIs grouped by ball-in-court") |
+| **Scope** | Personal (just me), shared (named team members), team (role-wide), org default |
+| **Org default** | Loads when user has no personal view set; saved personal views layer on top without affecting the default |
+| **Sidebar counts** | Each saved view shows a live count via liveQuery using its filter set |
+| **Pinned analysis** | Optional analytics result pinned above the grid; re-runs when the view loads |
+| **Sharing** | Sharing a view shares a reference, not a copy; edits to a shared view propagate to everyone using it |
+
+---
+
 ## Bulk Action Toolbar
 
 Appears when one or more rows are selected. The toolbar provides:
