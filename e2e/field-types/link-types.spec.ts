@@ -70,13 +70,17 @@ describe('VibeGrid Link Field Types', () => {
     }
 
     it('2.1 Email cell renders with value', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const emailCells = await findEmailCells()
 
       if (emailCells.length === 0) {
-        console.log('SKIP: No email cells found'); return
+        console.log('SKIP: No email cells found')
+        return
       }
 
       // Find first cell with actual email value
@@ -102,13 +106,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('2.2 Email cell styled as link', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const emailCells = await findEmailCells()
 
       if (emailCells.length === 0) {
-        console.log('SKIP: No email cells found for style test.'); return
+        console.log('SKIP: No email cells found for style test.')
+        return
       }
 
       // Find cell with email value
@@ -128,13 +136,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('2.3 Email has email href data attribute', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const emailCells = await findEmailCells()
 
       if (emailCells.length === 0) {
-        console.log('SKIP: No email cells found for affordance test.'); return
+        console.log('SKIP: No email cells found for affordance test.')
+        return
       }
 
       // Find cell with email value
@@ -160,13 +172,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('2.4 Email has mailto href', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const emailCells = await findEmailCells()
 
       if (emailCells.length === 0) {
-        console.log('SKIP: No email cells found for href test.'); return
+        console.log('SKIP: No email cells found for href test.')
+        return
       }
 
       // Find cell with email value
@@ -189,7 +205,10 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('2.5 Empty email shows edit placeholder', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       // Look for empty email cells
@@ -234,13 +253,17 @@ describe('VibeGrid Link Field Types', () => {
     }
 
     it('3.1 URL cell renders with value', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const urlCells = await findUrlCells()
 
       if (urlCells.length === 0) {
-        console.log('SKIP: No URL cells found. Verify website column exists in schema.'); return
+        console.log('SKIP: No URL cells found. Verify website column exists in schema.')
+        return
       }
 
       // Find first cell with URL value
@@ -265,13 +288,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('3.2 URL cell styled as link (blue, underlined)', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const urlCells = await findUrlCells()
 
       if (urlCells.length === 0) {
-        console.log('SKIP: No URL cells found for style test.'); return
+        console.log('SKIP: No URL cells found for style test.')
+        return
       }
 
       // Find cell with URL value
@@ -297,13 +324,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('3.3 URL has url href data attribute', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const urlCells = await findUrlCells()
 
       if (urlCells.length === 0) {
-        console.log('SKIP: No URL cells found for affordance test.'); return
+        console.log('SKIP: No URL cells found for affordance test.')
+        return
       }
 
       // Find cell with URL value
@@ -329,13 +360,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('3.4 URL has edit icon affordance (link-with-edit-icon)', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const urlCells = await findUrlCells()
 
       if (urlCells.length === 0) {
-        console.log('SKIP: No URL cells found for edit icon test.'); return
+        console.log('SKIP: No URL cells found for edit icon test.')
+        return
       }
 
       // Find editable cell with URL value
@@ -358,13 +393,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('3.5 URL has href data attribute', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const urlCells = await findUrlCells()
 
       if (urlCells.length === 0) {
-        console.log('SKIP: No URL cells found for href test.'); return
+        console.log('SKIP: No URL cells found for href test.')
+        return
       }
 
       // Find cell with URL value
@@ -386,7 +425,10 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('3.6 Empty URL shows edit placeholder', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       await scrollToColumn(page, 'website')
@@ -428,13 +470,17 @@ describe('VibeGrid Link Field Types', () => {
     }
 
     it('4.1 Phone cell renders with formatted value', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const phoneCells = await findPhoneCells()
 
       if (phoneCells.length === 0) {
-        console.log('SKIP: No phone cells found'); return
+        console.log('SKIP: No phone cells found')
+        return
       }
 
       // Find first cell with phone value
@@ -459,13 +505,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('4.2 Phone cell has formatted display', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const phoneCells = await findPhoneCells()
 
       if (phoneCells.length === 0) {
-        console.log('SKIP: No phone cells found for style test.'); return
+        console.log('SKIP: No phone cells found for style test.')
+        return
       }
 
       // Find cell with phone value
@@ -485,13 +535,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('4.3 Phone has phone href data attribute', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const phoneCells = await findPhoneCells()
 
       if (phoneCells.length === 0) {
-        console.log('SKIP: No phone cells found for affordance test.'); return
+        console.log('SKIP: No phone cells found for affordance test.')
+        return
       }
 
       // Find cell with phone value
@@ -517,13 +571,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('4.4 Phone has tel href', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const phoneCells = await findPhoneCells()
 
       if (phoneCells.length === 0) {
-        console.log('SKIP: No phone cells found for href test.'); return
+        console.log('SKIP: No phone cells found for href test.')
+        return
       }
 
       // Find cell with phone value
@@ -546,13 +604,17 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('4.5 Phone displays formatted phone number', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const phoneCells = await findPhoneCells()
 
       if (phoneCells.length === 0) {
-        console.log('SKIP: No phone cells found for format test.'); return
+        console.log('SKIP: No phone cells found for format test.')
+        return
       }
 
       // Find cell with phone value
@@ -573,7 +635,10 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('4.6 Empty phone shows edit placeholder', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       await scrollToColumn(page, 'phone')
@@ -603,7 +668,10 @@ describe('VibeGrid Link Field Types', () => {
 
   describe('Link Type Common Behavior', () => {
     it('5.1 All link types render with span content', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const linkColumns = ['email', 'phone', 'website']
@@ -635,7 +703,10 @@ describe('VibeGrid Link Field Types', () => {
     })
 
     it('5.2 Link types have href data attributes', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const linkColumns = [

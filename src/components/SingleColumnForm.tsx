@@ -180,4 +180,3 @@ export const SingleColumnForm = observer(function SingleColumnForm({
     </div>
   )
 })
-

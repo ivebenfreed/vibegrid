@@ -296,11 +296,11 @@ describe('VibeGrid.tsx — module activation via ViewModeRegistry', () => {
   it('does NOT directly hard-code KanbanBoard inline import in VibeGrid', () => {
     // Guard against regression: KanbanBoard should now be rendered by the module,
     // not inline in VibeGrid.tsx
-    expect(source).not.toContain("import { KanbanBoard }")
+    expect(source).not.toContain('import { KanbanBoard }')
   })
 
   it('does NOT directly hard-code GanttTimeline inline import in VibeGrid', () => {
     // Guard against regression: GanttTimeline should now be rendered by GanttModule
-    expect(source).not.toContain("import { GanttTimeline }")
+    expect(source).not.toContain('import { GanttTimeline }')
   })
 })

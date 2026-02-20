@@ -30,7 +30,10 @@ describe('VibeGrid Relationship Field Types', () => {
       // Set wide viewport so all columns are visible
       await page.setViewportSize(VIBEGRID_VIEWPORT)
 
-      await page.goto(`${BASE_URL}/debug/vibegrid-test/field-types`, { waitUntil: 'networkidle', timeout: 15000 })
+      await page.goto(`${BASE_URL}/debug/vibegrid-test/field-types`, {
+        waitUntil: 'networkidle',
+        timeout: 15000,
+      })
 
       // Wait for the field type test page
       await page.waitForSelector('.vibegridx-container', {
@@ -91,7 +94,10 @@ describe('VibeGrid Relationship Field Types', () => {
     }
 
     it('10.1 User reference cell renders with badge', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -134,7 +140,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('10.2 User reference badge has avatar with initials', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -175,7 +184,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('10.3 User reference badge displays name', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -209,7 +221,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('10.4 User reference has edit affordance', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -247,7 +262,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('10.5 Empty user reference shows edit placeholder', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -274,7 +292,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('10.6 Click on user reference badge triggers edit', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findUserRefCells()
@@ -341,7 +362,10 @@ describe('VibeGrid Relationship Field Types', () => {
     }
 
     it('11.1 Entity reference cell renders with badge', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -383,7 +407,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.2 Entity reference badge has icon', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -423,7 +450,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.3 Entity reference badge displays name', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -457,7 +487,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.4 Entity reference has edit affordance', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -495,7 +528,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.5 Empty entity reference shows edit placeholder', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -521,7 +557,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.6 Click on entity reference badge triggers edit', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()
@@ -571,7 +610,10 @@ describe('VibeGrid Relationship Field Types', () => {
     })
 
     it('11.7 Entity reference badge has distinct styling', async () => {
-      if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const cells = await findEntityRefCells()

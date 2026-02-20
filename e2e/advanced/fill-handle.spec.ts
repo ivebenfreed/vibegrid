@@ -129,7 +129,9 @@ describe('VibeGrid Fill Handle', () => {
     const nearBottom = Math.abs(handleCenterY - cellBottom) < 20
 
     if (!(nearRight && nearBottom)) {
-      console.log(`NOTE: Fill handle position may be off - nearRight=${nearRight}, nearBottom=${nearBottom}`)
+      console.log(
+        `NOTE: Fill handle position may be off - nearRight=${nearRight}, nearBottom=${nearBottom}`,
+      )
     }
   })
 
@@ -163,7 +165,9 @@ describe('VibeGrid Fill Handle', () => {
     })
 
     if (cursor !== 'crosshair') {
-      console.log(`NOTE: Fill handle cursor is '${cursor}' not 'crosshair' - may use different cursor style`)
+      console.log(
+        `NOTE: Fill handle cursor is '${cursor}' not 'crosshair' - may use different cursor style`,
+      )
       return
     }
     expect(cursor).toBe('crosshair')

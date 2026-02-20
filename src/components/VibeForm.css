@@ -41,7 +41,7 @@
 }
 
 .vibe-form-status-draft::before {
-  content: '•';
+  content: "•";
   color: hsl(var(--muted-foreground));
   font-size: 0.75rem;
 }
@@ -104,7 +104,9 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 600;
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.15s ease;
 }
 
 .vibe-form-retry-button:hover {

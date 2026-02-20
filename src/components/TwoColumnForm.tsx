@@ -184,4 +184,3 @@ export const TwoColumnForm = observer(function TwoColumnForm({
     </div>
   )
 })
-

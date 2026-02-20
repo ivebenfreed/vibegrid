@@ -17,7 +17,12 @@
  * +-------------+-------------+-------------+
  */
 
-import type { CellLayoutAdapter, CellPosition, FieldNeighbors, FieldPlacement } from '../types/layout-types'
+import type {
+  CellLayoutAdapter,
+  CellPosition,
+  FieldNeighbors,
+  FieldPlacement,
+} from '../types/layout-types'
 import type { Column } from '../types'
 import type { CSSProperties } from 'react'
 
@@ -164,12 +169,11 @@ export class GridLayoutAdapter implements CellLayoutAdapter {
     }
 
     // Sort placed fields by row, then col
-    this.placedFields.sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
+    this.placedFields.sort((a, b) => (a.row !== b.row ? a.row - b.row : a.col - b.col))
 
     // Compute total rows
-    this.totalRows = this.placedFields.length > 0
-      ? Math.max(...this.placedFields.map((f) => f.row)) + 1
-      : 0
+    this.totalRows =
+      this.placedFields.length > 0 ? Math.max(...this.placedFields.map((f) => f.row)) + 1 : 0
   }
 
   /**

@@ -41,7 +41,6 @@ describe('VibeGrid Display Field Types', () => {
     }
   }, 60000)
 
-
   afterEach(async () => {
     if (page) {
       await page.keyboard.press('Escape')
@@ -67,13 +66,17 @@ describe('VibeGrid Display Field Types', () => {
     }
 
     it('6.1 Currency cell renders with formatted value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const currencyCells = await findCurrencyCells()
 
       if (currencyCells.length === 0) {
-        console.log('SKIP: No currency cells found. Verify amount column exists in schema.'); return
+        console.log('SKIP: No currency cells found. Verify amount column exists in schema.')
+        return
       }
 
       // Find first cell with value (contains $ or currency symbol)
@@ -98,13 +101,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('6.2 Currency displays with currency symbol', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const currencyCells = await findCurrencyCells()
 
       if (currencyCells.length === 0) {
-        console.log('SKIP: No currency cells found for symbol test.'); return
+        console.log('SKIP: No currency cells found for symbol test.')
+        return
       }
 
       // Find cell with currency value
@@ -122,13 +129,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('6.3 Currency displays right-aligned', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const currencyCells = await findCurrencyCells()
 
       if (currencyCells.length === 0) {
-        console.log('SKIP: No currency cells found for alignment test.'); return
+        console.log('SKIP: No currency cells found for alignment test.')
+        return
       }
 
       // Find cell with currency value
@@ -150,13 +161,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('6.4 Currency formats with thousands separator', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const currencyCells = await findCurrencyCells()
 
       if (currencyCells.length === 0) {
-        console.log('SKIP: No currency cells found for format test.'); return
+        console.log('SKIP: No currency cells found for format test.')
+        return
       }
 
       // Find cell with large value that would have thousands separator
@@ -174,7 +189,10 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('6.5 Empty currency shows edit placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       await scrollToColumn(page, 'amount')
@@ -215,13 +233,17 @@ describe('VibeGrid Display Field Types', () => {
     }
 
     it('7.1 File cell renders with filename', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const fileCells = await findFileCells()
 
       if (fileCells.length === 0) {
-        console.log('SKIP: No file cells found. Verify attachment column exists in schema.'); return
+        console.log('SKIP: No file cells found. Verify attachment column exists in schema.')
+        return
       }
 
       // Find first cell with file value
@@ -246,13 +268,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('7.2 File displays with icon', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const fileCells = await findFileCells()
 
       if (fileCells.length === 0) {
-        console.log('SKIP: No file cells found for icon test.'); return
+        console.log('SKIP: No file cells found for icon test.')
+        return
       }
 
       // Find cell with file value
@@ -280,13 +306,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('7.3 File cell has flex display for layout', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const fileCells = await findFileCells()
 
       if (fileCells.length === 0) {
-        console.log('SKIP: No file cells found for layout test.'); return
+        console.log('SKIP: No file cells found for layout test.')
+        return
       }
 
       // Check cell has proper flex layout
@@ -307,7 +337,10 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('7.4 Empty file shows edit placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       await scrollToColumn(page, 'attachment')
@@ -348,13 +381,17 @@ describe('VibeGrid Display Field Types', () => {
     }
 
     it('8.1 Image cell renders with thumbnail or placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const imageCells = await findImageCells()
 
       if (imageCells.length === 0) {
-        console.log('SKIP: No image cells found. Verify avatar column exists in schema.'); return
+        console.log('SKIP: No image cells found. Verify avatar column exists in schema.')
+        return
       }
 
       // Find first cell
@@ -364,13 +401,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('8.2 Image cell with value shows img element', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const imageCells = await findImageCells()
 
       if (imageCells.length === 0) {
-        console.log('SKIP: No image cells found for img test.'); return
+        console.log('SKIP: No image cells found for img test.')
+        return
       }
 
       // Find cell with image value
@@ -396,13 +437,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('8.3 Image displays with name text', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const imageCells = await findImageCells()
 
       if (imageCells.length === 0) {
-        console.log('SKIP: No image cells found for name test.'); return
+        console.log('SKIP: No image cells found for name test.')
+        return
       }
 
       // Check cell has some text content (name or placeholder)
@@ -415,13 +460,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('8.4 Empty image shows placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const imageCells = await findImageCells()
 
       if (imageCells.length === 0) {
-        console.log('SKIP: No image cells found for placeholder test.'); return
+        console.log('SKIP: No image cells found for placeholder test.')
+        return
       }
 
       // Find cell without image
@@ -454,13 +503,17 @@ describe('VibeGrid Display Field Types', () => {
     }
 
     it('9.1 Markdown cell renders with content', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        console.log('SKIP: No markdown cells found. Verify description column exists in schema.'); return
+        console.log('SKIP: No markdown cells found. Verify description column exists in schema.')
+        return
       }
 
       // Find first cell with content
@@ -484,13 +537,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('9.2 Markdown renders bold text', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        console.log('SKIP: No markdown cells found for bold test.'); return
+        console.log('SKIP: No markdown cells found for bold test.')
+        return
       }
 
       // Check if any cell has <strong> element (rendered bold)
@@ -510,13 +567,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('9.3 Markdown renders italic text', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        console.log('SKIP: No markdown cells found for italic test.'); return
+        console.log('SKIP: No markdown cells found for italic test.')
+        return
       }
 
       // Check if any cell has <em> element (rendered italic)
@@ -535,13 +596,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('9.4 Markdown truncates with line clamp', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        console.log('SKIP: No markdown cells found for truncation test.'); return
+        console.log('SKIP: No markdown cells found for truncation test.')
+        return
       }
 
       // Find cell with content
@@ -566,13 +631,17 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('9.5 Empty markdown shows placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const markdownCells = await findMarkdownCells()
 
       if (markdownCells.length === 0) {
-        console.log('SKIP: No markdown cells found for placeholder test.'); return
+        console.log('SKIP: No markdown cells found for placeholder test.')
+        return
       }
 
       // Find cell without content
@@ -594,7 +663,10 @@ describe('VibeGrid Display Field Types', () => {
 
   describe('Display Type Common Behavior', () => {
     it('10.1 All display types render cells correctly', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const displayColumns = ['amount', 'attachment', 'avatar', 'description']
@@ -614,7 +686,10 @@ describe('VibeGrid Display Field Types', () => {
     })
 
     it('10.2 Display types have appropriate affordance attributes', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+      if (!gridReady) {
+        console.log('SKIP: Grid not loaded')
+        return
+      }
       await loadFixtures(page)
 
       const displayColumns = ['amount', 'attachment', 'avatar', 'description']

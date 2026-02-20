@@ -334,7 +334,9 @@ describe('VibeGrid Header Interactions', () => {
       if (isVisible) anyPortalVisible = true
     }
     if (anyPortalVisible) {
-      console.log('NOTE: Editing portal still visible after header click - implementation may not cancel on header click')
+      console.log(
+        'NOTE: Editing portal still visible after header click - implementation may not cancel on header click',
+      )
     }
 
     const container = await page.$('.vibegridx-container')

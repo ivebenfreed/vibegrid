@@ -244,9 +244,7 @@ describe('VibeGrid Stress & Resilience', () => {
 
     // Should be able to select again
     await cells[0].click()
-    const isSelected = await cells[0].evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const isSelected = await cells[0].evaluate((el) => el.classList.contains('vibegridx-selected'))
     // Selection may or may not be active depending on Escape behavior
     const containerAfter = await page.$('[data-testid="vibegrid-container"]')
     expect(containerAfter).not.toBeNull()
@@ -266,7 +264,9 @@ describe('VibeGrid Stress & Resilience', () => {
 
     // Get unique column count for first row
     const firstRowId = await cells[0].evaluate((el) => el.getAttribute('data-row-id'))
-    const firstRowCells = await page.$$(`[data-row-id="${firstRowId}"].vibegridx-cell[data-column-id]`)
+    const firstRowCells = await page.$$(
+      `[data-row-id="${firstRowId}"].vibegridx-cell[data-column-id]`,
+    )
     const columnCount = firstRowCells.length
 
     // Click first cell

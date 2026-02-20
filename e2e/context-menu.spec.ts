@@ -25,7 +25,10 @@ describe('VibeGrid Context Menus', () => {
   beforeEach(async () => {
     page = await getTestPage()
     try {
-      await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`, { waitUntil: 'networkidle', timeout: 15000 })
+      await page.goto(`${BASE_URL}/debug/vibegrid-test/basic`, {
+        waitUntil: 'networkidle',
+        timeout: 15000,
+      })
       await page.waitForSelector('.vibegridx-container', { timeout: 10000 })
       await new Promise((r) => setTimeout(r, 1000))
       gridReady = true
@@ -41,7 +44,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('7.1 Cell context menu - right-click on cell', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
@@ -95,7 +101,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('7.2 Header context menu - right-click on header', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for header cells to render
     const headerCells = await page.$$('.vibegridx-header-cell[data-column-id]')
     const headerCount = headerCells.length
@@ -142,7 +151,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('7.3 Menu action execution - click menu option', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
@@ -205,7 +217,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('7.4 Menu dismiss - click outside menu', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
@@ -281,7 +296,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('Menu dismiss - press Escape key', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
@@ -333,7 +351,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('Context menu contains cell-specific actions', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Wait for cells to render
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
     const cellCount = cells.length
@@ -384,7 +405,10 @@ describe('VibeGrid Context Menus', () => {
   })
 
   it('Multiple right-clicks replace context menu', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     const cells = await page.$$('.vibegridx-cell[data-row-id][data-column-id]')
 
     if (cells.length < 2) {

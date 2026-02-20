@@ -870,7 +870,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
         />
 
         {/* Non-table view modes — rendered by activeModule via ViewModeRegistry */}
-        {activeModule && activeModule.id !== 'table' &&
+        {activeModule &&
+          activeModule.id !== 'table' &&
           activeModule.render(
             {
               tableId,

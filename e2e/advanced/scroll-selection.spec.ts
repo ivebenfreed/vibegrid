@@ -83,9 +83,7 @@ describe('VibeGrid Scroll + Selection', () => {
     await new Promise((r) => setTimeout(r, 300))
 
     // Verify selection
-    const isSelected = await cell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const isSelected = await cell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(isSelected).toBe(true)
 
     // Scroll down
@@ -140,7 +138,10 @@ describe('VibeGrid Scroll + Selection', () => {
     await new Promise((r) => setTimeout(r, 200))
 
     const isChecked = await firstCheckbox.evaluate((el: HTMLInputElement) => el.checked)
-    if (!isChecked) { console.log('SKIP: Checkbox click did not check'); return }
+    if (!isChecked) {
+      console.log('SKIP: Checkbox click did not check')
+      return
+    }
 
     // Scroll down
     const gridContainer = await page.$('.vibegridx-container, [data-testid="vibegrid-container"]')
@@ -161,7 +162,9 @@ describe('VibeGrid Scroll + Selection', () => {
     const checkboxAfter = await page.$(`.vibegridx-row-checkbox[data-row-id="${rowId}"]`)
     if (checkboxAfter) {
       const stillChecked = await checkboxAfter.evaluate((el: HTMLInputElement) => el.checked)
-      if (!stillChecked) { console.log('NOTE: Checkbox unchecked after scroll') }
+      if (!stillChecked) {
+        console.log('NOTE: Checkbox unchecked after scroll')
+      }
     }
   }, 60000)
 

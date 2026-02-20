@@ -242,9 +242,7 @@ describe('VibeGrid Empty & Edge States', () => {
     }
 
     await cells[0].click()
-    const isSelected = await cells[0].evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const isSelected = await cells[0].evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(isSelected).toBe(true)
   })
 
@@ -280,9 +278,7 @@ describe('VibeGrid Empty & Edge States', () => {
     expect(selectedCells.length).toBeGreaterThan(0)
 
     // Should still be on the same row (only one row exists)
-    const currentRowId = await selectedCells[0].evaluate((el) =>
-      el.getAttribute('data-row-id'),
-    )
+    const currentRowId = await selectedCells[0].evaluate((el) => el.getAttribute('data-row-id'))
     expect(currentRowId).toBe(rowId)
   })
 

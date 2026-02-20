@@ -161,17 +161,15 @@ export const GridForm = observer(function GridForm({
   }, [columns])
 
   // Get grid template columns style
-  const gridStyle = useMemo(() => ({
-    gridTemplateColumns: Array(gridColumns).fill('1fr').join(' '),
-  }), [gridColumns])
+  const gridStyle = useMemo(
+    () => ({
+      gridTemplateColumns: Array(gridColumns).fill('1fr').join(' '),
+    }),
+    [gridColumns],
+  )
 
   return (
-    <div
-      ref={containerRef}
-      className="grid-form"
-      data-testid="grid-form"
-      style={gridStyle}
-    >
+    <div ref={containerRef} className="grid-form" data-testid="grid-form" style={gridStyle}>
       {tabOrder.map((fieldId) => {
         const entry = columnMap.get(fieldId)
         if (!entry) return null
@@ -222,4 +220,3 @@ export const GridForm = observer(function GridForm({
     </div>
   )
 })
-

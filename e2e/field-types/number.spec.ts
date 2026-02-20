@@ -124,12 +124,16 @@ describe('VibeGrid Number Field Type', () => {
   }
 
   it('1.1 Cell renders with formatted number value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     const columnId = await getNumberColumnId()
@@ -158,12 +162,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.2 Number displays right-aligned', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Find a visible cell with numeric content
@@ -180,7 +188,8 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     if (!foundCell) {
-      console.log('SKIP: No visible number cells with values found'); return
+      console.log('SKIP: No visible number cells with values found')
+      return
     }
 
     // Check for right alignment
@@ -198,12 +207,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.3 Click content enters edit mode', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Find a visible, editable cell
@@ -218,7 +231,8 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     if (!targetCell) {
-      console.log('SKIP: No visible editable number cell found'); return
+      console.log('SKIP: No visible editable number cell found')
+      return
     }
 
     // Click the content element to enter edit mode (content-click affordance)
@@ -239,12 +253,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.4 Type and Enter saves value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Find a visible, editable cell
@@ -259,7 +277,8 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     if (!targetCell) {
-      console.log('SKIP: No visible editable number cell found'); return
+      console.log('SKIP: No visible editable number cell found')
+      return
     }
 
     // Get the row/column ID of the cell we're editing
@@ -285,7 +304,8 @@ describe('VibeGrid Number Field Type', () => {
 
     const editorVisible = await isNumberEditorVisible(page)
     if (!editorVisible) {
-      console.log('SKIP: Number editor did not appear after clicking content'); return
+      console.log('SKIP: Number editor did not appear after clicking content')
+      return
     }
 
     // Clear and type new value
@@ -306,12 +326,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.5 Type and blur saves value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Find a visible, editable cell
@@ -326,7 +350,8 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     if (!targetCell) {
-      console.log('SKIP: No visible editable number cell found'); return
+      console.log('SKIP: No visible editable number cell found')
+      return
     }
 
     // Get the row/column ID of the cell we're editing
@@ -386,12 +411,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.6 Escape cancels edit', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Find a visible, editable cell
@@ -406,7 +435,8 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     if (!targetCell) {
-      console.log('SKIP: No visible editable number cell found'); return
+      console.log('SKIP: No visible editable number cell found')
+      return
     }
 
     const originalText = (await targetCell.evaluate((el) => el.textContent)) || ''
@@ -438,12 +468,16 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.7 Empty cell shows edit placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     // Look for cells with empty state (Edit emoji hint) or valid number content
@@ -470,17 +504,22 @@ describe('VibeGrid Number Field Type', () => {
   })
 
   it('1.8 Read-only shows no edit affordance', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures(page)
 
     const numberCells = await findNumberCells()
     if (numberCells.length === 0) {
-      console.log('SKIP: Grid not loaded - no number cells found'); return
+      console.log('SKIP: Grid not loaded - no number cells found')
+      return
     }
 
     const columnId = await getNumberColumnId()
     if (!columnId) {
-      console.log('SKIP: No number column found'); return
+      console.log('SKIP: No number column found')
+      return
     }
 
     // Look for non-editable cells

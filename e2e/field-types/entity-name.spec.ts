@@ -115,7 +115,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   }
 
   it('1.1 Entity name renders with value (styled as link)', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     console.log('Loading fixtures for deterministic values')
     await loadFixtures()
 
@@ -148,7 +151,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.2 Empty name shows "Untitled" placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -189,7 +195,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.3 Text element has navigate affordance (NOT edit)', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -219,7 +228,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.4 Pencil icon has edit affordance', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -249,7 +261,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.5 Click pencil icon enters edit mode', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -287,7 +302,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.6 Type and Enter saves value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -342,7 +360,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   }, 60000)
 
   it('1.7 Escape cancels edit', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 
@@ -396,7 +417,10 @@ describe('VibeGrid Entity Name Field Type', () => {
   })
 
   it('1.8 Click text element does NOT enter edit (navigate affordance)', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     await loadFixtures()
     const entityNameContainers = await waitForEntityNameContainers()
 

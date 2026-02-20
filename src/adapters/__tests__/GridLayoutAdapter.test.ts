@@ -94,9 +94,7 @@ describe('GridLayoutAdapter', () => {
     })
 
     it('auto-places remaining fields after explicit ones', () => {
-      const placements: FieldPlacement[] = [
-        { fieldId: 'description', row: 0, col: 0, span: 2 },
-      ]
+      const placements: FieldPlacement[] = [{ fieldId: 'description', row: 0, col: 0, span: 2 }]
 
       const adapter = new GridLayoutAdapter({
         columns,
@@ -136,9 +134,7 @@ describe('GridLayoutAdapter', () => {
     })
 
     it('ignores placements for unknown field IDs', () => {
-      const placements: FieldPlacement[] = [
-        { fieldId: 'nonexistent', row: 0, col: 0 },
-      ]
+      const placements: FieldPlacement[] = [{ fieldId: 'nonexistent', row: 0, col: 0 }]
 
       const adapter = new GridLayoutAdapter({
         columns,
@@ -265,9 +261,7 @@ describe('GridLayoutAdapter', () => {
     })
 
     it('returns field ID for spanned cells', () => {
-      const placements: FieldPlacement[] = [
-        { fieldId: 'description', row: 0, col: 0, span: 2 },
-      ]
+      const placements: FieldPlacement[] = [{ fieldId: 'description', row: 0, col: 0, span: 2 }]
 
       const adapter = new GridLayoutAdapter({
         columns,
@@ -283,15 +277,11 @@ describe('GridLayoutAdapter', () => {
   describe('getTabOrder', () => {
     it('returns fields in row-major order', () => {
       const adapter = new GridLayoutAdapter({ columns })
-      expect(adapter.getTabOrder()).toEqual([
-        'name', 'email', 'status', 'priority', 'description',
-      ])
+      expect(adapter.getTabOrder()).toEqual(['name', 'email', 'status', 'priority', 'description'])
     })
 
     it('returns deduplicated tab order for spanning fields', () => {
-      const placements: FieldPlacement[] = [
-        { fieldId: 'description', row: 0, col: 0, span: 2 },
-      ]
+      const placements: FieldPlacement[] = [{ fieldId: 'description', row: 0, col: 0, span: 2 }]
 
       const adapter = new GridLayoutAdapter({
         columns,
@@ -349,9 +339,7 @@ describe('GridLayoutAdapter', () => {
     })
 
     it('returns span style for spanning field', () => {
-      const placements: FieldPlacement[] = [
-        { fieldId: 'description', row: 0, col: 0, span: 2 },
-      ]
+      const placements: FieldPlacement[] = [{ fieldId: 'description', row: 0, col: 0, span: 2 }]
 
       const adapter = new GridLayoutAdapter({
         columns,
@@ -396,9 +384,7 @@ describe('GridLayoutAdapter', () => {
       expect(adapter.getCellPosition('name')).toEqual({ row: 0, col: 0 })
 
       // Move name to explicit position
-      adapter.updatePlacements([
-        { fieldId: 'name', row: 2, col: 1 },
-      ])
+      adapter.updatePlacements([{ fieldId: 'name', row: 2, col: 1 }])
 
       expect(adapter.getCellPosition('name')).toEqual({ row: 2, col: 1 })
     })

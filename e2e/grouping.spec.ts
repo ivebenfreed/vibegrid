@@ -56,7 +56,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for vibegrid container to be ready
     const container = await page.$('.vibegridx-container')
-    if (!container) { console.log('SKIP: Grid container not found'); return }
+    if (!container) {
+      console.log('SKIP: Grid container not found')
+      return
+    }
 
     // Wait for group headers to render (grouping is enabled by default with status field)
     let groupHeaders = await page.$$('.vibegridx-group-header')
@@ -123,7 +126,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for vibegrid container
     const container = await page.$('.vibegridx-container')
-    if (!container) { console.log('SKIP: Grid container not found'); return }
+    if (!container) {
+      console.log('SKIP: Grid container not found')
+      return
+    }
 
     // Wait for group headers
     let groupHeaders = await page.$$('.vibegridx-group-header')
@@ -201,7 +207,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for vibegrid container
     const container = await page.$('.vibegridx-container')
-    if (!container) { console.log('SKIP: Grid container not found'); return }
+    if (!container) {
+      console.log('SKIP: Grid container not found')
+      return
+    }
 
     // Ensure grouping is enabled
     let groupHeaders = await page.$$('.vibegridx-group-header')
@@ -275,7 +284,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for vibegrid container
     const container = await page.$('.vibegridx-container')
-    if (!container) { console.log('SKIP: Grid container not found'); return }
+    if (!container) {
+      console.log('SKIP: Grid container not found')
+      return
+    }
 
     // Ensure grouping is enabled
     let groupHeaders = await page.$$('.vibegridx-group-header')
@@ -348,7 +360,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for vibegrid container
     const container = await page.$('.vibegridx-container')
-    if (!container) { console.log('SKIP: Grid container not found'); return }
+    if (!container) {
+      console.log('SKIP: Grid container not found')
+      return
+    }
 
     // Ensure grouping is enabled
     let groupHeaders = await page.$$('.vibegridx-group-header')
@@ -400,7 +415,10 @@ describe('VibeGrid Grouping', () => {
 
     // Wait for controls
     const groupSelect = await page.$('[data-testid="group-by-select"]')
-    if (!groupSelect) { console.log('SKIP: Group select not found'); return }
+    if (!groupSelect) {
+      console.log('SKIP: Group select not found')
+      return
+    }
 
     // Change group by field
     await groupSelect!.click()

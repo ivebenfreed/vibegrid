@@ -393,8 +393,12 @@ export const VibeForm = observer(function VibeForm({
       {/* Save status indicator */}
       <output className="vibe-form-status" data-testid="vibe-form-save-status">
         {createFlow.mode === 'local' && <span className="vibe-form-status-draft">Draft</span>}
-        {createFlow.mode === 'creating' && <span className="vibe-form-status-saving">Saving...</span>}
-        {createFlow.mode === 'persisted' && isDirty && <span className="vibe-form-status-saved">Saved</span>}
+        {createFlow.mode === 'creating' && (
+          <span className="vibe-form-status-saving">Saving...</span>
+        )}
+        {createFlow.mode === 'persisted' && isDirty && (
+          <span className="vibe-form-status-saved">Saved</span>
+        )}
         {!isDirty && createFlow.mode === 'persisted' && (
           <span className="vibe-form-status-idle">No pending changes</span>
         )}

@@ -24,12 +24,7 @@ const logger = getLogger(['vibegrid', 'modules', 'GanttModule'])
  * The table pane (left) is always rendered by VibeGrid.tsx's containerRef.
  * This module renders the resizer handle and timeline pane (right).
  */
-function GanttModuleContent({
-  stores,
-}: {
-  props: GridModuleRenderProps
-  stores: VibeGridStores
-}) {
+function GanttModuleContent({ stores }: { props: GridModuleRenderProps; stores: VibeGridStores }) {
   const { interactionStore, viewModeStore } = stores
 
   const handleCutoffResize = useCallback(

@@ -85,14 +85,18 @@ describe('VibeGrid Color Field Type', () => {
   }
 
   it('6.1 Color field displays hex color value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     console.log('Loading fixtures for deterministic values')
     await loadFixtures()
 
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     // Color field is implemented as a select field with hex values
@@ -113,7 +117,10 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.2 Hex value displays in cell', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     console.log('Loading fixtures')
     await loadFixtures()
 
@@ -121,7 +128,8 @@ describe('VibeGrid Color Field Type', () => {
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     // Find a cell with actual hex value (not empty)
@@ -143,7 +151,10 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.3 Click opens color select dropdown', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Color field uses select affordance - clicking opens a ComboboxEditor
     const colorElements = await page.$$(
       '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]',
@@ -153,7 +164,8 @@ describe('VibeGrid Color Field Type', () => {
       // Try finding color cell directly
       const colorCells = await findColorCells()
       if (colorCells.length === 0) {
-        console.log('SKIP: No color cells found'); return
+        console.log('SKIP: No color cells found')
+        return
       }
 
       // Click the first cell to open editor
@@ -197,13 +209,17 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.4 Select color option updates cell value', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     console.log('Click to enter edit mode')
 
     // Find a color cell with data to edit
     const colorCells = await findColorCells()
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     const colorCell = colorCells[0]
@@ -248,12 +264,16 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.5 Color cell has proper dimensions', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Color field displays as a select cell with hex value
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     const colorCell = colorCells[0]
@@ -270,12 +290,16 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.6 Color cell is visible and styled', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Color field cells should be visible with proper styling
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     const colorCell = colorCells[0]
@@ -289,7 +313,10 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.7 Empty color shows edit placeholder', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     console.log('Loading fixtures which include "All Nulls Test" entity')
     await loadFixtures()
 
@@ -297,7 +324,8 @@ describe('VibeGrid Color Field Type', () => {
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     // Find a cell that is empty (has Edit placeholder or is blank)
@@ -325,12 +353,16 @@ describe('VibeGrid Color Field Type', () => {
   })
 
   it('6.8 Editable color cells have select affordance', async () => {
-    if (!gridReady) { console.log('SKIP: Grid not loaded'); return }
+    if (!gridReady) {
+      console.log('SKIP: Grid not loaded')
+      return
+    }
     // Color field uses select affordance (implemented as select field type)
     const colorCells = await findColorCells()
 
     if (colorCells.length === 0) {
-      console.log('SKIP: No color cells found'); return
+      console.log('SKIP: No color cells found')
+      return
     }
 
     // Check for non-editable cells first

@@ -55,9 +55,7 @@ describe('KanbanViewStore', () => {
     const store = new KanbanViewStore()
 
     const mockTableCoreStore = {
-      processedRows: [
-        { id: '1', data: { status: 'Open', name: 'Task 1' } },
-      ],
+      processedRows: [{ id: '1', data: { status: 'Open', name: 'Task 1' } }],
       columns: [],
     }
 

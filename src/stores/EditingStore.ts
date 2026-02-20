@@ -147,8 +147,7 @@ export class EditingStore implements IStore {
       this.currentSession.column.type ||
       this.currentSession.column.fieldType?.type ||
       ''
-    }`
-      .toLowerCase()
+    }`.toLowerCase()
 
     return ['longtext', 'richtext', 'rich-text', 'html', 'markdown', 'textarea'].includes(type)
   }
