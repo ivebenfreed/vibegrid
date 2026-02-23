@@ -241,8 +241,10 @@ export class GridLineCanvas {
       let h: number
 
       if (rowOffsets) {
-        y = (rowOffsets[i] ?? i * rowHeight) - scrollTop
-        h = i + 1 < rowOffsets.length ? rowOffsets[i + 1] - rowOffsets[i] : rowHeight
+        const rowStart = rowOffsets[i] ?? i * rowHeight
+        const nextRowStart = rowOffsets[i + 1] ?? rowStart + rowHeight
+        y = rowStart - scrollTop
+        h = Math.max(1, nextRowStart - rowStart)
       } else {
         y = i * rowHeight - scrollTop
         h = rowHeight
@@ -331,11 +333,9 @@ export class GridLineCanvas {
     for (let i = start; i < end; i++) {
       let y: number
       if (rowOffsets) {
-        if (i + 1 < rowOffsets.length) {
-          y = rowOffsets[i + 1] - scrollTop
-        } else {
-          y = rowOffsets[i] + rowHeight - scrollTop
-        }
+        const rowStart = rowOffsets[i] ?? i * rowHeight
+        const nextRowStart = rowOffsets[i + 1] ?? rowStart + rowHeight
+        y = nextRowStart - scrollTop
       } else {
         y = (i + 1) * rowHeight - scrollTop
       }

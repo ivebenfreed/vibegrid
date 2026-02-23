@@ -157,7 +157,8 @@ describe('FilterBuilder Dropdown Menu', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
-    expect(sourceCode).toMatch(/import.*DropdownMenu.*from/)
+    // Allow multiline named imports
+    expect(sourceCode).toMatch(/import[\s\S]*DropdownMenu[\s\S]*from/)
     expect(sourceCode).toContain('<DropdownMenu')
   })
 
@@ -436,7 +437,8 @@ describe('FilterBuilder Imports', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
-    expect(sourceCode).toMatch(/import.*DropdownMenu.*from/)
+    // Allow multiline named imports
+    expect(sourceCode).toMatch(/import[\s\S]*DropdownMenu[\s\S]*from/)
   })
 })
 

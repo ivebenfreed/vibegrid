@@ -21,10 +21,12 @@ function createMockContext2D(): CanvasRenderingContext2D {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     stroke: vi.fn(),
+    fillRect: vi.fn(),
     clearRect: vi.fn(),
     scale: vi.fn(),
     setTransform: vi.fn(),
     strokeStyle: '',
+    fillStyle: '',
     lineWidth: 1,
   } as unknown as CanvasRenderingContext2D
 }
@@ -59,13 +61,16 @@ function createMockViewportStore(
     viewportHeight: number
     visibleRowRange: { start: number; end: number }
     rowOffsets: number[] | null
+    totalRows: number
   }> = {},
 ): ViewportStore {
+  const visibleRowRange = overrides.visibleRowRange ?? { start: 0, end: 15 }
   return {
     viewportWidth: overrides.viewportWidth ?? 800,
     viewportHeight: overrides.viewportHeight ?? 600,
-    visibleRowRange: overrides.visibleRowRange ?? { start: 0, end: 15 },
+    visibleRowRange,
     rowOffsets: overrides.rowOffsets ?? null,
+    totalRows: overrides.totalRows ?? visibleRowRange.end,
   } as unknown as ViewportStore
 }
 
@@ -147,7 +152,7 @@ describe('GridLineCanvas', () => {
   // --- Mount ---
 
   describe('mount', () => {
-    it('adds canvas as first child of container', () => {
+    it('adds sticky wrapper as first child and mounts canvas inside it', () => {
       const visualStore = createMockVisualStateStore()
       const viewportStore = createMockViewportStore()
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
@@ -159,7 +164,10 @@ describe('GridLineCanvas', () => {
 
       gridLines.mount(container)
 
-      expect(container.firstChild).toBe(gridLines.canvas)
+      const firstChild = container.firstChild as HTMLElement
+      expect(firstChild).toBeTruthy()
+      expect(firstChild.className).toBe('vibegridx-grid-lines-wrapper')
+      expect(firstChild.firstChild).toBe(gridLines.canvas)
       expect(container.children.length).toBe(2)
     })
 
@@ -182,11 +190,19 @@ describe('GridLineCanvas', () => {
       const container = originalCreateElement('div')
       gridLines.mount(container)
 
+      const wrapper = container.firstChild as HTMLElement
+      expect(wrapper.style.position).toBe('sticky')
+      expect(wrapper.style.top).toBe('0px')
+      expect(wrapper.style.left).toBe('0px')
+      expect(wrapper.style.width).toBe('0px')
+      expect(wrapper.style.height).toBe('0px')
+      expect(wrapper.style.overflow).toBe('visible')
+      expect(wrapper.style.pointerEvents).toBe('none')
+
       expect(gridLines.canvas.style.position).toBe('absolute')
       // jsdom normalizes '0' to '0px' for length properties
       expect(gridLines.canvas.style.top).toBe('0px')
       expect(gridLines.canvas.style.left).toBe('0px')
-      expect(gridLines.canvas.style.zIndex).toBe('0')
       expect(gridLines.canvas.style.pointerEvents).toBe('none')
     })
   })
@@ -468,12 +484,81 @@ describe('GridLineCanvas', () => {
       expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 120.5)
       expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 120.5)
     })
+
+    it('falls back gracefully when rowOffsets are sparse', () => {
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: [],
+        visibleColumnRange: { start: 0, end: 0 },
+        scrollLeft: 0,
+        scrollTop: 0,
+      })
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 200,
+        visibleRowRange: { start: 0, end: 4 },
+        rowOffsets: [0, 60], // Partial offsets can appear during synchronization
+        totalRows: 4,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // Should still produce finite draw coordinates and include fallback rows
+      const moveToCalls = (mockCtx.moveTo as ReturnType<typeof vi.fn>).mock.calls
+      expect(
+        moveToCalls.every(
+          (args) => Number.isFinite(args[0] as number) && Number.isFinite(args[1] as number),
+        ),
+      ).toBe(true)
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 120.5)
+
+      const fillRectCalls = (mockCtx.fillRect as ReturnType<typeof vi.fn>).mock.calls
+      expect(
+        fillRectCalls.every(
+          (args) =>
+            Number.isFinite(args[0] as number) &&
+            Number.isFinite(args[1] as number) &&
+            Number.isFinite(args[2] as number) &&
+            Number.isFinite(args[3] as number),
+        ),
+      ).toBe(true)
+    })
+  })
+
+  // --- Draw: Native Scroll Path ---
+
+  describe('drawFromScroll', () => {
+    it('uses provided native scroll values when store scroll state is stale', () => {
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
+        visibleColumnRange: { start: 0, end: 1 },
+        scrollLeft: 0,
+        scrollTop: 0,
+      })
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 20 },
+        totalRows: 20,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      // Native scroll listener reports latest values before MobX catches up.
+      gridLines.drawFromScroll(100, 200)
+
+      // Vertical line: (70 + 150 - 100) = 120 -> 120.5
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(120.5, 0)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(120.5, 600)
+      // First visible horizontal line at scrollTop=200 is row 5 bottom: 240 - 200 = 40 -> 40.5
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 40.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 40.5)
+    })
   })
 
   // --- Draw: Canvas Transform ---
 
   describe('draw canvas positioning', () => {
-    it('sets canvas transform to track scroll position', () => {
+    it('does not set canvas transform; sticky wrapper keeps alignment', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
@@ -489,7 +574,7 @@ describe('GridLineCanvas', () => {
 
       gridLines.draw()
 
-      expect(gridLines.canvas.style.transform).toBe('translate(100px, 200px)')
+      expect(gridLines.canvas.style.transform).toBe('')
     })
 
     it('clears canvas before drawing', () => {

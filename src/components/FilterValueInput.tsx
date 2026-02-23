@@ -141,7 +141,14 @@ export const FilterValueInput = observer(function FilterValueInput({
         type="number"
         data-testid={`vibegrid-filter-value-${index}`}
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.valueAsNumber || null)}
+        onChange={(e) => {
+          const { value: rawValue, valueAsNumber } = e.target
+          if (rawValue === '' || Number.isNaN(valueAsNumber)) {
+            onChange(null)
+            return
+          }
+          onChange(valueAsNumber)
+        }}
         placeholder="Enter number..."
         className={className}
       />
