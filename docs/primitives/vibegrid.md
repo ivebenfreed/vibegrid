@@ -129,12 +129,12 @@ Cells render based on a priority-based slot system. Each slot declares what it c
 | Level | Priority | Use For |
 |-------|----------|---------|
 | View mode slots | 100 | Gantt bar renderer, Kanban card renderer |
-| Domain slots | 50 | Module-specific renderers (e.g., COI currency format) |
+| Domain slots | 50 | Module-specific renderers (e.g., custom currency format) |
 | Default slots | 0 | Built-in field types (text, number, date, badge) |
 
 **Resolution order:** context filter → exact field type match → priority (higher wins) → fallback to text.
 
-This allows modules to override how specific fields render without touching the grid primitive. A COI module can register a custom currency renderer that only activates for budget entities.
+This allows modules to override how specific fields render without touching the grid primitive. A domain module can register a custom currency renderer that only activates for financial entities.
 
 ---
 
@@ -143,9 +143,9 @@ This allows modules to override how specific fields render without touching the 
 Rows expand inline to reveal child or related data. This is the primary mechanism for showing one-to-many relationships without navigating away.
 
 ```
-│ □ Vendor A        Project X  ✗ Expired   Hartford       2026-01-15   │
-│   └─ GL: $1M/$2M  Auto: $1M  Umbrella: $5M  WC: Statutory          │
-│ □ Vendor B        Project Y  ✓ OK        Liberty        2026-08-30   │
+│ □ Vendor A        Project X  ✗ Expired   Provider A     2026-01-15   │
+│   └─ Coverage: Type A, Type B, Type C                                │
+│ □ Vendor B        Project Y  ✓ OK        Provider B     2026-08-30   │
 ```
 
 Expansion content is module-provided. The grid provides the expand/collapse mechanism and manages expansion state.
@@ -172,7 +172,7 @@ Saved views are snapshots of URL state. Activating a view applies its filters. P
 The current grid state — view mode, active filters, sort, grouping, visible columns — is always a saveable configuration. There is no separate "create view" wizard. A user configures the grid, then saves what they see.
 
 ```
-[Submittals table, filtered: status=open, grouped by trade, board view]
+[Records table, filtered: status=open, grouped by category, board view]
 
                               ┌──────────────────────┐
   [Save as view ▼]         → │ Name:  Morning Board  │
@@ -184,14 +184,14 @@ The current grid state — view mode, active filters, sort, grouping, visible co
 Saved views also appear as sidebar entries under their entity type, with live counts from liveQuery:
 
 ```
-     Submittals
-     ├─ All               (41)   ← org default
-     └─ Overdue by Trade  (23)   ← saved view (shared)
+     Records
+     ├─ All                  (41)   ← org default
+     └─ Overdue by Category  (23)   ← saved view (shared)
 ```
 
 | Property | Behavior |
 |----------|----------|
-| **Created** | Save current grid state, or describe to Copilot ("set up a board of RFIs grouped by ball-in-court") |
+| **Created** | Save current grid state, or describe to Copilot ("set up a board of requests grouped by assignee") |
 | **Scope** | Personal (just me), shared (named team members), team (role-wide), org default |
 | **Org default** | Loads when user has no personal view set; saved personal views layer on top without affecting the default |
 | **Sidebar counts** | Each saved view shows a live count via liveQuery using its filter set |
