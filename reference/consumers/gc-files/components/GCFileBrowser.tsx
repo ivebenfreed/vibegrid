@@ -32,7 +32,6 @@ import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { Button } from '@/shared/components/ui/button'
 import {
   Dialog,
@@ -607,7 +606,6 @@ export const GCFileBrowser = observer(function GCFileBrowser({
           <Search />
           <div className="ms-auto flex items-center space-x-4">
             <ThemeSwitch />
-            <ProfileDropdown />
           </div>
         </Header>
         <Main fluid>
@@ -627,7 +625,6 @@ export const GCFileBrowser = observer(function GCFileBrowser({
           <Search />
           <div className="ms-auto flex items-center space-x-4">
             <ThemeSwitch />
-            <ProfileDropdown />
           </div>
         </Header>
         <Main fluid>
@@ -645,7 +642,6 @@ export const GCFileBrowser = observer(function GCFileBrowser({
         <Search />
         <div className="ms-auto flex items-center space-x-4">
           <ThemeSwitch />
-          <ProfileDropdown />
         </div>
       </Header>
       <Main fluid>

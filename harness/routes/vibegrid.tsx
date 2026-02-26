@@ -11,7 +11,6 @@ import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
 import { createMockEntityCollection } from '@/shared/data/db/collections/mock-collections'
 import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
@@ -88,7 +87,6 @@ function DebugVibeGridPage() {
         <Search />
         <div className="ms-auto flex items-center space-x-4">
           <ThemeSwitch />
-          <ProfileDropdown />
         </div>
       </Header>
       <Main fluid>

@@ -13,7 +13,6 @@ import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { Button } from '@/shared/components/ui/button'
@@ -109,7 +108,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             <Search />
             <ThemeSwitch />
             <ConfigDrawer />
-            <ProfileDropdown />
           </div>
         </Header>
         <Main>
@@ -130,7 +128,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           <Search />
           <ThemeSwitch />
           <ConfigDrawer />
-          <ProfileDropdown />
         </div>
       </Header>
 

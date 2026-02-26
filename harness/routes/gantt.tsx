@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { ProfileDropdown } from '@/shared/components/profile-dropdown'
 import { Search } from '@/shared/components/search'
 import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { VibeGrid } from '@/systems/vibegrid'
@@ -25,7 +24,6 @@ function DebugGanttPage() {
         <Search />
         <div className="ms-auto flex items-center space-x-4">
           <ThemeSwitch />
-          <ProfileDropdown />
         </div>
       </Header>
       <Main fluid>
