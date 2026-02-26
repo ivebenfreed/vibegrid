@@ -11,10 +11,11 @@
  */
 
 import { useLiveQuery } from '@tanstack/react-db'
+import { Download } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   useDependencyCollection,
   useMembersCollection,
@@ -32,7 +33,7 @@ import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
 import { viewModeRegistry } from './modules'
-import type { GridModule, GridModuleRenderProps } from './modules'
+import type { GridModule } from './modules'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
@@ -41,7 +42,8 @@ import type {
   RowExpansionChangeEvent,
   ExpandedDataLoadEvent,
 } from './types/row-expansion'
-import type { Column } from './types'
+import type { Column, TableRow } from './types'
+import { downloadCSV, getExportableColumns, getExportFilename, rowsToCSV } from './utils/csv-export'
 
 // Import VibeGrid CSS styles
 import './vibegridx.css'
@@ -62,6 +64,7 @@ export interface RowAction {
   onClick?: (rowData: any) => void | Promise<void>
   destructive?: boolean // Red color, requires confirmation
   hidden?: (rowData: any) => boolean // Conditional visibility
+  preserveSelection?: boolean // Keep selection after action (e.g. CSV export)
 }
 
 // ====================================
@@ -154,6 +157,10 @@ interface VibeGridProps<_T = any> {
   searchPlaceholder?: string
   /** Disable smart search entirely. Defaults to false */
   disableSearch?: boolean
+
+  // CSV export (GH#1551)
+  /** Enable CSV export buttons in the toolbar and ActionsBar. Defaults to false. */
+  enableExport?: boolean
 }
 
 // ====================================
@@ -205,6 +212,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     searchableColumns,
     searchPlaceholder,
     disableSearch = false,
+    // CSV export (GH#1551)
+    enableExport = false,
   } = props
 
   // ====================================
@@ -700,6 +709,74 @@ function VibeGridInnerBase(props: VibeGridProps) {
     return tableCoreStore.processedRows.find((row) => row.id === rowId)
   }
 
+  // GH#1551: CSV export helpers
+  // Extract field data from a VirtualRow's entity object.
+  // Real API entities have nested structure: entity.data = {name, status, ...}
+  // Mock/flat entities store fields directly on the object: entity = {id, name, status, ...}
+  const extractRowData = useCallback((rowData: any): Record<string, unknown> => {
+    if (!rowData) return {}
+    const nested = (rowData as TableRow).data
+    return nested !== undefined ? nested : rowData
+  }, [])
+
+  const getExportRows = useCallback(() => {
+    return tableCoreStore.processedRows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      data: row.type === 'data' ? extractRowData(row.data) : {},
+    }))
+  }, [tableCoreStore, extractRowData])
+
+  const getExportColumns = useCallback(() => {
+    return getExportableColumns(tableCoreStore.columns as any, visualStateStore.columnVisibility)
+  }, [tableCoreStore, visualStateStore])
+
+  const handleExportAll = useCallback(() => {
+    if (tableCoreStore.isIncrementalProcessing) return
+    const rows = getExportRows()
+    const columns = getExportColumns()
+    const csv = rowsToCSV(rows, columns as any)
+    const filename = getExportFilename(entityType)
+    downloadCSV(csv, filename)
+  }, [getExportRows, getExportColumns, entityType, tableCoreStore])
+
+  // Build row actions with export injected when enabled
+  const effectiveRowActions = (() => {
+    if (!enableExport) return rowActions
+    const exportAction: RowAction = {
+      id: 'export-csv',
+      label: 'Export CSV',
+      icon: Download,
+      preserveSelection: true,
+    }
+    return [...(rowActions || []), exportAction]
+  })()
+
+  // Wrap onRowAction to handle export-csv action
+  const handleRowAction = useCallback(
+    (actionId: string, rowIds: string[], rowsData: any[]) => {
+      if (actionId === 'export-csv') {
+        if (tableCoreStore.isIncrementalProcessing) return
+        // Export only the selected rows
+        const rows = rowIds.map((id) => {
+          const vrow = tableCoreStore.processedRows.find((r) => r.id === id)
+          return {
+            id,
+            type: 'data' as const,
+            data: vrow?.type === 'data' ? extractRowData(vrow.data) : {},
+          }
+        })
+        const columns = getExportColumns()
+        const csv = rowsToCSV(rows, columns as any)
+        const filename = getExportFilename(entityType)
+        downloadCSV(csv, filename)
+        return
+      }
+      onRowAction?.(actionId, rowIds, rowsData)
+    },
+    [onRowAction, getExportColumns, entityType, tableCoreStore, extractRowData],
+  )
+
   // Sync vertical scroll between table (VisualStateStore) and Gantt (GanttViewStore)
   // This ensures both panes scroll together vertically
   useEffect(() => {
@@ -842,6 +919,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
           orgId={orgId}
           createEntity={onEntityCreate || createEntity}
           searchConfig={searchConfig}
+          enableExport={enableExport}
+          onExportAll={handleExportAll}
         />
       )}
 
@@ -890,16 +969,19 @@ function VibeGridInnerBase(props: VibeGridProps) {
           )}
 
         {/* Actions bar - appears when rows are selected (not in Kanban mode) */}
-        {viewMode !== 'kanban' && enableSelectionColumn && (rowActions || enableDelete) && (
-          <ActionsBar
-            rowActions={rowActions}
-            onRowAction={onRowAction}
-            enableDelete={enableDelete}
-            onDelete={onDelete}
-            deleteConfirmation={deleteConfirmation}
-            getRowData={getRowData}
-          />
-        )}
+        {viewMode !== 'kanban' &&
+          enableSelectionColumn &&
+          (rowActions || enableDelete || enableExport) && (
+            <ActionsBar
+              rowActions={enableExport ? effectiveRowActions : rowActions}
+              onRowAction={enableExport ? handleRowAction : onRowAction}
+              enableDelete={enableDelete}
+              onDelete={onDelete}
+              deleteConfirmation={deleteConfirmation}
+              getRowData={getRowData}
+              isExportDisabled={enableExport ? tableCoreStore.isIncrementalProcessing : undefined}
+            />
+          )}
 
         {/* Floating row action menu (3-dots) - renders via portal when triggered */}
         {(rowActions || enableDelete) && (

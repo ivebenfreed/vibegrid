@@ -5,7 +5,7 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
+import { Download, GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
@@ -46,6 +46,10 @@ interface VibeGridXHeaderPureProps {
   createEntity: (data: Record<string, any>) => void
   /** Smart text search configuration (GH#1391) */
   searchConfig?: SearchConfig
+  /** Enable CSV export button in toolbar (GH#1551) */
+  enableExport?: boolean
+  /** Callback to export all filtered rows as CSV (GH#1551) */
+  onExportAll?: () => void
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -62,8 +66,10 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   orgId,
   createEntity,
   searchConfig,
+  enableExport = false,
+  onExportAll,
 }: VibeGridXHeaderPureProps) {
-  const { visualStateStore, hierarchyStore } = stores
+  const { visualStateStore, hierarchyStore, tableCoreStore } = stores
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -210,6 +216,20 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
         {/* Column Visibility Dropdown */}
         <VibeGridXColumnVisibilityPure stores={stores} />
+
+        {/* CSV Export Button (GH#1551) */}
+        {enableExport && onExportAll && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportAll}
+            disabled={tableCoreStore.isIncrementalProcessing}
+            title={tableCoreStore.isIncrementalProcessing ? 'Processing data...' : 'Export as CSV'}
+            data-testid="toolbar-export-csv"
+          >
+            <Download className="size-4" />
+          </Button>
+        )}
       </div>
     </div>
   )

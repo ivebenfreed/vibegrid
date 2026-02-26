@@ -33,6 +33,8 @@ interface ActionsBarProps {
   onDelete?: (rowIds: string[], rowsData: any[]) => Promise<void>
   deleteConfirmation?: (rowsData: any[]) => string | React.ReactNode
   getRowData: (rowId: string) => any
+  /** When true, export-csv action is disabled (B9 incremental processing guard) */
+  isExportDisabled?: boolean
 }
 
 export const ActionsBar = observer((props: ActionsBarProps) => {
@@ -43,6 +45,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     onDelete,
     deleteConfirmation,
     getRowData,
+    isExportDisabled,
   } = props
 
   const { interactionStore, visualStateStore } = useVibeGridStores()
@@ -109,8 +112,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
         await onRowAction(action.id, selectedRowIds, selectedRowsData)
       }
 
-      // Clear selection after successful action
-      interactionStore.clearSelection()
+      // Clear selection after successful action (unless action preserves it)
+      if (!action.preserveSelection) {
+        interactionStore.clearSelection()
+      }
     } catch (error) {
       logger.error('Action failed', { error })
     } finally {
@@ -181,6 +186,8 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   return (
     <>
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: Event propagation barrier for MouseController */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Event propagation barrier only */}
       <div
         className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto"
         data-testid="vibegrid-actions-bar"
@@ -211,13 +218,16 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
           <div className="flex items-center gap-2">
             {visibleActions.map((action) => {
               const Icon = action.icon
+              const isExportAction = action.id === 'export-csv'
+              const disabled = isProcessing || (isExportAction && isExportDisabled)
               return (
                 <Button
                   key={action.id}
                   variant={action.destructive ? 'destructive' : 'secondary'}
                   size="sm"
                   onClick={(e) => handleActionClick(action, e)}
-                  disabled={isProcessing}
+                  disabled={disabled}
+                  title={isExportAction && isExportDisabled ? 'Processing data...' : undefined}
                   data-testid={`action-${action.id}`}
                 >
                   {Icon && <Icon className="h-4 w-4 mr-2" />}
