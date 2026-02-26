@@ -1157,6 +1157,11 @@ export class SimplePassiveRenderer {
             newColumnRange: `${currentColumnRange.start}-${currentColumnRange.end}`,
           })
 
+          // Invalidate pre-render buffer: rows built with the old column range
+          // would have stale cells and cause blank gaps on vertical scroll
+          this.preRenderBuffer.invalidate()
+          this.setupPreRenderContext()
+
           // Always use incremental update - initial renderBody() already placed columns,
           // so first horizontal scroll is a no-op (cellMap guard skips existing cells).
           // Calling renderBody() here caused full row teardown/rebuild (40+ row churn).
@@ -1881,9 +1886,13 @@ export class SimplePassiveRenderer {
         // FAST PATH: check pre-render buffer first
         rowElement = this.preRenderBuffer.getRow(i)
         if (rowElement) {
-          // Just update position
+          // Update position
           const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
           rowElement.style.transform = `translateY(${offset}px)`
+          // Reconcile columns: pre-rendered row may have stale column set
+          // if horizontal scroll changed between pre-build and consumption
+          this.trackCellsForRow(row.id, rowElement)
+          this.reconcileRowColumns(row, rowElement, precomputed)
         } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
           // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
@@ -1934,9 +1943,12 @@ export class SimplePassiveRenderer {
         // FAST PATH: check pre-render buffer first
         rowElement = this.preRenderBuffer.getRow(i)
         if (rowElement) {
-          // Just update position
+          // Update position
           const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
           rowElement.style.transform = `translateY(${offset}px)`
+          // Reconcile columns: pre-rendered row may have stale column set
+          this.trackCellsForRow(row.id, rowElement)
+          this.reconcileRowColumns(row, rowElement, precomputed)
         } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
           // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
@@ -2017,6 +2029,74 @@ export class SimplePassiveRenderer {
       if (colId) cellMap.set(colId, cell as HTMLElement)
     }
     this.activeCells.set(rowId, cellMap)
+  }
+
+  /**
+   * Reconcile a row's cells to match the current visible column range.
+   * Used when consuming pre-rendered or recycled rows whose column set may be stale
+   * (built before the most recent horizontal scroll changed the viewport column range).
+   */
+  private reconcileRowColumns(
+    row: any,
+    rowElement: HTMLElement,
+    precomputed: {
+      visibleColumns: any[]
+      columnLayouts: any[]
+      totalWidth: number
+    },
+  ): void {
+    if (!this.bodyRenderer) return
+
+    const rowId = row.id
+    let cellMap = this.activeCells.get(rowId)
+    if (!cellMap) {
+      cellMap = new Map<string, HTMLElement>()
+      this.activeCells.set(rowId, cellMap)
+    }
+
+    // Build set of column IDs that SHOULD be in the row (current viewport range)
+    const expectedColumnIds = new Set<string>()
+    for (const col of precomputed.visibleColumns) {
+      expectedColumnIds.add(col.id)
+    }
+
+    // Build layout lookup for O(1) access
+    const layoutMap = new Map<string, any>()
+    for (const layout of precomputed.columnLayouts) {
+      layoutMap.set(layout.id, layout)
+    }
+
+    // Remove cells that are NOT in the expected set
+    for (const [colId, cellEl] of cellMap) {
+      if (!expectedColumnIds.has(colId)) {
+        cellEl.remove()
+        cellMap.delete(colId)
+      }
+    }
+
+    // Add cells that are in expected set but missing from the row
+    const columns = this.tableCoreStore.columns
+    const columnMap = new Map<string, any>()
+    for (const col of columns) {
+      columnMap.set(col.id, col)
+    }
+
+    for (const layout of precomputed.columnLayouts) {
+      if (cellMap.has(layout.id)) continue
+
+      const column = columnMap.get(layout.id)
+      if (!column) continue
+
+      const cell = this.bodyRenderer.createCellElement(
+        row,
+        { ...column, width: layout.width },
+        0,
+        layout.xOffset,
+        layout.width,
+      )
+      rowElement.appendChild(cell)
+      cellMap.set(layout.id, cell)
+    }
   }
 
   /**

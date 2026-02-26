@@ -1469,55 +1469,84 @@ export class BodyRenderer {
       ;(dragColumn as HTMLElement).dataset.rowId = newRow.id
     }
 
-    // 6. Update cells - this is the main performance win
+    // 6. Update cells using column-ID-based mapping (not index-based)
+    // The recycled row may have cells for a different column range (different count
+    // and/or different columns) if horizontal scroll changed since the row was pooled.
     const columnLayouts = precomputed?.columnLayouts ?? this.visualStateStore.visibleColumns
     const visibleColumnsOnly =
       precomputed?.visibleColumns ??
       columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
-    // Create layout lookup map for O(1) lookups (same pattern as createRowElement)
+    // Create layout lookup map for O(1) lookups
     const layoutMap = new Map<string, any>()
     for (const layout of columnLayouts) {
       layoutMap.set(layout.id, layout)
     }
 
-    // Get all cells in the row
-    const cells = rowElement.querySelectorAll('.vibegridx-cell')
+    // Build map of existing cells by column ID (not index)
+    const existingCellMap = new Map<string, HTMLElement>()
+    for (const cell of rowElement.querySelectorAll('.vibegridx-cell')) {
+      const colId = (cell as HTMLElement).dataset.columnId
+      if (colId) existingCellMap.set(colId, cell as HTMLElement)
+    }
 
-    // 6. Reset cells to shell state for upgrade scheduling (GH#1437 P3)
+    // Track which columns we need — columns not in this set get removed
+    const neededColumnIds = new Set<string>()
+    for (const col of visibleColumnsOnly) {
+      neededColumnIds.add(col.id)
+    }
+
+    // Remove orphan cells (exist in DOM but not needed for current column range)
+    for (const [colId, cellEl] of existingCellMap) {
+      if (!neededColumnIds.has(colId)) {
+        cellEl.remove()
+        existingCellMap.delete(colId)
+      }
+    }
+
+    // Update existing cells and create missing ones
     visibleColumnsOnly.forEach((column, colIndex) => {
-      const cell = cells[colIndex] as HTMLElement
-      if (!cell) return
-
       const value = rowData[column.id]
-
-      // Update cell identity
-      cell.dataset.rowId = newRow.id
-      cell.dataset.columnId = column.id
-
-      // Update position from current layout
       const layout = layoutMap.get(column.id)
-      if (layout) {
-        cell.style.left = `${layout.xOffset}px`
-        cell.style.width = `${layout.width}px`
-      }
+      let cell = existingCellMap.get(column.id)
 
-      // Update cell content directly (full rich rendering)
-      cell.className = 'vibegridx-cell'
-      cell.textContent = ''
-      cell.removeAttribute('data-field')
-      cell.removeAttribute('data-testid')
-      cell.removeAttribute('data-field-type')
-      // Remove old affordance attrs
-      for (const attr of Array.from(cell.attributes)) {
-        if (attr.name.startsWith('data-affordance') || attr.name.startsWith('data-cell-')) {
-          cell.removeAttribute(attr.name)
+      if (cell) {
+        // Reuse existing cell — update identity, position, and content
+        cell.dataset.rowId = newRow.id
+        cell.dataset.columnId = column.id
+
+        if (layout) {
+          cell.style.left = `${layout.xOffset}px`
+          cell.style.width = `${layout.width}px`
         }
-      }
-      cell.classList.remove('vibegridx-selected')
 
-      // Re-render cell content via ModularCellBridge
-      if (this.modularCellBridge) {
+        // Reset cell state for re-rendering
+        cell.className = 'vibegridx-cell'
+        cell.textContent = ''
+        cell.removeAttribute('data-field')
+        cell.removeAttribute('data-testid')
+        cell.removeAttribute('data-field-type')
+        for (const attr of Array.from(cell.attributes)) {
+          if (attr.name.startsWith('data-affordance') || attr.name.startsWith('data-cell-')) {
+            cell.removeAttribute(attr.name)
+          }
+        }
+        cell.classList.remove('vibegridx-selected')
+      } else {
+        // Create new cell for a column the recycled row didn't have
+        cell = this.createCellElement(
+          newRow,
+          { ...column, width: layout?.width ?? column.width ?? 150 },
+          colIndex,
+          layout?.xOffset,
+          layout?.width,
+        )
+        rowElement.appendChild(cell)
+      }
+
+      // Render cell content via ModularCellBridge
+      if (this.modularCellBridge && existingCellMap.has(column.id)) {
+        // Only re-render reused cells — new cells from createCellElement are already rendered
         try {
           const cellContent = this.modularCellBridge.createCell(value, column, rowData, {
             rowIndex: newRowIndex,
@@ -1525,27 +1554,23 @@ export class BodyRenderer {
             xPosition: layout?.xOffset,
             width: layout?.width ?? column.width ?? 150,
           })
-          // Transfer the inner content from the new element
           cell.dataset.field = column.field || column.id
           cell.setAttribute('data-testid', `cell-${newRow.id}-${column.id}`)
           if (column.fieldType) {
             cell.setAttribute('data-field-type', column.fieldType.type || column.cellType || 'text')
           }
-          // Copy children from rendered cell
           while (cellContent.firstChild) {
             cell.appendChild(cellContent.firstChild)
           }
-          // Copy text content if no children (simple text cells)
           if (!cell.firstChild && cellContent.textContent) {
             cell.textContent = cellContent.textContent
           }
         } catch (_error) {
-          // Fallback to formatter
           cell.textContent = column.formatter
             ? column.formatter(value, rowData, column)
             : String(value ?? '')
         }
-      } else {
+      } else if (!this.modularCellBridge && existingCellMap.has(column.id)) {
         cell.textContent = column.formatter
           ? column.formatter(value, rowData, column)
           : String(value ?? '')
