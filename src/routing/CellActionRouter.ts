@@ -124,25 +124,6 @@ export class CellActionRouter {
       }
     }
 
-    // 2b. Fallback callback for selection-only cells.
-    // This allows feature screens to treat "row click" on read-only cells as an app action
-    // without forcing every column to be marked as a navigate affordance.
-    if (action === 'none' && this.onCellClick && row && column) {
-      fileLog.debug('Invoking onCellClick callback for selection-only cell', {
-        rowId: row.id,
-        columnId: column.id,
-      })
-
-      const result = this.onCellClick(row.id, column.id)
-      if (result === 'handled' || nativeEvent.defaultPrevented) {
-        fileLog.debug('Selection-only callback handled event', {
-          result,
-          defaultPrevented: nativeEvent.defaultPrevented,
-        })
-        return
-      }
-    }
-
     // 3. Execute action (edit, custom, or none - not navigate since callback handled it)
     if (action !== 'navigate') {
       this.executeAction(action, context)
