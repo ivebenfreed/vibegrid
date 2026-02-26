@@ -30,8 +30,6 @@ import { useEntityRecord } from '@/shared/data/db/hooks/useEntityRecord'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { Search } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { Button } from '@/shared/components/ui/button'
 import {
   Dialog,
@@ -602,12 +600,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   if (!projectReady) {
     return (
       <>
-        <Header>
-          <Search />
-          <div className="ms-auto flex items-center space-x-4">
-            <ThemeSwitch />
-          </div>
-        </Header>
+        <Header />
         <Main fluid>
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -621,12 +614,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   if (!project) {
     return (
       <>
-        <Header>
-          <Search />
-          <div className="ms-auto flex items-center space-x-4">
-            <ThemeSwitch />
-          </div>
-        </Header>
+        <Header />
         <Main fluid>
           <div className="flex items-center justify-center h-64">
             <p className="text-muted-foreground">Project not found</p>
@@ -638,12 +626,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
 
   return (
     <>
-      <Header>
-        <Search />
-        <div className="ms-auto flex items-center space-x-4">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header />
       <Main fluid>
         <div className="flex flex-col h-full w-full">
           <div className="pb-4">

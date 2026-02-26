@@ -9,12 +9,9 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { Loader2, PlusIcon } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useState, useTransition } from 'react'
-import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { Search } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { Button } from '@/shared/components/ui/button'
 import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
@@ -104,11 +101,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       <>
         <Header>
           <TopNav links={[]} />
-          <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4">
-            <Search />
-            <ThemeSwitch />
-            <ConfigDrawer />
-          </div>
         </Header>
         <Main>
           <EntityBreadcrumbs entityName={schema.entityName} />
@@ -124,11 +116,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       {/* Top Header Bar */}
       <Header>
         <TopNav links={[]} />
-        <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4">
-          <Search />
-          <ThemeSwitch />
-          <ConfigDrawer />
-        </div>
       </Header>
 
       {/* Main Content */}
