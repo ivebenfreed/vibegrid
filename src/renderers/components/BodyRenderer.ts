@@ -437,7 +437,8 @@ export class BodyRenderer {
   }
 
   /**
-   * Create row header with number or checkbox (no longer handles drag)
+   * Create row header with number and optional checkbox (no longer handles drag)
+   * When enableSelectionColumn: shows row number by default, checkbox on hover
    * PERF: Static styles in CSS (.vibegridx-row-header-cell), no inline styles needed
    */
   private createRowHeader(row: any, rowIndex: number): HTMLElement {
@@ -445,11 +446,17 @@ export class BodyRenderer {
     rowHeader.dataset.rowId = row.id
 
     if (this.enableSelectionColumn) {
-      // Create checkbox for row selection
+      // Show row number (hidden on hover via CSS)
+      const rowNumber = document.createElement('span')
+      rowNumber.className = 'vibegridx-row-number'
+      rowNumber.textContent = String(rowIndex + 1)
+      rowHeader.appendChild(rowNumber)
+
+      // Show checkbox on hover (or when row is selected)
       const checkbox = this.createRowCheckbox(row)
       rowHeader.appendChild(checkbox)
     } else {
-      // Show row number
+      // Show row number only (no selection)
       rowHeader.textContent = String(rowIndex + 1)
     }
 
@@ -1457,7 +1464,7 @@ export class BodyRenderer {
       rowElement.dataset.rowClassName = newRow._rowClassName
     }
 
-    // 4. Update row header (row number or checkbox)
+    // 4. Update row header (row number + optional checkbox)
     const rowHeader = rowElement.querySelector('.vibegridx-row-header-cell') as HTMLElement | null
     if (rowHeader) {
       // CRITICAL: Update rowHeader's data-row-id for MouseController event delegation
@@ -1471,8 +1478,13 @@ export class BodyRenderer {
           this.interactionStore.getRowCheckboxStates([newRow], allVisibleColumns).get(newRow.id) ||
           false
         checkbox.checked = isSelected
+        // Update row number span (shown when not hovering and not selected)
+        const rowNumberSpan = rowHeader.querySelector('.vibegridx-row-number') as HTMLElement | null
+        if (rowNumberSpan) {
+          rowNumberSpan.textContent = String(newRowIndex + 1)
+        }
       } else {
-        // Update row number
+        // No checkbox — pure row number display
         rowHeader.textContent = String(newRowIndex + 1)
       }
     }

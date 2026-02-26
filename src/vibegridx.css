@@ -544,11 +544,45 @@ body.vibegridx-dragging-active * {
   flex-shrink: 0;
 }
 
+/* Row number label (shown by default, hidden on hover when selection is enabled) */
+.vibegridx-row-number {
+  font-size: 12px;
+  color: inherit;
+  line-height: 1;
+}
+
 /* Row header checkbox */
 .vibegridx-row-checkbox {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+/* Combined number + checkbox behaviour:
+   - Number visible by default, checkbox hidden
+   - On row hover: swap to checkbox
+   - When checkbox is checked (row selected): keep checkbox visible */
+.vibegridx-row-header-cell .vibegridx-row-number {
+  display: block;
+}
+.vibegridx-row-header-cell .vibegridx-row-checkbox {
+  display: none;
+}
+
+/* Show checkbox on row hover */
+.vibegridx-row:hover .vibegridx-row-header-cell .vibegridx-row-number {
+  display: none;
+}
+.vibegridx-row:hover .vibegridx-row-header-cell .vibegridx-row-checkbox {
+  display: block;
+}
+
+/* Keep checkbox visible (and hide number) when row is selected */
+.vibegridx-row-header-cell:has(.vibegridx-row-checkbox:checked) .vibegridx-row-number {
+  display: none;
+}
+.vibegridx-row-header-cell:has(.vibegridx-row-checkbox:checked) .vibegridx-row-checkbox {
+  display: block;
 }
 
 /* ====================================
