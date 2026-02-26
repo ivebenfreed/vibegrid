@@ -329,7 +329,15 @@ export class BodyRenderer {
 
     // Defer remaining columns with requestIdleCallback for smoother initial render
     if (deferredColumns.length > 0) {
+      // Capture the row ID at creation time to detect recycling
+      const originalRowId = row.id
       const deferredRender = () => {
+        // GUARD: If the row element was recycled for a different row since this
+        // callback was scheduled, bail out. Without this guard, stale deferred
+        // callbacks append cells with old row data to recycled rows, causing
+        // duplicate/corrupt cells — most visible when scrolling back up.
+        if (rowElement.dataset.rowId !== originalRowId) return
+
         // GH#1435: Gate deferred render by current visible range to avoid creating
         // out-of-range cells if horizontal scroll changed during the idle wait
         const currentRange = this.visualStateStore.visibleColumnRange
@@ -342,6 +350,12 @@ export class BodyRenderer {
         deferredColumns.forEach((column, relativeIndex) => {
           // Skip if column is no longer in visible range (scroll changed during defer)
           if (!inRangeIds.has(column.id)) return
+
+          // Skip if cell already exists (e.g., reconciliation already added it)
+          const existingCell = rowElement.querySelector(
+            `.vibegridx-cell[data-column-id="${column.id}"]`,
+          )
+          if (existingCell) return
 
           const colIndex = essentialColumnCount + relativeIndex
           this.cellRenderingStats.cellsRequested++
