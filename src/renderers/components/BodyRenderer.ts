@@ -219,6 +219,8 @@ export class BodyRenderer {
   private setupRowHoverHandling(): void {
     const over = (e: Event) => {
       const target = e.target as HTMLElement
+      // Only trigger when hovering the row header cell (selection column)
+      if (!target.closest('.vibegridx-row-header-cell')) return
       const row = target.closest('.vibegridx-row') as HTMLElement | null
       if (row) row.classList.add('vibegridx-row-hovered')
     }
@@ -226,9 +228,9 @@ export class BodyRenderer {
       const target = e.target as HTMLElement
       const row = target.closest('.vibegridx-row') as HTMLElement | null
       if (row) {
-        // Only remove if the mouse is leaving the row entirely (not entering a child)
         const related = (e as MouseEvent).relatedTarget as HTMLElement | null
-        if (!row.contains(related)) {
+        // Remove hover class when leaving the row header cell
+        if (!row.querySelector('.vibegridx-row-header-cell')?.contains(related)) {
           row.classList.remove('vibegridx-row-hovered')
         }
       }
