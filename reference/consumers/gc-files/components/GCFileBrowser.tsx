@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { runInAction } from 'mobx'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { useProjectContext, useOrganization } from '@/app/stores'
+import { useScopeContext, useOrganization } from '@/app/stores'
 import { VibeGrid } from '@/systems/vibegrid'
 import type { RowAction } from '@/systems/vibegrid/VibeGrid'
 import type { Column } from '@/systems/vibegrid/types'
@@ -560,7 +560,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   projectId,
   projectName,
 }: GCFileBrowserProps) {
-  const projectContext = useProjectContext()
+  const scopeContext = useScopeContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -588,13 +588,13 @@ export const GCFileBrowser = observer(function GCFileBrowser({
   // Fetch project to get external_id for filtering
   const { record: project, isReady: projectReady } = useEntityRecord('GCProject', projectId)
 
-  // Update project context
+  // Update scope context
   useEffect(() => {
-    if (project && projectContext.currentProjectId !== projectId) {
+    if (project && scopeContext.currentEntityId !== projectId) {
       const name = project.name || project.display_name || projectName || 'Project'
-      projectContext.selectProject(projectId, { name, status: project.status })
+      scopeContext.selectEntity({ id: projectId, name, type: 'project', status: project.status })
     }
-  }, [projectId, project, projectName, projectContext])
+  }, [projectId, project, projectName, scopeContext])
 
   const tableId = `project-${projectId}-files`
 
