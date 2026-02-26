@@ -12,12 +12,13 @@ built:
   - Selection column and bulk handler plumbing
   - InteractionStore (selection, menus, context)
   - Non-DataForge data source support (collectionOverride)
+  - CSV export (toolbar + bulk action, client-side, GH#1551)
 not_built:
   - Kanban view module
   - Gantt view module (partial — GanttViewStore exists, full module TBD)
   - Bulk action toolbar UI
   - Column reordering and persistence
-  - Export services (CSV, PDF)
+  - PDF export
   - Saved filter presets
 ---
 
@@ -204,11 +205,28 @@ Saved views also appear as sidebar entries under their entity type, with live co
 
 Appears when one or more rows are selected. The toolbar provides:
 
-- **Universal actions**: Export, delete (with confirmation)
+- **Universal actions**: Export CSV, delete (with confirmation)
 - **Module-specific actions**: Send reminder, approve, assign — registered by the module
 - **Selection count**: Shows how many items are selected
 
 Bulk handlers receive arrays: `(rowIds[], rowsData[])`. All mutations go through the command system for undo/redo capability.
+
+### CSV Export (GH#1551)
+
+Two entry points, both gated by `enableExport` prop (default `false`):
+
+| Entry Point | What It Exports | UI Location |
+|-------------|-----------------|-------------|
+| **Toolbar button** | All filtered/sorted rows | Header bar, after Columns toggle |
+| **ActionsBar action** | Selected rows only | Bulk action bar (preserves selection after export) |
+
+Export is fully client-side — no backend call. All data is already in `TableCoreStore.processedRows`.
+
+- **Columns**: Visible columns only (respects Column Visibility, excludes system columns)
+- **Filename**: `{entityType}-export-YYYY-MM-DD.csv`
+- **Format**: RFC 4180 CSV with UTF-8 BOM for Excel compatibility
+- **Field formatting**: Dates as ISO strings, booleans as `true`/`false`, multi-select as comma-separated labels, rich text stripped to plain text
+- **Guard**: Both buttons disabled during incremental processing
 
 ---
 

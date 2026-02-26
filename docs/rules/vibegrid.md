@@ -42,6 +42,29 @@ relatedFeatures:
 - Direct API calls from view modules → use CommandBus
 - Polling for data updates → use EventBus
 
+## CSV Export
+
+Client-side CSV export with two entry points, gated by `enableExport` prop (default `false`).
+
+| Entry Point | Trigger | Rows Exported |
+|-------------|---------|---------------|
+| Toolbar button | `data-testid="toolbar-export-csv"` in header | All filtered rows (`processedRows`) |
+| ActionsBar action | Bulk action on selected rows | Selected rows only |
+
+**Utilities** (`utils/csv-export.ts`):
+- `getExportableColumns(columns, visibility)` — excludes system columns (`selection`, `row-expand`, `row-number`, `row-actions`, `drag-handle`) and hidden columns
+- `formatCellValue(value, column)` — type-aware formatting for all `CellType` variants
+- `rowsToCSV(rows, columns)` — filters to `type==='data'` rows, prepends UTF-8 BOM
+- `downloadCSV(csv, filename)` — Blob + hidden anchor click
+- Filename pattern: `{entityType}-export-YYYY-MM-DD.csv`
+
+**Integration points:**
+- `VibeGrid.tsx` — `enableExport` prop, `handleExportAll`, `handleRowAction` intercepts `export-csv`
+- `VibeGridXHeaderPure.tsx` — toolbar export button, disabled during `isIncrementalProcessing`
+- `ActionsBar.tsx` — `preserveSelection` on export action keeps selection after export
+
+**Tests:** `utils/__tests__/csv-export.test.ts` (60 tests)
+
 ## Key Files
 
 | File | Purpose |
@@ -51,5 +74,6 @@ relatedFeatures:
 | `slots/SlotRegistry.ts` | Unified cell renderer resolution |
 | `stores/InteractionStore.ts` | UI state (selection, menus) |
 | `stores/GanttViewStore.ts` | Gantt state |
+| `utils/csv-export.ts` | CSV export utilities |
 | `utils/cascade-scheduler.ts` | Date cascading |
 | `processors/DependencyProcessor.ts` | Dependency CRUD |
