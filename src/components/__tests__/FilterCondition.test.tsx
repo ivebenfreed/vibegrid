@@ -538,9 +538,7 @@ describe('FilterCondition Props Integration', () => {
     }
     // FilterOperatorPicker should receive fieldType and selectedOperator
     expect(sourceCode).toMatch(/<FilterOperatorPicker[\s\S]*(fieldType|cellType|type)=/)
-    expect(sourceCode).toMatch(
-      /<FilterOperatorPicker[\s\S]*(selectedOperator|operator|value)=/,
-    )
+    expect(sourceCode).toMatch(/<FilterOperatorPicker[\s\S]*(selectedOperator|operator|value)=/)
   })
 
   it('should pass correct props to FilterValueInput', () => {
