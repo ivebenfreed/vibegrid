@@ -569,11 +569,11 @@ body.vibegridx-dragging-active * {
   display: none;
 }
 
-/* Show checkbox on row hover */
-.vibegridx-row:hover .vibegridx-row-header-cell .vibegridx-row-number {
+/* Show checkbox on row hover (JS adds .vibegridx-row-hovered via mouseover delegation) */
+.vibegridx-row-hovered .vibegridx-row-header-cell .vibegridx-row-number {
   display: none;
 }
-.vibegridx-row:hover .vibegridx-row-header-cell .vibegridx-row-checkbox {
+.vibegridx-row-hovered .vibegridx-row-header-cell .vibegridx-row-checkbox {
   display: block;
 }
 

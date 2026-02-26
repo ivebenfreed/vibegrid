@@ -81,6 +81,9 @@ export class BodyRenderer {
   // Observer cleanup
   private selectionObserverDisposer?: () => void
 
+  // Row hover handling (JS-driven to avoid CSS :hover pitfalls with position:absolute cells)
+  private rowHoverHandlers?: { over: EventListener; out: EventListener }
+
   // Cell rendering tracking for debugging invisible cells
   private cellRenderingStats = {
     rowsRequested: 0,
@@ -113,6 +116,11 @@ export class BodyRenderer {
 
     // Setup observer for selection changes to update checkboxes
     this.setupSelectionObserver()
+
+    // Setup JS-driven row hover for selection column number↔checkbox swap
+    if (this.enableSelectionColumn) {
+      this.setupRowHoverHandling()
+    }
 
     // Check if modular cell system is already available globally (from init manager)
     // This allows synchronous access if it's already initialized
@@ -192,10 +200,42 @@ export class BodyRenderer {
       this.selectionObserverDisposer = undefined
     }
 
+    if (this.rowHoverHandlers) {
+      this.container.removeEventListener('mouseover', this.rowHoverHandlers.over)
+      this.container.removeEventListener('mouseout', this.rowHoverHandlers.out)
+      this.rowHoverHandlers = undefined
+    }
+
     // Clear active rows
     this.activeRows.clear()
 
     fileLog.info('🧹 BodyRenderer destroyed') // Keep: lifecycle
+  }
+
+  /**
+   * Setup JS-driven row hover handling for the number↔checkbox swap.
+   * CSS :hover on position:absolute rows is unreliable; event delegation is robust.
+   */
+  private setupRowHoverHandling(): void {
+    const over = (e: Event) => {
+      const target = e.target as HTMLElement
+      const row = target.closest('.vibegridx-row') as HTMLElement | null
+      if (row) row.classList.add('vibegridx-row-hovered')
+    }
+    const out = (e: Event) => {
+      const target = e.target as HTMLElement
+      const row = target.closest('.vibegridx-row') as HTMLElement | null
+      if (row) {
+        // Only remove if the mouse is leaving the row entirely (not entering a child)
+        const related = (e as MouseEvent).relatedTarget as HTMLElement | null
+        if (!row.contains(related)) {
+          row.classList.remove('vibegridx-row-hovered')
+        }
+      }
+    }
+    this.container.addEventListener('mouseover', over)
+    this.container.addEventListener('mouseout', out)
+    this.rowHoverHandlers = { over: over as EventListener, out: out as EventListener }
   }
 
   // ====================================
