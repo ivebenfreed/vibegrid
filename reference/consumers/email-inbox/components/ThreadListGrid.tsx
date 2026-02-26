@@ -135,13 +135,16 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
     }
   }, [threads, tableCoreStore, initStore])
 
-  // Handle row click - navigate to thread detail
+  // Handle row click - navigate to thread detail (subject column only)
   const handleCellClick = useCallback(
-    (rowId: string, _columnId: string) => {
+    (rowId: string, columnId: string) => {
       if (isSelectMode) {
         // In select mode, grid selection drives local state via onSelectionChange.
         return
-      } else {
+      }
+
+      // Only navigate when clicking the subject column (primary name affordance)
+      if (columnId === 'subject') {
         store.setSelectedThread(rowId)
         navigate({ to: '/inbox/thread/$threadId', params: { threadId: rowId } })
       }
@@ -248,6 +251,7 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         entityType="EmailThread"
         height="100%"
         skipDataFetching={true}
+        enableEntityAdd={false}
         enableSelectionColumn={isSelectMode}
         enableGrouping={false}
         enableFiltering={false}

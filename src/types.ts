@@ -118,6 +118,9 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options' | 'cellTy
   rollupSourceField?: string
   rollupConditions?: any
 
+  // Column interaction
+  resizable?: boolean
+
   // Validation
   required?: boolean
   min?: number
