@@ -18,8 +18,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
+import type { FieldSlotProps } from '../types/layout-types'
 import { TwoColumnLayoutAdapter } from '../adapters/TwoColumnLayoutAdapter'
 import type { InteractionStore } from '../stores/InteractionStore'
 import { FormFieldValue } from './FormFieldValue'
@@ -41,6 +43,8 @@ export interface TwoColumnFormProps {
   columnGap?: string
   /** Field change callback (for VibeForm integration) */
   onFieldChange?: (fieldId: string, value: any) => void
+  /** Optional render slot. When provided, replaces FormFieldValue for each field. */
+  renderField?: (props: FieldSlotProps) => ReactNode
 }
 
 export const TwoColumnForm = observer(function TwoColumnForm({
@@ -50,6 +54,7 @@ export const TwoColumnForm = observer(function TwoColumnForm({
   fieldGap = '1rem',
   columnGap = '1.5rem',
   onFieldChange,
+  renderField,
 }: TwoColumnFormProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<TwoColumnLayoutAdapter | null>(null)
@@ -75,6 +80,17 @@ export const TwoColumnForm = observer(function TwoColumnForm({
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't hijack keyboard events inside slot editors
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        if (event.key !== 'Tab') return
+      }
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -150,6 +166,7 @@ export const TwoColumnForm = observer(function TwoColumnForm({
         const spanBoth = isLastField && isOddCount
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for focus
           <div
             key={fieldId}
             className={`two-column-form-field ${isFocused ? 'two-column-form-field--focused' : ''} ${spanBoth ? 'two-column-form-field--span' : ''}`}
@@ -168,15 +185,26 @@ export const TwoColumnForm = observer(function TwoColumnForm({
               {column.required && <span className="two-column-form-field__required">*</span>}
             </div>
             <div className="two-column-form-field__value">
-              <FormFieldValue
-                fieldId={fieldId}
-                value={value}
-                column={column}
-                rowData={data}
-                rowIndex={index}
-                cellClassName="two-column-form-cell"
-                containerClassName="two-column-form-field-value"
-              />
+              {renderField ? (
+                renderField({
+                  fieldId,
+                  column,
+                  value,
+                  rowData: data,
+                  rowIndex: index,
+                  onChange: onFieldChange,
+                })
+              ) : (
+                <FormFieldValue
+                  fieldId={fieldId}
+                  value={value}
+                  column={column}
+                  rowData={data}
+                  rowIndex={index}
+                  cellClassName="two-column-form-cell"
+                  containerClassName="two-column-form-field-value"
+                />
+              )}
             </div>
           </div>
         )

@@ -17,8 +17,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
+import type { FieldSlotProps } from '../types/layout-types'
 import { SingleColumnLayoutAdapter } from '../adapters/SingleColumnLayoutAdapter'
 import type { InteractionStore } from '../stores/InteractionStore'
 import { FormFieldValue } from './FormFieldValue'
@@ -40,6 +42,8 @@ export interface SingleColumnFormProps {
   labelGap?: string
   /** Field change callback (for VibeForm integration) */
   onFieldChange?: (fieldId: string, value: any) => void
+  /** Optional render slot. When provided, replaces FormFieldValue for each field. */
+  renderField?: (props: FieldSlotProps) => ReactNode
 }
 
 export const SingleColumnForm = observer(function SingleColumnForm({
@@ -49,6 +53,7 @@ export const SingleColumnForm = observer(function SingleColumnForm({
   fieldGap = '1.5rem',
   labelGap = '0.5rem',
   onFieldChange,
+  renderField,
 }: SingleColumnFormProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<SingleColumnLayoutAdapter | null>(null)
@@ -74,6 +79,17 @@ export const SingleColumnForm = observer(function SingleColumnForm({
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't hijack keyboard events inside slot editors
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        if (event.key !== 'Tab') return
+      }
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -146,6 +162,7 @@ export const SingleColumnForm = observer(function SingleColumnForm({
         const isFocused = interactionStore?.focusedFieldId === fieldId
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for focus
           <div
             key={fieldId}
             className={`single-column-form-field ${isFocused ? 'single-column-form-field--focused' : ''}`}
@@ -164,15 +181,26 @@ export const SingleColumnForm = observer(function SingleColumnForm({
               {column.required && <span className="single-column-form-field__required">*</span>}
             </div>
             <div className="single-column-form-field__value">
-              <FormFieldValue
-                fieldId={fieldId}
-                value={value}
-                column={column}
-                rowData={data}
-                rowIndex={index}
-                cellClassName="single-column-form-cell"
-                containerClassName="single-column-form-field-value"
-              />
+              {renderField ? (
+                renderField({
+                  fieldId,
+                  column,
+                  value,
+                  rowData: data,
+                  rowIndex: index,
+                  onChange: onFieldChange,
+                })
+              ) : (
+                <FormFieldValue
+                  fieldId={fieldId}
+                  value={value}
+                  column={column}
+                  rowData={data}
+                  rowIndex={index}
+                  cellClassName="single-column-form-cell"
+                  containerClassName="single-column-form-field-value"
+                />
+              )}
             </div>
           </div>
         )

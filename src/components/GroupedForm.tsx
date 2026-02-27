@@ -22,8 +22,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { Column } from '../types'
+import type { FieldSlotProps } from '../types/layout-types'
 import { GroupedFormLayoutAdapter, type FieldGroup } from '../adapters/GroupedFormLayoutAdapter'
 import type { InteractionStore } from '../stores/InteractionStore'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -50,6 +52,8 @@ export interface GroupedFormProps {
   onFieldChange?: (fieldId: string, value: any) => void
   /** Group collapse callback */
   onGroupToggle?: (groupId: string, collapsed: boolean) => void
+  /** Optional render slot. When provided, replaces FormFieldValue for each field. */
+  renderField?: (props: FieldSlotProps) => ReactNode
 }
 
 export const GroupedForm = observer(function GroupedForm({
@@ -61,6 +65,7 @@ export const GroupedForm = observer(function GroupedForm({
   fieldGap = '1rem',
   onFieldChange,
   onGroupToggle,
+  renderField,
 }: GroupedFormProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<GroupedFormLayoutAdapter | null>(null)
@@ -133,6 +138,17 @@ export const GroupedForm = observer(function GroupedForm({
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't hijack keyboard events inside slot editors
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        if (event.key !== 'Tab') return
+      }
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -260,6 +276,7 @@ export const GroupedForm = observer(function GroupedForm({
                   const spanBoth = numColumns === 2 && isLastField && isOddCount
 
                   return (
+                    // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for focus
                     <div
                       key={fieldId}
                       className={`grouped-form-field ${isFocused ? 'grouped-form-field--focused' : ''} ${spanBoth ? 'grouped-form-field--span' : ''}`}
@@ -278,15 +295,26 @@ export const GroupedForm = observer(function GroupedForm({
                         {column.required && <span className="grouped-form-field__required">*</span>}
                       </div>
                       <div className="grouped-form-field__value">
-                        <FormFieldValue
-                          fieldId={fieldId}
-                          value={value}
-                          column={column}
-                          rowData={data}
-                          rowIndex={fieldIndex}
-                          cellClassName="grouped-form-cell"
-                          containerClassName="grouped-form-field-value"
-                        />
+                        {renderField ? (
+                          renderField({
+                            fieldId,
+                            column,
+                            value,
+                            rowData: data,
+                            rowIndex: fieldIndex,
+                            onChange: onFieldChange,
+                          })
+                        ) : (
+                          <FormFieldValue
+                            fieldId={fieldId}
+                            value={value}
+                            column={column}
+                            rowData={data}
+                            rowIndex={fieldIndex}
+                            cellClassName="grouped-form-cell"
+                            containerClassName="grouped-form-field-value"
+                          />
+                        )}
                       </div>
                     </div>
                   )

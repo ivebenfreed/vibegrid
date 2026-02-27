@@ -19,9 +19,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
 import { useEffect, useRef, useMemo } from 'react'
 import type { Column } from '../types'
-import type { FieldPlacement } from '../types/layout-types'
+import type { FieldPlacement, FieldSlotProps } from '../types/layout-types'
 import { GridLayoutAdapter } from '../adapters/GridLayoutAdapter'
 import type { InteractionStore } from '../stores/InteractionStore'
 import { FormFieldValue } from './FormFieldValue'
@@ -45,6 +46,8 @@ export interface GridFormProps {
   fieldGap?: string
   /** Field change callback (for VibeForm integration) */
   onFieldChange?: (fieldId: string, value: any) => void
+  /** Optional render slot. When provided, replaces FormFieldValue for each field. */
+  renderField?: (props: FieldSlotProps) => ReactNode
 }
 
 export const GridForm = observer(function GridForm({
@@ -55,6 +58,7 @@ export const GridForm = observer(function GridForm({
   gridColumns = 2,
   fieldGap = '1rem',
   onFieldChange,
+  renderField,
 }: GridFormProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<GridLayoutAdapter | null>(null)
@@ -77,6 +81,7 @@ export const GridForm = observer(function GridForm({
   }, [columns, gridColumns, fieldPlacements, fieldGap])
 
   // Compute tab order for keyboard navigation
+  // biome-ignore lint/correctness/useExhaustiveDependencies: gridColumns and fieldPlacements trigger adapter rebuild which changes tab order
   const tabOrder = useMemo(() => {
     if (!adapterRef.current) return columns.map((c) => c.id)
     return adapterRef.current.getTabOrder()
@@ -88,6 +93,17 @@ export const GridForm = observer(function GridForm({
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't hijack keyboard events inside slot editors
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        if (event.key !== 'Tab') return
+      }
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -185,6 +201,7 @@ export const GridForm = observer(function GridForm({
         const fieldStyle = span > 1 ? { gridColumn: `span ${span}` } : undefined
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for focus
           <div
             key={fieldId}
             className={`grid-form-field ${isFocused ? 'grid-form-field--focused' : ''}`}
@@ -204,15 +221,26 @@ export const GridForm = observer(function GridForm({
               {column.required && <span className="grid-form-field__required">*</span>}
             </div>
             <div className="grid-form-field__value">
-              <FormFieldValue
-                fieldId={fieldId}
-                value={value}
-                column={column}
-                rowData={data}
-                rowIndex={index}
-                cellClassName="grid-form-cell"
-                containerClassName="grid-form-field-value"
-              />
+              {renderField ? (
+                renderField({
+                  fieldId,
+                  column,
+                  value,
+                  rowData: data,
+                  rowIndex: index,
+                  onChange: onFieldChange,
+                })
+              ) : (
+                <FormFieldValue
+                  fieldId={fieldId}
+                  value={value}
+                  column={column}
+                  rowData={data}
+                  rowIndex={index}
+                  cellClassName="grid-form-cell"
+                  containerClassName="grid-form-field-value"
+                />
+              )}
             </div>
           </div>
         )

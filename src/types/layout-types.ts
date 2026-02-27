@@ -12,6 +12,8 @@
 
 import type { CSSProperties } from 'react'
 
+import type { Column } from '../types'
+
 /**
  * Layout type determines how fields are arranged
  */
@@ -85,6 +87,21 @@ export interface CellPosition {
   row: number
   /** Column index (0-based) */
   col: number
+}
+
+/**
+ * Props passed to the renderField slot function by layout components.
+ * VibeForm constructs renderField to return VibeFormField (editable).
+ * When renderField is not provided, layouts fall back to FormFieldValue.
+ */
+export interface FieldSlotProps {
+  fieldId: string
+  column: Column
+  value: any
+  rowData: any
+  rowIndex: number
+  /** Present when layout is wired to VibeForm's handleFieldChange */
+  onChange?: (fieldId: string, value: any) => void
 }
 
 /**

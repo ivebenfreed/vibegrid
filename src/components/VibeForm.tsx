@@ -20,9 +20,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import type { ReactNode } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import type { Column } from '../types'
-import type { LayoutConfig } from '../types/layout-types'
+import type { LayoutConfig, FieldSlotProps } from '../types/layout-types'
 import type { FieldGroup } from '../adapters/GroupedFormLayoutAdapter'
 import { PropertySheet } from './PropertySheet'
 import { SingleColumnForm } from './SingleColumnForm'
@@ -30,6 +31,9 @@ import { TwoColumnForm } from './TwoColumnForm'
 import { InlineRow } from './InlineRow'
 import { GroupedForm } from './GroupedForm'
 import { GridForm } from './GridForm'
+import { VibeFormField } from './VibeFormField'
+import { FormFieldValue } from './FormFieldValue'
+import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 import { InteractionStore } from '../stores/InteractionStore'
 import { useVibeGridStoresOptional } from '../stores/context'
 import { useCreateRecordMutation } from '@/shared/data/mutations/entity-data.mutations'
@@ -131,6 +135,23 @@ export const VibeForm = observer(function VibeForm({
   }, [editingStore, collection])
 
   // ====================================
+  // FIELD TYPE REGISTRY INITIALIZATION
+  // ====================================
+
+  // Ensure FieldTypeRegistry is initialized even when VibeForm renders
+  // outside of a VibeGrid context (e.g., EditRecordDialog on detail page).
+  // Without this, renderField falls back to read-only for all fields.
+  const [registryReady, setRegistryReady] = useState(() => fieldTypeRegistry.isInitialized)
+
+  useEffect(() => {
+    if (!registryReady) {
+      fieldTypeRegistry.ensureInitialized().then(() => {
+        setRegistryReady(true)
+      })
+    }
+  }, [registryReady])
+
+  // ====================================
   // STATE
   // ====================================
 
@@ -142,6 +163,9 @@ export const VibeForm = observer(function VibeForm({
   })
 
   const [isDirty, setIsDirty] = useState(false)
+
+  // Pending edits queued during 'creating' mode (D7)
+  const pendingEditsRef = useRef<Record<string, any>>({})
 
   // ====================================
   // DATAFORGE MUTATION
@@ -239,6 +263,17 @@ export const VibeForm = observer(function VibeForm({
           createError: null,
         })
 
+        // D7: Flush pending edits queued during creating mode
+        const pending = pendingEditsRef.current
+        pendingEditsRef.current = {}
+        if (Object.keys(pending).length > 0 && collection) {
+          collection.update(createdEntity.id, (draft: any) => {
+            for (const [key, val] of Object.entries(pending)) {
+              draft[key] = val
+            }
+          })
+        }
+
         // Notify parent
         if (onSave) {
           onSave(createdEntity)
@@ -254,13 +289,32 @@ export const VibeForm = observer(function VibeForm({
         }))
       }
     },
-    [createFlow.mode, disableAutoCreate, shouldAutoCreate, createMutation, entityName, onSave],
+    [
+      createFlow.mode,
+      disableAutoCreate,
+      shouldAutoCreate,
+      createMutation,
+      entityName,
+      onSave,
+      collection,
+    ],
   )
 
   /**
    * Handle field value change
    */
   const handleFieldChange = (fieldId: string, value: any) => {
+    // D7: Queue edits during creating mode
+    if (createFlow.mode === 'creating') {
+      pendingEditsRef.current[fieldId] = value
+      // Also update localValues so VibeFormField shows the typed value on re-render
+      setCreateFlow((prev) => ({
+        ...prev,
+        localValues: { ...prev.localValues, [fieldId]: value },
+      }))
+      return // Don't trigger another auto-create
+    }
+
     const newValues = { ...createFlow.localValues, [fieldId]: value }
 
     setCreateFlow((prev) => ({
@@ -277,6 +331,79 @@ export const VibeForm = observer(function VibeForm({
 
     logger.debug('Field changed', { fieldId, value, mode: createFlow.mode })
   }
+
+  // ====================================
+  // RENDER FIELD SLOT
+  // ====================================
+
+  /** Readonly cell types that should always render as FormFieldValue */
+  const READONLY_CELL_TYPES = useMemo(
+    () =>
+      new Set([
+        'rollup_count',
+        'rollup_sum',
+        'rollup_average',
+        'rollup_concat',
+        'computed_expression',
+        'computed_formula',
+      ]),
+    [],
+  )
+
+  /**
+   * renderField callback passed to all layout components.
+   * Returns VibeFormField (editable) for editable fields,
+   * FormFieldValue (display-only) for read-only/computed/unsupported fields.
+   */
+  const renderField = useCallback(
+    (props: FieldSlotProps): ReactNode => {
+      // D5: Guard — non-editable, computed, rollup, or unsupported fields render read-only
+      const isEditable =
+        props.column.editable !== false && !READONLY_CELL_TYPES.has(props.column.cellType ?? '')
+
+      // Registry must be initialized before we can resolve editors.
+      // registryReady triggers a callback rebuild once async init completes.
+      let hasEditor = false
+      if (registryReady) {
+        try {
+          const fieldType = fieldTypeRegistry.getFieldType(props.column)
+          hasEditor = fieldType?.editor != null
+        } catch {
+          // Unknown field type — render read-only
+        }
+      }
+
+      if (!isEditable || !hasEditor) {
+        return (
+          <FormFieldValue
+            fieldId={props.fieldId}
+            value={props.value}
+            column={props.column}
+            rowData={props.rowData}
+            rowIndex={props.rowIndex}
+            cellClassName="vibe-form-cell"
+            containerClassName="vibe-form-field-value"
+          />
+        )
+      }
+
+      return (
+        <VibeFormField
+          fieldId={props.fieldId}
+          column={props.column}
+          value={props.value}
+          entityId={createFlow.entityId}
+          onChange={(value) => {
+            if (props.onChange) {
+              props.onChange(props.fieldId, value)
+            }
+          }}
+          collection={collection}
+        />
+      )
+    },
+    [createFlow.entityId, collection, READONLY_CELL_TYPES, registryReady],
+  )
 
   // ====================================
   // RESPONSIVE LAYOUT
@@ -300,46 +427,59 @@ export const VibeForm = observer(function VibeForm({
   // LAYOUT RENDERING
   // ====================================
 
+  // D8: Source data from collection for persisted entities, localValues for drafts
+  const formData = useMemo(() => {
+    if (createFlow.mode === 'persisted' && createFlow.entityId && collection) {
+      const collectionData = collection.get?.(createFlow.entityId)
+      if (collectionData) return collectionData
+    }
+    return createFlow.localValues
+  }, [createFlow.mode, createFlow.entityId, createFlow.localValues, collection])
+
   const renderLayout = () => {
     switch (effectiveLayoutType) {
       case 'property-sheet':
         return (
           <PropertySheet
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
+            renderField={renderField}
           />
         )
 
       case 'single-column':
         return (
           <SingleColumnForm
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
+            renderField={renderField}
           />
         )
 
       case 'two-column':
         return (
           <TwoColumnForm
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
+            renderField={renderField}
           />
         )
 
       case 'inline-row':
         return (
           <InlineRow
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             interactionStore={interactionStore}
             showLabels={layoutConfig.showLabels}
             onFieldChange={handleFieldChange}
+            renderField={renderField}
           />
         )
 
@@ -348,33 +488,36 @@ export const VibeForm = observer(function VibeForm({
           logger.warn('Grouped layout requires groups prop')
           return (
             <PropertySheet
-              data={createFlow.localValues}
+              data={formData}
               columns={columns}
               interactionStore={interactionStore}
               onFieldChange={handleFieldChange}
+              renderField={renderField}
             />
           )
         }
         return (
           <GroupedForm
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             groups={groups}
             interactionStore={interactionStore}
             onFieldChange={handleFieldChange}
             onGroupToggle={onGroupToggle}
+            renderField={renderField}
           />
         )
 
       case 'grid':
         return (
           <GridForm
-            data={createFlow.localValues}
+            data={formData}
             columns={columns}
             interactionStore={interactionStore}
             fieldPlacements={layoutConfig.fields}
             gridColumns={2}
             onFieldChange={handleFieldChange}
+            renderField={renderField}
           />
         )
 
@@ -396,11 +539,11 @@ export const VibeForm = observer(function VibeForm({
         {createFlow.mode === 'creating' && (
           <span className="vibe-form-status-saving">Saving...</span>
         )}
+        {createFlow.mode === 'persisted' && !isDirty && (
+          <span className="vibe-form-status-created">Created</span>
+        )}
         {createFlow.mode === 'persisted' && isDirty && (
           <span className="vibe-form-status-saved">Saved</span>
-        )}
-        {!isDirty && createFlow.mode === 'persisted' && (
-          <span className="vibe-form-status-idle">No pending changes</span>
         )}
       </output>
 

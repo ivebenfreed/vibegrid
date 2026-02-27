@@ -19,8 +19,10 @@
  */
 
 import { observer } from 'mobx-react-lite'
+import type { ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import type { Column } from '../types'
+import type { FieldSlotProps } from '../types/layout-types'
 import { InlineRowLayoutAdapter } from '../adapters/InlineRowLayoutAdapter'
 import type { InteractionStore } from '../stores/InteractionStore'
 import { FormFieldValue } from './FormFieldValue'
@@ -44,6 +46,8 @@ export interface InlineRowProps {
   fieldWidth?: 'auto' | 'equal' | 'content'
   /** Field change callback (for VibeForm integration) */
   onFieldChange?: (fieldId: string, value: any) => void
+  /** Optional render slot. When provided, replaces FormFieldValue for each field. */
+  renderField?: (props: FieldSlotProps) => ReactNode
 }
 
 export const InlineRow = observer(function InlineRow({
@@ -54,6 +58,7 @@ export const InlineRow = observer(function InlineRow({
   showLabels = false,
   fieldWidth = 'auto',
   onFieldChange,
+  renderField,
 }: InlineRowProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<InlineRowLayoutAdapter | null>(null)
@@ -81,6 +86,17 @@ export const InlineRow = observer(function InlineRow({
     if (!container || !adapterRef.current || !interactionStore) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Don't hijack keyboard events inside slot editors
+      const target = event.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      ) {
+        if (event.key !== 'Tab') return
+      }
+
       const focusedFieldId = interactionStore.focusedFieldId
       if (!focusedFieldId || !adapterRef.current) return
 
@@ -144,6 +160,7 @@ export const InlineRow = observer(function InlineRow({
         const isFocused = interactionStore?.focusedFieldId === fieldId
 
         return (
+          // biome-ignore lint/a11y/noStaticElementInteractions: Field rows need click+keyboard interaction for focus
           <div
             key={fieldId}
             className={`inline-row-field ${isFocused ? 'inline-row-field--focused' : ''}`}
@@ -164,16 +181,27 @@ export const InlineRow = observer(function InlineRow({
               </div>
             )}
             <div className="inline-row-field__value">
-              <FormFieldValue
-                fieldId={fieldId}
-                value={value}
-                column={column}
-                rowData={data}
-                rowIndex={index}
-                cellClassName="inline-row-cell"
-                cellWidth="auto"
-                containerClassName="inline-row-field-value"
-              />
+              {renderField ? (
+                renderField({
+                  fieldId,
+                  column,
+                  value,
+                  rowData: data,
+                  rowIndex: index,
+                  onChange: onFieldChange,
+                })
+              ) : (
+                <FormFieldValue
+                  fieldId={fieldId}
+                  value={value}
+                  column={column}
+                  rowData={data}
+                  rowIndex={index}
+                  cellClassName="inline-row-cell"
+                  cellWidth="auto"
+                  containerClassName="inline-row-field-value"
+                />
+              )}
             </div>
           </div>
         )
