@@ -9,8 +9,6 @@ import {
 } from '@/systems/vibegrid/stores/context'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
-import { Search } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
 import { createMockEntityCollection } from '@/shared/data/db/collections/mock-collections'
 import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
@@ -83,12 +81,7 @@ function DebugVibeGridPage() {
 
   return (
     <>
-      <Header>
-        <Search />
-        <div className="ms-auto flex items-center space-x-4">
-          <ThemeSwitch />
-        </div>
-      </Header>
+      <Header />
       <Main fluid>
         <div className="flex flex-col h-full w-full">
           <div className="pb-4">
