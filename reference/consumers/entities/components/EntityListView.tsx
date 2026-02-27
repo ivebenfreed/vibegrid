@@ -22,8 +22,6 @@ import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { Search } from '@/shared/components/search'
-import { ThemeSwitch } from '@/shared/components/theme-switch'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Button } from '@/shared/components/ui/button'
 import { Progress } from '@/shared/components/ui/progress'
@@ -340,8 +338,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             store={uploadStore}
             onRetry={(entityId) => uploadStore.retryUpload(entityId)}
           />
-          <Search />
-          <ThemeSwitch />
           <ConfigDrawer />
         </div>
       </Header>
