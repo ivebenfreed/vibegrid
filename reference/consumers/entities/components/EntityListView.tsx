@@ -31,6 +31,7 @@ import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingE
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
+import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
@@ -368,20 +369,25 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
         {/* Page Header with Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-muted-foreground">
-              {listResult.pagination.total}{' '}
-              {listResult.pagination.total === 1 ? 'record' : 'records'}
-            </p>
-            {listResult.isStreaming && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Loading more...</span>
-              </div>
-            )}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {EntityNameUtils.toDisplayFormat(schema.entityName)}
+            </h1>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                {listResult.pagination.total}{' '}
+                {listResult.pagination.total === 1 ? 'record' : 'records'}
+              </p>
+              {listResult.isStreaming && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Loading more...</span>
+                </div>
+              )}
+            </div>
             {/* Streaming progress bar */}
             {listResult.isStreaming && listResult.streamProgress.batches > 0 && (
-              <div className="w-48">
+              <div className="mt-2 w-48">
                 <Progress value={undefined} className="h-1" />
               </div>
             )}
