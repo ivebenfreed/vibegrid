@@ -129,10 +129,6 @@ interface VibeGridProps<_T = any> {
   // Column overrides for nested grids (GH#1240)
   columnOverrides?: Column[]
 
-  // Entity Add button (shows in toolbar)
-  enableEntityAdd?: boolean
-  onEntityCreate?: (data: Record<string, any>) => void | Promise<void>
-
   // Toolbar and header visibility (GH#1240)
   showToolbar?: boolean
   showHeader?: boolean
@@ -210,8 +206,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableKanban = false,
     skipDataFetching = false,
     collectionOverride: _collectionOverride, // Used by context provider, not directly here
-    enableEntityAdd = true,
-    onEntityCreate,
     showToolbar: _showToolbar = true,
     showHeader = true,
     rowExpansionConfig,
@@ -288,7 +282,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   const {
     isLoading: isDataLoading,
     collection,
-    createEntity,
+    createEntity: _createEntity,
     updateEntity,
     deleteEntity: _deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
@@ -927,10 +921,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
           enableKanban={enableKanban}
           enableHierarchy={enableHierarchy}
           enableRowExpansion={rowExpansionConfig?.enabled}
-          entityName={enableEntityAdd ? entityType : undefined}
-          entityDisplayName={entityDisplayName}
-          orgId={orgId}
-          createEntity={onEntityCreate || createEntity}
           searchConfig={searchConfig}
           enableExport={enableExport}
           onExportAll={handleExportAll}

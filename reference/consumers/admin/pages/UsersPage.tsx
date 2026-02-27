@@ -69,22 +69,6 @@ export const UsersPage = observer(function UsersPage() {
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [selectedRole, setSelectedRole] = useState('member')
 
-  const handleEntityCreate = async (data: Record<string, any>) => {
-    try {
-      await adminStore.createUser({
-        email: data.email,
-        password: data.password || 'TempPass123!',
-        name: data.name,
-        role: data.role || 'user',
-      })
-      toast.success('User created successfully')
-      window.location.reload()
-    } catch (error) {
-      logger.error('Failed to create user', { error })
-      toast.error(error instanceof Error ? error.message : 'Failed to create user')
-    }
-  }
-
   const handleEntityUpdate = async (userId: string, updates: Record<string, any>) => {
     try {
       // Update user via API
@@ -427,7 +411,6 @@ export const UsersPage = observer(function UsersPage() {
               enableFiltering={true}
               enableSorting={true}
               enableDragAndDrop={false}
-              onEntityCreate={handleEntityCreate}
               onEntityUpdate={handleEntityUpdate}
               enableDelete={true}
               onDelete={handleDelete}

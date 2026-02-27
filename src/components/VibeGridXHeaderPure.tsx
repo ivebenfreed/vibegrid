@@ -2,7 +2,7 @@
  * VibeGrid Header (MobX Version)
  *
  * Complete header with all child components migrated to MobX.
- * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
+ * Includes: View Mode Toggle, Grouping Config, and Column Visibility controls.
  */
 
 import { Download, GanttChart, Kanban, LayoutList, Link2, Network } from 'lucide-react'
@@ -16,7 +16,6 @@ import type { ViewMode } from '../stores/ViewModeStore'
 import { FilterBuilder } from './FilterBuilder'
 import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
 import { SmartSearchInput } from './SmartSearchInput'
-import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
 import { ViewPicker } from './ViewPicker'
 import type { ViewPickerProps } from './ViewPicker'
@@ -42,10 +41,6 @@ interface VibeGridXHeaderPureProps {
   enableHierarchy?: boolean
   enableRowExpansion?: boolean // GH#1240 - Show expand all / collapse all buttons
   className?: string
-  entityName?: string
-  entityDisplayName?: string // User-friendly display name (e.g., "Document" instead of "GCFile")
-  orgId?: string
-  createEntity: (data: Record<string, any>) => void
   /** Smart text search configuration (GH#1391) */
   searchConfig?: SearchConfig
   /** Enable CSV export button in toolbar (GH#1551) */
@@ -67,10 +62,6 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableHierarchy = false,
   enableRowExpansion: _enableRowExpansion = false,
   className = '',
-  entityName,
-  entityDisplayName,
-  orgId,
-  createEntity,
   searchConfig,
   enableExport = false,
   onExportAll,
@@ -93,24 +84,12 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       hiddenColumnCount,
       enableGrouping,
       viewMode,
-      entityName,
-      hasOrgId: !!orgId,
-      hasCreateEntity: !!createEntity,
     })
 
     return () => {
       logger.info('🧹 VibeGridXHeaderPure UNMOUNTED')
     }
-  }, [
-    createEntity,
-    enableGrouping,
-    entityName,
-    hiddenColumnCount,
-    orgId,
-    stores,
-    viewMode,
-    visualStateStore,
-  ])
+  }, [enableGrouping, hiddenColumnCount, stores, viewMode, visualStateStore])
 
   // Log on every render (data changes)
   logger.debug('🔄 VibeGridXHeaderPure RENDER', {
@@ -202,17 +181,6 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Entity Add Component */}
-        {entityName && (
-          <VibeGridEntityAdd
-            stores={stores}
-            entityName={entityName}
-            entityDisplayName={entityDisplayName}
-            orgId={orgId}
-            createEntity={createEntity}
-          />
-        )}
-
         {/* Group By Dropdown */}
         {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
 

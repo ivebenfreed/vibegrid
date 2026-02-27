@@ -179,7 +179,6 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options' | 'cellTy
 
   // Column visibility
   hidden?: boolean // Hide column by default (can be shown via column visibility toggle)
-  addFormOnly?: boolean // Only show in entity add form, never in grid
 
   // Additional text renderer options
   minLength?: number

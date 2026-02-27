@@ -251,7 +251,6 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         entityType="EmailThread"
         height="100%"
         skipDataFetching={true}
-        enableEntityAdd={false}
         enableSelectionColumn={isSelectMode}
         enableGrouping={false}
         enableFiltering={false}
