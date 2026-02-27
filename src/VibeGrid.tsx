@@ -155,6 +155,13 @@ interface VibeGridProps<_T = any> {
   /** Disable smart search entirely. Defaults to false */
   disableSearch?: boolean
 
+  // System-level row predicate (not shown in filter bar)
+  /**
+   * Predicate applied before user-visible filters. Rows returning false are hidden.
+   * Use for structural exclusions like upload-pending entities.
+   */
+  systemPredicate?: (row: any) => boolean
+
   // CSV export (GH#1551)
   /** Enable CSV export buttons in the toolbar and ActionsBar. Defaults to false. */
   enableExport?: boolean
@@ -215,6 +222,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     searchableColumns,
     searchPlaceholder,
     disableSearch = false,
+    // System-level row predicate
+    systemPredicate,
     // CSV export (GH#1551)
     enableExport = false,
     // URL state sharing (GH#1570)
@@ -288,6 +297,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
     skip: skipDataFetching,
     collectionOverride,
+    systemPredicate,
   })
 
   // Load hierarchy relationships when hierarchy mode is enabled

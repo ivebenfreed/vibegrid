@@ -55,6 +55,12 @@ export interface VibeGridDataOptions {
   skip?: boolean
   /** Collection override for mock testing (bypasses useEntityCollection) */
   collectionOverride?: any
+  /**
+   * System-level row predicate applied before user-visible filters.
+   * Rows returning false are hidden from the grid (not shown in filter bar).
+   * Use for structural exclusions like upload-pending entities.
+   */
+  systemPredicate?: (row: any) => boolean
 }
 
 // ====================================
@@ -224,6 +230,7 @@ export function useVibeGridData(
 ): VibeGridDataResult {
   const skip = options?.skip ?? false
   const collectionOverride = options?.collectionOverride
+  const systemPredicate = options?.systemPredicate
   // Get TanStack DB collection (shared singleton) or use override for mock testing
   const apiCollection = useEntityCollection(entityType)
   const collection = collectionOverride ?? apiCollection
@@ -259,6 +266,11 @@ export function useVibeGridData(
       // Start with base query
       let query = q.from({ entity: collection })
 
+      // Apply system-level predicate (structural exclusions not shown in filter bar)
+      if (systemPredicate) {
+        query = query.where((refs: any) => systemPredicate({ ...refs.entity }))
+      }
+
       // Apply filters
       if (filterSnapshot.length > 0) {
         query = applyAllFilters(query, filterSnapshot, 'entity')
@@ -268,7 +280,7 @@ export function useVibeGridData(
       // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
       return query.select(({ entity }: any) => ({ ...entity }))
     },
-    [skip, collection, filterSnapshot, sortSnapshot],
+    [skip, collection, filterSnapshot, sortSnapshot, systemPredicate],
   )
 
   // Apply client-side sorting to results

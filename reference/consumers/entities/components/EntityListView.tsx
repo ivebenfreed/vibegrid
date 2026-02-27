@@ -58,10 +58,12 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   entityName,
   orgId,
   onCellClick,
+  hasUploadMode,
 }: {
   entityName: string
   orgId: string
   onCellClick: (rowId: string, columnId: string) => void
+  hasUploadMode: boolean
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -132,6 +134,13 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [entityName, stores],
   )
 
+  // Hide upload-created entities that haven't been approved yet.
+  // These are routed to the review queue instead of the main grid.
+  const uploadPendingPredicate = useCallback(
+    (row: any) => !row._upload || row.status === 'approved',
+    [],
+  )
+
   const viewPickerProps = {
     entityType: entityName,
     orgId,
@@ -159,6 +168,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
+        systemPredicate={hasUploadMode ? uploadPendingPredicate : undefined}
       />
       <ReorderConfirmationDialog />
 
@@ -405,6 +415,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             <EntityListViewUrlSync
               entityName={entityName}
               orgId={orgId}
+              hasUploadMode={hasUploadMode}
               onCellClick={(rowId, columnId) => {
                 // Modern UX: Click name/title field to navigate to detail page
                 if (columnId === 'name' || columnId === 'title') {
