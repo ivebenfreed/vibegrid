@@ -5,7 +5,7 @@
  * Includes: View Mode Toggle, Entity Add, Grouping Config, and Column Visibility controls.
  */
 
-import { Download, GanttChart, Kanban, LayoutList, Network } from 'lucide-react'
+import { Download, GanttChart, Kanban, LayoutList, Link2, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useEffect } from 'react'
 import { Button } from '@/shared/components/ui/button'
@@ -50,6 +50,8 @@ interface VibeGridXHeaderPureProps {
   enableExport?: boolean
   /** Callback to export all filtered rows as CSV (GH#1551) */
   onExportAll?: () => void
+  /** Copy link callback for URL state sharing (GH#1570) */
+  onCopyLink?: () => void
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -68,6 +70,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   searchConfig,
   enableExport = false,
   onExportAll,
+  onCopyLink,
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore, hierarchyStore, tableCoreStore } = stores
 
@@ -216,6 +219,19 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
         {/* Column Visibility Dropdown */}
         <VibeGridXColumnVisibilityPure stores={stores} />
+
+        {/* Copy Link Button (GH#1570) */}
+        {onCopyLink && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCopyLink}
+            title="Copy link to current view"
+            data-testid="toolbar-copy-link"
+          >
+            <Link2 className="size-4" />
+          </Button>
+        )}
 
         {/* CSV Export Button (GH#1551) */}
         {enableExport && onExportAll && (

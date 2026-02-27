@@ -34,8 +34,9 @@ import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
-import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
+import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
+import { useViewUrlSync } from '../hooks/useViewUrlSync'
 import { AsyncOperationTracker } from './AsyncOperationTracker'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
@@ -47,6 +48,41 @@ import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
 
 const logger = getLogger(['entity', 'EntityListView'])
+
+/**
+ * Inner component that lives inside VibeGridStoreProvider context
+ * to enable useViewUrlSync hook access to VibeGrid stores (GH#1570)
+ */
+const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
+  entityName,
+  orgId,
+  onCellClick,
+}: {
+  entityName: string
+  orgId: string
+  onCellClick: (rowId: string, columnId: string) => void
+}) {
+  const stores = useVibeGridStores()
+  const { copyLink } = useViewUrlSync({ entityType: entityName, orgId, stores })
+
+  return (
+    <>
+      <VibeGrid
+        tableId={`entity-list-${entityName}`}
+        entityType={entityName}
+        height="calc(100vh - 280px)"
+        enableSelectionColumn={true}
+        enableGrouping={true}
+        enableFiltering={true}
+        enableSorting={true}
+        enableDragAndDrop={true}
+        onCellClick={onCellClick}
+        onCopyLink={copyLink}
+      />
+      <ReorderConfirmationDialog />
+    </>
+  )
+})
 
 interface EntityListViewProps {
   /** Override entity name (used by directory routes that don't have :entityName param) */
@@ -298,15 +334,9 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         {/* Vibegrid Container */}
         <div className="flex-1 overflow-hidden">
           <VibeGridStoreProvider tableId={`entity-list-${entityName}`} entityType={entityName}>
-            <VibeGrid
-              tableId={`entity-list-${entityName}`}
-              entityType={entityName}
-              height="calc(100vh - 280px)"
-              enableSelectionColumn={true}
-              enableGrouping={true}
-              enableFiltering={true}
-              enableSorting={true}
-              enableDragAndDrop={true}
+            <EntityListViewUrlSync
+              entityName={entityName}
+              orgId={orgId}
               onCellClick={(rowId, columnId) => {
                 // Modern UX: Click name/title field to navigate to detail page
                 if (columnId === 'name' || columnId === 'title') {
@@ -324,7 +354,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                 }
               }}
             />
-            <ReorderConfirmationDialog />
           </VibeGridStoreProvider>
         </div>
       </Main>

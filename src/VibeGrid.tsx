@@ -161,6 +161,10 @@ interface VibeGridProps<_T = any> {
   // CSV export (GH#1551)
   /** Enable CSV export buttons in the toolbar and ActionsBar. Defaults to false. */
   enableExport?: boolean
+
+  // URL state sharing (GH#1570)
+  /** Callback to copy the current view URL to clipboard */
+  onCopyLink?: () => void
 }
 
 // ====================================
@@ -214,6 +218,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     disableSearch = false,
     // CSV export (GH#1551)
     enableExport = false,
+    // URL state sharing (GH#1570)
+    onCopyLink,
   } = props
 
   // ====================================
@@ -921,6 +927,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           searchConfig={searchConfig}
           enableExport={enableExport}
           onExportAll={handleExportAll}
+          onCopyLink={onCopyLink}
         />
       )}
 
