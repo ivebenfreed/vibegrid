@@ -83,6 +83,25 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const userRole = authStore.session?.organization?.role ?? 'member'
   const isAdmin = userRole === 'admin' || userRole === 'owner'
 
+  // Duplicate view: create a personal copy with "(copy)" suffix
+  const handleDuplicateView = useCallback(
+    async (view: { entity_type: string; name: string; config: Record<string, unknown> }) => {
+      try {
+        await orpcClient.dataforge.views.create({
+          entity_type: entityName,
+          name: `${view.name} (copy)`,
+          visibility: 'personal',
+          config: view.config,
+        })
+        toast.success('View duplicated to My Views')
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to duplicate view'
+        toast.error(msg)
+      }
+    },
+    [entityName],
+  )
+
   // Save current view config to server
   const handleSaveView = useCallback(
     async (name: string, visibility: ViewVisibility) => {
@@ -127,6 +146,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onViewSelect: selectView,
         onSaveView: () => setSaveDialogOpen(true),
         onUnsavedSelect: clearView,
+        onDuplicateView: handleDuplicateView,
         userId,
         userRole,
       }

@@ -15,6 +15,7 @@ import {
   GanttChart,
   Kanban,
   LayoutList,
+  Lock,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -83,6 +84,7 @@ export interface ViewPickerProps {
   onViewSelect: (view: EntityViewRow) => void
   onSaveView: () => void
   onUnsavedSelect: () => void
+  onDuplicateView?: (view: EntityViewRow) => void
   userId: string
   userRole: string
 }
@@ -132,6 +134,7 @@ export const ViewPicker = observer(function ViewPicker({
   onViewSelect,
   onSaveView,
   onUnsavedSelect,
+  onDuplicateView,
   userId,
   userRole,
 }: ViewPickerProps) {
@@ -235,6 +238,31 @@ export const ViewPicker = observer(function ViewPicker({
     [entityType, fetchViews],
   )
 
+  const handleDuplicate = useCallback(
+    async (view: EntityViewRow) => {
+      if (onDuplicateView) {
+        onDuplicateView(view)
+      } else {
+        // Default: create a personal copy via API
+        try {
+          await orpcClient.dataforge.views.create({
+            entity_type: view.entity_type,
+            name: `${view.name} (copy)`,
+            visibility: 'personal',
+            config: view.config as Record<string, unknown>,
+          })
+          toast.success('View duplicated to My Views')
+          fetchViews()
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Failed to duplicate view'
+          toast.error(msg)
+        }
+      }
+      setOpen(false)
+    },
+    [onDuplicateView, fetchViews],
+  )
+
   const isAdmin = userRole === 'admin' || userRole === 'owner'
 
   return (
@@ -301,13 +329,9 @@ export const ViewPicker = observer(function ViewPicker({
                     onUnpin={() => handleUnpin(view.id)}
                     onSetDefault={() => handleSetDefault(view.id)}
                     onRename={() => {
-                      // Rename is handled by SaveViewDialog in edit mode via parent
-                      // For now, we just close the picker and the parent should handle it
                       setOpen(false)
                     }}
-                    onDuplicate={() => {
-                      setOpen(false)
-                    }}
+                    onDuplicate={() => handleDuplicate(view)}
                   />
                 ))}
               </ViewSection>
@@ -353,9 +377,7 @@ export const ViewPicker = observer(function ViewPicker({
                   onRename={() => {
                     setOpen(false)
                   }}
-                  onDuplicate={() => {
-                    setOpen(false)
-                  }}
+                  onDuplicate={() => handleDuplicate(view)}
                 />
               ))}
             </ViewSection>
@@ -383,9 +405,7 @@ export const ViewPicker = observer(function ViewPicker({
                     onRename={() => {
                       setOpen(false)
                     }}
-                    onDuplicate={() => {
-                      setOpen(false)
-                    }}
+                    onDuplicate={() => handleDuplicate(view)}
                   />
                 ))}
               </ViewSection>
@@ -471,12 +491,19 @@ function ViewItem({
   onPin,
   onUnpin,
   onSetDefault,
-  onRename: _onRename,
-  onDuplicate: _onDuplicate,
+  onRename,
+  onDuplicate,
 }: ViewItemProps): React.ReactElement {
   const viewMode = deriveViewMode(view.config)
+  const isLocked = view.visibility === 'locked'
+
+  // Permission rules:
+  // - Rename: owner can rename, but locked views only admin can rename
+  const canRename = isLocked ? isAdmin : isOwner
+  // - Delete: owner or admin can delete
   const canDelete = isOwner || isAdmin
-  const canSetDefault = isAdmin && (view.visibility === 'shared' || view.visibility === 'locked')
+  // - Set as Default: admin only, on shared/locked views
+  const canSetDefault = isAdmin && (view.visibility === 'shared' || isLocked)
 
   return (
     <div
@@ -515,6 +542,12 @@ function ViewItem({
         data-testid={`view-picker-item-${view.id}`}
       >
         <span className="flex-1 truncate">{view.name}</span>
+        {isLocked && (
+          <Lock
+            className="size-3 text-muted-foreground shrink-0"
+            data-testid={`view-picker-lock-${view.id}`}
+          />
+        )}
         {view.is_default && (
           <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 font-normal shrink-0">
             default
@@ -535,18 +568,21 @@ function ViewItem({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {isOwner && (
-            <DropdownMenuItem onClick={_onRename}>
+          {canRename && (
+            <DropdownMenuItem onClick={onRename} data-testid={`view-picker-rename-${view.id}`}>
               <Pencil className="size-3.5" />
               Rename
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={_onDuplicate}>
+          <DropdownMenuItem onClick={onDuplicate} data-testid={`view-picker-duplicate-${view.id}`}>
             <Copy className="size-3.5" />
             Duplicate to My Views
           </DropdownMenuItem>
           {canSetDefault && (
-            <DropdownMenuItem onClick={onSetDefault}>
+            <DropdownMenuItem
+              onClick={onSetDefault}
+              data-testid={`view-picker-set-default-${view.id}`}
+            >
               <Shield className="size-3.5" />
               Set as Default
             </DropdownMenuItem>
@@ -560,6 +596,7 @@ function ViewItem({
                   e.stopPropagation()
                   onDelete()
                 }}
+                data-testid={`view-picker-delete-${view.id}`}
               >
                 <Trash2 className="size-3.5" />
                 Delete

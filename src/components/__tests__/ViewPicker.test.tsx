@@ -2,6 +2,7 @@
  * ViewPicker Component Tests
  *
  * GH#1570 P2.3: Entity View Customization - View Picker UI
+ * GH#1570 P2.4: Sharing & Permissions
  *
  * Tests cover:
  * 1. Component existence and exports
@@ -10,6 +11,10 @@
  * 4. Section structure (Pinned, My Views, Shared Views)
  * 5. Feature integrations (badge, star, context menu)
  * 6. Data fetching pattern
+ * 7. Permission enforcement (P2.4)
+ * 8. Lock icon for locked views (P2.4)
+ * 9. Duplicate to My Views action (P2.4)
+ * 10. onDuplicateView prop (P2.4)
  */
 
 import { describe, expect, it, beforeEach } from 'vitest'
@@ -296,5 +301,89 @@ describe('ViewPicker Test IDs', () => {
 
   it('should have save button test id', () => {
     expect(source).toContain('data-testid="view-picker-save-button"')
+  })
+})
+
+// ====================================
+// P2.4: PERMISSION ENFORCEMENT TESTS
+// ====================================
+
+describe('ViewPicker Permission Enforcement (P2.4)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!componentExists()) return
+    source = getSourceCode()
+  })
+
+  it('should import Lock icon for locked view indicator', () => {
+    expect(source).toContain('Lock')
+    expect(source).toMatch(/import\s*\{[^}]*Lock[^}]*\}\s*from\s*'lucide-react'/)
+  })
+
+  it('should render Lock icon for locked views with data-testid', () => {
+    expect(source).toContain('view-picker-lock-')
+    expect(source).toContain('isLocked')
+  })
+
+  it('should compute canRename based on lock status and role', () => {
+    // Locked views: only admin can rename. Non-locked: owner can rename
+    expect(source).toContain('canRename')
+    expect(source).toMatch(/isLocked\s*\?\s*isAdmin\s*:\s*isOwner/)
+  })
+
+  it('should conditionally show Rename based on canRename', () => {
+    expect(source).toContain('canRename')
+    expect(source).toContain('Rename')
+  })
+
+  it('should have onDuplicateView optional prop in ViewPickerProps', () => {
+    expect(source).toContain('onDuplicateView?:')
+  })
+
+  it('should have handleDuplicate that calls onDuplicateView or creates via API', () => {
+    expect(source).toContain('handleDuplicate')
+    expect(source).toContain('onDuplicateView')
+    // Should create a copy with "(copy)" suffix via API as fallback
+    expect(source).toContain('(copy)')
+    expect(source).toContain("visibility: 'personal'")
+  })
+
+  it('should call handleDuplicate from ViewItem onDuplicate prop', () => {
+    // Each ViewItem should wire onDuplicate to handleDuplicate(view)
+    expect(source).toContain('handleDuplicate(view)')
+  })
+
+  it('should show duplicate action with data-testid', () => {
+    expect(source).toContain('view-picker-duplicate-')
+  })
+
+  it('should show rename action with data-testid', () => {
+    expect(source).toContain('view-picker-rename-')
+  })
+
+  it('should show delete action with data-testid', () => {
+    expect(source).toContain('view-picker-delete-')
+  })
+
+  it('should show set-default action with data-testid', () => {
+    expect(source).toContain('view-picker-set-default-')
+  })
+
+  it('should compute canDelete as isOwner or isAdmin', () => {
+    expect(source).toContain('const canDelete = isOwner || isAdmin')
+  })
+
+  it('should compute canSetDefault for admin on shared/locked views', () => {
+    expect(source).toContain('canSetDefault')
+    expect(source).toMatch(/isAdmin && \(view\.visibility === 'shared' \|\| isLocked\)/)
+  })
+
+  it('should show success toast on duplicate', () => {
+    expect(source).toContain('View duplicated to My Views')
+  })
+
+  it('should call orpcClient.dataforge.views.create for duplication', () => {
+    expect(source).toContain('orpcClient.dataforge.views.create')
   })
 })
