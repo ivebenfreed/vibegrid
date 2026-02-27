@@ -150,12 +150,14 @@ export const ViewPicker = observer(function ViewPicker({
     setError(null)
     try {
       const result = await orpcClient.dataforge.views.list({ entity_type: entityType })
-      setViews(result.views as EntityViewRow[])
-      setPins(result.pins as EntityViewPinRow[])
+      const fetchedViews = Array.isArray(result.views) ? (result.views as EntityViewRow[]) : []
+      const fetchedPins = Array.isArray(result.pins) ? (result.pins as EntityViewPinRow[]) : []
+      setViews(fetchedViews)
+      setPins(fetchedPins)
       logger.info('Fetched views', {
         entityType,
-        viewCount: result.views.length,
-        pinCount: result.pins.length,
+        viewCount: fetchedViews.length,
+        pinCount: fetchedPins.length,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load views'
