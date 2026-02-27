@@ -18,7 +18,6 @@ import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useOrganization } from '@/app/stores'
-import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
@@ -338,7 +337,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             store={uploadStore}
             onRetry={(entityId) => uploadStore.retryUpload(entityId)}
           />
-          <ConfigDrawer />
         </div>
       </Header>
 
