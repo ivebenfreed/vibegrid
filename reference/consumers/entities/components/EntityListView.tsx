@@ -43,7 +43,7 @@ import { useViewUrlSync } from '../hooks/useViewUrlSync'
 import { AsyncOperationTracker } from './AsyncOperationTracker'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
-import { EntityUploadDialog } from './dialogs/EntityUploadDialog'
+import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
 import { EntityBreadcrumbs } from './EntityBreadcrumbs'
 import { EntityEmptyState } from './EntityEmptyState'
 import { EntityListError } from './EntityListError'
@@ -196,7 +196,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   // Dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
+  const uploadDialogRef = useRef<EntityUploadDialogHandle>(null)
 
   // Page-level drag state for upload overlay
   const [isPageDragActive, setIsPageDragActive] = useState(false)
@@ -400,7 +400,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                 setCreateDialogOpen(true)
               })
             }
-            onCreateUpload={() => setUploadDialogOpen(true)}
+            onCreateUpload={() => uploadDialogRef.current?.open()}
             disabled={isTransitionPending}
           />
         </div>
@@ -439,12 +439,11 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         onOpenChange={setCreateDialogOpen}
       />
 
-      {/* Upload Files Dialog */}
+      {/* Upload Files Dialog — owns its own open state via ref to avoid VibeGrid re-render */}
       {hasUploadMode && (
         <EntityUploadDialog
+          ref={uploadDialogRef}
           entityName={resolvedName}
-          open={uploadDialogOpen}
-          onOpenChange={setUploadDialogOpen}
           acceptedMimeTypes={primaryFileConfig?.mimeTypes}
           extractionTemplate={primaryFileConfig?.extractionTemplate}
           onFilesDropped={handleFilesDropped}
