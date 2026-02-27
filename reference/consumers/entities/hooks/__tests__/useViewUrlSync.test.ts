@@ -3,9 +3,14 @@
  *
  * Tests the pure serialization/deserialization functions that convert
  * between URL search params and VibeGrid store state.
+ *
+ * Also includes source-code analysis tests for:
+ * - P2.5: Default view loading when no ?view= in URL
  */
 
-import { describe, expect, it } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it, beforeEach } from 'vitest'
 import {
   serializeSort,
   deserializeSort,
@@ -13,6 +18,8 @@ import {
   deserializeFilters,
   serializeGroup,
 } from '../useViewUrlSync'
+
+const HOOK_PATH = join(__dirname, '../useViewUrlSync.ts')
 
 // ====================================
 // serializeSort
@@ -190,5 +197,66 @@ describe('serializeGroup', () => {
 
   it('returns undefined when fields property is missing', () => {
     expect(serializeGroup({ fields: undefined as any })).toBeUndefined()
+  })
+})
+
+// ====================================
+// P2.5: DEFAULT VIEW LOADING (source analysis)
+// ====================================
+
+describe('useViewUrlSync default view loading (P2.5)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  it('should import orpcClient for default view fetching', () => {
+    expect(source).toContain("from '@/shared/data/orpc/client'")
+    expect(source).toContain('orpcClient')
+  })
+
+  it('should call orpcClient.dataforge.views.list to fetch default view', () => {
+    expect(source).toContain('orpcClient.dataforge.views.list')
+  })
+
+  it('should check initialSearchRef.current.view before loading default', () => {
+    // When URL already has a view ID, skip default loading
+    expect(source).toContain('initialSearchRef.current.view')
+  })
+
+  it('should find the view with is_default flag', () => {
+    expect(source).toContain('is_default')
+    expect(source).toMatch(/\.find\(/)
+  })
+
+  it('should call selectView when default view is found', () => {
+    expect(source).toContain('selectView(defaultView')
+  })
+
+  it('should NOT load default view when URL has ?view= param', () => {
+    // The effect should return early when initialSearchRef.current.view is set
+    expect(source).toContain('if (initialSearchRef.current.view) return')
+  })
+
+  it('should handle cancellation with cleanup function', () => {
+    expect(source).toContain('let cancelled = false')
+    expect(source).toContain('cancelled = true')
+  })
+
+  it('should log when loading default view', () => {
+    expect(source).toContain('Loading default view')
+  })
+
+  it('should warn on failure to load default view', () => {
+    expect(source).toContain('Failed to load default view')
+  })
+
+  it('should include selectView in useEffect dependencies', () => {
+    // The default-loading useEffect should depend on selectView
+    expect(source).toContain('selectView]')
   })
 })

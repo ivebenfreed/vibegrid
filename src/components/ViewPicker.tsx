@@ -263,6 +263,42 @@ export const ViewPicker = observer(function ViewPicker({
     [onDuplicateView, fetchViews],
   )
 
+  const handleReorderPins = useCallback(
+    async (viewId: string, direction: 'up' | 'down') => {
+      const sortedPinnedIds = [...pins]
+        .sort((a, b) => a.pin_order - b.pin_order)
+        .map((p) => p.view_id)
+
+      const currentIndex = sortedPinnedIds.indexOf(viewId)
+      if (currentIndex === -1) return
+
+      const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+      if (newIndex < 0 || newIndex >= sortedPinnedIds.length) return
+
+      // Swap
+      const newOrder = [...sortedPinnedIds]
+      ;[newOrder[currentIndex], newOrder[newIndex]] = [newOrder[newIndex], newOrder[currentIndex]]
+
+      // Optimistic update
+      const prevPins = [...pins]
+      setPins((prev) =>
+        prev.map((p) => ({
+          ...p,
+          pin_order: newOrder.indexOf(p.view_id),
+        })),
+      )
+
+      try {
+        await orpcClient.dataforge.views.reorderPins({ view_ids: newOrder })
+      } catch (err) {
+        setPins(prevPins) // Rollback
+        const msg = err instanceof Error ? err.message : 'Failed to reorder'
+        toast.error(msg)
+      }
+    },
+    [pins],
+  )
+
   const isAdmin = userRole === 'admin' || userRole === 'owner'
 
   return (
@@ -332,6 +368,7 @@ export const ViewPicker = observer(function ViewPicker({
                       setOpen(false)
                     }}
                     onDuplicate={() => handleDuplicate(view)}
+                    onReorder={(direction) => handleReorderPins(view.id, direction)}
                   />
                 ))}
               </ViewSection>
@@ -477,6 +514,7 @@ interface ViewItemProps {
   onSetDefault: () => void
   onRename: () => void
   onDuplicate: () => void
+  onReorder?: (direction: 'up' | 'down') => void
 }
 
 function ViewItem({
@@ -493,6 +531,7 @@ function ViewItem({
   onSetDefault,
   onRename,
   onDuplicate,
+  onReorder,
 }: ViewItemProps): React.ReactElement {
   const viewMode = deriveViewMode(view.config)
   const isLocked = view.visibility === 'locked'
@@ -534,11 +573,23 @@ function ViewItem({
         />
       </button>
 
-      {/* View name (clickable) */}
+      {/* View name (clickable, Alt+Arrow for reorder) */}
       <button
         type="button"
         className="flex flex-1 items-center gap-2 py-1.5 text-sm text-left min-w-0 hover:text-accent-foreground transition-colors"
         onClick={onSelect}
+        onKeyDown={(e) => {
+          if (onReorder && e.altKey) {
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              onReorder('up')
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              onReorder('down')
+            }
+          }
+        }}
         data-testid={`view-picker-item-${view.id}`}
       >
         <span className="flex-1 truncate">{view.name}</span>

@@ -387,3 +387,86 @@ describe('ViewPicker Permission Enforcement (P2.4)', () => {
     expect(source).toContain('orpcClient.dataforge.views.create')
   })
 })
+
+// ====================================
+// P2.5: PIN REORDER SUPPORT TESTS
+// ====================================
+
+describe('ViewPicker Pin Reorder Support (P2.5)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!componentExists()) return
+    source = getSourceCode()
+  })
+
+  it('should have handleReorderPins callback', () => {
+    expect(source).toContain('handleReorderPins')
+  })
+
+  it('should call orpcClient.dataforge.views.reorderPins', () => {
+    expect(source).toContain('orpcClient.dataforge.views.reorderPins')
+  })
+
+  it('should perform optimistic update on pins state', () => {
+    // Should update pins state before API call
+    expect(source).toContain('setPins((prev) =>')
+    expect(source).toContain('pin_order: newOrder.indexOf(p.view_id)')
+  })
+
+  it('should rollback pins on API failure', () => {
+    // Should restore previous pins if API call fails
+    expect(source).toContain('setPins(prevPins)')
+  })
+
+  it('should show error toast on reorder failure', () => {
+    expect(source).toContain('Failed to reorder')
+  })
+
+  it('should sort pins by pin_order before computing new order', () => {
+    expect(source).toContain('sort((a, b) => a.pin_order - b.pin_order)')
+  })
+
+  it('should pass onReorder prop to pinned ViewItems', () => {
+    expect(source).toContain('onReorder={(direction) => handleReorderPins(view.id, direction)')
+  })
+
+  it('should have onReorder as optional prop in ViewItemProps', () => {
+    expect(source).toContain("onReorder?: (direction: 'up' | 'down') => void")
+  })
+
+  it('should handle Alt+ArrowUp keyboard shortcut for reorder', () => {
+    expect(source).toContain("e.key === 'ArrowUp'")
+    expect(source).toContain("onReorder('up')")
+  })
+
+  it('should handle Alt+ArrowDown keyboard shortcut for reorder', () => {
+    expect(source).toContain("e.key === 'ArrowDown'")
+    expect(source).toContain("onReorder('down')")
+  })
+
+  it('should check e.altKey before handling reorder keyboard shortcuts', () => {
+    expect(source).toContain('e.altKey')
+  })
+
+  it('should preventDefault on reorder keyboard events', () => {
+    expect(source).toContain('e.preventDefault()')
+  })
+
+  it('should have onKeyDown handler on the view name button', () => {
+    expect(source).toContain('onKeyDown={(e) =>')
+  })
+
+  it('should only trigger keyboard reorder when onReorder is defined', () => {
+    // Guard: if (onReorder && e.altKey)
+    expect(source).toContain('if (onReorder && e.altKey)')
+  })
+
+  it('should swap items in the pin order array', () => {
+    expect(source).toContain('[newOrder[currentIndex], newOrder[newIndex]]')
+  })
+
+  it('should send new order to reorderPins API as view_ids', () => {
+    expect(source).toContain('view_ids: newOrder')
+  })
+})

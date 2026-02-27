@@ -16,6 +16,7 @@ import { reaction, runInAction } from 'mobx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useFeatureFlags } from '@/app/stores'
+import { orpcClient } from '@/shared/data/orpc/client'
 import { getLogger } from '@/shared/lib/logging'
 import type { EntityViewRow } from '@/systems/vibegrid/components/ViewPicker'
 import type { VibeGridStores } from '@/systems/vibegrid/stores/context'
@@ -330,6 +331,42 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       setIsLoading(false)
     })
   }, [isEnabled, entityType, stores])
+
+  // ====================================
+  // DEFAULT VIEW LOADING (on mount, when no ?view= in URL)
+  // ====================================
+
+  useEffect(() => {
+    if (!isEnabled) return
+    if (initialSearchRef.current.view) return // URL already has a view
+
+    let cancelled = false
+
+    const loadDefault = async (): Promise<void> => {
+      try {
+        const result = await orpcClient.dataforge.views.list({ entity_type: entityType })
+        if (cancelled) return
+
+        const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default)
+        if (defaultView && !cancelled) {
+          logger.info('Loading default view', {
+            viewId: defaultView.id,
+            viewName: defaultView.name,
+          })
+          selectView(defaultView as EntityViewRow)
+        }
+      } catch (err) {
+        logger.warn('Failed to load default view', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+    }
+
+    loadDefault()
+    return () => {
+      cancelled = true
+    }
+  }, [isEnabled, entityType, selectView])
 
   // ====================================
   // STORE -> URL (on user interaction)
