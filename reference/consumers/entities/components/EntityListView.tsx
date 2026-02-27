@@ -43,6 +43,7 @@ import { useViewUrlSync } from '../hooks/useViewUrlSync'
 import { AsyncOperationTracker } from './AsyncOperationTracker'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
+import { EntityUploadDialog } from './dialogs/EntityUploadDialog'
 import { EntityBreadcrumbs } from './EntityBreadcrumbs'
 import { EntityEmptyState } from './EntityEmptyState'
 import { EntityListError } from './EntityListError'
@@ -193,8 +194,9 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const organizationStore = useOrganization()
   const orgId = organizationStore.activeOrganizationId || ''
 
-  // Create dialog state
+  // Dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
 
   // Page-level drag state for upload overlay
   const [isPageDragActive, setIsPageDragActive] = useState(false)
@@ -230,26 +232,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
     enabled: hasUploadMode,
   })
-
-  // Hidden file input for "Upload Files" button click
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click()
-  }, [])
-
-  const handleFileInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files || [])
-      if (files.length > 0) {
-        handleFilesDropped(files)
-      }
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
-    },
-    [handleFilesDropped],
-  )
 
   // Page-level drag detection for upload overlay
   useEffect(() => {
@@ -418,7 +400,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                 setCreateDialogOpen(true)
               })
             }
-            onCreateUpload={handleUploadClick}
+            onCreateUpload={() => setUploadDialogOpen(true)}
             disabled={isTransitionPending}
           />
         </div>
@@ -457,15 +439,17 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         onOpenChange={setCreateDialogOpen}
       />
 
-      {/* Hidden file input for upload button */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={primaryFileConfig?.mimeTypes?.join(',') || undefined}
-        className="hidden"
-        onChange={handleFileInputChange}
-      />
+      {/* Upload Files Dialog */}
+      {hasUploadMode && (
+        <EntityUploadDialog
+          entityName={resolvedName}
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          acceptedMimeTypes={primaryFileConfig?.mimeTypes}
+          extractionTemplate={primaryFileConfig?.extractionTemplate}
+          onFilesDropped={handleFilesDropped}
+        />
+      )}
 
       {/* Page-level upload dropzone overlay */}
       {isPageDragActive && hasUploadMode && (
