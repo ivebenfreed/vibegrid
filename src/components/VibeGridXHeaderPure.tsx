@@ -18,6 +18,8 @@ import { GroupConfigDropdownPure } from './GroupConfigDropdownPure'
 import { SmartSearchInput } from './SmartSearchInput'
 import { VibeGridEntityAdd } from './VibeGridEntityAdd'
 import { VibeGridXColumnVisibilityPure } from './VibeGridXColumnVisibilityPure'
+import { ViewPicker } from './ViewPicker'
+import type { ViewPickerProps } from './ViewPicker'
 
 const logger = getLogger(['vibegrid', 'components', 'VibeGridXHeaderPure'])
 
@@ -52,6 +54,8 @@ interface VibeGridXHeaderPureProps {
   onExportAll?: () => void
   /** Copy link callback for URL state sharing (GH#1570) */
   onCopyLink?: () => void
+  /** View picker props for saved views (GH#1570 P2.3) — when provided, replaces ButtonGroup */
+  viewPickerProps?: Omit<ViewPickerProps, 'currentViewMode'>
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -71,6 +75,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableExport = false,
   onExportAll,
   onCopyLink,
+  viewPickerProps,
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore, hierarchyStore, tableCoreStore } = stores
 
@@ -124,8 +129,10 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       }}
     >
       <div className="flex items-center gap-2">
-        {/* View Mode Toggle - only show if callback provided */}
-        {onViewModeChange ? (
+        {/* View Mode Toggle / View Picker (GH#1570) */}
+        {viewPickerProps ? (
+          <ViewPicker {...viewPickerProps} currentViewMode={viewMode} />
+        ) : onViewModeChange ? (
           <ButtonGroup>
             <Button
               variant={viewMode === 'table' ? 'default' : 'outline'}

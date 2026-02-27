@@ -16,7 +16,8 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
-import { useOrganization } from '@/app/stores'
+import { toast } from 'sonner'
+import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
@@ -34,6 +35,8 @@ import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
+import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
+import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
@@ -63,7 +66,71 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onCellClick: (rowId: string, columnId: string) => void
 }) {
   const stores = useVibeGridStores()
-  const { copyLink } = useViewUrlSync({ entityType: entityName, orgId, stores })
+  const authStore = useAuth()
+  const featureFlagsStore = useFeatureFlags()
+  const isViewsEnabled = featureFlagsStore.isEnabled('feature.entity-views.enabled')
+
+  const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView } = useViewUrlSync({
+    entityType: entityName,
+    orgId,
+    stores,
+  })
+
+  // SaveViewDialog state
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+
+  const userId = authStore.user?.id ?? ''
+  const userRole = authStore.session?.organization?.role ?? 'member'
+  const isAdmin = userRole === 'admin' || userRole === 'owner'
+
+  // Save current view config to server
+  const handleSaveView = useCallback(
+    async (name: string, visibility: ViewVisibility) => {
+      const { visualStateStore, viewModeStore } = stores
+
+      // Snapshot the current VibeGrid state as the view config
+      const config: Record<string, unknown> = {
+        sortBy: visualStateStore.sortBy.slice(),
+        filters: visualStateStore.filters.slice(),
+        groupConfig: visualStateStore.groupConfig
+          ? {
+              fields: visualStateStore.groupConfig.fields,
+              sortBy: visualStateStore.groupConfig.sortBy,
+              sortDirection: visualStateStore.groupConfig.sortDirection,
+              aggregations: visualStateStore.groupConfig.aggregations,
+            }
+          : null,
+        viewMode: viewModeStore.mode,
+        globalSearchText: visualStateStore.globalSearchText,
+        columnVisibility: { ...visualStateStore.columnVisibility },
+      }
+
+      await orpcClient.dataforge.views.create({
+        entity_type: entityName,
+        name,
+        visibility,
+        config,
+      })
+
+      toast.success('View saved')
+    },
+    [entityName, stores],
+  )
+
+  // Build viewPickerProps when feature flag is enabled
+  const viewPickerProps = isViewsEnabled
+    ? {
+        entityType: entityName,
+        orgId,
+        activeViewId,
+        hasUnsavedChanges,
+        onViewSelect: selectView,
+        onSaveView: () => setSaveDialogOpen(true),
+        onUnsavedSelect: clearView,
+        userId,
+        userRole,
+      }
+    : undefined
 
   return (
     <>
@@ -78,8 +145,20 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableDragAndDrop={true}
         onCellClick={onCellClick}
         onCopyLink={copyLink}
+        viewPickerProps={viewPickerProps}
       />
       <ReorderConfirmationDialog />
+
+      {/* SaveViewDialog (GH#1570 P2.3) */}
+      {isViewsEnabled && (
+        <SaveViewDialog
+          open={saveDialogOpen}
+          onOpenChange={setSaveDialogOpen}
+          entityType={entityName}
+          onSave={handleSaveView}
+          isAdmin={isAdmin}
+        />
+      )}
     </>
   )
 })

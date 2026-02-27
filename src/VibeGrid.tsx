@@ -28,6 +28,7 @@ import { FloatingActionsMenu } from './components/FloatingActionsMenu'
 import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
+import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
@@ -165,6 +166,10 @@ interface VibeGridProps<_T = any> {
   // URL state sharing (GH#1570)
   /** Callback to copy the current view URL to clipboard */
   onCopyLink?: () => void
+
+  // View picker (GH#1570 P2.3)
+  /** Props for the saved views picker (replaces ButtonGroup when provided) */
+  viewPickerProps?: Omit<ViewPickerProps, 'currentViewMode'>
 }
 
 // ====================================
@@ -220,6 +225,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableExport = false,
     // URL state sharing (GH#1570)
     onCopyLink,
+    // View picker (GH#1570 P2.3)
+    viewPickerProps,
   } = props
 
   // ====================================
@@ -928,6 +935,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
           enableExport={enableExport}
           onExportAll={handleExportAll}
           onCopyLink={onCopyLink}
+          viewPickerProps={viewPickerProps}
         />
       )}
 

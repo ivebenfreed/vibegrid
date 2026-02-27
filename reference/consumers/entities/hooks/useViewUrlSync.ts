@@ -17,8 +17,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useFeatureFlags } from '@/app/stores'
 import { getLogger } from '@/shared/lib/logging'
+import type { EntityViewRow } from '@/systems/vibegrid/components/ViewPicker'
 import type { VibeGridStores } from '@/systems/vibegrid/stores/context'
-import type { FilterConfig } from '@/systems/vibegrid/types'
+import type { AggregationConfig, FilterConfig } from '@/systems/vibegrid/types'
 
 const logger = getLogger(['entities', 'hooks', 'useViewUrlSync'])
 
@@ -38,8 +39,14 @@ export interface UseViewUrlSyncResult {
   activeViewId: string | null
   /** Whether URL state is still being applied to stores */
   isLoading: boolean
+  /** Whether the store state differs from the active view's config */
+  hasUnsavedChanges: boolean
   /** Copy the current URL (with view state) to clipboard */
   copyLink: () => void
+  /** Select a saved view and apply its config to stores (GH#1570 P2.3) */
+  selectView: (view: EntityViewRow) => void
+  /** Clear active view, reverting to unsaved localStorage state (GH#1570 P2.3) */
+  clearView: () => void
 }
 
 // ====================================
@@ -125,6 +132,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
   const [isLoading, setIsLoading] = useState(true)
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Ref to suppress URL updates when we're applying URL -> Store
   const suppressUrlUpdateRef = useRef(false)
@@ -144,6 +152,112 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       )
     }
   }, [])
+
+  // Select a saved view: apply its config to VibeGrid stores and set view= in URL
+  const selectView = useCallback(
+    (view: EntityViewRow) => {
+      if (!isEnabled) return
+
+      const { visualStateStore, viewModeStore } = stores
+      const config = view.config as Record<string, unknown>
+
+      logger.info('Selecting saved view', { viewId: view.id, viewName: view.name })
+
+      suppressUrlUpdateRef.current = true
+      setActiveViewId(view.id)
+      setHasUnsavedChanges(false)
+
+      runInAction(() => {
+        // Apply sort from config
+        if (Array.isArray(config.sortBy)) {
+          visualStateStore.sortBy = config.sortBy as Array<{
+            field: string
+            direction: 'asc' | 'desc'
+          }>
+        } else {
+          visualStateStore.sortBy = []
+        }
+
+        // Apply filters from config
+        if (Array.isArray(config.filters)) {
+          visualStateStore.filters = config.filters as FilterConfig[]
+        } else {
+          visualStateStore.filters = []
+        }
+
+        // Apply group from config
+        if (config.groupConfig && typeof config.groupConfig === 'object') {
+          const gc = config.groupConfig as Record<string, unknown>
+          if (Array.isArray(gc.fields) && gc.fields.length > 0) {
+            visualStateStore.setGroupConfig({
+              fields: gc.fields as Array<{ field: string; displayName: string }>,
+              sortBy: (gc.sortBy as 'name' | 'count' | 'custom') || 'name',
+              sortDirection: (gc.sortDirection as 'asc' | 'desc') || 'asc',
+              aggregations: (gc.aggregations as AggregationConfig[]) || [],
+              expandedGroups: new Set(),
+            })
+          } else {
+            visualStateStore.setGroupConfig(null)
+          }
+        } else {
+          visualStateStore.setGroupConfig(null)
+        }
+
+        // Apply view mode from config
+        const viewMode = config.viewMode as string | undefined
+        if (viewMode === 'table' || viewMode === 'gantt' || viewMode === 'kanban') {
+          viewModeStore.setMode(viewMode)
+        } else {
+          viewModeStore.setMode('table')
+        }
+
+        // Apply search from config
+        if (typeof config.globalSearchText === 'string') {
+          visualStateStore.setGlobalSearchText(config.globalSearchText)
+        } else {
+          visualStateStore.setGlobalSearchText('')
+        }
+
+        // Apply column visibility from config
+        if (config.columnVisibility && typeof config.columnVisibility === 'object') {
+          const vis = config.columnVisibility as Record<string, boolean>
+          for (const [colId, visible] of Object.entries(vis)) {
+            visualStateStore.columnVisibility[colId] = visible
+          }
+        }
+      })
+
+      // Update URL with view= param
+      ;(navigate as any)({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          view: view.id,
+        }),
+        replace: true,
+      })
+
+      requestAnimationFrame(() => {
+        suppressUrlUpdateRef.current = false
+      })
+    },
+    [isEnabled, stores, navigate],
+  )
+
+  // Clear active view, revert to unsaved state
+  const clearView = useCallback(() => {
+    logger.info('Clearing active view, reverting to unsaved state')
+    setActiveViewId(null)
+    setHasUnsavedChanges(false)
+
+    // Remove view= from URL
+    ;(navigate as any)({
+      search: (prev: Record<string, unknown>) => {
+        const { view: _, ...rest } = prev
+        return rest
+      },
+      replace: true,
+    })
+  }, [navigate])
 
   // ====================================
   // URL -> STORE (on page load)
@@ -286,17 +400,54 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
     }
   }, [isEnabled, stores, navigate])
 
+  // ====================================
+  // UNSAVED CHANGES TRACKING
+  // ====================================
+
+  useEffect(() => {
+    if (!isEnabled || !activeViewId) return
+
+    const { visualStateStore, viewModeStore } = stores
+
+    // When user modifies the grid while a view is active, mark as unsaved
+    const dispose = reaction(
+      () => ({
+        sortBy: visualStateStore.sortBy.slice(),
+        filters: visualStateStore.filters.slice(),
+        groupConfig: visualStateStore.groupConfig,
+        viewMode: viewModeStore.mode,
+        globalSearchText: visualStateStore.globalSearchText,
+      }),
+      () => {
+        if (!suppressUrlUpdateRef.current) {
+          setHasUnsavedChanges(true)
+        }
+      },
+      {
+        name: 'useViewUrlSync.unsavedChanges',
+      },
+    )
+
+    return () => dispose()
+  }, [isEnabled, activeViewId, stores])
+
   if (!isEnabled) {
     return {
       activeViewId: null,
       isLoading: false,
+      hasUnsavedChanges: false,
       copyLink,
+      selectView,
+      clearView,
     }
   }
 
   return {
     activeViewId,
     isLoading,
+    hasUnsavedChanges,
     copyLink,
+    selectView,
+    clearView,
   }
 }
