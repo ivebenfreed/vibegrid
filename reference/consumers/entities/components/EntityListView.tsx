@@ -17,7 +17,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
+import { useAuth, useOrganization } from '@/app/stores'
 import { ConfigDrawer } from '@/shared/components/config-drawer'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
@@ -67,8 +67,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
-  const featureFlagsStore = useFeatureFlags()
-  const isViewsEnabled = featureFlagsStore.isEnabled('feature.entity-views.enabled')
 
   const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView } = useViewUrlSync({
     entityType: entityName,
@@ -136,21 +134,18 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [entityName, stores],
   )
 
-  // Build viewPickerProps when feature flag is enabled
-  const viewPickerProps = isViewsEnabled
-    ? {
-        entityType: entityName,
-        orgId,
-        activeViewId,
-        hasUnsavedChanges,
-        onViewSelect: selectView,
-        onSaveView: () => setSaveDialogOpen(true),
-        onUnsavedSelect: clearView,
-        onDuplicateView: handleDuplicateView,
-        userId,
-        userRole,
-      }
-    : undefined
+  const viewPickerProps = {
+    entityType: entityName,
+    orgId,
+    activeViewId,
+    hasUnsavedChanges,
+    onViewSelect: selectView,
+    onSaveView: () => setSaveDialogOpen(true),
+    onUnsavedSelect: clearView,
+    onDuplicateView: handleDuplicateView,
+    userId,
+    userRole,
+  }
 
   return (
     <>
@@ -170,15 +165,13 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       <ReorderConfirmationDialog />
 
       {/* SaveViewDialog (GH#1570 P2.3) */}
-      {isViewsEnabled && (
-        <SaveViewDialog
-          open={saveDialogOpen}
-          onOpenChange={setSaveDialogOpen}
-          entityType={entityName}
-          onSave={handleSaveView}
-          isAdmin={isAdmin}
-        />
-      )}
+      <SaveViewDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        entityType={entityName}
+        onSave={handleSaveView}
+        isAdmin={isAdmin}
+      />
     </>
   )
 })
