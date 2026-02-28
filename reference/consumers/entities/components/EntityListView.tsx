@@ -13,16 +13,15 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, Eye, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
-import { Button } from '@/shared/components/ui/button'
 import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
@@ -31,6 +30,7 @@ import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
+import type { RowAction } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
@@ -67,6 +67,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
+  const navigate = useNavigate()
 
   const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView } = useViewUrlSync({
     entityType: entityName,
@@ -134,11 +135,49 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [entityName, stores],
   )
 
-  // Hide upload-created entities that haven't been approved yet.
-  // These are routed to the review queue instead of the main grid.
+  // Hide upload-created entities that are still actively processing (uploading/pending/processing).
+  // All settled entities (approved, review_required, rejected, error) are shown in the grid.
   const uploadPendingPredicate = useCallback(
-    (row: any) => !row._upload || row.status === 'approved',
+    (row: any) =>
+      !row._upload ||
+      row.status === 'approved' ||
+      row.status === 'review_required' ||
+      row.status === 'rejected' ||
+      row.status === 'error',
     [],
+  )
+
+  // Review bulk action — available for any uploaded entity.
+  // Navigates to the entity detail view for review of AI-extracted data.
+  const reviewRowActions = useMemo<RowAction[]>(
+    () =>
+      hasUploadMode
+        ? [
+            {
+              id: 'review',
+              label: 'Review',
+              icon: Eye,
+              hidden: (rowData: any) => !rowData._upload,
+            },
+          ]
+        : [],
+    [hasUploadMode],
+  )
+
+  // Handle Review bulk action — navigate to the first selected entity for review.
+  const handleReviewAction = useCallback(
+    (actionId: string, rowIds: string[], _rowsData: any[]) => {
+      if (actionId !== 'review' || rowIds.length === 0) return
+      if (entityName === 'Document') {
+        navigate({ to: '/documents/$id', params: { id: rowIds[0] } as any })
+      } else {
+        navigate({
+          to: '/entities/$entityName/$id',
+          params: { entityName, id: rowIds[0] } as any,
+        })
+      }
+    },
+    [navigate, entityName],
   )
 
   const viewPickerProps = {
@@ -169,6 +208,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
         systemPredicate={hasUploadMode ? uploadPendingPredicate : undefined}
+        rowActions={hasUploadMode && reviewRowActions.length > 0 ? reviewRowActions : undefined}
+        onRowAction={hasUploadMode ? handleReviewAction : undefined}
       />
       <ReorderConfirmationDialog />
 
@@ -355,18 +396,14 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         {/* Breadcrumbs */}
         <EntityBreadcrumbs entityName={schema.entityName} />
 
-        {/* Review queue banner */}
+        {/* Review queue banner — entities appear in the grid with a Review action in the bulk toolbar */}
         {uploadStore.reviewRequiredCount > 0 && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>
-                {uploadStore.reviewRequiredCount} uploaded{' '}
-                {uploadStore.reviewRequiredCount === 1 ? 'record' : 'records'} need review
-              </span>
-              <Button variant="link" size="sm" className="text-amber-700 dark:text-amber-300">
-                View pending reviews
-              </Button>
+            <AlertDescription>
+              {uploadStore.reviewRequiredCount} uploaded{' '}
+              {uploadStore.reviewRequiredCount === 1 ? 'record' : 'records'} need review — select
+              them in the grid below and click Review
             </AlertDescription>
           </Alert>
         )}
