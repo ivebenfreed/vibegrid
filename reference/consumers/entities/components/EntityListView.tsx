@@ -103,7 +103,15 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 
   // Save current view config to server
   const handleSaveView = useCallback(
-    async (name: string, visibility: ViewVisibility) => {
+    async (
+      name: string,
+      visibility: ViewVisibility,
+      childEntityConfig?: {
+        childEntityType: string
+        relationshipType: string
+        direction: 'incoming' | 'outgoing'
+      },
+    ) => {
       const { visualStateStore, viewModeStore } = stores
 
       // Snapshot the current VibeGrid state as the view config
@@ -121,6 +129,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         viewMode: viewModeStore.mode,
         globalSearchText: visualStateStore.globalSearchText,
         columnVisibility: { ...visualStateStore.columnVisibility },
+        // GH#1621: Include child entity config if provided
+        ...(childEntityConfig ? { childEntityConfig } : {}),
       }
 
       await orpcClient.dataforge.views.create({
