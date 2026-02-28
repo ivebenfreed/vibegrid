@@ -137,15 +137,17 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 
   // Hide upload-created entities that are still actively processing (uploading/pending/processing).
   // All settled entities (approved, review_required, rejected, error) are shown in the grid.
-  const uploadPendingPredicate = useCallback(
-    (row: any) =>
-      !row._upload ||
-      row.status === 'approved' ||
-      row.status === 'review_required' ||
-      row.status === 'rejected' ||
-      row.status === 'error',
-    [],
-  )
+  // VirtualRow shape: { type, id, data: { _upload, status, ... } }
+  const uploadPendingPredicate = useCallback((row: any) => {
+    const d = row?.data ?? row
+    return (
+      !d._upload ||
+      d.status === 'approved' ||
+      d.status === 'review_required' ||
+      d.status === 'rejected' ||
+      d.status === 'error'
+    )
+  }, [])
 
   // Review bulk action — available for any uploaded entity.
   // Navigates to the entity detail view for review of AI-extracted data.
@@ -157,7 +159,11 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
               id: 'review',
               label: 'Review',
               icon: Eye,
-              hidden: (rowData: any) => !rowData._upload,
+              // VirtualRow shape: actual entity data is in rowData.data
+              hidden: (rowData: any) => {
+                const d = rowData?.data ?? rowData
+                return !d._upload
+              },
             },
           ]
         : [],
