@@ -266,11 +266,6 @@ export function useVibeGridData(
       // Start with base query
       let query = q.from({ entity: collection })
 
-      // Apply system-level predicate (structural exclusions not shown in filter bar)
-      if (systemPredicate) {
-        query = query.where((refs: any) => systemPredicate({ ...refs.entity }))
-      }
-
       // Apply filters
       if (filterSnapshot.length > 0) {
         query = applyAllFilters(query, filterSnapshot, 'entity')
@@ -280,14 +275,15 @@ export function useVibeGridData(
       // Without spreading, we get references {path: ..., type: 'ref'} instead of actual data
       return query.select(({ entity }: any) => ({ ...entity }))
     },
-    [skip, collection, filterSnapshot, sortSnapshot, systemPredicate],
+    [skip, collection, filterSnapshot, sortSnapshot],
   )
 
   // Apply client-side sorting to results
   const sortedRows = useMemo(() => {
     if (!rawRows) return []
-    return applySortingToRows(rawRows, sortSnapshot)
-  }, [rawRows, sortSnapshot])
+    const filtered = systemPredicate ? rawRows.filter(systemPredicate) : rawRows
+    return applySortingToRows(filtered, sortSnapshot)
+  }, [rawRows, sortSnapshot, systemPredicate])
 
   // ====================================
   // PUSH DATA DIRECTLY TO MOBX STORE
