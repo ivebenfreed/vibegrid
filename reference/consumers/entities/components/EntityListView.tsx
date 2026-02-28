@@ -392,7 +392,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           {/* Async upload tracker - visible when there are operations */}
           <AsyncOperationTracker
             store={uploadStore}
-            onRetry={(entityId) => uploadStore.retryUpload(entityId)}
+            onRetry={(fileId) => uploadStore.retryUpload(fileId)}
           />
         </div>
       </Header>
