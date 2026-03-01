@@ -433,8 +433,35 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         </Header>
         <Main>
           <EntityBreadcrumbs entityName={schema.entityName} />
-          <EntityEmptyState entityName={schema.entityName} />
+          <EntityEmptyState
+            entityName={schema.entityName}
+            creationModes={creationModes}
+            onCreateForm={() =>
+              startTransition(() => {
+                setCreateDialogOpen(true)
+              })
+            }
+            onCreateUpload={() => uploadDialogRef.current?.open()}
+          />
         </Main>
+
+        {/* Create Record Dialog */}
+        <CreateRecordDialog
+          schema={schema}
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+        />
+
+        {/* Upload Files Dialog */}
+        {hasUploadMode && (
+          <EntityUploadDialog
+            ref={uploadDialogRef}
+            entityName={resolvedName}
+            acceptedMimeTypes={primaryFileConfig?.mimeTypes}
+            extractionTemplate={primaryFileConfig?.extractionTemplate}
+            onFilesDropped={handleFilesDropped}
+          />
+        )}
       </>
     )
   }
