@@ -356,7 +356,11 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   // GH#1658: Inline creation via ghost rows
   const featureFlags = useFeatureFlags()
-  const isInlineCreationEnabled = featureFlags.isEnabled('vibegrid.inline_creation')
+  const authStore = useAuth()
+  const userOrgRole = authStore.session?.organization?.role ?? 'viewer'
+  const hasWriteAccess = userOrgRole !== 'viewer'
+  const isInlineCreationEnabled =
+    featureFlags.isEnabled('vibegrid.inline_creation') && hasWriteAccess
 
   const handleInlineCreate = useCallback(
     async (defaults: Record<string, unknown>): Promise<string> => {
