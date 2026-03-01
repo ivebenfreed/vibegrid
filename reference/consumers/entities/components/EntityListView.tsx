@@ -37,7 +37,6 @@ import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialo
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
-import { AsyncOperationTracker } from './AsyncOperationTracker'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
@@ -398,13 +397,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       {/* Top Header Bar */}
       <Header>
         <TopNav links={[]} />
-        <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4">
-          {/* Async upload tracker - visible when there are operations */}
-          <AsyncOperationTracker
-            store={uploadStore}
-            onRetry={(fileId) => uploadStore.retryUpload(fileId)}
-          />
-        </div>
+        <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4"></div>
       </Header>
 
       {/* Main Content */}
