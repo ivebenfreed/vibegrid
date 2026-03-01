@@ -55,6 +55,7 @@ export const FormFieldValue = observer(function FormFieldValue({
       cellElement.style.position = 'static'
       cellElement.style.left = 'auto'
       cellElement.style.width = cellWidth
+      cellElement.style.flexBasis = 'auto' // override grid's fixed flex-basis
       cellElement.classList.add(cellClassName)
 
       container.appendChild(cellElement)
