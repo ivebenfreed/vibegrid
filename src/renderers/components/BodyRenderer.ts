@@ -385,8 +385,12 @@ export class BodyRenderer {
         const currentRange = this.visualStateStore.visibleColumnRange
         const currentVisible = this.visualStateStore.visibleColumns
         const inRangeIds = new Set<string>()
+        // Build fresh layout map from current visual state — avoids stale widths if a
+        // column was resized between row creation and this deferred render firing.
+        const freshLayoutMap = new Map<string, any>()
         for (let i = currentRange.start; i < currentRange.end && i < currentVisible.length; i++) {
           inRangeIds.add(currentVisible[i].id)
+          freshLayoutMap.set(currentVisible[i].id, currentVisible[i])
         }
 
         deferredColumns.forEach((column, relativeIndex) => {
@@ -402,8 +406,10 @@ export class BodyRenderer {
           const colIndex = essentialColumnCount + relativeIndex
           this.cellRenderingStats.cellsRequested++
 
-          // PERF: O(1) lookup using layoutMap from closure
-          const layout = layoutMap.get(column.id)
+          // Use fresh layout from current visual state; fall back to captured layout.
+          // Fresh layout ensures correct xOffset/width after a column resize fires
+          // between row creation and this deferred render.
+          const layout = freshLayoutMap.get(column.id) ?? layoutMap.get(column.id)
           if (!layout) {
             fileLog.warn('🚨 [CELL-DEBUG] No layout found for deferred column', {
               columnId: column.id,
