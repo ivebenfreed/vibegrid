@@ -263,14 +263,6 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
   }
 
-  // Special case: COI (custom schema with promoted ACORD 25 fields)
-  if (entityType === 'GCCertificateOfInsurance') {
-    fileLog.debug('📋 Using COI schema (GC compliance entity with promoted fields)', { entityType })
-    const { coiColumns } = await import('@/features/coi/schemas/coi-schema')
-    // Enrich columns with field types for fast path in ModularCellBridge
-    return enrichColumnsWithFieldTypes(coiColumns) as any
-  }
-
   // TODO: GH#292 - RFI Module schema not yet implemented
   // Special case: RFI Module items (cross-project RFI workspace, not DataForge entities)
   // if (entityType === 'RfiModuleItem') {
