@@ -497,8 +497,37 @@ export class TableCoreStore implements IStore {
     // Step 2: Check structural changes
     const newRowCount = rows.length
     const prevRowCount = this.rawRows.length
-    const structuralChange =
-      newRowCount !== prevRowCount || !rows.every((r, i) => r.id === this.rawRows[i]?.id)
+    const countChanged = newRowCount !== prevRowCount
+    const firstMismatchIdx = countChanged
+      ? -1
+      : rows.findIndex((r, i) => r.id !== this.rawRows[i]?.id)
+    const structuralChange = countChanged || firstMismatchIdx !== -1
+
+    // DIAGNOSTIC: Log structural change details
+    if (structuralChange) {
+      // biome-ignore lint/suspicious/noConsole: temporary diagnostic
+      console.warn('[setRows DIAG] structuralChange=true', {
+        newRowCount,
+        prevRowCount,
+        countChanged,
+        firstMismatchIdx,
+        firstMismatchNewId: firstMismatchIdx >= 0 ? rows[firstMismatchIdx]?.id?.slice(0, 8) : null,
+        firstMismatchOldId:
+          firstMismatchIdx >= 0 ? this.rawRows[firstMismatchIdx]?.id?.slice(0, 8) : null,
+        changedCellsSize: changedCells.size,
+        snapshotSize: this.previousRowsSnapshot.size,
+        columnsCount: this.columns.length,
+      })
+    } else {
+      // biome-ignore lint/suspicious/noConsole: temporary diagnostic
+      console.log('[setRows DIAG] structuralChange=false', {
+        changedCellsSize: changedCells.size,
+        changedCells: Array.from(changedCells.entries()).map(([rowId, cols]) => ({
+          rowId: rowId.slice(0, 8),
+          cols: Array.from(cols),
+        })),
+      })
+    }
 
     // Step 3: Check sorting sensitivity
     const sortingSensitive = this.checkSortingFields(changedCells)

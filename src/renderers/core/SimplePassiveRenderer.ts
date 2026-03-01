@@ -2502,21 +2502,9 @@ export class SimplePassiveRenderer {
     const columns = this.tableCoreStore.columns
     const columnVisibility = this.visualStateStore.columnVisibility
 
-    // Debug: Check if we have group rows
-    const groupRows = rows.filter((row: any) => row.type === 'group')
-    const dataRows = rows.filter((row: any) => !row.type || row.type !== 'group') // All non-group rows are data
-
-    // TEMP DEBUG: Add stack trace back to identify remaining multiple render sources
-    const stack = new Error().stack?.split('\n').slice(1, 4).join('\n') || 'No stack available'
-
-    fileLog.debug('🎨 Rendering body with Phase 2 managers', {
-      rowCount: rows.length,
-      columnCount: columns.length,
-      groupRows: groupRows.length,
-      dataRows: dataRows.length,
-      firstRowTitle: rows[0]?.title,
-      callStack: stack,
-    })
+    // TEMP DEBUG: console.trace so call stack is visible in browser DevTools
+    // biome-ignore lint/suspicious/noConsole: temporary diagnostic
+    console.trace('🎨 renderBody() called', { rowCount: rows.length, columnCount: columns.length })
 
     // PERFORMANCE FIX: Use DocumentFragment for batched DOM operations instead of innerHTML clearing
     const fragment = document.createDocumentFragment()
