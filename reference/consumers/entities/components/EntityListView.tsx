@@ -144,20 +144,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [entityName, stores],
   )
 
-  // Hide upload-created entities that are still actively processing (uploading/pending/processing).
-  // All settled entities (approved, review_required, rejected, error) are shown in the grid.
-  // VirtualRow shape: { type, id, data: { _upload, status, ... } }
-  const uploadPendingPredicate = useCallback((row: any) => {
-    const d = row?.data ?? row
-    return (
-      !d._upload ||
-      d.status === 'approved' ||
-      d.status === 'review_required' ||
-      d.status === 'rejected' ||
-      d.status === 'error'
-    )
-  }, [])
-
   // Review bulk action — available for any uploaded entity.
   // Navigates to the entity detail view for review of AI-extracted data.
   const reviewRowActions = useMemo<RowAction[]>(
@@ -168,11 +154,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
               id: 'review',
               label: 'Review',
               icon: Eye,
-              // VirtualRow shape: actual entity data is in rowData.data
-              hidden: (rowData: any) => {
-                const d = rowData?.data ?? rowData
-                return !d._upload
-              },
             },
           ]
         : [],
@@ -222,7 +203,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
-        systemPredicate={hasUploadMode ? uploadPendingPredicate : undefined}
         rowActions={hasUploadMode && reviewRowActions.length > 0 ? reviewRowActions : undefined}
         onRowAction={hasUploadMode ? handleReviewAction : undefined}
       />
