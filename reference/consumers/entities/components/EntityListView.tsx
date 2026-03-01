@@ -357,6 +357,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // GH#1658: Inline creation via ghost rows
   const featureFlags = useFeatureFlags()
   const authStore = useAuth()
+  // Fail-secure: if session/org not yet loaded, treat as viewer (no write access)
   const userOrgRole = authStore.session?.organization?.role ?? 'viewer'
   const hasWriteAccess = userOrgRole !== 'viewer'
   const isInlineCreationEnabled =
