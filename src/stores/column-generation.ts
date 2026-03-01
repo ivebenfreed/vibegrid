@@ -395,6 +395,18 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         return null
       }
 
+      // Skip server-only fields — never meant to be user-visible
+      if ((fieldDef as any)?.serverOnly === true) {
+        fileLog.debug('⏭️ Skipping serverOnly field', { fieldName })
+        return null
+      }
+
+      // Skip system fields — DB infrastructure, not user-facing entity data
+      if ((fieldDef as any)?.isSystem === true) {
+        fileLog.debug('⏭️ Skipping isSystem field', { fieldName })
+        return null
+      }
+
       const safeFieldDef: EntityField =
         fieldDef && typeof fieldDef === 'object'
           ? { ...fieldDef, name: fieldName }
@@ -560,21 +572,12 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     })
     .filter((col): col is Column<T> => col !== null) // Remove any null entries from skipped fields
 
-  // Separate business fields from system fields
-  const businessFields = allColumns.filter((col) => !['created_at', 'updated_at'].includes(col.id))
-  const systemFields = allColumns.filter((col) => ['created_at', 'updated_at'].includes(col.id))
-
-  // Return business fields first, then system fields
-  const orderedColumns = [...businessFields, ...systemFields]
-
   fileLog.debug('✅ Generated columns from schema', {
     entityType,
-    totalColumns: orderedColumns.length,
-    businessFields: businessFields.length,
-    systemFields: systemFields.length,
+    totalColumns: allColumns.length,
   })
 
-  return orderedColumns
+  return allColumns
 }
 
 /**
