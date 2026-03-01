@@ -580,7 +580,7 @@ describe('SlotRegistry', () => {
       registry.register({
         id: 'entity-name',
         priority: 50,
-        canHandle: (column) => column.id === 'name' || column.id === 'title',
+        canHandle: (column) => column.id === 'name' || (column as any).isPrimaryField,
         renderer: () => createMockRenderer('entity-name'),
       })
 
@@ -592,11 +592,19 @@ describe('SlotRegistry', () => {
       const nameRenderer = registry.resolve(nameColumn, context)!
       expect(nameRenderer.render(null, nameColumn, context).className).toBe('renderer-entity-name')
 
-      // 'title' column should also use entity-name renderer
+      // 'title' column WITHOUT isPrimaryField should use default text (e.g., job title on Contact)
       const titleColumn = createMockColumn('text', 'title')
       await registry.preloadForColumns([titleColumn], context)
       const titleRenderer = registry.resolve(titleColumn, context)!
       expect(titleRenderer.render(null, titleColumn, context).className).toBe(
+        'renderer-text-default',
+      )
+
+      // column with isPrimaryField should use entity-name renderer regardless of id
+      const primaryColumn = { ...createMockColumn('text', 'subject'), isPrimaryField: true } as any
+      await registry.preloadForColumns([primaryColumn], context)
+      const primaryRenderer = registry.resolve(primaryColumn, context)!
+      expect(primaryRenderer.render(null, primaryColumn, context).className).toBe(
         'renderer-entity-name',
       )
 

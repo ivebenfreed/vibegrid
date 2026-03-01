@@ -131,9 +131,11 @@ export class EntityNameRenderer implements CellRenderer {
       return isPrimary === true
     }
 
-    // Priority 2: Auto-detect columns named 'name' or 'title' (legacy behavior)
+    // Priority 2: Auto-detect column named 'name' only
+    // Note: 'title' is NOT included — on entities like Contact it's a job title (COO, CTO),
+    // not the record's display name. Use isPrimaryField for non-'name' primary fields.
     const columnId = column.id?.toLowerCase() || ''
-    return columnId === 'name' || columnId === 'title'
+    return columnId === 'name'
   }
 }
 

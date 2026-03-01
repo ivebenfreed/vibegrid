@@ -145,8 +145,8 @@ export interface Slot {
    * Use for slots that match based on column properties, not just fieldType.
    *
    * @example
-   * // Match columns by ID (e.g., entity-name for 'name' or 'title' columns)
-   * canHandle: (column) => column.id === 'name' || column.id === 'title'
+   * // Match columns by ID (e.g., entity-name for 'name' columns)
+   * canHandle: (column) => column.id === 'name' || column.isPrimaryField
    */
   canHandle?: (column: Column, context: CellRendererContext) => boolean
 
