@@ -12,6 +12,40 @@
   gap: 0.25rem;
 }
 
+/* DOM editor container - provides border/background for editors that use transparent styling */
+.vibe-form-field-editor-container {
+  width: 100%;
+  min-height: 2.25rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  background: hsl(var(--background));
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+}
+
+.vibe-form-field-editor-container:focus-within {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+  outline: none;
+}
+
+/* Normalize input/textarea inside DOM editors (e.g. TextEditor uses transparent/no-border) */
+.vibe-form-field-editor-container input,
+.vibe-form-field-editor-container textarea {
+  flex: 1;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: hsl(var(--foreground));
+  line-height: 1.5;
+  min-height: 2.25rem;
+}
+
 .vibe-form-field--error {
   /* Error state handled by border color on input */
 }
