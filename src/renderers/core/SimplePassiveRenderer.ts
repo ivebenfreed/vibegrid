@@ -961,6 +961,12 @@ export class SimplePassiveRenderer {
           this.updateColumnWidth(columnId, columnWidths[columnId])
         })
 
+        // Invalidate pre-render buffer: buffered rows were built with old column widths
+        // and would reset widths on vertical scroll. Refresh context so rows queued
+        // after this point use the updated layouts.
+        this.preRenderBuffer.invalidate()
+        this.setupPreRenderContext()
+
         fileLog.debug('[RESIZE] ✅ Column widths updated via direct style manipulation', {
           columnsUpdated: changedColumns.length,
           skippedFullRender: true,
@@ -2082,7 +2088,14 @@ export class SimplePassiveRenderer {
     }
 
     for (const layout of precomputed.columnLayouts) {
-      if (cellMap.has(layout.id)) continue
+      const existingCell = cellMap.get(layout.id)
+      if (existingCell) {
+        // Update position and width on existing cells — pre-rendered rows may have
+        // stale values if column widths changed after the row was buffered.
+        existingCell.style.left = `${layout.xOffset}px`
+        existingCell.style.width = `${layout.width}px`
+        continue
+      }
 
       const column = columnMap.get(layout.id)
       if (!column) continue
