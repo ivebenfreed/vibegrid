@@ -172,9 +172,8 @@ export function createEditor(props: EditorProps): React.ReactElement {
       return <DateEditor {...props} includeTime />
 
     case 'email':
-      return <TextEditor {...props} />
-
     case 'url':
+    case 'phone':
       return <TextEditor {...props} />
 
     case 'custom_entity_reference':
