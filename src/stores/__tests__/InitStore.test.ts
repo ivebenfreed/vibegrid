@@ -163,6 +163,24 @@ describe('InitStore', () => {
       })
       expect(initStore.hydrationState.containerReady).toBe(true)
     })
+
+    it('new InitStore instance always allows marking entityDataLoaded (navigation regression guard)', () => {
+      // When navigating between entity pages, useMemo creates a new InitStore with fresh state.
+      // useVibeGridData must be able to call markReady('entityDataLoaded') on it.
+      // Previously, a stale hasMarkedReadyRef in useVibeGridData blocked this, causing the
+      // loading overlay to stay visible forever. The fix: rely on initStore.hydrationState
+      // directly (markReady is idempotent) rather than a per-hook ref that persisted across
+      // entity type changes.
+      const storeA = new InitStore('table', 'EntityA')
+      runInAction(() => storeA.markReady('entityDataLoaded'))
+      expect(storeA.hydrationState.entityDataLoaded).toBe(true)
+
+      // Simulates navigation: new store is created for new entity type
+      const storeB = new InitStore('table', 'EntityB')
+      expect(storeB.hydrationState.entityDataLoaded).toBe(false) // fresh — must be markable
+      runInAction(() => storeB.markReady('entityDataLoaded'))
+      expect(storeB.hydrationState.entityDataLoaded).toBe(true)
+    })
   })
 
   describe('markError', () => {

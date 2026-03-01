@@ -239,8 +239,6 @@ export function useVibeGridData(
   const filterSnapshot = useMobxSnapshot(() => visualStateStore.filters)
   const sortSnapshot = useMobxSnapshot(() => visualStateStore.sortBy)
 
-  // Track if initial data has been pushed to avoid duplicate markReady calls
-  const hasMarkedReadyRef = useRef(false)
   // Timer ref for empty collection fallback
   const emptyCollectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -307,9 +305,8 @@ export function useVibeGridData(
       tableCoreStore.setRows(items)
 
       // Mark entity data as loaded
-      if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+      if (!initStore.hydrationState.entityDataLoaded) {
         initStore.markReady('entityDataLoaded')
-        hasMarkedReadyRef.current = true
       }
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
@@ -340,7 +337,7 @@ export function useVibeGridData(
     // query immediately (returning []) before the server sync delivers real data.
     // Marking entityDataLoaded here would cause isFullyHydrated → true → skeleton
     // disappears while the grid body is still empty. (GH#1413)
-    if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+    if (!initStore.hydrationState.entityDataLoaded) {
       if (sortedRows.length > 0) {
         // Clear the empty-collection fallback timer since we got real data
         if (emptyCollectionTimerRef.current) {
@@ -348,7 +345,6 @@ export function useVibeGridData(
           emptyCollectionTimerRef.current = null
         }
         initStore.markReady('entityDataLoaded')
-        hasMarkedReadyRef.current = true
         logger.info('[useVibeGridData] 📊 Entity data initially loaded', {
           rowCount: sortedRows.length,
         })
@@ -368,12 +364,11 @@ export function useVibeGridData(
   // When the server returns 0 records, sortedRows stays [] and the condition above
   // never fires. This timeout ensures the skeleton eventually disappears.
   useEffect(() => {
-    if (skip || hasMarkedReadyRef.current) return
+    if (skip || initStore.hydrationState.entityDataLoaded) return
 
     emptyCollectionTimerRef.current = setTimeout(() => {
-      if (!hasMarkedReadyRef.current && !initStore.hydrationState.entityDataLoaded) {
+      if (!initStore.hydrationState.entityDataLoaded) {
         initStore.markReady('entityDataLoaded')
-        hasMarkedReadyRef.current = true
         logger.info('[useVibeGridData] 📊 Entity data marked loaded (empty collection fallback)', {
           entityType,
         })

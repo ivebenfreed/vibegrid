@@ -661,11 +661,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     // Provide a renderer factory that captures the current closure variables.
     // InitStore will call this when columns are ready (via MobX reaction).
     stores.initStore.setRendererFactory((container: HTMLElement) => {
-      logger.info('Renderer factory called by InitStore', {
-        tableId,
-        entityType,
-        columnCount: visualStateStore.columns.length,
-      })
+      logger.info('Renderer factory called by InitStore', { tableId, entityType })
 
       return new SimplePassiveRenderer({
         container,
@@ -701,7 +697,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
   }, [
     stores,
     onCellClick,
-    visualStateStore.columns.length,
+    // NOTE: visualStateStore.columns.length intentionally NOT in deps.
+    // The renderer reaction in InitStore watches columns.length and creates the renderer
+    // when columns are ready — no need to destroy/recreate the renderer here.
+    // Including it caused unnecessary destroyRenderer() calls on every schema load,
+    // triggering the "Renderer already exists" warning.
     onEntityUpdate,
     onBatchEntityUpdate,
     updateEntity,
