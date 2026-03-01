@@ -1,28 +1,18 @@
 /**
- * VibeFormField - Single field wrapper with auto-save on blur
+ * VibeFormField - Single field with click-to-edit, auto-save on commit
  *
- * Responsibilities:
- * - Renders field-type-specific editors via FieldTypeRegistry
- * - Auto-save on blur via TanStack DB mutation
- * - Field-level validation using FieldTypeRegistry.validate()
- * - Error display (red border + inline message)
- * - Loading indicator during save
- *
- * Usage:
- * <VibeFormField
- *   fieldId="name"
- *   column={column}
- *   value={value}
- *   entityId={entityId}
- *   onChange={(value) => console.log('Changed:', value)}
- * />
+ * Behaves like a VibeGrid cell in property-sheet layout:
+ * - View mode: renders value via modularCellBridge (same renderers as the grid)
+ * - Click: enters edit mode showing the VibeGrid overlay editor
+ * - Commit/Cancel: saves via collection.update() and returns to view mode
  */
 
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { Column } from '../types'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
-import type { ValidationResult } from '../field-types/FieldTypeRegistry'
+import type { CellRef } from '../types/coordinate-types'
+import { createEditor } from '../overlays/editors'
+import { FormFieldValue } from './FormFieldValue'
 import { getLogger } from '@/shared/lib/logging'
 import './VibeFormField.css'
 
@@ -39,6 +29,10 @@ export interface VibeFormFieldProps {
   column: Column
   /** Current value */
   value: any
+  /** Full row data (needed by modularCellBridge renderers) */
+  rowData?: any
+  /** Row index (needed by modularCellBridge renderers) */
+  rowIndex?: number
   /** Entity ID (for save) */
   entityId?: string | null
   /** Change callback */
@@ -55,54 +49,15 @@ export const VibeFormField = observer(function VibeFormField({
   fieldId,
   column,
   value,
+  rowData = {},
+  rowIndex = 0,
   entityId,
   onChange,
   collection,
 }: VibeFormFieldProps) {
-  // ====================================
-  // STATE
-  // ====================================
-
-  const containerRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<{ element: HTMLElement; destroy?: () => void } | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-
-  // Use refs for the commit callback so the editor's onSave closure
-  // always has access to the latest props without recreating the editor
-  const commitRef = useRef<(newValue: any) => void>(() => {})
-
-  // ====================================
-  // VALIDATION
-  // ====================================
-
-  const validateValue = useCallback(
-    (val: any): ValidationResult => {
-      try {
-        const fieldType = fieldTypeRegistry.getFieldType(column)
-
-        if (!fieldType.validator) {
-          return { valid: true, errors: [] }
-        }
-
-        const result = fieldType.validator.validate(val, column)
-
-        logger.debug('Validation result', {
-          fieldId,
-          value: val,
-          valid: result.valid,
-          errors: result.errors,
-        })
-
-        return result
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err)
-        logger.error('Validation error', { fieldId, error: errorMessage })
-        return { valid: false, errors: [errorMessage] }
-      }
-    },
-    [fieldId, column],
-  )
+  const [error, setError] = useState<string | null>(null)
 
   // ====================================
   // COMMIT (VALIDATE + AUTO-SAVE)
@@ -110,46 +65,33 @@ export const VibeFormField = observer(function VibeFormField({
 
   const handleCommit = useCallback(
     async (newValue: any) => {
-      // 1. Validate
-      const validationResult = validateValue(newValue)
-
-      if (!validationResult.valid) {
-        setError(validationResult.errors[0] || 'Invalid value')
-        logger.warn('Validation failed - not saving', {
-          fieldId,
-          errors: validationResult.errors,
-        })
-        return
-      }
-
+      setIsEditing(false)
       setError(null)
-      const valueToSave = validationResult.transformedValue ?? newValue
 
-      // 2. Auto-save via TanStack DB collection
       if (!entityId) {
         logger.debug('Skipping auto-save - no entity ID (create mode)', { fieldId })
-        onChange(valueToSave)
+        onChange(newValue)
         return
       }
 
       if (!collection) {
         logger.warn('Skipping auto-save - no collection provided', { fieldId })
-        onChange(valueToSave)
+        onChange(newValue)
         return
       }
 
       setIsSaving(true)
 
       try {
-        logger.info('Auto-saving field', { fieldId, entityId, value: valueToSave })
+        logger.info('Auto-saving field', { fieldId, entityId, value: newValue })
 
         collection.update(entityId, (draft: any) => {
           const field = column.field || fieldId
-          draft[field] = valueToSave
+          draft[field] = newValue
           draft.updated_at = new Date().toISOString()
         })
 
-        onChange(valueToSave)
+        onChange(newValue)
         logger.info('Auto-save successful', { fieldId })
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err)
@@ -159,85 +101,16 @@ export const VibeFormField = observer(function VibeFormField({
         setIsSaving(false)
       }
     },
-    [fieldId, column, entityId, collection, onChange, validateValue],
+    [fieldId, column, entityId, collection, onChange],
   )
 
-  // Keep commit ref in sync with latest callback
-  commitRef.current = handleCommit
+  const handleCancel = useCallback(() => {
+    setIsEditing(false)
+  }, [])
 
-  // ====================================
-  // EDITOR LIFECYCLE
-  // ====================================
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: value is intentionally excluded — setValue effect below syncs external changes without recreating the editor
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    // Clean up previous editor
-    if (editorRef.current?.destroy) {
-      editorRef.current.destroy()
-    }
-    editorRef.current = null
-    container.innerHTML = ''
-
-    try {
-      const fieldType = fieldTypeRegistry.getFieldType(column)
-
-      if (!fieldType?.editor) {
-        logger.warn('No editor found for field type, using fallback', {
-          fieldId,
-          columnType: column.cellType || column.type,
-        })
-        mountFallbackInput(container, value, fieldId, column, commitRef)
-        return
-      }
-
-      // Create editor via FieldTypeRegistry
-      const editorElement = fieldType.editor.create(value, column as any, (newValue: any) => {
-        commitRef.current(newValue)
-      })
-
-      // Style for form context (remove grid-specific styles)
-      editorElement.style.width = '100%'
-      editorElement.classList.add('vibe-form-field-editor')
-
-      container.appendChild(editorElement)
-      editorRef.current = {
-        element: editorElement,
-        destroy: () => fieldType.editor.destroy(editorElement),
-      }
-
-      logger.debug('Editor created via FieldTypeRegistry', {
-        fieldId,
-        fieldType: fieldType.type,
-      })
-    } catch (err) {
-      logger.error('Error creating editor, using fallback', { fieldId, error: err })
-      mountFallbackInput(container, value, fieldId, column, commitRef)
-    }
-
-    return () => {
-      if (editorRef.current?.destroy) {
-        editorRef.current.destroy()
-        editorRef.current = null
-      }
-    }
-  }, [fieldId, column])
-
-  // Sync external value changes into the editor without recreating it
-  useEffect(() => {
-    if (!editorRef.current?.element) return
-
-    try {
-      const fieldType = fieldTypeRegistry.getFieldType(column)
-      if (fieldType?.editor) {
-        fieldType.editor.setValue(editorRef.current.element, value)
-      }
-    } catch {
-      // Fallback input handles its own value via React state
-    }
-  }, [value, column])
+  const handleActivate = useCallback(() => {
+    if (!isEditing) setIsEditing(true)
+  }, [isEditing])
 
   // ====================================
   // RENDER
@@ -245,14 +118,53 @@ export const VibeFormField = observer(function VibeFormField({
 
   const hasError = error !== null
 
+  const cell: CellRef = {
+    rowId: entityId || 'new',
+    columnId: fieldId,
+  }
+
   return (
     <div
       className={`vibe-form-field ${hasError ? 'vibe-form-field--error' : ''}`}
       data-testid={`vibe-form-field-${fieldId}`}
       aria-live={hasError ? 'polite' : undefined}
     >
-      {/* Editor container — FieldTypeRegistry mounts DOM elements here */}
-      <div ref={containerRef} className="vibe-form-field-editor-container" />
+      {/* Cell container — same visual appearance as a VibeGrid cell */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: field cell needs click handler */}
+      <div
+        className={`vibe-form-field-editor-container ${isEditing ? 'vibe-form-field-editor-container--editing' : ''}`}
+        onClick={handleActivate}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && !isEditing) {
+            e.preventDefault()
+            setIsEditing(true)
+          }
+        }}
+        tabIndex={isEditing ? -1 : 0}
+        role={isEditing ? undefined : 'button'}
+      >
+        {isEditing ? (
+          // Edit mode: VibeGrid overlay editor (TextEditor, SelectEditor, DateEditor, etc.)
+          createEditor({
+            cell,
+            column,
+            initialValue: value,
+            onCommit: handleCommit,
+            onCancel: handleCancel,
+          })
+        ) : (
+          // View mode: VibeGrid cell renderer via modularCellBridge (same as grid cells)
+          <FormFieldValue
+            fieldId={fieldId}
+            value={value}
+            column={column}
+            rowData={rowData}
+            rowIndex={rowIndex}
+            cellClassName="vibe-form-cell"
+            containerClassName="vibe-form-field-value-container"
+          />
+        )}
+      </div>
 
       {/* Save indicator */}
       {isSaving && (
@@ -274,42 +186,3 @@ export const VibeFormField = observer(function VibeFormField({
     </div>
   )
 })
-
-// ====================================
-// FALLBACK INPUT
-// ====================================
-
-/**
- * Mounts a plain text input when FieldTypeRegistry has no editor for the field type.
- * This ensures the component always renders something usable.
- */
-function mountFallbackInput(
-  container: HTMLElement,
-  value: any,
-  fieldId: string,
-  column: Column,
-  commitRef: React.MutableRefObject<(value: any) => void>,
-) {
-  const input = document.createElement('input')
-  input.type = 'text'
-  input.value = value == null ? '' : String(value)
-  input.className = 'vibe-form-field-input vibe-form-field-input-fallback'
-  input.placeholder = column.label || column.name || fieldId
-  input.setAttribute('aria-label', column.label || column.name || fieldId)
-
-  input.addEventListener('blur', () => {
-    commitRef.current(input.value.trim() === '' ? null : input.value)
-  })
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      commitRef.current(input.value.trim() === '' ? null : input.value)
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      input.blur()
-    }
-  })
-
-  container.appendChild(input)
-}

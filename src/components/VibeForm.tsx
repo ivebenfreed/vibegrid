@@ -392,6 +392,8 @@ export const VibeForm = observer(function VibeForm({
           fieldId={props.fieldId}
           column={props.column}
           value={props.value}
+          rowData={props.rowData}
+          rowIndex={props.rowIndex}
           entityId={createFlow.entityId}
           onChange={(value) => {
             if (props.onChange) {

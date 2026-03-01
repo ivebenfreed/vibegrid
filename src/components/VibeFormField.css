@@ -1,7 +1,9 @@
 /**
  * VibeFormField Styles
  *
- * Single field wrapper with auto-save on blur
+ * Click-to-edit field that looks and behaves like a VibeGrid cell.
+ * View mode renders via modularCellBridge (same as grid). Edit mode
+ * shows the VibeGrid overlay editor (createEditor).
  */
 
 /* Field container */
@@ -12,7 +14,7 @@
   gap: 0.25rem;
 }
 
-/* DOM editor container - provides border/background for editors that use transparent styling */
+/* Cell container — looks like a VibeGrid cell (border + background) */
 .vibe-form-field-editor-container {
   width: 100%;
   min-height: 2.25rem;
@@ -22,20 +24,55 @@
   overflow: hidden;
   display: flex;
   align-items: stretch;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
-.vibe-form-field-editor-container:focus-within {
+/* Focus ring when navigating by keyboard */
+.vibe-form-field-editor-container:focus {
+  outline: none;
   border-color: var(--ring);
   box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 20%, transparent);
-  outline: none;
 }
 
-/* Normalize input/textarea inside DOM editors (e.g. TextEditor uses transparent/no-border) */
-.vibe-form-field-editor-container input,
-.vibe-form-field-editor-container textarea {
+/* Hover state */
+.vibe-form-field-editor-container:hover:not(.vibe-form-field-editor-container--editing) {
+  border-color: var(--ring);
+}
+
+/* Edit mode — ring shown while editor is active */
+.vibe-form-field-editor-container--editing {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 20%, transparent);
+  cursor: text;
+}
+
+/* View-mode cell content rendered by modularCellBridge */
+.vibe-form-cell {
+  padding: 0.5rem 0.75rem;
+  min-height: 2.25rem;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--foreground);
+  box-sizing: border-box;
+  user-select: none;
+}
+
+/* Container div wrapping the FormFieldValue in view mode */
+.vibe-form-field-value-container {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Edit mode: editors inside container are transparent (border is on container) */
+.vibe-form-field-editor-container--editing input,
+.vibe-form-field-editor-container--editing textarea {
   flex: 1;
   width: 100%;
-  padding: 0.5rem 0.75rem;
   background: transparent;
   border: none;
   outline: none;
@@ -43,61 +80,15 @@
   font-family: inherit;
   color: var(--foreground);
   line-height: 1.5;
-  min-height: 2.25rem;
 }
 
-.vibe-form-field--error {
-  /* Error state handled by border color on input */
+/* Error state */
+.vibe-form-field--error .vibe-form-field-editor-container {
+  border-color: var(--destructive, #c00);
 }
 
-/* Field input */
-.vibe-form-field-input {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.vibe-form-field-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-alpha, rgba(0, 100, 200, 0.1));
-}
-
-.vibe-form-field-input:focus-visible {
-  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
-}
-
-.vibe-form-field-input:disabled {
-  background-color: var(--color-bg-disabled, #f5f5f5);
-  cursor: not-allowed;
-}
-
-.vibe-form-field-input-fallback {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  background: hsl(var(--background));
-}
-
-.vibe-form-field--error .vibe-form-field-input {
-  border-color: var(--color-error, #c00);
-}
-
-.vibe-form-field--error .vibe-form-field-editor {
-  outline: 2px solid var(--color-error, #c00);
-  outline-offset: -2px;
-}
-
-.vibe-form-field--error .vibe-form-field-input:focus {
-  box-shadow: 0 0 0 3px var(--color-error-alpha, rgba(200, 0, 0, 0.1));
+.vibe-form-field--error .vibe-form-field-editor-container--editing {
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--destructive, #c00) 20%, transparent);
 }
 
 /* Save indicator (spinner) */
@@ -113,7 +104,7 @@
 .vibe-form-field-spinner {
   width: 1rem;
   height: 1rem;
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--primary);
   border-top-color: transparent;
   border-radius: 50%;
   animation: vibe-form-field-spin 0.6s linear infinite;
@@ -122,7 +113,7 @@
 /* Error message */
 .vibe-form-field-error {
   font-size: 0.75rem;
-  color: var(--color-error, #c00);
+  color: var(--destructive, #c00);
   margin-top: 0.25rem;
 }
 
@@ -132,6 +123,6 @@
     transform: rotate(0deg);
   }
   to {
-    transform: rotate(360deg);
+    transform: rotate(360deg)
   }
 }
