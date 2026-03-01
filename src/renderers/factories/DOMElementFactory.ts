@@ -63,19 +63,27 @@ export class DOMElementFactory {
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-group-header')
     rowElement.dataset.rowId = groupRow.id
     rowElement.dataset.groupId = groupRow.id
+
+    // Use actual rowOffsets for variable-height positioning (group headers are 44px, data rows 40px).
+    // Falls back to flat arithmetic if tableCoreStore is unavailable.
+    const rowOffset = this.tableCoreStore?.rowOffsets[rowIndex] ?? rowIndex * ROW_HEIGHT
+    const rowHeight = groupRow.height || ROW_HEIGHT
+
     rowElement.style.cssText = `
       position: absolute;
-      top: ${rowIndex * ROW_HEIGHT}px;
+      top: 0;
       left: 0;
       right: 0;
-      height: ${ROW_HEIGHT}px;
+      height: ${rowHeight}px;
+      transform: translateY(${rowOffset}px);
       display: flex;
       align-items: center;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
-      font-weight: 600;
+      background: ${level === 0 ? 'hsl(var(--muted))' : 'hsl(var(--muted))'};
+      border-bottom: 2px solid ${level === 0 ? 'hsl(var(--border))' : 'hsl(var(--border))'};
+      font-weight: ${level === 0 ? '600' : '500'};
       padding-left: ${level * 20 + 12}px;
       cursor: pointer;
+      user-select: none;
     `
 
     // Create expand/collapse button
