@@ -753,6 +753,17 @@ export class VisualStateStore implements IStore {
   }
 
   /**
+   * Set column order directly (used by drag-and-drop reordering)
+   */
+  @action
+  setColumnOrder(newOrder: string[]): void {
+    this.columnOrder = newOrder
+    this.clearSelections()
+    this.updateCoordinatorWithCurrentLayout()
+    logger.info('Column order set', { columnCount: newOrder.length })
+  }
+
+  /**
    * Reorder columns
    */
   @action

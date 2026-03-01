@@ -1,12 +1,30 @@
-import { ChevronDown, Columns3, Eye, EyeOff } from 'lucide-react'
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Save } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
+import { toast } from 'sonner'
+import { orpcClient } from '@/shared/data/orpc/client'
 import { Button } from '@/shared/components/ui/button'
 import { Checkbox } from '@/shared/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -25,23 +43,113 @@ interface VibeGridXColumnVisibilityPureProps {
   className?: string
 }
 
+// System column IDs that don't exist in the schema (not persistable)
+const SYSTEM_COLUMN_IDS = new Set([
+  '__selection',
+  '__row_number',
+  '__drag_handle',
+  '__row_actions',
+  'selection',
+  'row-expand',
+  'row-number',
+  'row-actions',
+  'drag-handle',
+])
+
+interface SortableColumnItemProps {
+  column: Column
+  isVisible: boolean
+  canHide: boolean
+  isDraggable: boolean
+  onToggle: (columnId: string) => void
+  getDisplayName: (column: Column) => string
+}
+
+const SortableColumnItem = observer(function SortableColumnItem({
+  column,
+  isVisible,
+  canHide,
+  isDraggable,
+  onToggle,
+  getDisplayName,
+}: SortableColumnItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: column.id,
+    disabled: !isDraggable,
+  })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''}`}
+    >
+      {/* Drag handle */}
+      <span
+        {...(isDraggable ? { ...attributes, ...listeners } : {})}
+        className={`text-muted-foreground flex-shrink-0 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-0'}`}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </span>
+
+      {/* Checkbox */}
+      <Checkbox
+        checked={isVisible}
+        disabled={!canHide}
+        onCheckedChange={() => {
+          if (canHide) onToggle(column.id)
+        }}
+      />
+
+      {/* Column name */}
+      <span className="flex-1 text-sm truncate">{getDisplayName(column)}</span>
+
+      {/* Required badge */}
+      {!canHide && <span className="text-xs text-muted-foreground flex-shrink-0">Required</span>}
+    </div>
+  )
+})
+
 export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVisibilityPure({
   stores,
   className = '',
 }: VibeGridXColumnVisibilityPureProps) {
-  const { tableCoreStore, interactionStore, visualStateStore } = stores
+  const { interactionStore, visualStateStore } = stores
 
   // Get reactive data from MobX stores
   const columns = visualStateStore.columns
   const columnVisibility = visualStateStore.columnVisibility
+  const columnOrder = visualStateStore.columnOrder
   const isOpen = interactionStore.columnVisibilityMenuState.isOpen
   const searchValue = interactionStore.columnVisibilityMenuState.searchValue
+  const entityType = visualStateStore.entityType
+
+  // DnD state
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
 
   // Count hidden/visible columns
   const hiddenColumnCount = columns.filter((col) => columnVisibility[col.id] === false).length
   const visibleColumnCount = columns.filter((col) => columnVisibility[col.id] !== false).length
 
-  // Event handlers using store action methods
+  // Event handlers
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
       fileLog.debug('ColumnVisibility dropdown state change', { isOpen: open })
@@ -78,31 +186,93 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     [interactionStore],
   )
 
-  // Helper functions (declared before useMemo that uses them)
-  const getColumnDisplayName = (column: Column): string => {
-    // Use explicit name if available, otherwise format the field/id
-    return column.name || formatFieldName(column.field || column.id)
-  }
+  // DnD handlers
+  const handleDragStart = React.useCallback(() => {
+    setIsDragging(true)
+  }, [])
 
-  const _isColumnHidden = (columnId: string): boolean => {
-    return columnVisibility[columnId] === false
-  }
+  const handleDragEnd = React.useCallback(
+    (event: DragEndEvent) => {
+      setIsDragging(false)
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const currentOrder = columnOrder.length > 0 ? columnOrder : columns.map((c) => c.id)
+      const oldIndex = currentOrder.indexOf(active.id as string)
+      const newIndex = currentOrder.indexOf(over.id as string)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(currentOrder, oldIndex, newIndex)
+        visualStateStore.setColumnOrder(newOrder)
+      }
+    },
+    [columnOrder, columns, visualStateStore],
+  )
+
+  // Save column order to schema
+  const handleSaveToSchema = React.useCallback(async () => {
+    if (!entityType) return
+
+    const currentOrder = columnOrder.length > 0 ? columnOrder : columns.map((c) => c.id)
+    // Only include schema fields (exclude system/UI columns)
+    const schemaFieldOrder = currentOrder.filter((id) => !SYSTEM_COLUMN_IDS.has(id))
+
+    setIsSaving(true)
+    try {
+      const result = (await orpcClient.dataforge.schema.reorderFields({
+        entityName: entityType,
+        fieldOrder: schemaFieldOrder,
+      })) as { success: boolean; error?: string }
+
+      if (result.success) {
+        toast.success('Column order saved to schema')
+      } else {
+        toast.error(result.error || 'Failed to save column order')
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to save column order'
+      toast.error(msg)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [entityType, columnOrder, columns])
+
+  // Helper functions
+  const getColumnDisplayName = React.useCallback((column: Column): string => {
+    return column.name || formatFieldName(column.field || column.id)
+  }, [])
 
   const isColumnVisible = (columnId: string): boolean => {
-    // Ensure explicit boolean value - treat undefined as true (default visible)
-    const visible = columnVisibility[columnId] !== false
-    return visible
+    return columnVisibility[columnId] !== false
   }
 
   const canHideColumn = (column: Column): boolean => {
     return column.hideable !== false
   }
 
-  // Only calculate expensive operations when dropdown is open
+  const isDraggableColumn = (column: Column): boolean => {
+    return !SYSTEM_COLUMN_IDS.has(column.id)
+  }
+
+  const hidableColumnCount = columns.filter((col) => canHideColumn(col)).length
+
+  // Build sorted column list for display (respects current columnOrder)
+  const sortedColumns = React.useMemo(() => {
+    if (!isOpen) return []
+    const order = columnOrder.length > 0 ? columnOrder : columns.map((c) => c.id)
+    const colMap = new Map(columns.map((c) => [c.id, c]))
+    const ordered = order.map((id) => colMap.get(id)).filter((c): c is Column => c != null)
+    // Append any columns not in order (safety)
+    const inOrder = new Set(order)
+    const extra = columns.filter((c) => !inOrder.has(c.id))
+    return [...ordered, ...extra]
+  }, [columns, columnOrder, isOpen])
+
+  // Filtered sorted columns for search
   const filteredColumns = React.useMemo(() => {
-    if (!isOpen) return [] // Don't calculate unless dropdown is open
-    if (!searchValue) return columns
-    return columns.filter((column) => {
+    if (!isOpen) return []
+    if (!searchValue) return sortedColumns
+    return sortedColumns.filter((column) => {
       const displayName = getColumnDisplayName(column)
       return (
         displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -110,75 +280,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         (column.field && column.field.toLowerCase().includes(searchValue.toLowerCase()))
       )
     })
-  }, [columns, searchValue, isOpen, getColumnDisplayName])
-
-  // Categorize columns only when dropdown is open
-  const categorizedColumns = React.useMemo(() => {
-    if (!isOpen) return { required: [], business: [], system: [] } // Don't calculate unless dropdown is open
-
-    const required: Column[] = []
-    const business: Column[] = []
-    const system: Column[] = []
-
-    filteredColumns.forEach((column) => {
-      const isRequired = column.hideable === false
-      const isSystem = column.meta?.systemField
-
-      if (isRequired) {
-        required.push(column)
-      } else if (isSystem) {
-        system.push(column)
-      } else {
-        business.push(column)
-      }
-    })
-
-    return { required, business, system }
-  }, [filteredColumns, isOpen])
-
-  const renderColumnItem = (column: Column, isRequired: boolean, category: string = 'default') => {
-    const isVisible = isColumnVisible(column.id)
-    const canHide = canHideColumn(column)
-
-    const columnItem = (
-      <DropdownMenuItem
-        className={`flex items-center space-x-2 ${!canHide ? 'opacity-60' : ''}`}
-        onSelect={(e) => e.preventDefault()}
-      >
-        <Checkbox
-          checked={isVisible}
-          disabled={!canHide}
-          onCheckedChange={(_checked) => {
-            if (canHide) {
-              handleToggleColumn(column.id)
-            }
-          }}
-        />
-        <span className="flex-1 text-sm">{getColumnDisplayName(column)}</span>
-        {isRequired && <span className="text-xs text-muted-foreground">Required</span>}
-        {canHide && (
-          <span className="text-xs text-muted-foreground opacity-60">
-            {isVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-          </span>
-        )}
-      </DropdownMenuItem>
-    )
-
-    if (isRequired) {
-      return (
-        <Tooltip key={`${category}-${column.id}`}>
-          <TooltipTrigger asChild>{columnItem}</TooltipTrigger>
-          <TooltipContent>
-            <p>This field is required and cannot be hidden</p>
-          </TooltipContent>
-        </Tooltip>
-      )
-    }
-
-    return <div key={`${category}-${column.id}`}>{columnItem}</div>
-  }
-
-  const hidableColumnCount = columns.filter((col) => canHideColumn(col)).length
+  }, [sortedColumns, searchValue, isOpen, getColumnDisplayName])
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
@@ -206,9 +308,12 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         updatePositionStrategy="optimized"
         side="bottom"
         alignOffset={-8}
+        onInteractOutside={(e) => {
+          if (isDragging) e.preventDefault()
+        }}
       >
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Column Visibility</span>
+          <span>Columns</span>
           <span className="text-xs text-muted-foreground">
             {visibleColumnCount}/{columns.length}
           </span>
@@ -250,59 +355,66 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
 
         <DropdownMenuSeparator />
 
-        {/* Required Fields */}
-        {categorizedColumns.required.length > 0 && (
-          <>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Required Fields ({categorizedColumns.required.length})
-            </DropdownMenuLabel>
-            {categorizedColumns.required.map((col) => renderColumnItem(col, true, 'required'))}
-            {(categorizedColumns.business.length > 0 || categorizedColumns.system.length > 0) && (
-              <DropdownMenuSeparator />
-            )}
-          </>
-        )}
+        {/* Sortable Column List */}
+        <div className="py-1 max-h-64 overflow-y-auto">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={filteredColumns.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {filteredColumns.map((column) => (
+                <SortableColumnItem
+                  key={column.id}
+                  column={column}
+                  isVisible={isColumnVisible(column.id)}
+                  canHide={canHideColumn(column)}
+                  isDraggable={isDraggableColumn(column)}
+                  onToggle={handleToggleColumn}
+                  getDisplayName={getColumnDisplayName}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
-        {/* Business Fields */}
-        {categorizedColumns.business.length > 0 && (
-          <>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              Business Fields ({categorizedColumns.business.length})
-            </DropdownMenuLabel>
-            {categorizedColumns.business.map((col) => renderColumnItem(col, false, 'business'))}
-            {categorizedColumns.system.length > 0 && <DropdownMenuSeparator />}
-          </>
-        )}
+          {filteredColumns.length === 0 && searchValue && (
+            <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+              No columns found matching "{searchValue}"
+            </div>
+          )}
+        </div>
 
-        {/* System Fields */}
-        {categorizedColumns.system.length > 0 && (
-          <>
-            <DropdownMenuLabel className="text-xs text-muted-foreground">
-              System Fields ({categorizedColumns.system.length})
-            </DropdownMenuLabel>
-            {categorizedColumns.system.map((col) => renderColumnItem(col, false, 'system'))}
-          </>
-        )}
-
-        {/* No Results */}
-        {filteredColumns.length === 0 && searchValue && (
-          <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-            No columns found matching "{searchValue}"
-          </div>
-        )}
-
-        {/* Footer Info */}
         <DropdownMenuSeparator />
-        <div className="px-2 py-2 text-xs text-muted-foreground">
-          <div className="flex justify-between">
+
+        {/* Footer */}
+        <div className="px-2 py-2 space-y-2">
+          <div className="flex justify-between text-xs text-muted-foreground">
             <span>Visible: {visibleColumnCount}</span>
             <span>Hidden: {hiddenColumnCount}</span>
           </div>
-          {hidableColumnCount < columns.length && (
-            <div className="mt-1 text-xs opacity-75">
-              {columns.length - hidableColumnCount} required field(s) always visible
-            </div>
-          )}
+
+          {/* Save to Schema button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs w-full"
+                onClick={handleSaveToSchema}
+                disabled={isSaving || !entityType}
+              >
+                <Save className="h-3 w-3 mr-1" />
+                {isSaving ? 'Saving...' : 'Save Order to Schema'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Persist current column order as the default for all users</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
