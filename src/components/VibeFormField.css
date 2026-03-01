@@ -47,23 +47,34 @@
   cursor: text;
 }
 
-/* View-mode cell content rendered by modularCellBridge */
+/* View-mode cell content rendered by modularCellBridge.
+ * Reset ALL grid-specific positioning, sizing, and border styles. */
 .vibe-form-cell {
-  padding: 0.5rem 0.75rem;
-  min-height: 2.25rem;
-  display: flex;
-  align-items: center;
-  width: 100%;
+  padding: 0.5rem 0.75rem !important;
+  min-height: 2.25rem !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: none !important;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--foreground);
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   user-select: none;
+  /* Remove grid column borders */
+  border: none !important;
+  border-right: none !important;
+  border-left: none !important;
+  /* Remove grid absolute positioning */
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
 }
 
 /* Container div wrapping the FormFieldValue in view mode */
 .vibe-form-field-value-container {
   flex: 1;
+  width: 100%;
   display: flex;
   align-items: stretch;
 }
