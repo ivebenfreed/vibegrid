@@ -22,6 +22,12 @@ import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/shared/components/ui/dialog'
 import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
@@ -35,6 +41,8 @@ import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/Reorder
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
+import { COIReviewPanel } from '@/features/coi/components/COIReviewPanel'
+import { coiStore } from '@/features/coi/stores/COIStore'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
 import { CreationModeButton } from './CreationModeButton'
@@ -66,7 +74,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
-  const navigate = useNavigate()
 
   const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView } = useViewUrlSync({
     entityType: entityName,
@@ -145,7 +152,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   )
 
   // Review bulk action — available for any uploaded entity.
-  // Navigates to the entity detail view for review of AI-extracted data.
+  // Opens COI review panel in a full-screen dialog for side-by-side PDF + data review.
   const reviewRowActions = useMemo<RowAction[]>(
     () =>
       hasUploadMode
@@ -160,21 +167,45 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [hasUploadMode],
   )
 
-  // Handle Review bulk action — navigate to the first selected entity for review.
+  // COI Review Panel state — batch review of selected entities
+  const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false)
+  const [reviewCoiIds, setReviewCoiIds] = useState<string[]>([])
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
+
+  // Handle Review bulk action — open COI review panel for selected entities.
   const handleReviewAction = useCallback(
-    (actionId: string, rowIds: string[], _rowsData: any[]) => {
+    async (actionId: string, rowIds: string[], _rowsData: any[]) => {
       if (actionId !== 'review' || rowIds.length === 0) return
-      if (entityName === 'Document') {
-        navigate({ to: '/documents/$id', params: { id: rowIds[0] } as any })
-      } else {
-        navigate({
-          to: '/entities/$entityName/$id',
-          params: { entityName, id: rowIds[0] } as any,
-        })
-      }
+      setReviewCoiIds(rowIds)
+      setCurrentReviewIndex(0)
+      await coiStore.loadCOI(rowIds[0])
+      setIsReviewPanelOpen(true)
     },
-    [navigate, entityName],
+    [],
   )
+
+  // Navigate to next/previous COI in the batch
+  const handleReviewNext = useCallback(async () => {
+    const nextIndex = currentReviewIndex + 1
+    if (nextIndex < reviewCoiIds.length) {
+      setCurrentReviewIndex(nextIndex)
+      await coiStore.loadCOI(reviewCoiIds[nextIndex])
+    }
+  }, [currentReviewIndex, reviewCoiIds])
+
+  const handleReviewPrevious = useCallback(async () => {
+    const prevIndex = currentReviewIndex - 1
+    if (prevIndex >= 0) {
+      setCurrentReviewIndex(prevIndex)
+      await coiStore.loadCOI(reviewCoiIds[prevIndex])
+    }
+  }, [currentReviewIndex, reviewCoiIds])
+
+  const handleReviewClose = useCallback(() => {
+    setIsReviewPanelOpen(false)
+    setReviewCoiIds([])
+    setCurrentReviewIndex(0)
+  }, [])
 
   const viewPickerProps = {
     entityType: entityName,
@@ -208,6 +239,41 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onRowAction={hasUploadMode ? handleReviewAction : undefined}
       />
       <ReorderConfirmationDialog />
+
+      {/* COI Review Panel Dialog — full-screen side-by-side PDF + data review */}
+      <Dialog open={isReviewPanelOpen} onOpenChange={setIsReviewPanelOpen}>
+        <DialogContent
+          className="!fixed !inset-2 !w-[calc(100vw-1rem)] !max-w-none !h-[calc(100vh-1rem)] !translate-x-0 !translate-y-0 !top-2 !left-2 p-0 overflow-hidden flex flex-col"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">Review Uploaded Document</DialogTitle>
+          <DialogDescription className="sr-only">
+            Review and approve or reject the uploaded document's extracted data.
+          </DialogDescription>
+          {coiStore.selectedCOI && (
+            <COIReviewPanel
+              coi={coiStore.selectedCOI}
+              onClose={handleReviewClose}
+              onApprove={() => {
+                if (currentReviewIndex < reviewCoiIds.length - 1) {
+                  handleReviewNext()
+                } else {
+                  handleReviewClose()
+                }
+              }}
+              onReopen={() => {
+                coiStore.loadCOI(reviewCoiIds[currentReviewIndex])
+              }}
+              onNext={handleReviewNext}
+              onPrevious={handleReviewPrevious}
+              canGoNext={currentReviewIndex < reviewCoiIds.length - 1}
+              canGoPrevious={currentReviewIndex > 0}
+              currentIndex={currentReviewIndex}
+              totalCount={reviewCoiIds.length}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* SaveViewDialog (GH#1570 P2.3) */}
       <SaveViewDialog
