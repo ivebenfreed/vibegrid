@@ -17,7 +17,7 @@ import { AlertTriangle, Eye, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
-import { useAuth, useOrganization } from '@/app/stores'
+import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
@@ -54,6 +54,7 @@ import { EntityListError } from './EntityListError'
 import { EntityListSkeleton } from './EntityListSkeleton'
 import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
+import { QuickCreatePanel } from './QuickCreatePanel'
 
 const logger = getLogger(['entity', 'EntityListView'])
 
@@ -66,11 +67,17 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   orgId,
   onCellClick,
   hasUploadMode,
+  enableInlineCreation,
+  onInlineCreate,
+  onEscalate,
 }: {
   entityName: string
   orgId: string
   onCellClick: (rowId: string, columnId: string) => void
   hasUploadMode: boolean
+  enableInlineCreation: boolean
+  onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
+  onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -232,6 +239,9 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableSorting={true}
         enableDragAndDrop={true}
         enableDelete={true}
+        enableInlineCreation={enableInlineCreation}
+        onInlineCreate={onInlineCreate}
+        onEscalate={onEscalate}
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
@@ -343,6 +353,40 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
     enabled: hasUploadMode,
   })
+
+  // GH#1658: Inline creation via ghost rows
+  const featureFlags = useFeatureFlags()
+  const authStore = useAuth()
+  // Fail-secure: if session/org not yet loaded, treat as viewer (no write access)
+  const userOrgRole = authStore.session?.organization?.role ?? 'viewer'
+  const hasWriteAccess = userOrgRole !== 'viewer'
+  const isInlineCreationEnabled =
+    featureFlags.isEnabled('vibegrid.inline_creation') && hasWriteAccess
+
+  const handleInlineCreate = useCallback(
+    async (defaults: Record<string, unknown>): Promise<string> => {
+      const response = (await orpcClient.dataforge.data.create({
+        entityName: resolvedName,
+        data: defaults,
+      })) as { success: boolean; data: { id: string } }
+      return response.data?.id ?? ''
+    },
+    [resolvedName],
+  )
+
+  // GH#1658: QuickCreatePanel state for escalation from ghost rows
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
+  const [quickCreateInheritedFields, setQuickCreateInheritedFields] = useState<
+    Record<string, unknown>
+  >({})
+
+  const handleEscalate = useCallback(
+    (_groupId: string, inheritedFields: Record<string, unknown>) => {
+      setQuickCreateInheritedFields(inheritedFields)
+      setQuickCreateOpen(true)
+    },
+    [],
+  )
 
   // Page-level drag detection for upload overlay
   useEffect(() => {
@@ -530,13 +574,16 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           />
         </div>
 
-        {/* Vibegrid Container */}
-        <div className="flex-1 overflow-hidden">
+        {/* Vibegrid Container — position:relative anchors QuickCreatePanel */}
+        <div className="relative flex-1 overflow-hidden">
           <VibeGridStoreProvider tableId={`entity-list-${entityName}`} entityType={entityName}>
             <EntityListViewUrlSync
               entityName={entityName}
               orgId={orgId}
               hasUploadMode={hasUploadMode}
+              enableInlineCreation={isInlineCreationEnabled}
+              onInlineCreate={handleInlineCreate}
+              onEscalate={handleEscalate}
               onCellClick={(rowId, _columnId) => {
                 // CellActionRouter only fires onCellClick for navigate-affordance cells,
                 // so navigate unconditionally — no column name check needed.
@@ -554,6 +601,20 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               }}
             />
           </VibeGridStoreProvider>
+
+          {/* GH#1658: QuickCreatePanel — escalation from ghost rows */}
+          {schema && (
+            <QuickCreatePanel
+              schema={schema}
+              inheritedFields={quickCreateInheritedFields}
+              open={quickCreateOpen}
+              onClose={() => setQuickCreateOpen(false)}
+              onSuccess={(recordId) => {
+                setQuickCreateOpen(false)
+                logger.debug('QuickCreatePanel created record', { recordId })
+              }}
+            />
+          )}
         </div>
       </Main>
 

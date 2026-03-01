@@ -13,6 +13,7 @@ import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinate
 import { domPositionStore } from './dom-position-state'
 import { DebugStore } from './DebugStore'
 import { EditingStore } from './EditingStore'
+import { InlineCreationStore } from './InlineCreationStore'
 import { GanttViewStore } from './GanttViewStore'
 import { HierarchyStore } from './HierarchyStore'
 import { InitStore } from './InitStore'
@@ -44,6 +45,7 @@ export interface VibeGridStores {
   hierarchyStore: HierarchyStore
   coordinateManager: ObservableCoordinateManager
   debugStore: DebugStore
+  inlineCreationStore: InlineCreationStore
 }
 
 /**
@@ -142,6 +144,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const kanbanViewStore = new KanbanViewStore()
     const hierarchyStore = new HierarchyStore()
     const debugStore = new DebugStore()
+    const inlineCreationStore = new InlineCreationStore()
 
     // Set up dependency injection between stores
     // VisualStateStore needs CoordinateManager for layout tracking
@@ -246,6 +249,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       hierarchyStore,
       coordinateManager,
       debugStore,
+      inlineCreationStore,
     }
   }, [entityType, orgId, tableId, schemaRegistry])
 
@@ -270,6 +274,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.kanbanViewStore.dispose()
       stores.hierarchyStore.dispose()
       stores.debugStore.dispose()
+      stores.inlineCreationStore.dispose()
       // GH#1429 ML1: Dispose coordinateManager to clear listener subscriptions
       stores.coordinateManager.dispose()
     }
@@ -281,6 +286,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     stores.ganttViewStore.dispose,
     stores.hierarchyStore.dispose,
     stores.initStore.dispose,
+    stores.inlineCreationStore.dispose,
     stores.interactionStore.dispose,
     stores.kanbanViewStore.dispose,
     stores.persistenceStore.dispose, // Dispose ALL stores to clear timeouts and prevent memory leaks
@@ -385,6 +391,10 @@ export function useDebugStore(): DebugStore {
 
 export function useHierarchyStore(): HierarchyStore {
   return useVibeGridStores().hierarchyStore
+}
+
+export function useInlineCreationStore(): InlineCreationStore {
+  return useVibeGridStores().inlineCreationStore
 }
 
 /**

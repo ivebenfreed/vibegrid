@@ -26,6 +26,8 @@ import { DebugOverlay } from './components/DebugOverlay'
 import { FloatingActionsMenu } from './components/FloatingActionsMenu'
 // GH#1240: ExpandedContentPortals renders nested VibeGrid via React portals
 import { ExpandedContentPortals } from './components/ExpandedContentPortals'
+// GH#1658: Ghost rows for inline creation
+import { GhostRowPortal } from './components/GhostRowPortal'
 import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
@@ -173,6 +175,18 @@ interface VibeGridProps<_T = any> {
   // View picker (GH#1570 P2.3)
   /** Props for the saved views picker (replaces ButtonGroup when provided) */
   viewPickerProps?: Omit<ViewPickerProps, 'currentViewMode'>
+
+  // Inline creation (GH#1658)
+  /** Enable inline ghost row creation. Requires onInlineCreate. Default: false. */
+  enableInlineCreation?: boolean
+  /** Called when user commits an inline ghost row. Returns the created record's id. */
+  onInlineCreate?: (defaults: Record<string, unknown>) => Promise<string>
+  /**
+   * Called when a ghost row click triggers the escalation threshold (>3 required fields
+   * or relationship fields). The parent should open QuickCreatePanel with these inheritedFields.
+   * If not provided, escalation is silently ignored (ghost row does nothing).
+   */
+  onEscalate?: (groupId: string, inheritedFields: Record<string, unknown>) => void
 }
 
 // ====================================
@@ -230,6 +244,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onCopyLink,
     // View picker (GH#1570 P2.3)
     viewPickerProps,
+    // Inline creation (GH#1658)
+    enableInlineCreation = false,
+    onInlineCreate,
+    onEscalate,
   } = props
 
   // ====================================
@@ -248,6 +266,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     kanbanViewStore,
     hierarchyStore,
     debugStore,
+    inlineCreationStore,
   } = stores
 
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
@@ -1039,6 +1058,21 @@ function VibeGridInnerBase(props: VibeGridProps) {
           tableCoreStore={tableCoreStore}
           entityType={entityType}
           orgId={orgId}
+        />
+      )}
+
+      {/* GH#1658: Ghost rows for inline creation */}
+      {enableInlineCreation && (
+        <GhostRowPortal
+          containerRef={containerRef}
+          inlineCreationStore={inlineCreationStore}
+          tableCoreStore={tableCoreStore}
+          visualStateStore={visualStateStore}
+          interactionStore={interactionStore}
+          editingStore={editingStore}
+          entityDisplayName={entityDisplayName || entityType}
+          onInlineCreate={onInlineCreate}
+          onEscalate={onEscalate}
         />
       )}
 

@@ -1327,3 +1327,37 @@ body.vibegridx-dragging-active * {
 .vibegridx-actions-bar-button {
   white-space: nowrap;
 }
+
+/* Ghost Row - Inline Creation (GH#1658) */
+.vibegridx-ghost-row {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  cursor: pointer;
+  user-select: none;
+}
+
+.vibegridx-ghost-row--editing {
+  background: hsl(var(--primary) / 0.05);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  border-radius: 4px;
+  cursor: default;
+}
+
+.vibegridx-ghost-row--saving {
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.vibegridx-ghost-row--error {
+  background: hsl(var(--destructive) / 0.05);
+  border: 1px solid hsl(var(--destructive));
+  border-radius: 4px;
+}
+
+.vibegridx-ghost-cell {
+  flex: 1;
+  height: 100%;
+}
