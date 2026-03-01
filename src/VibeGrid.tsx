@@ -15,7 +15,7 @@ import { Download } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useDependencyCollection,
   useMembersCollection,
@@ -293,12 +293,21 @@ function VibeGridInnerBase(props: VibeGridProps) {
     collection,
     createEntity: _createEntity,
     updateEntity,
-    deleteEntity: _deleteEntity,
+    deleteEntity,
   } = useVibeGridData(entityType, tableCoreStore, visualStateStore, initStore, {
     skip: skipDataFetching,
     collectionOverride,
     systemPredicate,
   })
+
+  // Default bulk delete handler — falls back to internal deleteEntity when no onDelete prop provided
+  const effectiveOnDelete = useMemo(() => {
+    if (onDelete) return onDelete
+    if (!enableDelete) return undefined
+    return async (rowIds: string[]) => {
+      await Promise.all(rowIds.map((id) => deleteEntity(id)))
+    }
+  }, [onDelete, enableDelete, deleteEntity])
 
   // Load hierarchy relationships when hierarchy mode is enabled
   useVibeGridHierarchy({
@@ -991,7 +1000,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
               rowActions={enableExport ? effectiveRowActions : rowActions}
               onRowAction={enableExport ? handleRowAction : onRowAction}
               enableDelete={enableDelete}
-              onDelete={onDelete}
+              onDelete={effectiveOnDelete}
               deleteConfirmation={deleteConfirmation}
               getRowData={getRowData}
               isExportDisabled={enableExport ? tableCoreStore.isIncrementalProcessing : undefined}
@@ -1008,7 +1017,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
                 : undefined
             }
             enableDelete={enableDelete}
-            onDelete={onDelete ? (rowId, rowData) => onDelete([rowId], [rowData]) : undefined}
+            onDelete={
+              effectiveOnDelete
+                ? (rowId, rowData) => effectiveOnDelete([rowId], [rowData])
+                : undefined
+            }
             deleteConfirmation={
               deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined
             }

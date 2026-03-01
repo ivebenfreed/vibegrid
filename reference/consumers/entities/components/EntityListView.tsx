@@ -200,6 +200,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableFiltering={true}
         enableSorting={true}
         enableDragAndDrop={true}
+        enableDelete={true}
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
