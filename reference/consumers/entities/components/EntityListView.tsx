@@ -250,18 +250,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const schema = useEntitySchema(resolvedName)
   const [isTransitionPending, startTransition] = useTransition()
 
-  // Derive the primary navigable column — the field used as the entity's display name.
-  // Falls back through known name field candidates, then the first non-computed field.
-  const primaryNavColumn = useMemo(() => {
-    const fields = schema?.fields ?? []
-    const candidates = ['name', 'title', 'label', 'display_name']
-    return (
-      fields.find((f) => candidates.includes(f.name))?.name ??
-      fields.find((f) => !f.isComputed)?.name ??
-      'name'
-    )
-  }, [schema?.fields])
-
   const listResult = useStreamingEntityListData(resolvedName, {
     pagination: { pageIndex: 0, pageSize: 1000 },
     orderBy: 'created_at',
@@ -455,20 +443,19 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               entityName={entityName}
               orgId={orgId}
               hasUploadMode={hasUploadMode}
-              onCellClick={(rowId, columnId) => {
-                // Modern UX: Click primary display field to navigate to detail page
-                if (columnId === primaryNavColumn) {
-                  if (entityName === 'Document') {
-                    navigate({
-                      to: '/documents/$id',
-                      params: { id: rowId } as any,
-                    })
-                  } else {
-                    navigate({
-                      to: '/entities/$entityName/$id',
-                      params: { entityName, id: rowId } as any,
-                    })
-                  }
+              onCellClick={(rowId, _columnId) => {
+                // CellActionRouter only fires onCellClick for navigate-affordance cells,
+                // so navigate unconditionally — no column name check needed.
+                if (entityName === 'Document') {
+                  navigate({
+                    to: '/documents/$id',
+                    params: { id: rowId } as any,
+                  })
+                } else {
+                  navigate({
+                    to: '/entities/$entityName/$id',
+                    params: { entityName, id: rowId } as any,
+                  })
                 }
               }}
             />
