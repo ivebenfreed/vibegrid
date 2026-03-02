@@ -188,7 +188,9 @@ export const VibeForm = observer(function VibeForm({
       let requiredFields: { id: string }[]
 
       if (schema?.fields) {
-        requiredFields = schema.fields.filter((f: any) => f.required)
+        requiredFields = schema.fields
+          .filter((f: any) => f.required)
+          .map((f: any) => ({ id: f.fieldName || f.name }))
       } else {
         // Fall back to columns with required flag
         requiredFields = columns.filter((c) => c.required).map((c) => ({ id: c.id }))
