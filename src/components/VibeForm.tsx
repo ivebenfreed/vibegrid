@@ -71,6 +71,8 @@ export interface VibeFormProps {
   onGroupToggle?: (groupId: string, collapsed: boolean) => void
   /** TanStack DB collection for auto-save (passed from dialog context) */
   collection?: any
+  /** Callback fired on every field change (fieldId, value) */
+  onFieldChange?: (fieldId: string, value: any) => void
 }
 
 /**
@@ -102,6 +104,7 @@ export const VibeForm = observer(function VibeForm({
   groups,
   onGroupToggle,
   collection,
+  onFieldChange: onFieldChangeProp,
 }: VibeFormProps) {
   // ====================================
   // STORES
@@ -330,6 +333,8 @@ export const VibeForm = observer(function VibeForm({
     if (createFlow.mode === 'local') {
       handleAutoCreate(newValues)
     }
+
+    onFieldChangeProp?.(fieldId, value)
 
     logger.debug('Field changed', { fieldId, value, mode: createFlow.mode })
   }
