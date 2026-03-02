@@ -169,6 +169,16 @@ export const SingleColumnForm = observer(function SingleColumnForm({
             data-testid={`single-column-field-${fieldId}`}
             onClick={() => handleFieldClick(fieldId)}
             onKeyDown={(e) => {
+              // Don't intercept Space/Enter when the user is typing inside an editor
+              const target = e.target as HTMLElement
+              if (
+                target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.tagName === 'SELECT' ||
+                target.isContentEditable
+              ) {
+                return
+              }
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault()
                 handleFieldClick(fieldId)
