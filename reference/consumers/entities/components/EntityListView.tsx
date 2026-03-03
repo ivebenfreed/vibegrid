@@ -359,6 +359,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   }
 
   const rows = listResult.rows
+  const entityTitle = schema.displayName || EntityNameUtils.toDisplayFormat(schema.entityName)
 
   if (import.meta.env.DEV && rows.length) {
     logger.debug('Sample row loaded', { row: rows[0] })
@@ -435,9 +436,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         {/* Page Header with Actions */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {EntityNameUtils.toDisplayFormat(schema.entityName)}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">{entityTitle}</h1>
             <div className="flex items-center gap-2">
               <p className="text-sm text-muted-foreground">
                 {listResult.pagination.total}{' '}
@@ -459,6 +458,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           </div>
           <CreationModeButton
             entityName={schema.entityName}
+            displayName={entityTitle}
             creationModes={creationModes}
             onCreateForm={() =>
               startTransition(() => {
