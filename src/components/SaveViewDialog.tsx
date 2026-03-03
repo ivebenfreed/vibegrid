@@ -1,11 +1,12 @@
 /**
- * SaveViewDialog - Save/Rename Entity View Dialog (GH#1570)
+ * SaveViewDialog - Save/Rename Entity View Dialog (GH#1570, GH#1677 P2.3)
  *
  * Modal dialog for creating or editing a saved view.
- * Collects view name and visibility level.
+ * Collects view name, visibility level, and child entity tab configurations.
+ * Supports multiple child entity tabs (max 5).
  */
 
-import { ChevronDown, Loader2, XIcon } from 'lucide-react'
+import { ChevronDown, Loader2, PlusIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import {
@@ -34,6 +35,8 @@ import { getLogger } from '@/shared/lib/logging'
 
 const logger = getLogger(['vibegrid', 'components', 'SaveViewDialog'])
 
+const MAX_CHILD_TABS = 5
+
 // ====================================
 // TYPES
 // ====================================
@@ -53,18 +56,159 @@ export interface SaveViewDialogProps {
   onSave: (
     name: string,
     visibility: ViewVisibility,
-    childEntityConfig?: ChildEntityConfigInput,
+    childEntityTabs: ChildEntityConfigInput[],
   ) => Promise<void>
   /** Pre-filled name for "Save As" or edit mode */
   initialName?: string
   /** Pre-filled visibility for edit mode */
   initialVisibility?: ViewVisibility
-  /** Pre-filled child entity config for edit mode */
+  /** Pre-filled child entity tabs for edit mode (array) */
+  initialChildEntityTabs?: ChildEntityConfigInput[]
+  /** @deprecated Use initialChildEntityTabs instead. Single config for backward compat. */
   initialChildEntityConfig?: ChildEntityConfigInput
   /** Available entity schemas for the child entity picker */
   entitySchemas?: Array<{ entityName: string; label?: string }>
   /** Controls whether "locked" option is available */
   isAdmin: boolean
+}
+
+// ====================================
+// HELPERS
+// ====================================
+
+function createEmptyTabEntry(): ChildEntityConfigInput {
+  return { childEntityType: '', relationshipType: 'belongs_to', direction: 'incoming' }
+}
+
+/**
+ * Resolve initial tabs from props, supporting both array and single (legacy) shape.
+ */
+function resolveInitialTabs(
+  tabs?: ChildEntityConfigInput[],
+  single?: ChildEntityConfigInput,
+): ChildEntityConfigInput[] {
+  if (tabs && tabs.length > 0) return tabs
+  if (single) return [single]
+  return []
+}
+
+// ====================================
+// CHILD TAB ENTRY SUB-COMPONENT
+// ====================================
+
+interface ChildTabEntryProps {
+  index: number
+  entry: ChildEntityConfigInput
+  entitySchemas?: Array<{ entityName: string; label?: string }>
+  onUpdate: (index: number, entry: ChildEntityConfigInput) => void
+  onRemove: (index: number) => void
+}
+
+function ChildTabEntry({
+  index,
+  entry,
+  entitySchemas,
+  onUpdate,
+  onRemove,
+}: ChildTabEntryProps): React.ReactElement {
+  return (
+    <div className="space-y-2 rounded-md border p-3" data-testid={`child-tab-entry-${index}`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">Tab {index + 1}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+          onClick={() => onRemove(index)}
+          data-testid={`child-tab-remove-${index}`}
+        >
+          <XIcon className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Entity Type */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`child-entity-type-${index}`} className="text-xs">
+          Entity Type
+        </Label>
+        {entitySchemas && entitySchemas.length > 0 ? (
+          <Select
+            value={entry.childEntityType}
+            onValueChange={(val) => onUpdate(index, { ...entry, childEntityType: val })}
+          >
+            <SelectTrigger
+              id={`child-entity-type-${index}`}
+              data-testid={`child-entity-type-select-${index}`}
+            >
+              <SelectValue placeholder="Select entity type" />
+            </SelectTrigger>
+            <SelectContent>
+              {entitySchemas.map((s) => (
+                <SelectItem key={s.entityName} value={s.entityName}>
+                  {s.label || s.entityName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            id={`child-entity-type-${index}`}
+            value={entry.childEntityType}
+            onChange={(e) => onUpdate(index, { ...entry, childEntityType: e.target.value })}
+            placeholder="e.g., GCCOICoverage"
+            data-testid={`child-entity-type-input-${index}`}
+          />
+        )}
+      </div>
+
+      {/* Relationship Type */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`child-rel-type-${index}`} className="text-xs">
+          Relationship Type
+        </Label>
+        <Select
+          value={entry.relationshipType}
+          onValueChange={(val) => onUpdate(index, { ...entry, relationshipType: val })}
+        >
+          <SelectTrigger
+            id={`child-rel-type-${index}`}
+            data-testid={`child-rel-type-select-${index}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="belongs_to">belongs_to</SelectItem>
+            <SelectItem value="parent_child">parent_child</SelectItem>
+            <SelectItem value="related_to">related_to</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Direction */}
+      <div className="space-y-1.5">
+        <Label htmlFor={`child-direction-${index}`} className="text-xs">
+          Direction
+        </Label>
+        <Select
+          value={entry.direction}
+          onValueChange={(val) =>
+            onUpdate(index, { ...entry, direction: val as 'incoming' | 'outgoing' })
+          }
+        >
+          <SelectTrigger
+            id={`child-direction-${index}`}
+            data-testid={`child-direction-select-${index}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="incoming">Incoming (child is source)</SelectItem>
+            <SelectItem value="outgoing">Outgoing (child is target)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
 }
 
 // ====================================
@@ -78,6 +222,7 @@ export function SaveViewDialog({
   onSave,
   initialName = '',
   initialVisibility = 'personal',
+  initialChildEntityTabs,
   initialChildEntityConfig,
   entitySchemas,
   isAdmin,
@@ -87,17 +232,11 @@ export function SaveViewDialog({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Child entity config state (GH#1621)
-  const [childEntityType, setChildEntityType] = useState(
-    initialChildEntityConfig?.childEntityType ?? '',
+  // Child entity tabs state (GH#1677 P2.3)
+  const [childTabs, setChildTabs] = useState<ChildEntityConfigInput[]>(() =>
+    resolveInitialTabs(initialChildEntityTabs, initialChildEntityConfig),
   )
-  const [childRelType, setChildRelType] = useState(
-    initialChildEntityConfig?.relationshipType ?? 'belongs_to',
-  )
-  const [childDirection, setChildDirection] = useState<'incoming' | 'outgoing'>(
-    initialChildEntityConfig?.direction ?? 'incoming',
-  )
-  const [childSectionOpen, setChildSectionOpen] = useState(!!initialChildEntityConfig)
+  const [childSectionOpen, setChildSectionOpen] = useState(false)
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -106,12 +245,30 @@ export function SaveViewDialog({
       setVisibility(initialVisibility)
       setError(null)
       setIsSaving(false)
-      setChildEntityType(initialChildEntityConfig?.childEntityType ?? '')
-      setChildRelType(initialChildEntityConfig?.relationshipType ?? 'belongs_to')
-      setChildDirection(initialChildEntityConfig?.direction ?? 'incoming')
-      setChildSectionOpen(!!initialChildEntityConfig)
+      const resolved = resolveInitialTabs(initialChildEntityTabs, initialChildEntityConfig)
+      setChildTabs(resolved)
+      setChildSectionOpen(resolved.length > 0)
     }
-  }, [open, initialName, initialVisibility, initialChildEntityConfig])
+  }, [open, initialName, initialVisibility, initialChildEntityTabs, initialChildEntityConfig])
+
+  const handleUpdateTab = useCallback((index: number, entry: ChildEntityConfigInput) => {
+    setChildTabs((prev) => {
+      const next = [...prev]
+      next[index] = entry
+      return next
+    })
+  }, [])
+
+  const handleRemoveTab = useCallback((index: number) => {
+    setChildTabs((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const handleAddTab = useCallback(() => {
+    setChildTabs((prev) => {
+      if (prev.length >= MAX_CHILD_TABS) return prev
+      return [...prev, createEmptyTabEntry()]
+    })
+  }, [])
 
   const handleSave = useCallback(async () => {
     const trimmedName = name.trim()
@@ -127,17 +284,11 @@ export function SaveViewDialog({
     setError(null)
     setIsSaving(true)
 
-    // Build child entity config if specified
-    const childConfig = childEntityType.trim()
-      ? {
-          childEntityType: childEntityType.trim(),
-          relationshipType: childRelType,
-          direction: childDirection,
-        }
-      : undefined
+    // Filter out entries with empty entity type
+    const validTabs = childTabs.filter((tab) => tab.childEntityType.trim())
 
     try {
-      await onSave(trimmedName, visibility, childConfig)
+      await onSave(trimmedName, visibility, validTabs)
       onOpenChange(false)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save view'
@@ -146,7 +297,7 @@ export function SaveViewDialog({
     } finally {
       setIsSaving(false)
     }
-  }, [name, visibility, childEntityType, childRelType, childDirection, onSave, onOpenChange])
+  }, [name, visibility, childTabs, onSave, onOpenChange])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -232,96 +383,50 @@ export function SaveViewDialog({
             </RadioGroup>
           </div>
 
-          {/* Child Entity Section (GH#1621) - optional */}
+          {/* Child Entity Tabs (GH#1677 P2.3) - optional */}
           <Collapsible open={childSectionOpen} onOpenChange={setChildSectionOpen}>
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/50">
-              <span className="font-medium">Child Entity Section (optional)</span>
+              <span className="font-medium">
+                Child Entity Tabs (optional)
+                {childTabs.length > 0 && (
+                  <span className="ml-1.5 text-xs text-muted-foreground">({childTabs.length})</span>
+                )}
+              </span>
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${childSectionOpen ? 'rotate-180' : ''}`}
               />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-3">
-              {/* Entity Type */}
-              <div className="space-y-1.5">
-                <Label htmlFor="child-entity-type" className="text-xs">
-                  Entity Type
-                </Label>
-                {entitySchemas && entitySchemas.length > 0 ? (
-                  <Select value={childEntityType} onValueChange={setChildEntityType}>
-                    <SelectTrigger id="child-entity-type" data-testid="child-entity-type-select">
-                      <SelectValue placeholder="Select entity type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {entitySchemas.map((s) => (
-                        <SelectItem key={s.entityName} value={s.entityName}>
-                          {s.label || s.entityName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    id="child-entity-type"
-                    value={childEntityType}
-                    onChange={(e) => setChildEntityType(e.target.value)}
-                    placeholder="e.g., GCCOICoverage"
-                    data-testid="child-entity-type-input"
-                  />
+              {/* List of tab entries */}
+              {childTabs.map((entry, index) => (
+                <ChildTabEntry
+                  key={`child-tab-${
+                    // biome-ignore lint/suspicious/noArrayIndexKey: stable list with add/remove only
+                    index
+                  }`}
+                  index={index}
+                  entry={entry}
+                  entitySchemas={entitySchemas}
+                  onUpdate={handleUpdateTab}
+                  onRemove={handleRemoveTab}
+                />
+              ))}
+
+              {/* Add button */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={handleAddTab}
+                disabled={childTabs.length >= MAX_CHILD_TABS}
+                data-testid="child-tab-add"
+              >
+                <PlusIcon className="h-3.5 w-3.5 mr-1" />
+                Add child tab
+                {childTabs.length >= MAX_CHILD_TABS && (
+                  <span className="ml-1 text-muted-foreground">(max {MAX_CHILD_TABS})</span>
                 )}
-              </div>
-
-              {/* Relationship Type */}
-              <div className="space-y-1.5">
-                <Label htmlFor="child-rel-type" className="text-xs">
-                  Relationship Type
-                </Label>
-                <Select value={childRelType} onValueChange={setChildRelType}>
-                  <SelectTrigger id="child-rel-type" data-testid="child-rel-type-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="belongs_to">belongs_to</SelectItem>
-                    <SelectItem value="parent_child">parent_child</SelectItem>
-                    <SelectItem value="related_to">related_to</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Direction */}
-              <div className="space-y-1.5">
-                <Label htmlFor="child-direction" className="text-xs">
-                  Direction
-                </Label>
-                <Select
-                  value={childDirection}
-                  onValueChange={(val) => setChildDirection(val as 'incoming' | 'outgoing')}
-                >
-                  <SelectTrigger id="child-direction" data-testid="child-direction-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="incoming">Incoming (child is source)</SelectItem>
-                    <SelectItem value="outgoing">Outgoing (child is target)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Clear button */}
-              {childEntityType && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground"
-                  onClick={() => {
-                    setChildEntityType('')
-                    setChildRelType('belongs_to')
-                    setChildDirection('incoming')
-                  }}
-                >
-                  <XIcon className="h-3 w-3 mr-1" />
-                  Remove child section
-                </Button>
-              )}
+              </Button>
             </CollapsibleContent>
           </Collapsible>
         </div>

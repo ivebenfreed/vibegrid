@@ -108,11 +108,11 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     async (
       name: string,
       visibility: ViewVisibility,
-      childEntityConfig?: {
+      childEntityTabs: Array<{
         childEntityType: string
         relationshipType: string
         direction: 'incoming' | 'outgoing'
-      },
+      }>,
     ) => {
       const { visualStateStore, viewModeStore } = stores
 
@@ -131,8 +131,10 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         viewMode: viewModeStore.mode,
         globalSearchText: visualStateStore.globalSearchText,
         columnVisibility: { ...visualStateStore.columnVisibility },
-        // GH#1621: Include child entity config if provided
-        ...(childEntityConfig ? { childEntityConfig } : {}),
+        // GH#1677 P2.3: Include child entity tabs array
+        ...(childEntityTabs.length > 0 ? { childEntityTabs } : {}),
+        // Keep legacy childEntityConfig for backward compat with existing views
+        ...(childEntityTabs.length === 1 ? { childEntityConfig: childEntityTabs[0] } : {}),
       }
 
       await orpcClient.dataforge.views.create({
