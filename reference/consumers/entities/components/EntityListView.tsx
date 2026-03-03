@@ -13,21 +13,15 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { AlertTriangle, Eye, Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from '@/shared/components/ui/dialog'
 import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
@@ -36,13 +30,10 @@ import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
-import type { RowAction } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
-import { COIReviewPanel } from '@/features/coi/components/COIReviewPanel'
-import { coiStore } from '@/features/coi/stores/COIStore'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
 import { CreationModeButton } from './CreationModeButton'
@@ -66,7 +57,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   entityName,
   orgId,
   onCellClick,
-  hasUploadMode,
   enableInlineCreation,
   onInlineCreate,
   onEscalate,
@@ -74,7 +64,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   entityName: string
   orgId: string
   onCellClick: (rowId: string, columnId: string) => void
-  hasUploadMode: boolean
   enableInlineCreation: boolean
   onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
@@ -158,62 +147,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     [entityName, stores],
   )
 
-  // Review bulk action — available for any uploaded entity.
-  // Opens COI review panel in a full-screen dialog for side-by-side PDF + data review.
-  const reviewRowActions = useMemo<RowAction[]>(
-    () =>
-      hasUploadMode
-        ? [
-            {
-              id: 'review',
-              label: 'Review',
-              icon: Eye,
-            },
-          ]
-        : [],
-    [hasUploadMode],
-  )
-
-  // COI Review Panel state — batch review of selected entities
-  const [isReviewPanelOpen, setIsReviewPanelOpen] = useState(false)
-  const [reviewCoiIds, setReviewCoiIds] = useState<string[]>([])
-  const [currentReviewIndex, setCurrentReviewIndex] = useState(0)
-
-  // Handle Review bulk action — open COI review panel for selected entities.
-  const handleReviewAction = useCallback(
-    async (actionId: string, rowIds: string[], _rowsData: any[]) => {
-      if (actionId !== 'review' || rowIds.length === 0) return
-      setReviewCoiIds(rowIds)
-      setCurrentReviewIndex(0)
-      await coiStore.loadCOI(rowIds[0])
-      setIsReviewPanelOpen(true)
-    },
-    [],
-  )
-
-  // Navigate to next/previous COI in the batch
-  const handleReviewNext = useCallback(async () => {
-    const nextIndex = currentReviewIndex + 1
-    if (nextIndex < reviewCoiIds.length) {
-      setCurrentReviewIndex(nextIndex)
-      await coiStore.loadCOI(reviewCoiIds[nextIndex])
-    }
-  }, [currentReviewIndex, reviewCoiIds])
-
-  const handleReviewPrevious = useCallback(async () => {
-    const prevIndex = currentReviewIndex - 1
-    if (prevIndex >= 0) {
-      setCurrentReviewIndex(prevIndex)
-      await coiStore.loadCOI(reviewCoiIds[prevIndex])
-    }
-  }, [currentReviewIndex, reviewCoiIds])
-
-  const handleReviewClose = useCallback(() => {
-    setIsReviewPanelOpen(false)
-    setReviewCoiIds([])
-    setCurrentReviewIndex(0)
-  }, [])
-
   const viewPickerProps = {
     entityType: entityName,
     orgId,
@@ -245,45 +178,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
-        rowActions={hasUploadMode && reviewRowActions.length > 0 ? reviewRowActions : undefined}
-        onRowAction={hasUploadMode ? handleReviewAction : undefined}
       />
       <ReorderConfirmationDialog />
-
-      {/* COI Review Panel Dialog — full-screen side-by-side PDF + data review */}
-      <Dialog open={isReviewPanelOpen} onOpenChange={setIsReviewPanelOpen}>
-        <DialogContent
-          className="!fixed !inset-2 !w-[calc(100vw-1rem)] !max-w-none !h-[calc(100vh-1rem)] !translate-x-0 !translate-y-0 !top-2 !left-2 p-0 overflow-hidden flex flex-col"
-          showCloseButton={false}
-        >
-          <DialogTitle className="sr-only">Review Uploaded Document</DialogTitle>
-          <DialogDescription className="sr-only">
-            Review and approve or reject the uploaded document's extracted data.
-          </DialogDescription>
-          {coiStore.selectedCOI && (
-            <COIReviewPanel
-              coi={coiStore.selectedCOI}
-              onClose={handleReviewClose}
-              onApprove={() => {
-                if (currentReviewIndex < reviewCoiIds.length - 1) {
-                  handleReviewNext()
-                } else {
-                  handleReviewClose()
-                }
-              }}
-              onReopen={() => {
-                coiStore.loadCOI(reviewCoiIds[currentReviewIndex])
-              }}
-              onNext={handleReviewNext}
-              onPrevious={handleReviewPrevious}
-              canGoNext={currentReviewIndex < reviewCoiIds.length - 1}
-              canGoPrevious={currentReviewIndex > 0}
-              currentIndex={currentReviewIndex}
-              totalCount={reviewCoiIds.length}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* SaveViewDialog (GH#1570 P2.3) */}
       <SaveViewDialog
@@ -580,7 +476,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             <EntityListViewUrlSync
               entityName={entityName}
               orgId={orgId}
-              hasUploadMode={hasUploadMode}
               enableInlineCreation={isInlineCreationEnabled}
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
