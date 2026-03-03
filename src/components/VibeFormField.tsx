@@ -5,13 +5,23 @@
  * - View mode: renders value via modularCellBridge (same renderers as the grid)
  * - Click: enters edit mode showing the VibeGrid overlay editor
  * - Commit/Cancel: saves via collection.update() and returns to view mode
+ *
+ * Editing rendering strategy is driven by the field type's affordance group:
+ * - editable-badge (select, date, relationship, …) → React portal below the field
+ * - editable-content / other → inline inside the container
+ *
+ * By the time VibeForm renders this component, fieldTypeRegistry is guaranteed
+ * initialized (VibeForm calls ensureInitialized() and waits for registryReady).
  */
 
 import { observer } from 'mobx-react-lite'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Column } from '../types'
 import type { CellRef } from '../types/coordinate-types'
 import { createEditor } from '../overlays/editors'
+import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
+import type { EnhancedColumn } from '../field-types/FieldTypeRegistry'
 import { FormFieldValue } from './FormFieldValue'
 import { getLogger } from '@/shared/lib/logging'
 import './VibeFormField.css'
@@ -42,6 +52,27 @@ export interface VibeFormFieldProps {
 }
 
 // ====================================
+// HELPERS
+// ====================================
+
+/**
+ * Determine whether the editor for this column should open as a portal
+ * (positioned below the field) rather than rendering inline.
+ *
+ * Reads from fieldTypeRegistry — no hardcoded lists.
+ * 'editable-badge' affordance group means dropdown/picker → needs portal.
+ */
+function useNeedsPortal(column: Column): boolean {
+  if (!fieldTypeRegistry.isInitialized) return false
+  try {
+    const fieldType = fieldTypeRegistry.getFieldType(column as EnhancedColumn)
+    return fieldType.affordance?.group === 'editable-badge'
+  } catch {
+    return false
+  }
+}
+
+// ====================================
 // COMPONENT
 // ====================================
 
@@ -58,6 +89,12 @@ export const VibeFormField = observer(function VibeFormField({
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [portalStyle, setPortalStyle] = useState<React.CSSProperties>({})
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
+
+  const isPortalEditor = useNeedsPortal(column)
 
   // ====================================
   // COMMIT (VALIDATE + AUTO-SAVE)
@@ -109,8 +146,45 @@ export const VibeFormField = observer(function VibeFormField({
   }, [])
 
   const handleActivate = useCallback(() => {
-    if (!isEditing) setIsEditing(true)
-  }, [isEditing])
+    if (isEditing) return
+
+    if (isPortalEditor && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const maxHeight = 320
+      const spaceBelow = window.innerHeight - rect.bottom - 8
+
+      const top =
+        spaceBelow >= Math.min(maxHeight, 180)
+          ? rect.bottom + 4
+          : Math.max(8, rect.top - maxHeight - 4)
+
+      setPortalStyle({
+        position: 'fixed',
+        top,
+        left: rect.left,
+        width: Math.max(rect.width, 280),
+        zIndex: 9999,
+        maxHeight,
+      })
+    }
+
+    setIsEditing(true)
+  }, [isEditing, isPortalEditor])
+
+  // Click-outside: cancel when clicking outside both field container and portal
+  useEffect(() => {
+    if (!isEditing || !isPortalEditor) return
+
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (portalRef.current?.contains(target)) return
+      handleCancel()
+    }
+
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
+  }, [isEditing, isPortalEditor, handleCancel])
 
   // ====================================
   // RENDER
@@ -132,6 +206,7 @@ export const VibeFormField = observer(function VibeFormField({
       {/* Cell container — same visual appearance as a VibeGrid cell */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: field cell needs click handler */}
       <div
+        ref={containerRef}
         className={`vibe-form-field-editor-container ${isEditing ? 'vibe-form-field-editor-container--editing' : ''}`}
         onClick={handleActivate}
         onKeyDown={(e) => {
@@ -143,8 +218,8 @@ export const VibeFormField = observer(function VibeFormField({
         tabIndex={isEditing ? -1 : 0}
         role={isEditing ? undefined : 'button'}
       >
-        {isEditing ? (
-          // Edit mode: VibeGrid overlay editor (TextEditor, SelectEditor, DateEditor, etc.)
+        {isEditing && !isPortalEditor ? (
+          // Inline edit mode: text/number/boolean editors that fit inside the container
           createEditor({
             cell,
             column,
@@ -153,7 +228,7 @@ export const VibeFormField = observer(function VibeFormField({
             onCancel: handleCancel,
           })
         ) : (
-          // View mode: VibeGrid cell renderer via modularCellBridge (same as grid cells)
+          // View mode — always shown for portal editors so layout stays stable
           <FormFieldValue
             fieldId={fieldId}
             value={value}
@@ -165,6 +240,29 @@ export const VibeFormField = observer(function VibeFormField({
           />
         )}
       </div>
+
+      {/* Portal-based popup editor for editable-badge field types (select, date, relationship…).
+          Renders into document.body so the dropdown never expands the property sheet layout. */}
+      {isEditing &&
+        isPortalEditor &&
+        createPortal(
+          // biome-ignore lint/a11y/noStaticElementInteractions: onMouseDown stops propagation to click-outside handler
+          <div
+            ref={portalRef}
+            className="vibe-form-field-popup-portal"
+            style={portalStyle}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {createEditor({
+              cell,
+              column,
+              initialValue: value,
+              onCommit: handleCommit,
+              onCancel: handleCancel,
+            })}
+          </div>,
+          document.body,
+        )}
 
       {/* Save indicator */}
       {isSaving && (

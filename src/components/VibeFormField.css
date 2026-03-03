@@ -130,6 +130,18 @@
   margin-top: 0.25rem;
 }
 
+/* Portal popup for dropdown/calendar/relationship editors.
+ * Rendered into document.body via React portal — never affects layout. */
+.vibe-form-field-popup-portal {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: auto;
+}
+
 /* Spinner animation */
 @keyframes vibe-form-field-spin {
   from {
