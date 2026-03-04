@@ -64,6 +64,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onInlineCreate,
   onEscalate,
   onOpenReview,
+  hasUploadMode,
 }: {
   entityName: string
   orgId: string
@@ -72,6 +73,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
   onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
+  hasUploadMode: boolean
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -172,7 +174,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     id: 'review-selected',
     label: 'Review',
     icon: ClipboardCheck,
-    hidden: (rowData: any) => rowData.creation_source !== 'upload',
+    hidden: () => !hasUploadMode,
   }
 
   return (
@@ -517,6 +519,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
+              hasUploadMode={hasUploadMode}
               onCellClick={(rowId, _columnId) => {
                 // CellActionRouter only fires onCellClick for navigate-affordance cells,
                 // so navigate unconditionally — no column name check needed.
