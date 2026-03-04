@@ -592,7 +592,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         open={reviewSheetOpen}
         onClose={() => setReviewSheetOpen(false)}
         entityQueue={reviewQueue}
-        entityTypeName={entityTitle}
+        entityTypeName={schema.entityName}
       />
     </>
   )
