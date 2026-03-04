@@ -284,8 +284,11 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     ? uploadStore.reviewRequiredCount
     : reviewQueueResult.total
 
-  const handleOpenReview = useCallback((_rowIds: string[], rowsData: EntityRecord[]) => {
-    setReviewQueue(rowsData)
+  const handleOpenReview = useCallback((_rowIds: string[], rowsData: any[]) => {
+    // VibeGrid processedRows wrap entities in VirtualRow: { type, id, index, height, data: entityRecord }
+    // Extract the actual entity records before populating the review queue
+    const entities = rowsData.map((row) => (row?.data ?? row) as EntityRecord)
+    setReviewQueue(entities)
     setReviewSessionId((n) => n + 1)
     setReviewSheetOpen(true)
   }, [])
