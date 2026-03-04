@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Loader2 } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -29,7 +29,10 @@ import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
-import { VibeGrid } from '@/systems/vibegrid'
+import { EntityReviewSheet } from '@/features/entity-review/components/EntityReviewSheet'
+import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
+import type { EntityRecord } from '@/shared/types/dataforge'
+import { VibeGrid, type RowAction } from '@/systems/vibegrid'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
@@ -60,6 +63,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   enableInlineCreation,
   onInlineCreate,
   onEscalate,
+  onOpenReview,
 }: {
   entityName: string
   orgId: string
@@ -67,6 +71,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   enableInlineCreation: boolean
   onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
+  onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -162,6 +167,14 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     userRole,
   }
 
+  // GH#1534: Review action for entities with extraction_metadata
+  const reviewAction: RowAction = {
+    id: 'review-selected',
+    label: 'Review',
+    icon: ClipboardCheck,
+    hidden: (rowData: any) => rowData.creation_source !== 'upload',
+  }
+
   return (
     <>
       <VibeGrid
@@ -180,6 +193,12 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
+        rowActions={[reviewAction]}
+        onRowAction={(actionId, rowIds, rowsData) => {
+          if (actionId === 'review-selected') {
+            onOpenReview(rowIds, rowsData)
+          }
+        }}
       />
       <ReorderConfirmationDialog />
 
@@ -251,6 +270,23 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
     enabled: hasUploadMode,
   })
+
+  // GH#1534: Entity review queue state
+  const [reviewSheetOpen, setReviewSheetOpen] = useState(false)
+  const [reviewQueue, setReviewQueue] = useState<EntityRecord[]>([])
+  // reviewSessionId forces EntityReviewSheet remount on each open, preventing stale queue
+  const [reviewSessionId, setReviewSessionId] = useState(0)
+  const reviewQueueResult = useReviewQueue(resolvedName, orgId || null)
+  // Use backend count when loaded; fall back to upload store count while loading
+  const reviewCount = reviewQueueResult.isLoading
+    ? uploadStore.reviewRequiredCount
+    : reviewQueueResult.total
+
+  const handleOpenReview = useCallback((_rowIds: string[], rowsData: EntityRecord[]) => {
+    setReviewQueue(rowsData)
+    setReviewSessionId((n) => n + 1)
+    setReviewSheetOpen(true)
+  }, [])
 
   // GH#1658: Inline creation via ghost rows
   const featureFlags = useFeatureFlags()
@@ -423,14 +459,13 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         {/* Breadcrumbs */}
         <EntityBreadcrumbs entityName={schema.entityName} />
 
-        {/* Review queue banner — entities appear in the grid with a Review action in the bulk toolbar */}
-        {uploadStore.reviewRequiredCount > 0 && (
+        {/* Review queue banner — GH#1534: reviewCount uses backend count when loaded, upload store count while loading */}
+        {reviewCount > 0 && (
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
             <AlertDescription>
-              {uploadStore.reviewRequiredCount} uploaded{' '}
-              {uploadStore.reviewRequiredCount === 1 ? 'record' : 'records'} need review — select
-              them in the grid below and click Review
+              {reviewCount} {reviewCount === 1 ? 'record' : 'records'} need review — select them in
+              the grid below and click Review
             </AlertDescription>
           </Alert>
         )}
@@ -481,6 +516,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               enableInlineCreation={isInlineCreationEnabled}
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
+              onOpenReview={handleOpenReview}
               onCellClick={(rowId, _columnId) => {
                 // CellActionRouter only fires onCellClick for navigate-affordance cells,
                 // so navigate unconditionally — no column name check needed.
@@ -545,6 +581,17 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           isPageLevel={true}
         />
       )}
+
+      {/* Entity Review Sheet — GH#1534 */}
+      {/* key={reviewSessionId} forces remount on each open, preventing stale queue */}
+      <EntityReviewSheet
+        key={reviewSessionId}
+        open={reviewSheetOpen}
+        onClose={() => setReviewSheetOpen(false)}
+        entityQueue={reviewQueue}
+        entityTypeName={entityTitle}
+        schema={undefined}
+      />
     </>
   )
 })
