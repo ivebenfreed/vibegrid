@@ -48,6 +48,7 @@ import { EntityListError } from './EntityListError'
 import { EntityListSkeleton } from './EntityListSkeleton'
 import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
+import { ComplianceSummaryBanner } from './ComplianceSummaryBanner'
 import { QuickCreatePanel } from './QuickCreatePanel'
 
 const logger = getLogger(['entity', 'EntityListView'])
@@ -179,6 +180,9 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 
   return (
     <>
+      {/* GH#1693: Compliance summary banner for COI entity type */}
+      {entityName === 'GCCertificateOfInsurance' && <ComplianceSummaryBanner />}
+
       <VibeGrid
         tableId={`entity-list-${entityName}`}
         entityType={entityName}

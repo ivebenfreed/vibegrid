@@ -77,6 +77,7 @@ export const COLUMN_DEFAULTS: Record<
   rollup_concat: { width: 200, minWidth: 150, maxWidth: 400 },
   computed_expression: { width: 150, minWidth: 120, maxWidth: 300 },
   computed_formula: { width: 150, minWidth: 120, maxWidth: 300 },
+  computed_decision_table: { width: 160, minWidth: 120, maxWidth: 250 },
 
   // COI-specific types (GH#1236)
   'currency-abbreviated': { width: 100, minWidth: 80, maxWidth: 150 },

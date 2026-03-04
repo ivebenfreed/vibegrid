@@ -165,6 +165,18 @@ export function evaluateCondition(row: any, condition: FilterCondition): boolean
         return false
       }
 
+    case 'decision_status': {
+      // Filter computed_decision_table fields by pass/fail/pending status
+      const dtValue = value as { passed?: boolean | null } | null | undefined
+      if (!dtValue || dtValue.passed === null || dtValue.passed === undefined) {
+        return filterValue === 'pending'
+      }
+      if (filterValue === 'pass') return dtValue.passed === true
+      if (filterValue === 'fail') return dtValue.passed === false
+      if (filterValue === 'pending') return false // Already handled above
+      return false
+    }
+
     default:
       // Unknown operator - default to pass
       return true

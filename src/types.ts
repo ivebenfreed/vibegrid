@@ -347,6 +347,7 @@ export type FilterOperator =
   | 'in'
   | 'not_in'
   | 'regex'
+  | 'decision_status'
 
 export interface GroupNode {
   id: string

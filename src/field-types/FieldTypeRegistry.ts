@@ -341,6 +341,7 @@ export class FieldTypeRegistry {
 
         // Computed types
         import('./implementations/computed/ComputedFieldTypes'),
+        import('./implementations/computed/ComputedDecisionTableFieldType'),
       ])
 
       this._initialized = true
@@ -533,7 +534,7 @@ export function isRollupField(column: EnhancedColumn): boolean {
 }
 
 export function isComputedField(column: EnhancedColumn): boolean {
-  const computedTypes = ['computed_expression', 'computed_formula']
+  const computedTypes = ['computed_expression', 'computed_formula', 'computed_decision_table']
   const type = column.cellType || column.type || ''
   return computedTypes.includes(type)
 }

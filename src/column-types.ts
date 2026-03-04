@@ -132,6 +132,7 @@ export type CellType =
   | 'rollup_concat'
   | 'computed_expression'
   | 'computed_formula'
+  | 'computed_decision_table'
   // COI-specific types (GH#1236)
   | 'currency-abbreviated'
   | 'additional-insured'

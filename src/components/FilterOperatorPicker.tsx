@@ -64,6 +64,8 @@ const RELATIONSHIP_OPERATORS = [
   'is_not_empty',
 ] as const
 
+const DECISION_TABLE_OPERATORS = ['decision_status', 'is_empty', 'is_not_empty'] as const
+
 // ====================================
 // OPERATOR HELPER FUNCTION
 // ====================================
@@ -110,6 +112,10 @@ export function getOperatorsForFieldType(cellType: string): FilterOperator[] {
     case 'entity_reference':
       return [...RELATIONSHIP_OPERATORS]
 
+    // Computed decision table types
+    case 'computed_decision_table':
+      return [...DECISION_TABLE_OPERATORS]
+
     // Default to text operators for unknown types
     default:
       return [...TEXT_OPERATORS]
@@ -135,6 +141,7 @@ const OPERATOR_LABELS: Record<string, string> = {
   in: 'is any of',
   not_in: 'is none of',
   regex: 'matches regex',
+  decision_status: 'decision status is',
 }
 
 // ====================================
