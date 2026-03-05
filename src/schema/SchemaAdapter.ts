@@ -39,6 +39,7 @@ export interface FieldSchema {
 /**
  * Schema Adapter for enhancing columns with backend metadata
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Legacy class structure used across codebase
 export class SchemaAdapter {
   /**
    * Enhance columns with backend schema metadata
@@ -137,7 +138,7 @@ export class SchemaAdapter {
    * Check if column is a computed field
    */
   static isComputedField(column: Column): boolean {
-    const computedTypes = ['computed_expression', 'computed_formula']
+    const computedTypes = ['computed_expression', 'computed_formula', 'computed_decision_table']
     const type = column.cellType || column.type || ''
     return computedTypes.includes(type)
   }

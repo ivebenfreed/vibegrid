@@ -153,7 +153,105 @@ export const ComputedFormulaFieldType: VibeGridFieldType = {
   },
 }
 
+/**
+ * Renderer for computed_decision_table fields.
+ * Displays a status badge (pass/fail/pending) with score.
+ */
+export class ComputedDecisionTableRenderer implements CellRenderer {
+  render(value: any, _column: EnhancedColumn, _rowData: any): HTMLElement {
+    const container = document.createElement('div')
+    container.className = 'vibegridx-cell-decision-table'
+    container.style.cssText = 'display: flex; align-items: center; gap: 6px;'
+
+    if (!value || typeof value !== 'object') {
+      const badge = document.createElement('span')
+      badge.textContent = '\u2014'
+      badge.style.cssText = 'color: #9ca3af; font-size: 12px;'
+      container.appendChild(badge)
+      return container
+    }
+
+    const { status, score, violations } = value as {
+      status: string
+      score: number
+      violations: string[]
+    }
+
+    const badge = document.createElement('span')
+    const badgeBase =
+      'display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap;'
+
+    if (status === 'pass') {
+      badge.style.cssText = `${badgeBase} background-color: #dcfce7; color: #15803d;`
+      badge.textContent = '\u2713 pass'
+    } else if (status === 'fail') {
+      badge.style.cssText = `${badgeBase} background-color: #fee2e2; color: #b91c1c;`
+      badge.textContent = '\u2717 fail'
+    } else {
+      badge.style.cssText = `${badgeBase} background-color: #f3f4f6; color: #6b7280;`
+      badge.textContent = '\u2014 pending'
+    }
+
+    container.appendChild(badge)
+
+    if (typeof score === 'number' && status !== 'pending') {
+      const scoreSpan = document.createElement('span')
+      scoreSpan.textContent = `${Math.round(score)}`
+      scoreSpan.style.cssText =
+        'font-size: 11px; color: #6b7280; font-variant-numeric: tabular-nums;'
+      scoreSpan.title = violations?.length
+        ? `Violations:\n${violations.join('\n')}`
+        : `Score: ${Math.round(score)}`
+      container.appendChild(scoreSpan)
+    }
+
+    if (violations?.length > 0) {
+      container.title = violations.join('\n')
+    }
+
+    return container
+  }
+
+  update(element: HTMLElement, value: any, column: EnhancedColumn): void {
+    const newEl = this.render(value, column, null)
+    element.innerHTML = newEl.innerHTML
+    element.style.cssText = newEl.style.cssText
+    element.title = newEl.title
+  }
+
+  canHandle(column: EnhancedColumn): boolean {
+    const type = column.cellType || column.type || ''
+    return type === 'computed_decision_table'
+  }
+}
+
+export const ComputedDecisionTableFieldType: VibeGridFieldType = {
+  type: 'computed_decision_table',
+  category: 'computed',
+  renderer: new ComputedDecisionTableRenderer(),
+  editor: new ComputedEditor(),
+  formatter: new (class implements CellFormatter {
+    format(value: any): string {
+      if (!value || typeof value !== 'object') return '\u2014'
+      const { status, score } = value as { status: string; score: number }
+      return `${status} (${Math.round(score ?? 0)})`
+    }
+    parse(): any {
+      return null
+    }
+  })(),
+  metadata: {
+    supportsSorting: false,
+    supportsFiltering: true,
+    supportsGrouping: false,
+    isCalculatedField: true,
+    isReadOnly: true,
+    hasRichDisplay: true,
+  },
+}
+
 import { fieldTypeRegistry } from '../../FieldTypeRegistry'
 
 fieldTypeRegistry.register('computed_expression', ComputedExpressionFieldType)
 fieldTypeRegistry.register('computed_formula', ComputedFormulaFieldType)
+fieldTypeRegistry.register('computed_decision_table', ComputedDecisionTableFieldType)
