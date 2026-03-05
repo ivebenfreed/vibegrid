@@ -32,7 +32,8 @@ function makeSchemaRegistry(fields: object[]) {
     schemas: {
       byName: {
         TestEntity: {
-          allFields: Object.fromEntries((fields as any[]).map((f) => [f.name, f])),
+          // GH#1699: Use unified 'fields' array
+          fields: fields,
         },
       },
     },

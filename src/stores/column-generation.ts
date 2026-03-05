@@ -349,38 +349,30 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     return getBasicColumns<T>()
   }
 
-  // Extract fields from schema - Universe schema uses 'allFields' as an object, not array
-  let schemaFields = entitySchema.fields || entitySchema.allFields || []
+  // GH#1699: Read only from unified 'fields' key
+  let schemaFields = entitySchema.fields || []
 
-  // Convert allFields object to array if needed
+  // Handle object format (convert to array if needed)
   if (schemaFields && typeof schemaFields === 'object' && !Array.isArray(schemaFields)) {
     schemaFields = Object.values(schemaFields)
   }
 
-  // DEBUG: Log the actual entity schema structure to understand the issue
-  fileLog.debug('🔍 [SCHEMA-DEBUG] Entity schema fields found', {
+  fileLog.debug('[SCHEMA-DEBUG] Entity schema fields found', {
     entityType,
-    hasAllFields: !!entitySchema.allFields,
-    allFieldsLength: entitySchema.allFields?.length,
     hasFields: !!entitySchema.fields,
     fieldsLength: entitySchema.fields?.length,
-    usingAllFields: !!entitySchema.allFields,
     schemaFieldsLength: schemaFields?.length,
     allSchemaKeys: Object.keys(entitySchema || {}),
   })
 
   if (!Array.isArray(schemaFields) || schemaFields.length === 0) {
-    // ENHANCED DEBUG: Show what we actually got
-    fileLog.warn('❌ No fields found in entity schema - Enhanced Debug', {
+    fileLog.warn('No fields found in entity schema', {
       entityType,
       schemaFields,
       schemaFieldsType: typeof schemaFields,
       schemaFieldsIsArray: Array.isArray(schemaFields),
       schemaFieldsLength: schemaFields?.length,
       entitySchemaKeys: Object.keys(entitySchema || {}),
-      allFieldsRaw: entitySchema.allFields,
-      allFieldsType: typeof entitySchema.allFields,
-      allFieldsKeys: entitySchema.allFields ? Object.keys(entitySchema.allFields) : 'no allFields',
     })
     return getBasicColumns<T>()
   }
