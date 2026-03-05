@@ -350,7 +350,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
   }
 
   // Extract fields from schema - Universe schema uses 'allFields' as an object, not array
-  let schemaFields = entitySchema.allFields || entitySchema.fields || []
+  let schemaFields = entitySchema.fields || entitySchema.allFields || []
 
   // Convert allFields object to array if needed
   if (schemaFields && typeof schemaFields === 'object' && !Array.isArray(schemaFields)) {
