@@ -258,7 +258,6 @@ export class EntityReferenceRenderer implements CellRenderer {
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
-      element.textContent = 'Loading...'
       const tableCoreStore = this.getTableCoreStore(column)
       const rawTargetEntity = this.getTargetEntityType(column) || this.inferTargetEntity(column)
       if (!rawTargetEntity) {
@@ -266,6 +265,18 @@ export class EntityReferenceRenderer implements CellRenderer {
         element.style.opacity = '0.6'
         return
       }
+
+      // Check synchronous cache first to avoid "Loading..." flash on re-renders
+      if (tableCoreStore) {
+        const existing = tableCoreStore.getEntityReferenceRecord(rawTargetEntity, String(value))
+        if (existing) {
+          element.innerHTML = this.createEntityBadge(existing, String(value), column)
+          element.style.opacity = '1'
+          return
+        }
+      }
+
+      element.textContent = 'Loading...'
       this.loadAndRenderEntity(element, String(value), column, tableCoreStore)
     }
   }

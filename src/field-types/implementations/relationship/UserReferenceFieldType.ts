@@ -238,9 +238,19 @@ export class UserReferenceRenderer implements CellRenderer {
         element.innerHTML = '<span style="opacity: 0.6;">Edit ✏️</span>'
       }
     } else {
+      const tableCoreStore = this.getTableCoreStore(column)
+
+      // Check synchronous cache first to avoid "Loading..." flash on re-renders
+      if (tableCoreStore?.membersData && typeof tableCoreStore.membersData.get === 'function') {
+        const user = tableCoreStore.membersData.get(value)
+        if (user) {
+          element.innerHTML = this.createUserBadge(user, value)
+          return
+        }
+      }
+
       element.textContent = 'Loading...'
       element.style.opacity = '0.7'
-      const tableCoreStore = this.getTableCoreStore(column)
       this.loadAndRenderUser(element, value, column, tableCoreStore)
     }
   }
