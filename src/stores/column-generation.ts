@@ -676,6 +676,8 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
       return 'computed_expression'
     case 'computed_formula':
       return 'computed_formula'
+    case 'computed_decision_table':
+      return 'computed_decision_table'
 
     // Status and selection types
     case 'status':
