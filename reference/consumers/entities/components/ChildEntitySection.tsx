@@ -43,7 +43,7 @@ export function ChildEntitySection({
   parentRecordId,
   childEntityConfig,
 }: ChildEntitySectionProps): React.ReactElement {
-  const { childEntityType, relationshipType, direction } = childEntityConfig
+  const { childEntityType, relationshipType, direction, semanticTag } = childEntityConfig
 
   const { childRecords, childSchema, isLoading, error, retry } = useChildEntityData({
     parentEntityType,
@@ -71,6 +71,7 @@ export function ChildEntitySection({
   const handleCreateSuccess = async (recordId: string): Promise<void> => {
     // After creating the child record, create the relationship to the parent
     try {
+      const semanticProps = semanticTag ? { semantic: semanticTag } : undefined
       const relInput =
         direction === 'incoming'
           ? {
@@ -79,6 +80,7 @@ export function ChildEntitySection({
               targetEntityType: parentEntityType,
               targetEntityId: parentRecordId,
               relationshipType,
+              properties: semanticProps,
             }
           : {
               sourceEntityType: parentEntityType,
@@ -86,6 +88,7 @@ export function ChildEntitySection({
               targetEntityType: childEntityType,
               targetEntityId: recordId,
               relationshipType,
+              properties: semanticProps,
             }
 
       await orpcClient.dataforge.relationships.create(relInput)
