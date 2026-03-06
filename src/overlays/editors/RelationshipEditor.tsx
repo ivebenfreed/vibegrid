@@ -3,15 +3,15 @@
  *
  * ✅ MOBX READY: No state dependencies - pure React component
  * Uses ComboboxEditor UI but with specialized relationship data loading and saving
+ * ✅ TANSTACK DB: Uses useLiveQuery for reactive collection reads (entire collection loaded client-side)
  */
 
 import React from 'react'
-import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
-import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
+import { useLiveQuery } from '@tanstack/react-db'
 import {
-  getOrCreateEntityCollection,
-  getOrCreateMembersCollection,
-} from '@/shared/data/db/collections/registry'
+  useEntityCollection,
+  useMembersCollection,
+} from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import type { CellType } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'
@@ -38,39 +38,46 @@ export function RelationshipEditor({
 
   const isUserReference = cellType === 'user_reference' || cellType === 'custom_user_reference'
 
+  // Always call hooks unconditionally (rules of hooks)
+  const membersCollection = useMembersCollection()
+  const entityCollection = useEntityCollection(isUserReference ? '' : (targetEntityType ?? ''))
+
+  // Reactive query from the appropriate collection using useLiveQuery
+  const { data: membersData = [] } = useLiveQuery(
+    (q: any) => {
+      if (!isUserReference || !membersCollection) return undefined
+      return q.from({ items: membersCollection })
+    },
+    [isUserReference, membersCollection],
+  )
+
+  const { data: entitiesData = [] } = useLiveQuery(
+    (q: any) => {
+      if (isUserReference || !entityCollection) return undefined
+      return q.from({ items: entityCollection })
+    },
+    [isUserReference, entityCollection],
+  )
+
   // Transform collection data to options format
   const relationshipOptions = React.useMemo(() => {
-    const orgId = getActiveOrganizationId()
-    if (!orgId) {
-      fileLog.warn('No active organization - cannot load relationship options')
-      return []
-    }
-
     if (isUserReference) {
-      // Load members collection - toArray is a getter, not a method call
-      const membersCollection = getOrCreateMembersCollection(orgId)
-      const members = membersCollection?.toArray || []
-      return members.map((member: any) => ({
+      return membersData.map((member: any) => ({
         value: member.user_id || member.userId || member.id,
         label:
           member.user?.name || member.name || member.user?.email || member.email || 'Unknown User',
         color: undefined,
         backgroundColor: undefined,
       }))
-    } else if (targetEntityType) {
-      // Load entity collection
-      const entityCollection = getOrCreateEntityCollection(
-        targetEntityType,
-        orgId,
-        createEntityCollection,
-      )
-      const entities = entityCollection?.toArray || []
+    }
+
+    if (targetEntityType) {
       const displayField =
         (column as any).relationshipConfig?.displayField ||
         (column as any).relationshipDisplayField ||
         'name'
 
-      return entities.map((entity: any) => ({
+      return entitiesData.map((entity: any) => ({
         value: entity.id,
         label: entity[displayField] || entity.name || entity.title || `Entity ${entity.id}`,
         color: undefined,
@@ -86,7 +93,7 @@ export function RelationshipEditor({
     })
 
     return []
-  }, [cellType, column, isUserReference, targetEntityType])
+  }, [isUserReference, membersData, entitiesData, targetEntityType, column, cellType])
 
   // Create enhanced column with relationship options
   const enhancedColumn = React.useMemo(
