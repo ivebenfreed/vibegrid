@@ -10,7 +10,7 @@
  * - pending (gray badge, no score)
  */
 
-import type { DecisionTableFieldValue } from '@/server/domain/dataforge/services/ComputedDecisionFieldEvaluator'
+import type { DecisionTableFieldValue } from '@/server/domain/shared/dataforge-stubs/ComputedDecisionFieldEvaluator'
 
 interface DecisionTableBadgeProps {
   value: DecisionTableFieldValue | null | undefined
