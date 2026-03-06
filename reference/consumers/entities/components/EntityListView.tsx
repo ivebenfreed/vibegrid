@@ -464,7 +464,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       </Header>
 
       {/* Main Content */}
-      <Main className="flex flex-col gap-4 sm:gap-6">
+      <Main fluid className="flex flex-col gap-4 sm:gap-6">
         {/* Breadcrumbs */}
         <EntityBreadcrumbs entityName={schema.entityName} />
 
