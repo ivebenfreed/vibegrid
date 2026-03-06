@@ -10,24 +10,30 @@
  * GH#1621
  */
 
-import { AlertCircle, PlusIcon } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { AlertCircle } from 'lucide-react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useOrganization } from '@/app/stores'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Skeleton } from '@/shared/components/ui/skeleton'
 import { orpcClient } from '@/shared/data/orpc/client'
+import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import type { ChildEntityConfig } from '../hooks/useChildEntityData'
 import { useChildEntityData } from '../hooks/useChildEntityData'
+import { useEntityUpload } from '../hooks/useEntityUpload'
+import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog'
 import { EditRecordDialog } from './dialogs/EditRecordDialog'
+import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
 import type { EntityRecord } from '@/shared/types/dataforge'
 
 const logger = getLogger(['entities', 'ChildEntitySection'])
@@ -44,6 +50,8 @@ export function ChildEntitySection({
   childEntityConfig,
 }: ChildEntitySectionProps): React.ReactElement {
   const { childEntityType, relationshipType, direction, semanticTag } = childEntityConfig
+  const organizationStore = useOrganization()
+  const orgId = organizationStore.activeOrganizationId || ''
 
   const { childRecords, childSchema, isLoading, error, retry } = useChildEntityData({
     parentEntityType,
@@ -52,6 +60,41 @@ export function ChildEntitySection({
   })
 
   const displayName = EntityNameUtils.toDisplayFormat(childEntityType)
+
+  // Creation mode detection (same as EntityListView)
+  const creationConfigQuery = useQuery({
+    queryKey: uploadQueryKeys.creationConfig(orgId, childEntityType),
+    queryFn: () => orpcClient.dataforge.upload.getCreationConfig({ entityName: childEntityType }),
+    enabled: !!childEntityType && !!orgId,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+
+  const creationModes = creationConfigQuery.data?.creationModes ?? ['form']
+  const hasUploadMode = creationModes.includes('upload')
+  const primaryFileConfig = creationConfigQuery.data?.primaryFile
+
+  // Parent context for auto-linking uploaded entities
+  const parentContext = useMemo(
+    () => ({
+      parent_entity_type: parentEntityType,
+      parent_entity_id: parentRecordId,
+      relationship_type: relationshipType,
+      direction,
+    }),
+    [parentEntityType, parentRecordId, relationshipType, direction],
+  )
+
+  // Upload orchestration
+  const { handleFilesDropped } = useEntityUpload({
+    entityName: childEntityType,
+    acceptedMimeTypes: primaryFileConfig?.mimeTypes,
+    maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
+    enabled: hasUploadMode,
+    parentContext,
+  })
+
+  const uploadDialogRef = useRef<EntityUploadDialogHandle>(null)
 
   // Dialog state
   const [createOpen, setCreateOpen] = useState(false)
@@ -179,20 +222,28 @@ export function ChildEntitySection({
                 {childRecords.length}
               </Badge>
             </div>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-              <PlusIcon className="h-3.5 w-3.5 mr-1" />
-              Add {displayName}
-            </Button>
+            <CreationModeButton
+              entityName={childEntityType}
+              displayName={displayName}
+              creationModes={creationModes}
+              onCreateForm={() => setCreateOpen(true)}
+              onCreateUpload={() => uploadDialogRef.current?.open()}
+              size="sm"
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {childRecords.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <p className="text-sm mb-3">No {displayName} records yet</p>
-              <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
-                <PlusIcon className="h-3.5 w-3.5 mr-1" />
-                Add {displayName}
-              </Button>
+              <CreationModeButton
+                entityName={childEntityType}
+                displayName={displayName}
+                creationModes={creationModes}
+                onCreateForm={() => setCreateOpen(true)}
+                onCreateUpload={() => uploadDialogRef.current?.open()}
+                size="sm"
+              />
             </div>
           ) : (
             <div className="min-h-[200px]">
@@ -280,6 +331,17 @@ export function ChildEntitySection({
             // Refresh child data after deletion
             retry()
           }}
+        />
+      )}
+
+      {/* Upload Dialog */}
+      {hasUploadMode && (
+        <EntityUploadDialog
+          ref={uploadDialogRef}
+          entityName={childEntityType}
+          acceptedMimeTypes={primaryFileConfig?.mimeTypes}
+          extractionTemplate={primaryFileConfig?.extractionTemplate}
+          onFilesDropped={handleFilesDropped}
         />
       )}
     </>
