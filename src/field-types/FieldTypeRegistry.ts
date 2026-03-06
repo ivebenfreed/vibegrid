@@ -341,7 +341,6 @@ export class FieldTypeRegistry {
 
         // Computed types
         import('./implementations/computed/ComputedFieldTypes'),
-        import('./implementations/computed/ComputedDecisionTableFieldType'),
       ])
 
       this._initialized = true

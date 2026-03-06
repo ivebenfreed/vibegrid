@@ -79,11 +79,11 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
     for (const row of rows) {
       // processedRows are VirtualRow objects: { type, id, data }
       const record = (row.data ?? row) as Record<string, unknown>
-      const check = record.compliance_check as { passed?: boolean | null } | null | undefined
+      const check = record.compliance_check as { status?: string } | null | undefined
 
       if (!check) continue
 
-      if (check.passed === true) {
+      if (check.status === 'pass') {
         passing++
 
         // Check whether the cert is expiring within 30 days
@@ -97,7 +97,7 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
             expiringSoon++
           }
         }
-      } else if (check.passed === false) {
+      } else if (check.status === 'fail') {
         failing++
       }
     }

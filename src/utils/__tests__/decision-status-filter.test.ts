@@ -29,9 +29,8 @@ function makePassRecord(score = 94) {
   return {
     id: 'rec-1',
     compliance_check: {
-      passed: true,
+      status: 'pass',
       score,
-      decision: 'approve',
       violations: [],
     },
   }
@@ -41,12 +40,9 @@ function makeFailRecord(score = 48) {
   return {
     id: 'rec-2',
     compliance_check: {
-      passed: false,
+      status: 'fail',
       score,
-      decision: 'deny',
-      violations: [
-        { ruleId: 'r1', ruleName: 'GL Limit', severity: 'error', message: 'Below minimum' },
-      ],
+      violations: ['Below minimum'],
     },
   }
 }
@@ -55,9 +51,8 @@ function makePendingRecord() {
   return {
     id: 'rec-3',
     compliance_check: {
-      passed: null,
-      score: null,
-      decision: 'pending',
+      status: 'pending',
+      score: 0,
       violations: [],
     },
   }
@@ -83,19 +78,19 @@ function makeMissingFieldRecord() {
 
 describe('evaluateCondition - decision_status operator', () => {
   describe('value = "pass"', () => {
-    it('should match records where passed === true', () => {
+    it('should match records where status === pass', () => {
       const row = makePassRecord()
       const condition = makeCondition('compliance_check', 'pass')
       expect(evaluateCondition(row, condition)).toBe(true)
     })
 
-    it('should not match records where passed === false', () => {
+    it('should not match records where status === fail', () => {
       const row = makeFailRecord()
       const condition = makeCondition('compliance_check', 'pass')
       expect(evaluateCondition(row, condition)).toBe(false)
     })
 
-    it('should not match records where passed === null', () => {
+    it('should not match records where status === pending', () => {
       const row = makePendingRecord()
       const condition = makeCondition('compliance_check', 'pass')
       expect(evaluateCondition(row, condition)).toBe(false)
@@ -115,19 +110,19 @@ describe('evaluateCondition - decision_status operator', () => {
   })
 
   describe('value = "fail"', () => {
-    it('should match records where passed === false', () => {
+    it('should match records where status === fail', () => {
       const row = makeFailRecord()
       const condition = makeCondition('compliance_check', 'fail')
       expect(evaluateCondition(row, condition)).toBe(true)
     })
 
-    it('should not match records where passed === true', () => {
+    it('should not match records where status === pass', () => {
       const row = makePassRecord()
       const condition = makeCondition('compliance_check', 'fail')
       expect(evaluateCondition(row, condition)).toBe(false)
     })
 
-    it('should not match records where passed === null', () => {
+    it('should not match records where status === pending', () => {
       const row = makePendingRecord()
       const condition = makeCondition('compliance_check', 'fail')
       expect(evaluateCondition(row, condition)).toBe(false)
@@ -141,7 +136,7 @@ describe('evaluateCondition - decision_status operator', () => {
   })
 
   describe('value = "pending"', () => {
-    it('should match records where passed === null', () => {
+    it('should match records where status === pending', () => {
       const row = makePendingRecord()
       const condition = makeCondition('compliance_check', 'pending')
       expect(evaluateCondition(row, condition)).toBe(true)
@@ -159,13 +154,13 @@ describe('evaluateCondition - decision_status operator', () => {
       expect(evaluateCondition(row, condition)).toBe(true)
     })
 
-    it('should not match records where passed === true', () => {
+    it('should not match records where status === pass', () => {
       const row = makePassRecord()
       const condition = makeCondition('compliance_check', 'pending')
       expect(evaluateCondition(row, condition)).toBe(false)
     })
 
-    it('should not match records where passed === false', () => {
+    it('should not match records where status === fail', () => {
       const row = makeFailRecord()
       const condition = makeCondition('compliance_check', 'pending')
       expect(evaluateCondition(row, condition)).toBe(false)
@@ -185,9 +180,8 @@ describe('evaluateCondition - decision_status operator', () => {
       const row = {
         data: {
           compliance_check: {
-            passed: false,
+            status: 'fail',
             score: 30,
-            decision: 'deny',
             violations: [],
           },
         },
