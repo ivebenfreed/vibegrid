@@ -704,7 +704,7 @@ export class GroupProcessor {
 
       switch (config.sortBy) {
         case 'name':
-          comparison = a.displayValue.localeCompare(b.displayValue)
+          comparison = (a.displayValue ?? '').localeCompare(b.displayValue ?? '')
           break
         case 'count':
           comparison = (b.totalCount || b.rowCount) - (a.totalCount || a.rowCount)
