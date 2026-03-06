@@ -42,25 +42,29 @@ export interface ComboboxEditorProps {
   isMultiSelect?: boolean
   // Context for relationship options providers
   relationshipContext?: RelationshipContext
+  // External loading state (e.g., from RelationshipEditor async collection loading)
+  isLoadingOptions?: boolean
 }
 
 export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
-  cell,
+  cell: _cell,
   column,
   initialValue,
   onCommit,
   onCancel,
-  placeholder = 'Select...',
+  placeholder: _placeholder = 'Select...',
   searchPlaceholder = 'Search...',
   className = '',
   isMultiSelect = false,
   relationshipContext,
+  isLoadingOptions: externalIsLoading,
 }) => {
   const [searchValue, setSearchValue] = React.useState('')
   const [highlightedIndex, setHighlightedIndex] = React.useState(0)
   const [hasCommitted, setHasCommitted] = React.useState(false)
   const [dynamicOptions, setDynamicOptions] = React.useState<any[]>([])
-  const [isLoadingOptions, setIsLoadingOptions] = React.useState(false)
+  const [internalIsLoading, setInternalIsLoading] = React.useState(false)
+  const isLoadingOptions = externalIsLoading || internalIsLoading
   // For multi-select, track selected values separately
   const [selectedValues, setSelectedValues] = React.useState<string[]>(
     isMultiSelect && Array.isArray(initialValue) ? initialValue : [],
@@ -85,7 +89,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
         hasContext: !!relationshipContext,
       })
 
-      setIsLoadingOptions(true)
+      setInternalIsLoading(true)
 
       const loadOptions = async () => {
         try {
@@ -102,7 +106,7 @@ export const ComboboxEditor: React.FC<ComboboxEditorProps> = ({
           fileLog.error('ComboboxEditor: Error loading relationship options', { error })
           setDynamicOptions([])
         } finally {
-          setIsLoadingOptions(false)
+          setInternalIsLoading(false)
         }
       }
 

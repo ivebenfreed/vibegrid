@@ -59,6 +59,11 @@ export function RelationshipEditor({
     [isUserReference, entityCollection],
   )
 
+  // Derive loading state: no data yet but we expect some
+  const isLoadingRelationship =
+    (isUserReference && membersData.length === 0 && !!membersCollection) ||
+    (!isUserReference && !!targetEntityType && entitiesData.length === 0 && !!entityCollection)
+
   // Transform collection data to options format
   const relationshipOptions = React.useMemo(() => {
     if (isUserReference) {
@@ -85,15 +90,8 @@ export function RelationshipEditor({
       }))
     }
 
-    fileLog.debug('RelationshipEditor: No collection data available', {
-      columnId: column.id,
-      cellType,
-      targetEntityType,
-      isUserReference,
-    })
-
     return []
-  }, [isUserReference, membersData, entitiesData, targetEntityType, column, cellType])
+  }, [isUserReference, membersData, entitiesData, targetEntityType, column])
 
   // Create enhanced column with relationship options
   const enhancedColumn = React.useMemo(
@@ -108,7 +106,7 @@ export function RelationshipEditor({
   // Handle relationship-specific saving
   const handleRelationshipCommit = React.useCallback(
     (value: any) => {
-      fileLog.debug('🔗 RelationshipEditor: Committing relationship value', {
+      fileLog.debug('RelationshipEditor: Committing relationship value', {
         columnId: column.id,
         cellType,
         value,
@@ -154,6 +152,7 @@ export function RelationshipEditor({
       placeholder={getPlaceholder()}
       searchPlaceholder={getSearchPlaceholder()}
       className="vibegridx-relationship-editor"
+      isLoadingOptions={isLoadingRelationship}
     />
   )
 }

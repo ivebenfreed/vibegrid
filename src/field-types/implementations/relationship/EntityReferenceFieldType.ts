@@ -130,8 +130,6 @@ export class EntityDataLoader implements AsyncDataLoader {
 export class EntityReferenceRenderer implements CellRenderer {
   private disposers: Array<() => void> = []
 
-  constructor(_dataLoader: EntityDataLoader) {}
-
   render(value: any, column: EnhancedColumn, rowData: any): HTMLElement {
     const container = document.createElement('div')
     const isEditable = column.editable !== false
@@ -154,6 +152,14 @@ export class EntityReferenceRenderer implements CellRenderer {
       return container
     }
 
+    // Check for backend-resolved display fields (_name suffix from UnifiedResolver)
+    const resolvedName = rowData[`${column.id}_name`]
+    if (resolvedName) {
+      container.innerHTML = this.createEntityBadge({ name: resolvedName }, value, column)
+      return container
+    }
+
+    // Legacy: check __resolved_ prefix (deprecated, kept as fallback)
     const resolvedValue = rowData[`__resolved_${column.id}`]
     if (resolvedValue) {
       container.innerHTML = this.createEntityBadge(resolvedValue, value, column)
@@ -236,7 +242,7 @@ export class EntityReferenceRenderer implements CellRenderer {
   }
 
   destroy(): void {
-    this.disposers.forEach((dispose) => dispose())
+    for (const dispose of this.disposers) dispose()
     this.disposers = []
   }
 
@@ -451,7 +457,7 @@ export class EntityReferenceRenderer implements CellRenderer {
 export const EntityReferenceFieldType: VibeGridFieldType = {
   type: 'custom_entity_reference',
   category: 'relationship',
-  renderer: new EntityReferenceRenderer(new EntityDataLoader()),
+  renderer: new EntityReferenceRenderer(),
   editor: new (class implements CellEditor {
     create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
       const input = document.createElement('input')

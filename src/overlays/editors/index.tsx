@@ -178,7 +178,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
     case 'custom_entity_reference':
     case 'relationship-single':
-      return <SingleRelationshipEditor {...props} />
+      return <RelationshipEditor {...props} />
 
     case 'relationship-multi':
     case 'relationship-collection':

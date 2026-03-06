@@ -173,9 +173,15 @@ export class UserReferenceRenderer implements CellRenderer {
       return container
     }
 
-    // Check for resolved display value from backend
-    const resolvedFieldName = `${column.id}_resolved`
-    const resolvedValue = rowData[resolvedFieldName]
+    // Check for backend-resolved display fields (_name suffix from UnifiedResolver)
+    const resolvedName = rowData[`${column.id}_name`]
+    if (resolvedName) {
+      container.innerHTML = this.createUserBadgeFromName(resolvedName)
+      return container
+    }
+
+    // Legacy: check _resolved suffix (deprecated, kept as fallback)
+    const resolvedValue = rowData[`${column.id}_resolved`]
     if (resolvedValue) {
       container.innerHTML = this.createUserBadgeFromName(resolvedValue)
       return container
@@ -370,11 +376,7 @@ export class UserReferenceRenderer implements CellRenderer {
  * User Reference Cell Editor - Uses ComboboxEditor with user data
  */
 export class UserReferenceEditor implements CellEditor {
-  private onSaveCallback: ((value: any) => void) | null = null
-  private currentElement: HTMLElement | null = null
-
   create(value: any, column: EnhancedColumn, onSave: (value: any) => void): HTMLElement {
-    this.onSaveCallback = onSave
     // Create React ComboboxEditor with user options
     const container = document.createElement('div')
     container.className = 'vibegridx-user-editor-container'
@@ -387,7 +389,6 @@ export class UserReferenceEditor implements CellEditor {
     // Load user options synchronously
     this.loadUserOptionsAndRender(container, value, column, onSave)
 
-    this.currentElement = container
     return container
   }
 
@@ -470,10 +471,7 @@ export class UserReferenceEditor implements CellEditor {
     }
   }
 
-  destroy(_element: HTMLElement): void {
-    this.currentElement = null
-    this.onSaveCallback = null
-  }
+  destroy(_element: HTMLElement): void {}
 
   supportsInlineEditing(): boolean {
     return true
