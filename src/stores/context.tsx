@@ -192,6 +192,10 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     // Call init() to set up any reactions
     editingStore.init()
 
+    // D2: Wire SlotRegistry into EditingStore and VisualStateStore
+    editingStore.setSlotRegistry(initStore.slotRegistry)
+    visualStateStore.setSlotRegistry(initStore.slotRegistry)
+
     // PersistenceStore needs all stores to save/load preferences
     persistenceStore.setTableCoreStore(tableCoreStore)
     persistenceStore.setVisualStateStore(visualStateStore)

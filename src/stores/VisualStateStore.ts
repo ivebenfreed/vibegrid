@@ -19,7 +19,7 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
-import type { ModularCellBridge } from '../field-types/ModularCellBridge'
+import type { SlotRegistry, CellRendererContext } from '../slots/SlotRegistry'
 import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
 import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
@@ -125,7 +125,7 @@ export class VisualStateStore implements IStore {
 
   private coordinateManager?: ObservableCoordinateManager
   private interactionStore?: import('./InteractionStore').InteractionStore
-  private modularCellBridge: ModularCellBridge | null = null
+  private slotRegistry: SlotRegistry | null = null
   private _viewportStore?: ViewportStore
 
   // ====================================
@@ -219,19 +219,58 @@ export class VisualStateStore implements IStore {
   }
 
   /**
-   * Set modular cell bridge for affordance precomputation.
+   * Set SlotRegistry for affordance precomputation via CellRenderer.affordanceGroup.
+   * Replaces ModularCellBridge affordance precompute in D2 pipeline.
    */
   @action
-  setModularCellBridge(bridge: ModularCellBridge | null): void {
-    this.modularCellBridge = bridge
-
-    if (bridge && this.columns.length > 0) {
-      bridge.precomputeAffordances(this.columns)
-    }
+  setSlotRegistry(registry: SlotRegistry): void {
+    this.slotRegistry = registry
+    logger.info('SlotRegistry set on VisualStateStore')
   }
 
-  getModularCellBridge(): ModularCellBridge | null {
-    return this.modularCellBridge
+  /**
+   * Pre-compute affordance attributes from SlotRegistry for all columns.
+   * Called during column initialization and on context changes.
+   */
+  precomputeAffordancesFromSlotRegistry(columns: Column[], context: CellRendererContext): void {
+    if (!this.slotRegistry) return
+
+    for (const column of columns) {
+      const renderer = this.slotRegistry.resolve(column, context)
+      if (!renderer) continue
+      // Affordance data is now on the CellRenderer itself (affordanceGroup, interactionPolicy)
+      // BodyRenderer reads these via slotRegistry.resolve() at render time
+    }
+
+    logger.debug('Affordances pre-computed via SlotRegistry', {
+      columnCount: columns.length,
+    })
+  }
+
+  /**
+   * Handle context changes (view mode, schema, org) by invalidating
+   * SlotRegistry cache and re-preloading for current columns.
+   */
+  async handleContextChange(changedContext: Partial<CellRendererContext>): Promise<void> {
+    if (!this.slotRegistry) return
+
+    // Clear stale cache entries for the changed context
+    this.slotRegistry.clearCacheForContext(changedContext)
+
+    // Re-preload for current columns with updated context
+    if (this.columns.length > 0) {
+      const context: CellRendererContext = {
+        viewMode: changedContext.viewMode || 'table',
+        entityType: changedContext.entityType,
+        schemaId: changedContext.schemaId,
+        organizationId: changedContext.organizationId,
+      }
+      await this.slotRegistry.preloadForColumns(this.columns, context)
+      logger.info('SlotRegistry cache refreshed after context change', {
+        changedContext,
+        columnCount: this.columns.length,
+      })
+    }
   }
 
   /**
@@ -641,10 +680,13 @@ export class VisualStateStore implements IStore {
     // 🔧 FIX: Initialize coordinator with visible columns and actual widths
     this.updateCoordinatorWithCurrentLayout()
 
-    // 🚀 PERF: Pre-compute affordances for all columns at initialization time
-    // This eliminates lazy affordance resolution during cell creation
-    if (this.modularCellBridge) {
-      this.modularCellBridge.precomputeAffordances(columns)
+    // Pre-compute affordances for all columns at initialization time
+    if (this.slotRegistry) {
+      this.precomputeAffordancesFromSlotRegistry(columns, {
+        viewMode: 'table',
+        entityType,
+        organizationId: orgId,
+      })
     }
 
     logger.info('Columns initialized (preserving loaded preferences)', {

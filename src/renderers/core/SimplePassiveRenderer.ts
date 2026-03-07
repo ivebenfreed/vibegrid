@@ -11,7 +11,6 @@ import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
 // Service layer
 import { InteractionCoordinator } from '../../coordination/InteractionCoordinator'
-import { modularCellBridge } from '../../field-types'
 import { vibeGridProfiler } from '../../performance/PerformanceProfiler'
 import { CellActionRouter, type OnCellClickCallback } from '../../routing/CellActionRouter'
 import { SelectionService } from '../../services/SelectionService'
@@ -367,7 +366,7 @@ export class SimplePassiveRenderer {
         className?: string,
       ) => HTMLElement,
       onEntityUpdate: this.options.onEntityUpdate,
-      modularCellBridge: modularCellBridge,
+      slotRegistry: this.initStore?.slotRegistry,
     })
 
     // Update SelectionController with bodyRenderer reference
@@ -1427,6 +1426,11 @@ export class SimplePassiveRenderer {
         this.visualStateStore,
         this.keyboardNavController ?? undefined,
       )
+      // Wire SlotRegistry into InteractionCoordinator for D2 pipeline
+      if (this.initStore?.slotRegistry) {
+        this.interactionCoordinator.setSlotRegistry(this.initStore.slotRegistry)
+      }
+
       if (this.keyboardController) {
         this.keyboardController.setInteractionCoordinator(this.interactionCoordinator)
       }

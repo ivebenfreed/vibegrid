@@ -14,7 +14,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import { action, observable, makeObservable } from 'mobx'
+import { action, observable, makeObservable, runInAction } from 'mobx'
 import type { Column } from '../types'
 
 const logger = getLogger(['vibegrid', 'slots', 'SlotRegistry'])
@@ -67,9 +67,6 @@ export interface CellRenderer {
     context: CellRendererContext,
   ): Promise<void>
 
-  /** Optional: Render editor UI */
-  renderEditor?(value: unknown, column: Column, context: CellRendererContext): HTMLElement
-
   /** Optional: Validate input before saving */
   validate?(value: unknown, column: Column, context: CellRendererContext): string | null | undefined
 
@@ -92,17 +89,25 @@ export interface CellRenderer {
     groupable?: boolean
   }
 
-  /** Optional: Interaction policy for cell behaviors */
+  /** Optional: Interaction policy — preserves CellActionRouter's routing semantics */
   interactionPolicy?: {
-    clickable?: boolean
-    hoverable?: boolean
-    draggable?: boolean
-    selectable?: boolean
+    defaultAction: 'navigate' | 'edit' | 'custom' | 'none'
+    editTrigger: 'content-click' | 'click' | 'f2' | 'icon' | 'none'
+    blurPolicy: 'commit' | 'cancel' | 'keep-open'
   }
+
+  /** Optional: Affordance group — preserves AffordanceResolver's group-based styling */
+  affordanceGroup?: {
+    group: string
+    whenNotEditable: string | { remove: string[] } | { override: any[] }
+  }
+
+  /** Optional: Custom click handler (for 'custom' defaultAction) */
+  handleClick?(context: CellRendererContext & { rowData: any; column: Column }): void
 
   /** Optional: Renderer metadata */
   metadata?: {
-    category?: 'basic' | 'relationship' | 'rollup' | 'computed'
+    category?: 'basic' | 'relationship' | 'rollup' | 'computed' | 'gantt'
     description?: string
     [key: string]: unknown
   }
@@ -249,7 +254,7 @@ export class SlotRegistry {
    */
   private getCacheKey(column: Column, context: CellRendererContext): string {
     return [
-      column.fieldType ?? 'unknown',
+      column.cellType ?? 'unknown',
       column.id ?? 'unknown',
       context.entityType ?? 'unknown',
       context.schemaId ?? 'default',
@@ -306,7 +311,9 @@ export class SlotRegistry {
       this.loadingPromises.delete(cacheKey)
     }
 
-    this.preloadReady = true // Set flag when complete
+    runInAction(() => {
+      this.preloadReady = true // Set flag when complete
+    })
     logger.debug('Slot preload complete', { cachedCount: this.resolvedCache.size })
   }
 
@@ -343,8 +350,8 @@ export class SlotRegistry {
         continue
       }
 
-      // Match by exact fieldType (slot.id === column.fieldType)
-      if (column.fieldType === slot.id) {
+      // Match by exact cellType (slot.id === column.cellType)
+      if (column.cellType === slot.id) {
         candidates.push(slot)
       }
     }
@@ -363,7 +370,7 @@ export class SlotRegistry {
 
         this.resolvedCache.set(cacheKey, renderer)
         logger.debug(
-          `Resolved slot for "${column.fieldType}": ${slot.id} (priority ${slot.priority ?? 0})`,
+          `Resolved slot for "${column.cellType}": ${slot.id} (priority ${slot.priority ?? 0})`,
         )
         return
       } catch (error) {
@@ -373,8 +380,8 @@ export class SlotRegistry {
     }
 
     // Step 4 fallback: Try text renderer as fallback
-    if (column.fieldType !== 'text') {
-      logger.warn(`No renderer for fieldType="${column.fieldType}", falling back to text`)
+    if (column.cellType !== 'text') {
+      logger.warn(`No renderer for cellType="${column.cellType}", falling back to text`)
 
       // Find text renderer
       const textSlots = this.slots.filter((s) => s.id === 'text')
@@ -399,7 +406,7 @@ export class SlotRegistry {
 
     // No renderer found and no fallback available
     logger.warn(
-      `No renderer found for fieldType="${column.fieldType}" and no text fallback available`,
+      `No renderer found for cellType="${column.cellType}" and no text fallback available`,
     )
   }
 
@@ -423,7 +430,7 @@ export class SlotRegistry {
     // Graceful degradation: Return fallback text renderer if preload complete
     if (this.preloadReady) {
       logger.warn(
-        `Renderer for "${column.fieldType}" not preloaded, using fallback. ` +
+        `Renderer for "${column.cellType}" not preloaded, using fallback. ` +
           `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
       )
 
@@ -438,12 +445,72 @@ export class SlotRegistry {
       return null
     }
 
-    // If preload not ready, throw error (preload phase was skipped)
-    throw new Error(
-      `[SlotRegistry] Preload not complete. ` +
-        `Call slotRegistry.preloadForColumns() and wait for completion before rendering. ` +
+    // Preload not ready — try synchronous fallback resolution.
+    // This can happen during initial render when the renderer reaction fires
+    // before preloadForColumns() has completed (async race).
+    // All default renderers are synchronous factories, so this works.
+    logger.warn(
+      `[SlotRegistry] Preload not complete for "${column.cellType}", attempting sync resolve. ` +
         `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
     )
+
+    const renderer = this.resolveSynchronous(column, context, cacheKey)
+    if (renderer) return renderer
+
+    return null
+  }
+
+  /**
+   * Synchronous fallback resolution — used when preload hasn't completed yet.
+   * Tries the same matching algorithm as resolveAsync but synchronously.
+   * Only works for renderers whose factory returns a CellRenderer (not a Promise).
+   */
+  private resolveSynchronous(
+    column: Column,
+    context: CellRendererContext,
+    cacheKey: string,
+  ): CellRenderer | null {
+    const candidates: Slot[] = []
+
+    for (const slot of this.slots) {
+      if (slot.contextFilter && !slot.contextFilter(context)) continue
+      if (slot.canHandle) {
+        if (slot.canHandle(column, context)) candidates.push(slot)
+        continue
+      }
+      if (column.cellType === slot.id) candidates.push(slot)
+    }
+
+    candidates.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+
+    const trySlot = (slot: Slot): CellRenderer | null => {
+      try {
+        const result = slot.renderer()
+        // Only use if synchronous (not a Promise)
+        if (result && typeof result === 'object' && 'render' in result) {
+          this.resolvedCache.set(cacheKey, result as CellRenderer)
+          return result as CellRenderer
+        }
+      } catch {
+        // Factory threw — skip
+      }
+      return null
+    }
+
+    if (candidates.length > 0) {
+      const renderer = trySlot(candidates[0])
+      if (renderer) return renderer
+    }
+
+    // Fallback to text slot
+    const textSlots = this.slots.filter((s) => s.id === 'text')
+    if (textSlots.length > 0) {
+      textSlots.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+      const renderer = trySlot(textSlots[0])
+      if (renderer) return renderer
+    }
+
+    return null
   }
 
   /**

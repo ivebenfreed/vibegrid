@@ -14,7 +14,7 @@
 
 import { untracked } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
+import type { SlotRegistry, CellRendererContext } from '../slots/SlotRegistry'
 import type { KeyboardNavigationController } from '../renderers/modules/KeyboardNavigationController'
 import type { CellActionRouter } from '../routing/CellActionRouter'
 import type { EditingStore } from '../stores/EditingStore'
@@ -72,6 +72,7 @@ interface CellData {
  */
 export class InteractionCoordinator {
   private overlayManager?: any // Optional reference for fill handle delegation
+  private slotRegistry: SlotRegistry | null = null
 
   constructor(
     private container: HTMLElement,
@@ -91,6 +92,13 @@ export class InteractionCoordinator {
    */
   setOverlayManager(overlayManager: any): void {
     this.overlayManager = overlayManager
+  }
+
+  /**
+   * Set SlotRegistry for D2 pipeline - resolves CellRenderer interaction policies
+   */
+  setSlotRegistry(registry: SlotRegistry): void {
+    this.slotRegistry = registry
   }
 
   /**
@@ -150,15 +158,20 @@ export class InteractionCoordinator {
       return
     }
 
-    // Get field type - either from column or lookup from registry
-    const fieldType = column.fieldType || fieldTypeRegistry.getFieldType(column as any)
+    // Get interaction policy from SlotRegistry (D2) or fallback
+    let interactionPolicy: any
+    if (this.slotRegistry) {
+      const context: CellRendererContext = { viewMode: 'table' }
+      const renderer = this.slotRegistry.resolve(column, context)
+      interactionPolicy = renderer?.interactionPolicy
+    }
 
     // Delegate to action router
     this.cellActionRouter.route({
       cellId,
       row: cellData.row,
       column,
-      fieldPolicy: fieldType?.interactionPolicy,
+      fieldPolicy: interactionPolicy,
       target,
       modifiers,
       nativeEvent,
@@ -192,15 +205,19 @@ export class InteractionCoordinator {
       return
     }
 
-    // Get field type - either from column or lookup from registry
-    const fieldType = column.fieldType || fieldTypeRegistry.getFieldType(column as any)
+    // Get interaction policy from SlotRegistry (D2)
+    let policy: any
+    if (this.slotRegistry) {
+      const context: CellRendererContext = { viewMode: 'table' }
+      const renderer = this.slotRegistry.resolve(column, context)
+      policy = renderer?.interactionPolicy
+    }
 
     // Check if field policy uses double-click trigger
-    const policy = fieldType?.interactionPolicy
     if (policy?.editTrigger === 'double-click') {
       fileLog.debug('Starting edit via double-click policy', {
         cellId,
-        fieldType: fieldType?.type,
+        cellType: column.cellType,
       })
       this.editingStore.startEdit(cellId, column)
     }

@@ -132,19 +132,13 @@ describe('EditingStore', () => {
     expect(store.isActiveModalTextEditor).toBe(true)
   })
 
-  it('detects modal text editors by fieldType type fallback', () => {
+  it('detects modal text editors by column type fallback', () => {
     const store = createStore()
 
     store.startEdit('row-1:title', {
       ...withMockColumn(),
       cellType: undefined,
-      type: undefined,
-      fieldType: {
-        type: 'rich-text',
-        interactionPolicy: {
-          blurPolicy: 'commit',
-        },
-      },
+      type: 'rich-text',
     })
 
     expect(store.isActiveModalTextEditor).toBe(true)

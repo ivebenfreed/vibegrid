@@ -175,18 +175,163 @@ export const GanttModule: GridModule = {
   },
 
   /**
-   * Register Gantt-specific cell renderers.
+   * Register Gantt-specific cell renderers for the left table pane.
    *
-   * Future D2 integration: Register timeline bar cells, dependency arrow cells, etc.
-   * For now, this is a stub for the D2 implementation.
+   * These override default renderers at priority 100 when viewMode is 'gantt':
+   * - GanttDateSummaryRenderer: compact date range for date/datetime columns
+   * - GanttStatusChipRenderer: progress chip for status columns
    */
-  registerSlots: (_slotRegistry: SlotRegistry) => {
-    logger.debug('GanttModule registerSlots - D2 integration point')
-    // D2 implementation will register:
-    // - gantt-bar: Timeline bar renderer
-    // - gantt-milestone: Milestone diamond renderer
-    // - gantt-dependency: Dependency arrow renderer
-    // These slots will have contextFilter: (ctx) => ctx.viewMode === 'gantt'
+  registerSlots: (slotRegistry: SlotRegistry) => {
+    logger.debug('GanttModule registerSlots')
+
+    // Compact date display for left-pane date columns in Gantt view
+    slotRegistry.register({
+      id: 'gantt-date-summary',
+      priority: 100,
+      contextFilter: (ctx) => ctx.viewMode === 'gantt',
+      renderer: () => ({
+        render(
+          value: unknown,
+          _column: import('../../types').Column,
+          _context: import('../../slots/SlotRegistry').CellRendererContext,
+        ): HTMLElement {
+          const container = document.createElement('div')
+          container.className = 'vibegridx-cell-gantt-date'
+          container.style.cssText =
+            'display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280;'
+
+          if (!value) {
+            container.textContent = '—'
+            return container
+          }
+
+          try {
+            const date = new Date(String(value))
+            const month = date.toLocaleString('default', { month: 'short' })
+            const day = date.getDate()
+            container.textContent = `${month} ${day}`
+          } catch {
+            container.textContent = String(value)
+          }
+
+          return container
+        },
+        format(value: unknown): string {
+          if (!value) return ''
+          try {
+            const date = new Date(String(value))
+            return date.toLocaleDateString()
+          } catch {
+            return String(value)
+          }
+        },
+        validate(): string | null {
+          return null
+        },
+        affordances: {
+          sortable: true,
+          filterable: true,
+          editable: true,
+          resizable: true,
+          reorderable: true,
+          groupable: false,
+        },
+        interactionPolicy: {
+          defaultAction: 'edit' as const,
+          editTrigger: 'click' as const,
+          blurPolicy: 'commit' as const,
+        },
+        metadata: { category: 'gantt' as const, description: 'Compact date for Gantt left pane' },
+      }),
+    })
+
+    // Override for date aliases in gantt view
+    for (const alias of [
+      'date',
+      'datetime',
+      'datetime-local',
+      'time',
+      'timestamp',
+      'timestamptz',
+    ]) {
+      slotRegistry.register({
+        id: `gantt-${alias}`,
+        priority: 100,
+        contextFilter: (ctx) => ctx.viewMode === 'gantt',
+        renderer: () =>
+          slotRegistry.resolve({ cellType: 'gantt-date-summary' } as any, { viewMode: 'gantt' })!,
+      })
+    }
+
+    // Status chip renderer for Gantt left pane
+    slotRegistry.register({
+      id: 'gantt-status-chip',
+      priority: 100,
+      contextFilter: (ctx) => ctx.viewMode === 'gantt',
+      renderer: () => ({
+        render(
+          value: unknown,
+          _column: import('../../types').Column,
+          _context: import('../../slots/SlotRegistry').CellRendererContext,
+        ): HTMLElement {
+          const container = document.createElement('div')
+          container.className = 'vibegridx-cell-gantt-status'
+          container.style.cssText = 'display: flex; align-items: center;'
+
+          const chip = document.createElement('span')
+          chip.style.cssText =
+            'display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; background: #f3f4f6; color: #374151;'
+
+          const label = String(value ?? '')
+          chip.textContent = label || '—'
+
+          // Color-code common statuses
+          const lower = label.toLowerCase()
+          if (lower.includes('done') || lower.includes('complete')) {
+            chip.style.background = '#dcfce7'
+            chip.style.color = '#166534'
+          } else if (lower.includes('progress') || lower.includes('active')) {
+            chip.style.background = '#dbeafe'
+            chip.style.color = '#1e40af'
+          } else if (lower.includes('block') || lower.includes('stuck')) {
+            chip.style.background = '#fee2e2'
+            chip.style.color = '#991b1b'
+          }
+
+          container.appendChild(chip)
+          return container
+        },
+        format(value: unknown): string {
+          return String(value ?? '')
+        },
+        validate(): string | null {
+          return null
+        },
+        affordances: {
+          sortable: true,
+          filterable: true,
+          editable: true,
+          resizable: true,
+          reorderable: true,
+          groupable: true,
+        },
+        interactionPolicy: {
+          defaultAction: 'edit' as const,
+          editTrigger: 'click' as const,
+          blurPolicy: 'commit' as const,
+        },
+        metadata: { category: 'gantt' as const, description: 'Status chip for Gantt left pane' },
+      }),
+    })
+
+    // Override status in gantt view
+    slotRegistry.register({
+      id: 'gantt-status',
+      priority: 100,
+      contextFilter: (ctx) => ctx.viewMode === 'gantt',
+      renderer: () =>
+        slotRegistry.resolve({ cellType: 'gantt-status-chip' } as any, { viewMode: 'gantt' })!,
+    })
   },
 }
 

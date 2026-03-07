@@ -15,13 +15,14 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Column } from '../types'
 import type { CellRef } from '../types/coordinate-types'
 import { createEditor } from '../overlays/editors'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
-import type { EnhancedColumn } from '../field-types/FieldTypeRegistry'
+import { SlotRegistry } from '../slots/SlotRegistry'
+import { registerDefaultSlots } from '../slots/slot-initialization'
+import { useVibeGridStoresOptional } from '../stores/context'
 import { FormFieldValue } from './FormFieldValue'
 import { getLogger } from '@/shared/lib/logging'
 import './VibeFormField.css'
@@ -59,14 +60,13 @@ export interface VibeFormFieldProps {
  * Determine whether the editor for this column should open as a portal
  * (positioned below the field) rather than rendering inline.
  *
- * Reads from fieldTypeRegistry — no hardcoded lists.
+ * Resolves from SlotRegistry — no hardcoded lists.
  * 'editable-badge' affordance group means dropdown/picker → needs portal.
  */
-function useNeedsPortal(column: Column): boolean {
-  if (!fieldTypeRegistry.isInitialized) return false
+function useNeedsPortal(column: Column, slotRegistry: SlotRegistry): boolean {
   try {
-    const fieldType = fieldTypeRegistry.getFieldType(column as EnhancedColumn)
-    return fieldType.affordance?.group === 'editable-badge'
+    const renderer = slotRegistry.resolve(column, { viewMode: 'form' })
+    return renderer?.affordanceGroup?.group === 'editable-badge'
   } catch {
     return false
   }
@@ -94,7 +94,18 @@ export const VibeFormField = observer(function VibeFormField({
   const containerRef = useRef<HTMLDivElement>(null)
   const portalRef = useRef<HTMLDivElement>(null)
 
-  const isPortalEditor = useNeedsPortal(column)
+  // Use SlotRegistry from VibeGrid context, or create a standalone one
+  const contextStores = useVibeGridStoresOptional()
+  const slotRegistry = useMemo(() => {
+    if (contextStores) return contextStores.initStore.slotRegistry
+    const registry = new SlotRegistry()
+    registerDefaultSlots(registry)
+    // Preload with this column so resolve() works synchronously
+    registry.preloadForColumns([column], { viewMode: 'form' })
+    return registry
+  }, [contextStores, column])
+
+  const isPortalEditor = useNeedsPortal(column, slotRegistry)
 
   // ====================================
   // COMMIT (VALIDATE + AUTO-SAVE)

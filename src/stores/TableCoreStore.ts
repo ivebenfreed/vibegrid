@@ -729,7 +729,7 @@ export class TableCoreStore implements IStore {
             logger.debug('🔍 DEBUG: Cell change detected', {
               rowId: rowId.substring(0, 8),
               columnId,
-              fieldType: column?.fieldType?.type,
+              cellType: column?.cellType,
               oldHash,
               newHash,
             })

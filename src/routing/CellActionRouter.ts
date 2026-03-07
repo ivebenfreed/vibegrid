@@ -13,7 +13,12 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import type { ModifierKeys } from '../coordination/InteractionCoordinator'
-import type { FieldInteractionPolicy } from '../field-types/FieldTypeRegistry'
+// FieldInteractionPolicy is now inline - same shape as CellRenderer.interactionPolicy
+export interface FieldInteractionPolicy {
+  defaultAction: 'navigate' | 'edit' | 'custom' | 'none'
+  editTrigger: 'content-click' | 'click' | 'f2' | 'icon' | 'none'
+  blurPolicy: 'commit' | 'cancel' | 'keep-open'
+}
 import type { EditingStore } from '../stores/EditingStore'
 
 const fileLog = getLogger(['vibegrid', 'routing', 'CellActionRouter'])
@@ -32,7 +37,7 @@ export interface CellActionContext {
   nativeEvent: MouseEvent
 }
 
-// ✅ FieldInteractionPolicy is imported from FieldTypeRegistry (single source of truth)
+// FieldInteractionPolicy is defined locally (same shape as CellRenderer.interactionPolicy)
 
 export type CellAction = 'navigate' | 'edit' | 'custom' | 'none'
 
@@ -77,7 +82,7 @@ export class CellActionRouter {
       cellId,
       rowId: row?.id,
       columnId: column?.id,
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
       hasCallback: !!this.onCellClick,
       hasPolicy: !!fieldPolicy,
     })
@@ -88,7 +93,7 @@ export class CellActionRouter {
     fileLog.debug('Action determined', {
       cellId,
       action,
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
       policy: fieldPolicy?.defaultAction,
     })
 
@@ -287,7 +292,7 @@ export class CellActionRouter {
 
     // No policy - default to 'none' (selection only)
     fileLog.debug('No field policy - defaulting to none', {
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
     })
     return 'none'
   }
@@ -308,17 +313,17 @@ export class CellActionRouter {
       case 'edit':
         fileLog.debug('Starting edit session', {
           cellId,
-          fieldType: column.fieldType?.id,
+          cellType: column.cellType,
         })
         this.editingStore.startEdit(cellId, column)
         break
 
       case 'custom':
-        fileLog.debug('Custom action (delegating to field type)', {
+        fileLog.debug('Custom action - not yet supported via SlotRegistry', {
           cellId,
-          fieldType: column.fieldType?.id,
+          cellType: column.cellType,
         })
-        column.fieldType?.handleClick?.(context)
+        // Custom actions will be handled via CellRenderer.handleClick() in Phase 2
         break
 
       case 'none':

@@ -287,6 +287,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
       if (cancelled) return
       const cleanup = module.init?.(stores)
       moduleCleanupRef.current = cleanup ?? null
+      // D2: Register module-specific slots (e.g., Gantt left-pane overrides)
+      module.registerSlots?.(stores.initStore.slotRegistry)
       setActiveModule(module)
     })
 

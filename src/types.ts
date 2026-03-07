@@ -164,10 +164,8 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options' | 'cellTy
   description?: string // Help text shown below form fields
   meta?: any // Additional metadata
 
-  // 🚀 NEW: Pre-computed field type metadata for instant cell rendering
-  fieldType?: any // VibeGridFieldType instance
-  formatter?: (value: any, rowData?: any, column?: Column) => string // Pre-bound formatter
-  editorInstance?: any // Pre-computed editor instance
+  // Pre-bound formatter from CellRenderer.format() during column-generation
+  formatter?: (value: any, rowData?: any, column?: Column) => string
   fieldId?: string // For reactive options lookup
 
   // Additional display formatting

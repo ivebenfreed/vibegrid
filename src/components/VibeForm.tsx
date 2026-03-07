@@ -33,9 +33,10 @@ import { GroupedForm } from './GroupedForm'
 import { GridForm } from './GridForm'
 import { VibeFormField } from './VibeFormField'
 import { FormFieldValue } from './FormFieldValue'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 import { InteractionStore } from '../stores/InteractionStore'
 import { useVibeGridStoresOptional } from '../stores/context'
+import { SlotRegistry } from '../slots/SlotRegistry'
+import { registerDefaultSlots } from '../slots/slot-initialization'
 import { useCreateRecordMutation } from '@/shared/data/mutations/entity-data.mutations'
 import { getLogger } from '@/shared/lib/logging'
 import './VibeForm.css'
@@ -138,21 +139,20 @@ export const VibeForm = observer(function VibeForm({
   }, [editingStore, collection])
 
   // ====================================
-  // FIELD TYPE REGISTRY INITIALIZATION
+  // SLOT REGISTRY
   // ====================================
 
-  // Ensure FieldTypeRegistry is initialized even when VibeForm renders
-  // outside of a VibeGrid context (e.g., EditRecordDialog on detail page).
-  // Without this, renderField falls back to read-only for all fields.
-  const [registryReady, setRegistryReady] = useState(() => fieldTypeRegistry.isInitialized)
-
-  useEffect(() => {
-    if (!registryReady) {
-      fieldTypeRegistry.ensureInitialized().then(() => {
-        setRegistryReady(true)
-      })
-    }
-  }, [registryReady])
+  // Use SlotRegistry from VibeGrid context, or create a standalone one
+  // for standalone form rendering (e.g., EditRecordDialog on detail page).
+  const slotRegistry = useMemo(() => {
+    if (contextStores) return contextStores.initStore.slotRegistry
+    const registry = new SlotRegistry()
+    registerDefaultSlots(registry)
+    // Preload with form columns so resolve() works synchronously.
+    // All default renderers are synchronous singletons, so this resolves instantly.
+    registry.preloadForColumns(columns, { viewMode: 'form' })
+    return registry
+  }, [contextStores, columns])
 
   // ====================================
   // STATE
@@ -368,16 +368,13 @@ export const VibeForm = observer(function VibeForm({
       const isEditable =
         props.column.editable !== false && !READONLY_CELL_TYPES.has(props.column.cellType ?? '')
 
-      // Registry must be initialized before we can resolve editors.
-      // registryReady triggers a callback rebuild once async init completes.
+      // Resolve CellRenderer via SlotRegistry to check affordances
       let hasEditor = false
-      if (registryReady) {
-        try {
-          const fieldType = fieldTypeRegistry.getFieldType(props.column)
-          hasEditor = fieldType?.editor != null
-        } catch {
-          // Unknown field type — render read-only
-        }
+      try {
+        const renderer = slotRegistry.resolve(props.column, { viewMode: 'form' })
+        hasEditor = renderer?.affordances?.editable !== false
+      } catch {
+        // Unknown cell type — render read-only
       }
 
       if (!isEditable || !hasEditor) {
@@ -411,7 +408,7 @@ export const VibeForm = observer(function VibeForm({
         />
       )
     },
-    [createFlow.entityId, collection, READONLY_CELL_TYPES, registryReady],
+    [createFlow.entityId, collection, READONLY_CELL_TYPES, slotRegistry],
   )
 
   // ====================================

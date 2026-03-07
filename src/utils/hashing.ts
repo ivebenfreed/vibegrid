@@ -29,7 +29,6 @@ export const METADATA_COLUMNS = new Set([
 export function normalizeValue(column: Column, value: any): any {
   if (value === null || value === undefined) return null
 
-  const fieldType = column.fieldType?.type
   // Cast to string to allow broader comparisons (strict union limits checking)
   const cellType = column.cellType as string
 
@@ -42,51 +41,38 @@ export function normalizeValue(column: Column, value: any): any {
   }
 
   // Reference fields: already handles objects above, this catches string IDs
-  if (fieldType === 'user_reference' || fieldType === 'entity_reference') {
+  if (cellType === 'user_reference' || cellType === 'entity_reference') {
     if (typeof value === 'string') return value
     return null
   }
 
   // Status/Option fields: already handles objects above, this catches string IDs
   if (
-    fieldType === 'status' ||
-    fieldType === 'status_set' ||
-    fieldType === 'select' ||
-    fieldType === 'option'
+    cellType === 'status' ||
+    cellType === 'status_set' ||
+    cellType === 'select' ||
+    cellType === 'single-select' ||
+    cellType === 'status_option' ||
+    cellType === 'priority_option' ||
+    cellType === 'category_option' ||
+    cellType === 'custom_option_reference'
   ) {
-    if (typeof value === 'string') return value
-    if (typeof value === 'object' && value?.value) return value.value
-    return null
-  }
-
-  // Also check cellType for select types (fallback if fieldType not set)
-  if (cellType === 'select' || cellType === 'single-select' || cellType === 'status') {
     if (typeof value === 'string') return value
     if (typeof value === 'object' && value?.value) return value.value
     return null
   }
 
   // Multi-reference fields: normalize to array of IDs
-  if (
-    fieldType === 'multi_select' ||
-    fieldType === 'tags' ||
-    cellType === 'select-multi' ||
-    cellType === 'multi-select'
-  ) {
+  if (cellType === 'select-multi' || cellType === 'multi-select') {
     if (!Array.isArray(value)) return []
     return value
-      .map((v) => (typeof v === 'string' ? v : v?.id || null))
+      .map((v: any) => (typeof v === 'string' ? v : v?.id || null))
       .filter(Boolean)
       .sort()
   }
 
   // Dates: normalize to ISO string
-  if (
-    fieldType === 'date' ||
-    fieldType === 'datetime-local' ||
-    cellType === 'date' ||
-    cellType === 'datetime'
-  ) {
+  if (cellType === 'date' || cellType === 'datetime') {
     if (value instanceof Date) return value.toISOString()
     if (typeof value === 'string') return value
     return null

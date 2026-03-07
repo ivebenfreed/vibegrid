@@ -67,9 +67,7 @@ export function enrichColumnsWithFieldTypes<T = any>(columns: Column<T>[]): Colu
 
       return {
         ...column,
-        fieldType: fieldTypeInstance,
         formatter: formatter,
-        editorInstance: editor,
       }
     } catch (error) {
       fileLog.warn('⚠️ [ENRICH] Failed to enrich column, using original', {
@@ -492,20 +490,6 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         })
       }
 
-      // PERFORMANCE: Store field type config for optimized cell creation
-      const fieldTypeConfig = {
-        columnId: fieldName,
-        fieldType: fieldType,
-        cellType: cellType,
-        type: fieldType,
-        hasOptions: options.length > 0,
-        options: options,
-        // 🚀 NEW: Pre-computed field type metadata
-        fieldTypeInstance: fieldTypeInstance,
-        precomputedFormatter: formatter,
-        precomputedEditor: editor,
-      }
-
       const column: Column<T> = {
         id: fieldName,
         field: fieldName as keyof T & string,
@@ -524,17 +508,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         accessibility: safeFieldDef.accessibility || undefined,
         statusSet: safeFieldDef.statusSet || undefined,
 
-        // 🚀 NEW: Pre-computed field type metadata for instant cell rendering
-        fieldType: fieldTypeInstance,
+        // Pre-computed formatter for fast path
         formatter: formatter,
-        editorInstance: editor,
         fieldId: safeFieldDef.id || fieldName, // For reactive options lookup
-
-        // PERFORMANCE: Pre-computed field config for fast cell creation
-        _cachedRenderer: {
-          fieldTypeConfig: fieldTypeConfig,
-          resolvedAt: performance.now(),
-        },
       }
 
       if (relationshipMetadata) {

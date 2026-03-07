@@ -71,7 +71,6 @@ function createMockColumn(fieldType: string, id?: string): Column {
     id: id ?? fieldType,
     field: id ?? fieldType,
     name: `${fieldType} Column`,
-    fieldType,
     cellType: fieldType as Column['cellType'],
     width: 100,
   }
@@ -680,7 +679,7 @@ describe('SlotRegistry', () => {
   })
 
   describe('resolve - synchronous behavior', () => {
-    it('should throw if resolve called before preload', () => {
+    it('should resolve synchronously when preload not called (fallback)', () => {
       registry.register({
         id: 'text',
         renderer: () => createMockRenderer('text'),
@@ -689,8 +688,10 @@ describe('SlotRegistry', () => {
       const column = createMockColumn('text')
       const context = createMockContext()
 
-      // No preload called - should throw
-      expect(() => registry.resolve(column, context)).toThrow(/Preload not complete/)
+      // No preload called - should still resolve via synchronous fallback
+      const renderer = registry.resolve(column, context)
+      expect(renderer).not.toBeNull()
+      expect(renderer!.render).toBeDefined()
     })
 
     it('should not throw after preload is complete', async () => {
@@ -850,7 +851,7 @@ describe('SlotRegistry Edge Cases', () => {
     )
   })
 
-  it('should handle columns with undefined fieldType', async () => {
+  it('should handle columns with undefined cellType', async () => {
     registry.register({
       id: 'text',
       renderer: () => createMockRenderer('text'),
@@ -860,7 +861,7 @@ describe('SlotRegistry Edge Cases', () => {
       id: 'unnamed',
       field: 'unnamed',
       name: 'Unnamed Column',
-      fieldType: undefined as unknown as string,
+      cellType: undefined as unknown as Column['cellType'],
       width: 100,
     }
     const context = createMockContext()

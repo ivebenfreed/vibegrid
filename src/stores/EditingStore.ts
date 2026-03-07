@@ -23,6 +23,7 @@ import { action, computed, makeObservable, observable, runInAction, untracked } 
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import type { SlotRegistry } from '../slots/SlotRegistry'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
 
@@ -143,10 +144,7 @@ export class EditingStore implements IStore {
     if (!this.currentSession) return false
 
     const type = `${
-      this.currentSession.column.cellType ||
-      this.currentSession.column.type ||
-      this.currentSession.column.fieldType?.type ||
-      ''
+      this.currentSession.column.cellType || this.currentSession.column.type || ''
     }`.toLowerCase()
 
     return ['longtext', 'richtext', 'rich-text', 'html', 'markdown', 'textarea'].includes(type)
@@ -174,9 +172,8 @@ export class EditingStore implements IStore {
   // ====================================
 
   private tableCoreStore: TableCoreStore
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned in constructor for future use
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Used by Phase 2+ CellRenderer context
   private visualStateStore: VisualStateStore
-  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
   private collection: any = null // TanStack DB collection for mutations
   private disposers = new DisposerManager()
 
@@ -237,6 +234,17 @@ export class EditingStore implements IStore {
     fileLog.debug('Collection set', { hasCollection: !!collection })
   }
 
+  // D2: SlotRegistry for validation and interaction policy resolution
+  private slotRegistry: SlotRegistry | null = null
+
+  /**
+   * Set SlotRegistry for D2 pipeline - resolves CellRenderer for validation and blur policy
+   */
+  setSlotRegistry(registry: SlotRegistry): void {
+    this.slotRegistry = registry
+    fileLog.debug('SlotRegistry set', { hasRegistry: !!registry })
+  }
+
   // ====================================
   // EDIT LIFECYCLE ACTIONS
   // ====================================
@@ -278,7 +286,7 @@ export class EditingStore implements IStore {
       currentValue,
       valueType: typeof currentValue,
       valueSource: 'TableCore (fresh)',
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
       rowDataFields: rowData ? Object.keys(rowData).slice(0, 20) : [],
       hasDataField: rowData ? dataField in rowData : false,
     })
@@ -401,39 +409,31 @@ export class EditingStore implements IStore {
       duration: `${Date.now() - this.currentSession.startTime}ms`,
     })
 
-    // VALIDATION: Validate using field type validator before saving
-    let valueToSave = finalValue
-    const fieldType = column.fieldType
-    if (fieldType?.validator) {
-      const validationResult = fieldType.validator.validate(finalValue, column)
+    // VALIDATION: Validate using SlotRegistry CellRenderer (D2)
+    const valueToSave = finalValue
+    if (this.slotRegistry) {
+      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      if (renderer?.validate) {
+        const validationError = renderer.validate(finalValue, column, { viewMode: 'table' })
+        if (validationError) {
+          fileLog.warn('Validation failed - keeping editor open', {
+            cellId,
+            error: validationError,
+            value: finalValue,
+          })
 
-      if (!validationResult.valid) {
-        fileLog.warn('Validation failed - keeping editor open', {
-          cellId,
-          errors: validationResult.errors,
-          value: finalValue,
-        })
+          // Update session with validation errors
+          this.currentSession.validation = {
+            isValid: false,
+            errors: [validationError],
+          }
 
-        // Update session with validation errors
-        this.currentSession.validation = {
-          isValid: false,
-          errors: validationResult.errors,
+          // Increment version to trigger UI update
+          this.editingVersion++
+
+          // Don't clear session or save - keep editor open for user to fix
+          return
         }
-
-        // Increment version to trigger UI update
-        this.editingVersion++
-
-        // Don't clear session or save - keep editor open for user to fix
-        return
-      }
-
-      // Use transformed value if provided by validator (e.g., email lowercase)
-      if (validationResult.transformedValue !== undefined) {
-        valueToSave = validationResult.transformedValue
-        fileLog.debug('Using transformed value from validator', {
-          original: finalValue,
-          transformed: valueToSave,
-        })
       }
     }
 
@@ -585,7 +585,7 @@ export class EditingStore implements IStore {
       cellId,
       reason,
       pendingValue,
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
     })
 
     const blurPolicy = this.getBlurPolicy(column)
@@ -593,7 +593,7 @@ export class EditingStore implements IStore {
     fileLog.debug('Applying blur policy', {
       cellId,
       policy: blurPolicy,
-      fieldType: column.fieldType?.id,
+      cellType: column.cellType,
     })
 
     switch (blurPolicy) {
@@ -627,8 +627,11 @@ export class EditingStore implements IStore {
    * @returns Blur policy ('commit' | 'cancel' | 'keep-open')
    */
   private getBlurPolicy(column: any): BlurPolicy {
-    const policy = column.fieldType?.interactionPolicy
-    return policy?.blurPolicy || 'commit'
+    if (this.slotRegistry) {
+      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      return renderer?.interactionPolicy?.blurPolicy || 'commit'
+    }
+    return 'commit'
   }
 
   // ====================================
@@ -740,24 +743,27 @@ export class EditingStore implements IStore {
 
     const valueToValidate = value !== undefined ? value : this.currentSession.pendingValue
     const { column } = this.currentSession
-    const fieldType = column.fieldType
 
-    if (fieldType?.validator) {
-      const validationResult = fieldType.validator.validate(valueToValidate, column)
+    if (this.slotRegistry) {
+      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      if (renderer?.validate) {
+        const validationError = renderer.validate(valueToValidate, column, { viewMode: 'table' })
 
-      this.currentSession.validation = {
-        isValid: validationResult.valid,
-        errors: validationResult.errors,
+        this.currentSession.validation = {
+          isValid: !validationError,
+          errors: validationError ? [validationError] : [],
+        }
+
+        // Increment version to trigger UI update if validation state changed
+        this.editingVersion++
+        return
       }
+    }
 
-      // Increment version to trigger UI update if validation state changed
-      this.editingVersion++
-    } else {
-      // No validator - always valid
-      this.currentSession.validation = {
-        isValid: true,
-        errors: [],
-      }
+    // No validator - always valid
+    this.currentSession.validation = {
+      isValid: true,
+      errors: [],
     }
   }
 

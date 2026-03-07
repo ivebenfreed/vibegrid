@@ -52,7 +52,7 @@ export class ModularCellBridge {
     // GH#1429 ML2: Prune cache if it would exceed max size
     // This handles dynamic column scenarios (pivot tables, computed fields)
     const newColumnsCount = columns.filter(
-      (c) => c.fieldType && !this.affordanceCache.has(c.id),
+      (c) => (c as any).fieldType && !this.affordanceCache.has(c.id),
     ).length
     if (this.affordanceCache.size + newColumnsCount > ModularCellBridge.MAX_AFFORDANCE_CACHE_SIZE) {
       // Clear and rebuild - simpler than LRU for column affordances
@@ -70,8 +70,8 @@ export class ModularCellBridge {
       if (this.affordanceCache.has(column.id)) continue
 
       // Only process columns with field types
-      if (column.fieldType) {
-        const resolved = affordanceResolver.resolve(column.fieldType, column as any)
+      if ((column as any).fieldType) {
+        const resolved = affordanceResolver.resolve((column as any).fieldType, column as any)
         const attrs = affordanceResolver.getDataAttributes(resolved)
         this.affordanceCache.set(column.id, attrs.container)
         precomputedCount++
@@ -231,11 +231,11 @@ export class ModularCellBridge {
 
     // 🎯 Apply affordance system data attributes (critical for hover styles!)
     // PERF: Cache affordance attributes per column - same for all cells in column
-    if (column.fieldType) {
+    if ((column as any).fieldType) {
       let cachedAttrs = this.affordanceCache.get(column.id)
       if (!cachedAttrs) {
         // Resolve once per column, cache for all cells
-        const resolved = affordanceResolver.resolve(column.fieldType, column as any)
+        const resolved = affordanceResolver.resolve((column as any).fieldType, column as any)
         const attrs = affordanceResolver.getDataAttributes(resolved)
         cachedAttrs = attrs.container
         this.affordanceCache.set(column.id, cachedAttrs)
@@ -248,9 +248,9 @@ export class ModularCellBridge {
     }
 
     // Use the original field type renderer for proper styling (badges, etc.)
-    if (column.fieldType?.renderer) {
+    if ((column as any).fieldType?.renderer) {
       try {
-        const content = column.fieldType.renderer.render(value, column, rowData)
+        const content = (column as any).fieldType.renderer.render(value, column, rowData)
         container.appendChild(content)
       } catch (_error) {
         // Fallback to formatter if renderer fails

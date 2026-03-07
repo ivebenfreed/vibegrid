@@ -17,6 +17,8 @@ import type { HierarchyStore } from '../../stores/HierarchyStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
+import type { SlotRegistry, CellRendererContext } from '../../slots/SlotRegistry'
+import { applyAffordanceAttrs } from '../../slots/applyAffordanceAttrs'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
@@ -48,8 +50,8 @@ export interface BodyRendererOptions {
   // Cell creation callbacks
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
 
-  // Field type system bridge
-  modularCellBridge?: any
+  // SlotRegistry for cell rendering
+  slotRegistry?: SlotRegistry
 }
 
 // ====================================
@@ -94,8 +96,8 @@ export class BodyRenderer {
     renderErrors: [] as string[],
   }
 
-  // NEW: Modular cell system support
-  private modularCellBridge: any = null
+  // SlotRegistry for cell rendering
+  private slotRegistry: SlotRegistry | null = null
 
   constructor(options: BodyRendererOptions) {
     this.tableCoreStore = options.tableCoreStore
@@ -109,7 +111,7 @@ export class BodyRenderer {
     this.container = options.container
     this.createElement = options.createElement
     this.onEntityUpdate = options.onEntityUpdate
-    this.modularCellBridge = options.modularCellBridge || null
+    this.slotRegistry = options.slotRegistry || null
 
     // Initialize drag and drop manager with container
     this.initializeDragDrop()
@@ -123,16 +125,7 @@ export class BodyRenderer {
     }
 
     // Check if modular cell system is already available globally (from init manager)
-    // This allows synchronous access if it's already initialized
-    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
-      this.modularCellBridge = (window as any).vibegridCellBridge
-      fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system already available from init manager')
-    } else {
-      // Initialize modular cell system asynchronously as fallback
-      this.initializeModularCellSystem()
-    }
-
-    fileLog.info('🏗️ BodyRenderer initialized (Phase 2.1 consolidated)') // Keep: lifecycle
+    fileLog.info('🏗️ BodyRenderer initialized') // Keep: lifecycle
   }
 
   /**
@@ -150,45 +143,6 @@ export class BodyRenderer {
         fileLog.debug('📦 Selection states updated due to selection change')
       },
     )
-  }
-
-  /**
-   * Initialize modular cell system for enhanced field type support
-   */
-  private async initializeModularCellSystem(): Promise<void> {
-    // First check if it's already available globally (from init manager)
-    if (typeof window !== 'undefined' && (window as any).vibegridCellBridge) {
-      this.modularCellBridge = (window as any).vibegridCellBridge
-      fileLog.debug(
-        '🎯 [FIELD-BRIDGE] Modular cell system already initialized (from init manager)',
-        {
-          supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
-          basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
-          relationshipTypes: this.modularCellBridge.getStats().registry.relationshipTypes.length,
-          rollupTypes: this.modularCellBridge.getStats().registry.rollupTypes.length,
-        },
-      )
-      return
-    }
-
-    try {
-      // Fallback: Dynamically import the modular system to avoid circular dependencies
-      const modularModule = await import('../../field-types')
-      this.modularCellBridge = modularModule.modularCellBridge
-
-      fileLog.debug('🎯 [FIELD-BRIDGE] Modular cell system initialized in BodyRenderer', {
-        supportedTypes: this.modularCellBridge.getStats().registry.totalTypes,
-        basicTypes: this.modularCellBridge.getStats().registry.basicTypes.length,
-        relationshipTypes: this.modularCellBridge.getStats().registry.relationshipTypes.length,
-        rollupTypes: this.modularCellBridge.getStats().registry.rollupTypes.length,
-      })
-    } catch (error) {
-      fileLog.error('❌ [FIELD-BRIDGE] Modular cell system failed to initialize - FAIL FAST', {
-        error,
-      })
-      // FAIL FAST - Don't use legacy, surface the real issue
-      throw error
-    }
   }
 
   /**
@@ -830,55 +784,66 @@ export class BodyRenderer {
 
     const value = rowData[column.id]
 
-    if (this.modularCellBridge) {
+    // Use SlotRegistry for cell rendering (D2 pipeline)
+    if (this.slotRegistry) {
       try {
-        // PERF: Debug logging removed from hot path (was creating objects for every cell)
-
-        // Use the unified CellFactory with column config
         const effectiveWidth =
           widthOverride ?? this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
-        const columnForRender = {
-          ...column,
-          width: effectiveWidth,
-          tableCoreStore: this.tableCoreStore,
-          tableCore$: this.tableCoreStore,
+
+        const context: CellRendererContext = {
+          viewMode: 'table',
+          entityType: this.tableCoreStore?.entityType,
         }
 
-        const cellElement = this.modularCellBridge.createCell(value, columnForRender, rowData, {
-          rowIndex: 0,
-          columnIndex: colIndex,
-          xPosition,
-          width: effectiveWidth,
-        })
+        const renderer = this.slotRegistry.resolve(column, context)
 
-        // ARIA: Add gridcell semantics
+        let cellElement: HTMLElement
+        if (renderer) {
+          cellElement = renderer.render(value, column, context)
+          // Apply affordance attributes
+          applyAffordanceAttrs(cellElement, renderer, column.editable !== false)
+        } else {
+          // No renderer found - create basic text cell
+          cellElement = document.createElement('div')
+          cellElement.className = 'vibegridx-cell'
+          cellElement.textContent = value != null ? String(value) : ''
+        }
+
+        // Ensure cell has required classes and positioning
+        cellElement.classList.add('vibegridx-cell')
+        cellElement.style.width = `${effectiveWidth}px`
+        cellElement.style.minWidth = `${effectiveWidth}px`
+        cellElement.style.maxWidth = `${effectiveWidth}px`
+        if (xPosition !== undefined) {
+          cellElement.style.left = `${xPosition}px`
+        }
+
+        // ARIA
         cellElement.setAttribute('role', 'gridcell')
         cellElement.setAttribute('aria-colindex', String(colIndex + 1))
 
-        // Check if this cell is selected and apply selection class
+        // Selection state
         const cellId = `${row.id}:${column.id}`
-        const isSelected = this.interactionStore.selectedCells.has(cellId)
-        if (isSelected) {
+        if (this.interactionStore.selectedCells.has(cellId)) {
           cellElement.classList.add('vibegridx-selected')
           cellElement.setAttribute('aria-selected', 'true')
         }
 
-        // Add interaction handlers that the CellFactory doesn't handle
-        this.addCellInteractionHandlers(cellElement, row, column, rowData[column.id])
+        // Interaction handlers
+        this.addCellInteractionHandlers(cellElement, row, column, value)
 
         return cellElement
       } catch (error) {
-        fileLog.error('❌ [BODY-RENDERER] CellFactory failed - FAIL FAST', {
+        fileLog.error('❌ [BODY-RENDERER] SlotRegistry render failed', {
           error,
           columnId: column.id,
-          fieldType: column.cellType || column.type,
+          cellType: column.cellType,
         })
-        throw error // Fail fast - don't use fallback
+        throw error
       }
     }
 
-    // CellFactory must be available - no fallback allowed
-    throw new Error('ModularCellBridge not available - field type system not initialized')
+    throw new Error('SlotRegistry not available for cell rendering')
   }
 
   // Note: Basic cell fallback removed - CellFactory must work
@@ -905,11 +870,8 @@ export class BodyRenderer {
     cellElement.setAttribute('data-testid', `cell-${row.id}-${column.id}`)
 
     // Set field type metadata for CellActionRouter
-    if (column.fieldType) {
-      cellElement.setAttribute(
-        'data-field-type',
-        column.fieldType.type || column.cellType || 'text',
-      )
+    if (column.cellType) {
+      cellElement.setAttribute('data-field-type', column.cellType)
     }
   }
 
@@ -1303,37 +1265,33 @@ export class BodyRenderer {
       return false
     }
 
-    if (this.modularCellBridge) {
+    if (this.slotRegistry) {
       try {
-        const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
-        const rowData = row?.data || row
+        const renderer = this.slotRegistry.resolve(column, { viewMode: 'grid' })
+        if (renderer) {
+          const newCellContent = renderer.render(newValue, column, { viewMode: 'grid' })
+          // Replace content inside cell element
+          cellElement.innerHTML = ''
+          while (newCellContent.firstChild) {
+            cellElement.appendChild(newCellContent.firstChild)
+          }
+          // Copy over data attributes from rendered element
+          for (const attr of Array.from(newCellContent.attributes)) {
+            if (attr.name.startsWith('data-')) {
+              cellElement.setAttribute(attr.name, attr.value)
+            }
+          }
 
-        if (!rowData) {
-          fileLog.warn('Row data not found for cell update', { rowId, columnId })
-          return false
+          fileLog.debug('✅ Cell value updated (granular)', {
+            rowId,
+            columnId,
+            newValue,
+            method: 'cell-level',
+            cellType: column.cellType || column.type,
+          })
+
+          return true
         }
-
-        const effectiveWidth = this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
-        const columnForRender = {
-          ...column,
-          width: effectiveWidth,
-          tableCoreStore: this.tableCoreStore,
-          tableCore$: this.tableCoreStore,
-        }
-
-        // Use renderer's update method to preserve event listeners
-        // This prevents losing hover handlers and other attached events
-        this.modularCellBridge.updateCell(cellElement, newValue, columnForRender, rowData)
-
-        fileLog.debug('✅ Cell value updated (granular)', {
-          rowId,
-          columnId,
-          newValue,
-          method: 'cell-level',
-          fieldType: column.fieldType?.type || column.type,
-        })
-
-        return true
       } catch (error) {
         fileLog.error('Cell update failed', { rowId, columnId, error })
         return false
@@ -1618,36 +1576,46 @@ export class BodyRenderer {
         rowElement.appendChild(cell)
       }
 
-      // Render cell content via ModularCellBridge
-      if (this.modularCellBridge && existingCellMap.has(column.id)) {
+      // Render cell content for reused cells
+      if (existingCellMap.has(column.id)) {
         // Only re-render reused cells — new cells from createCellElement are already rendered
         try {
-          const cellContent = this.modularCellBridge.createCell(value, column, rowData, {
-            rowIndex: newRowIndex,
-            columnIndex: colIndex,
-            xPosition: layout?.xOffset,
-            width: layout?.width ?? column.width ?? 150,
-          })
-          cell.dataset.field = column.field || column.id
-          cell.setAttribute('data-testid', `cell-${newRow.id}-${column.id}`)
-          if (column.fieldType) {
-            cell.setAttribute('data-field-type', column.fieldType.type || column.cellType || 'text')
-          }
-          while (cellContent.firstChild) {
-            cell.appendChild(cellContent.firstChild)
-          }
-          if (!cell.firstChild && cellContent.textContent) {
-            cell.textContent = cellContent.textContent
+          if (this.slotRegistry) {
+            // D2 pipeline: use SlotRegistry
+            const context: CellRendererContext = {
+              viewMode: 'table',
+              entityType: this.tableCoreStore?.entityType,
+            }
+            const renderer = this.slotRegistry.resolve(column, context)
+            if (renderer) {
+              const cellContent = renderer.render(value, column, context)
+              applyAffordanceAttrs(cellContent, renderer, column.editable !== false)
+              cell.dataset.field = column.field || column.id
+              cell.setAttribute('data-testid', `cell-${newRow.id}-${column.id}`)
+              if (column.cellType) {
+                cell.setAttribute('data-field-type', column.cellType)
+              }
+              while (cellContent.firstChild) {
+                cell.appendChild(cellContent.firstChild)
+              }
+              if (!cell.firstChild && cellContent.textContent) {
+                cell.textContent = cellContent.textContent
+              }
+            } else {
+              cell.textContent = column.formatter
+                ? column.formatter(value, rowData, column)
+                : String(value ?? '')
+            }
+          } else {
+            cell.textContent = column.formatter
+              ? column.formatter(value, rowData, column)
+              : String(value ?? '')
           }
         } catch (_error) {
           cell.textContent = column.formatter
             ? column.formatter(value, rowData, column)
             : String(value ?? '')
         }
-      } else if (!this.modularCellBridge && existingCellMap.has(column.id)) {
-        cell.textContent = column.formatter
-          ? column.formatter(value, rowData, column)
-          : String(value ?? '')
       }
     })
 

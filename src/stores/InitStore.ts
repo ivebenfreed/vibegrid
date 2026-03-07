@@ -20,7 +20,8 @@ import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
+import { SlotRegistry } from '../slots/SlotRegistry'
+import { registerDefaultSlots } from '../slots/slot-initialization'
 import type { SimplePassiveRenderer } from '../renderers/core/SimplePassiveRenderer'
 import type { InteractionStore } from './InteractionStore'
 import type { PersistenceStore } from './PersistenceStore'
@@ -112,6 +113,9 @@ export class InitStore implements IStore {
    * when columns are ready and the container is set.
    */
   @observable.ref renderer: SimplePassiveRenderer | null = null
+
+  /** SlotRegistry instance for this grid - created during init, shared with all consumers */
+  public slotRegistry: SlotRegistry = new SlotRegistry()
 
   // ====================================
   // DEPENDENCIES
@@ -333,11 +337,10 @@ export class InitStore implements IStore {
     })
 
     try {
-      // Step 0: Initialize field types (lazy loaded for performance)
-      // This MUST happen before TableCoreStore.init() which needs field types for column generation
-      await fieldTypeRegistry.ensureInitialized()
-      logger.info('✅ Field types initialized', {
-        typeCount: fieldTypeRegistry.getRegisteredTypes().length,
+      // Step 0: Register default slots and preload for columns
+      registerDefaultSlots(this.slotRegistry)
+      logger.info('Default slots registered', {
+        slotCount: this.slotRegistry.getRegisteredIds().length,
       })
 
       // Step 1: Initialize PersistenceStore first (loads saved preferences)
@@ -363,6 +366,20 @@ export class InitStore implements IStore {
       if (this.interactionStore) {
         await this.interactionStore.init()
         this.markReady('interactionStoreReady')
+      }
+
+      // Step 4.5: Preload slots for the loaded columns
+      if (this.tableCoreStore && this.visualStateStore) {
+        const columns = this.visualStateStore.columns
+        if (columns.length > 0) {
+          await this.slotRegistry.preloadForColumns(columns, {
+            entityType: this.entityType,
+            viewMode: 'table', // Default view mode
+          })
+          logger.info('✅ Slots preloaded for columns', {
+            columnCount: columns.length,
+          })
+        }
       }
 
       // Step 5: Set up renderer creation reaction

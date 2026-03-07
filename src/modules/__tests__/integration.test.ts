@@ -104,7 +104,6 @@ function createMockColumn(fieldType: string, id?: string): Column {
     id: id ?? fieldType,
     field: id ?? fieldType,
     name: `${fieldType} Column`,
-    fieldType,
     cellType: fieldType as Column['cellType'],
     width: 100,
   }
