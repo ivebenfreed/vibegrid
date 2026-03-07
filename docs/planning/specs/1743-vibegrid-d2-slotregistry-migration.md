@@ -19,7 +19,7 @@ phases:
       - "IMPL: Replace fieldTypeRegistry.ensureInitialized() with slotRegistry.preloadForColumns() in InitStore"
       - "IMPL: Update CellActionRouter to read interactionPolicy from resolved CellRenderer"
       - "IMPL: Thread CellRendererContext through InteractionCoordinator"
-      - "IMPL: Update EditingStore to resolve renderer from SlotRegistry (validation, blur handling)"
+      - "IMPL: Update EditingStore to resolve CellRenderer from SlotRegistry for validation + interactionPolicy (editing still via React overlay editors)"
       - "IMPL: Update utils/hashing.ts to use column.cellType instead of column.fieldType"
       - "IMPL: Create applyAffordanceAttrs() helper for CellRenderers to stamp DOM data attributes"
       - "IMPL: Update column-generation.ts to pre-compute via SlotRegistry"
@@ -190,9 +190,11 @@ CellActionRouter
   reads renderer.interactionPolicy
        |
        v
-InteractionCoordinator
-  calls renderer.renderEditor() for editing
-  calls renderer.validate() for validation
+InteractionCoordinator → EditingStore → EditingOverlay
+  EditingOverlay.show() creates React portal over cell
+  createEditor(column) dispatches to React editor component (TextEditor, SelectEditor, etc.)
+  CellRenderer provides: interactionPolicy, affordanceGroup, validate()
+  CellRenderer does NOT provide: the editor itself (React overlay editors are authoritative)
 ```
 
 ### CellRenderer Interface (Target)
@@ -206,9 +208,13 @@ interface CellRenderer {
 
   // Optional capabilities
   update?(value: unknown, newValue: unknown, column: Column, context: CellRendererContext): Promise<void>
-  renderEditor?(value: unknown, column: Column, context: CellRendererContext): HTMLElement
   validate?(value: unknown, column: Column, context: CellRendererContext): string | null
   format?(value: unknown, column: Column, context: CellRendererContext): string
+
+  // NOTE: No renderEditor() — editing uses React overlay editors (EditingOverlay + createEditor())
+  // The overlay system dispatches to React components (TextEditor, SelectEditor, DateEditor, etc.)
+  // based on column.cellType. CellRenderer provides metadata (interactionPolicy, affordanceGroup)
+  // that controls WHEN and HOW editing triggers, but not the editor UI itself.
 
   // Domain-specific
   asyncDataLoader?(value: unknown, column: Column, context: CellRendererContext): Promise<void>
@@ -333,13 +339,13 @@ formatter?: Function      // Pre-bound from CellRenderer.format() during column-
 |----------|----------------|-------------|
 | `BodyRenderer` | `modularCellBridge.createCell()` | `slotRegistry.resolve(column, context).render()` |
 | `InteractionCoordinator` | `column.fieldType.interactionPolicy` | `slotRegistry.resolve(column, context).interactionPolicy` |
-| `EditingStore` | `column.fieldType.editor` | `slotRegistry.resolve(column, context).renderEditor()` |
+| `EditingStore` | `column.fieldType.editor` | React overlay editors stay (EditingOverlay + createEditor()); SlotRegistry provides validation via `.validate()` |
 | `CellActionRouter` | `column.fieldType.interactionPolicy` | `slotRegistry.resolve(column, context).interactionPolicy` |
 | `AffordanceResolver` | `column.fieldType.affordance` | `slotRegistry.resolve(column, context).affordanceGroup` |
 | `column-generation.ts` | `fieldTypeRegistry.getFieldType()` | `slotRegistry.resolve(column, context)` for pre-computing `column.formatter` |
 | `VibeFormField` | `fieldTypeRegistry.getFieldType()` | `slotRegistry.resolve(column, { viewMode: 'form' })` |
 | `csv-export.ts` | `column.formatter` | `column.formatter` (unchanged — pre-bound during column-generation) |
-| `EditingStore` validation | `column.fieldType.validator` | `slotRegistry.resolve(column, context).validate()` |
+| `EditingStore` validation | `column.fieldType.validator` | `slotRegistry.resolve(column, context).validate()` (validation only, not editor creation) |
 | `utils/hashing.ts` | `column.fieldType` normalization | Use `column.cellType` directly (already available) |
 
 Since `resolve()` is a sync cache lookup (O(1)), calling it at each consumer is cheap. The cache is populated by `preloadForColumns()` during grid init.
@@ -425,7 +431,7 @@ Cache is populated by `preloadForColumns()` (async) and read by `resolve()` (syn
 | `InitStore.ts` | Replace `fieldTypeRegistry.ensureInitialized()` with `slotRegistry.preloadForColumns()` |
 | `column-generation.ts` | Pre-compute formatters via SlotRegistry resolution |
 | `CellActionRouter.ts` | Read `interactionPolicy` from resolved `CellRenderer` (preserve defaultAction/editTrigger/blurPolicy) |
-| `InteractionCoordinator.ts` | Accept `CellRendererContext`, use `renderer.renderEditor()` |
+| `InteractionCoordinator.ts` | Accept `CellRendererContext`, read interactionPolicy from resolved CellRenderer |
 | `AffordanceResolver.ts` | Read `affordanceGroup` from resolved `CellRenderer` (preserve group-based styling) |
 | `VibeGrid.tsx` | Call `module.registerSlots(slotRegistry)` during module activation |
 | `VisualStateStore.ts` | Re-home affordance precompute from ModularCellBridge; call `slotRegistry.clearCacheForContext()` + `preloadForColumns()` on view-mode/schema/org context changes |
@@ -458,9 +464,9 @@ fieldTypeRegistry.register('text', TextFieldType)
 // AFTER: TextCellRenderer.ts (unified)
 export class TextCellRenderer implements CellRenderer {
   render(value, column, context): HTMLElement { /* DOM creation */ }
-  renderEditor(value, column, context): HTMLElement { /* inline editor */ }
   validate(value, column, context): string | null { /* validation */ }
   format(value, column, context): string { /* display formatting */ }
+  // No renderEditor — TextEditor React component in overlays/editors/ handles editing
 
   affordances = { sortable: true, filterable: true, editable: true, groupable: true }
   interactionPolicy = { defaultAction: 'edit' as const, editTrigger: 'content-click' as const, blurPolicy: 'commit' as const }
@@ -560,20 +566,23 @@ slotRegistry.register({
 
 **Form editor boundary: React overlay editors are authoritative for forms.**
 
-The grid's `CellRenderer.renderEditor()` returns DOM elements for inline grid editing. Forms need a different UX: labels, validation messages, portal-positioned dropdowns, autosave integration. These are already built as React overlay editors.
+**Both grid and form editing use the same React overlay editor system.** There is no `CellRenderer.renderEditor()`.
 
-**Decision: Forms do NOT use `CellRenderer.renderEditor()`.** Instead:
+The editing pipeline for **both** grid and forms:
+- `EditingOverlay` creates a React portal positioned over the cell
+- `createEditor(column)` in `overlays/editors/index.tsx` dispatches to React editor components (TextEditor, SelectEditor, DateEditor, RelationshipEditor, etc.) based on `column.cellType`
+- `CellRenderer` provides metadata only: `affordanceGroup` (portal vs inline detection), `interactionPolicy` (edit triggers, blur behavior), `validate()` (validation)
 
-1. `slotRegistry.resolve(column, { viewMode: 'form' })` replaces `fieldTypeRegistry.getFieldType()` — provides metadata only (`affordanceGroup`, `interactionPolicy`, `affordances`)
-2. `CellRenderer.affordanceGroup.group` determines editor type:
-   - `'editable-content'` → inline text/number input (React component in VibeFormField)
-   - `'editable-badge'` → portal dropdown (React overlay editor from `overlays/editors/`)
-3. React overlay editors remain the authoritative form editor stack — `overlays/editors/index.tsx` unchanged
-4. `CellRenderer.validate()` is called by VibeFormField for validation
-5. `CellRenderer.format()` is called for display-only (read-only) form fields
-6. Blur/autosave behavior reads `interactionPolicy.blurPolicy` from the resolved CellRenderer
+**What changes for forms:**
+1. `slotRegistry.resolve(column, { viewMode: 'form' })` replaces `fieldTypeRegistry.getFieldType()` — provides metadata only
+2. `CellRenderer.affordanceGroup.group` determines editor layout:
+   - `'editable-content'` → inline text/number input
+   - `'editable-badge'` → portal dropdown
+3. `CellRenderer.validate()` is called by VibeFormField for validation
+4. `CellRenderer.format()` is called for display-only (read-only) form fields
+5. Blur/autosave behavior reads `interactionPolicy.blurPolicy` from the resolved CellRenderer
 
-This eliminates the dual-stack risk: grid editing uses `CellRenderer.renderEditor()` (DOM), form editing uses React overlay editors. The resolved CellRenderer provides metadata to both paths but is not the editor itself for forms.
+**No dual-stack risk:** Both grid and form editing use React overlay editors. CellRenderer is never the editor — it's the cell renderer and metadata provider.
 
 **Files to modify:**
 
@@ -649,7 +658,7 @@ Each phase must pass its gate before the next begins:
 
 ### Test Categories
 
-1. **Unit tests per CellRenderer** — render(), format(), validate(), renderEditor() for each type
+1. **Unit tests per CellRenderer** — render(), format(), validate() for each type
 2. **SlotRegistry resolution tests** — Priority, context filtering, cache behavior
 3. **Integration tests** — Full render loop with real columns and data
 4. **Performance benchmarks:**
@@ -767,7 +776,7 @@ slots/
 | `stores/column-generation.ts` | Pre-compute via SlotRegistry |
 | `routing/CellActionRouter.ts` | Read from CellRenderer |
 | `coordination/InteractionCoordinator.ts` | Thread context, resolve renderer per interaction |
-| `stores/EditingStore.ts` | Replace column.fieldType.editor/validator with slotRegistry.resolve() |
+| `stores/EditingStore.ts` | Replace column.fieldType reads with slotRegistry.resolve() for validation/metadata; editing via React overlays unchanged |
 | `utils/hashing.ts` | Replace column.fieldType normalization with column.cellType |
 | `affordances/AffordanceResolver.ts` | Read affordanceGroup from CellRenderer |
 | `stores/VisualStateStore.ts` | Re-home affordance precompute, add context-change cache invalidation |
