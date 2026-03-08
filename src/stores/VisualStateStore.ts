@@ -234,6 +234,8 @@ export class VisualStateStore implements IStore {
    */
   precomputeAffordancesFromSlotRegistry(columns: Column[], context: CellRendererContext): void {
     if (!this.slotRegistry) return
+    // Skip if preload hasn't completed — will be called again after preloadForColumns()
+    if (!this.slotRegistry.preloadReady) return
 
     for (const column of columns) {
       const renderer = this.slotRegistry.resolve(column, context)

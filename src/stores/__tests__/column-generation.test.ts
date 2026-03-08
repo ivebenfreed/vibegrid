@@ -2,29 +2,19 @@
 
 import { describe, expect, it, vi } from 'vitest'
 
-// Mock heavy dependencies before importing the module under test
-vi.mock('../../../field-types/FieldTypeRegistry', () => ({
-  fieldTypeRegistry: {
-    getFieldType: vi.fn().mockReturnValue({
-      category: 'text',
-      formatter: { format: vi.fn() },
-      editor: {},
-    }),
-  },
-}))
-
-vi.mock('../../../field-types', () => ({}))
-
 vi.mock('@/shared/lib/logging', () => ({
   getLogger: () => ({
     debug: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   }),
 }))
 
 // Import after mocks are in place
-const { generateColumnsFromEntitySchema } = await import('../column-generation')
+const { generateColumnsFromEntitySchema, enrichColumnsWithFieldTypes } = await import(
+  '../column-generation'
+)
 
 function makeSchemaRegistry(fields: object[]) {
   return {
@@ -91,5 +81,34 @@ describe('column-generation: system field filtering', () => {
     expect(ids).toContain('name')
     expect(ids).toContain('description')
     expect(ids).toContain('budget')
+  })
+})
+
+describe('column-generation: D2 SlotRegistry migration', () => {
+  it('enrichColumnsWithFieldTypes is a pass-through (no FieldTypeRegistry)', () => {
+    const columns = [
+      { id: 'name', field: 'name', cellType: 'text' },
+      { id: 'budget', field: 'budget', cellType: 'decimal' },
+    ] as any[]
+
+    const result = enrichColumnsWithFieldTypes(columns)
+
+    // Should return the exact same array reference (pass-through)
+    expect(result).toBe(columns)
+    expect(result).toHaveLength(2)
+  })
+
+  it('columns are generated without pre-computed formatter', async () => {
+    const registry = makeSchemaRegistry([
+      { name: 'name', type: 'text' },
+      { name: 'status', type: 'select', editor: { options: [{ value: 'active' }] } },
+    ])
+
+    const columns = await generateColumnsFromEntitySchema('TestEntity', registry)
+
+    // SlotRegistry handles rendering at render time — no formatter pre-computed
+    for (const col of columns) {
+      expect(col.formatter).toBeUndefined()
+    }
   })
 })

@@ -372,10 +372,13 @@ export class InitStore implements IStore {
       if (this.tableCoreStore && this.visualStateStore) {
         const columns = this.visualStateStore.columns
         if (columns.length > 0) {
-          await this.slotRegistry.preloadForColumns(columns, {
+          const slotContext = {
             entityType: this.entityType,
-            viewMode: 'table', // Default view mode
-          })
+            viewMode: 'table' as const,
+          }
+          await this.slotRegistry.preloadForColumns(columns, slotContext)
+          // Now that preload is complete, precompute affordances
+          this.visualStateStore.precomputeAffordancesFromSlotRegistry(columns, slotContext)
           logger.info('✅ Slots preloaded for columns', {
             columnCount: columns.length,
           })

@@ -9,10 +9,7 @@ import { getLogger } from '@/shared/lib/logging'
 import { COLUMN_DEFAULTS } from '../column-defaults'
 import type { CellType } from '../column-types'
 import type { Column } from '../types'
-// IMPORTANT: Import field-types index to trigger all field type registrations
-import '../field-types'
 import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
-import { fieldTypeRegistry } from '../field-types/FieldTypeRegistry'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'column-generation'])
 
@@ -25,58 +22,13 @@ function getBasicColumns<T = any>(): Column<T>[] {
 }
 
 /**
- * Enrich columns with pre-computed field types and formatters
+ * Enrich columns with pre-computed field types and formatters.
  *
- * This enables the fast path in ModularCellBridge.createCell() which checks
- * for column.formatter to skip the legacy path.
- *
- * Used for:
- * - Platform User columns (admin schema, not DataForge)
- * - Any custom schema that bypasses generateColumnsFromEntity()
+ * Since D2 (SlotRegistry migration), cell rendering is handled by SlotRegistry
+ * at render time. This function is now a pass-through kept for call-site compatibility.
  */
 export function enrichColumnsWithFieldTypes<T = any>(columns: Column<T>[]): Column<T>[] {
-  return columns.map((column) => {
-    // Skip if already enriched (has formatter)
-    if (column.formatter) {
-      return column
-    }
-
-    try {
-      // Create mock column for field type resolution
-      const mockColumn = {
-        id: column.id,
-        field: column.field,
-        cellType: column.cellType,
-        type: column.cellType || 'text',
-        options: column.options || [],
-        hasOptions: (column.options?.length || 0) > 0,
-        editable: column.editable,
-        isPrimaryField: (column as any).isPrimaryField,
-      } as any
-
-      const fieldTypeInstance = fieldTypeRegistry.getFieldType(mockColumn)
-      const formatter = fieldTypeInstance?.formatter?.format?.bind(fieldTypeInstance.formatter)
-      const editor = fieldTypeInstance?.editor
-
-      fileLog.debug('🚀 [ENRICH] Pre-computed field type for column', {
-        columnId: column.id,
-        cellType: column.cellType,
-        hasFormatter: !!formatter,
-        hasEditor: !!editor,
-      })
-
-      return {
-        ...column,
-        formatter: formatter,
-      }
-    } catch (error) {
-      fileLog.warn('⚠️ [ENRICH] Failed to enrich column, using original', {
-        columnId: column.id,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      return column
-    }
-  })
+  return columns
 }
 
 function deriveTargetEntityFromField(fieldName: string | undefined): string | null {
@@ -453,43 +405,6 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       // Use options from schema (backend already provides colored options)
       const options = safeFieldDef.editor?.options || []
 
-      // 🚀 PERFORMANCE: Pre-compute field type and formatter ONCE during column generation
-      let fieldTypeInstance: any
-      let formatter: any
-      let editor: any
-
-      try {
-        // Create mock enhanced column for field type resolution
-        const mockColumn = {
-          id: fieldName,
-          field: fieldName,
-          cellType: cellType,
-          type: fieldType,
-          options: options,
-          hasOptions: options.length > 0,
-        } as any
-
-        fieldTypeInstance = fieldTypeRegistry.getFieldType(mockColumn)
-        formatter = fieldTypeInstance.formatter?.format?.bind(fieldTypeInstance.formatter)
-        editor = fieldTypeInstance.editor
-
-        fileLog.debug('🚀 [FIELD-PRECOMPUTE] Pre-computed field type and formatter', {
-          fieldName,
-          fieldType,
-          cellType,
-          hasFormatter: !!formatter,
-          hasEditor: !!editor,
-          fieldTypeCategory: fieldTypeInstance.category,
-        })
-      } catch (error) {
-        fileLog.warn('⚠️ [FIELD-PRECOMPUTE] Failed to pre-compute field type, will use fallback', {
-          fieldName,
-          fieldType,
-          cellType,
-          error: error instanceof Error ? error.message : String(error),
-        })
-      }
-
       const column: Column<T> = {
         id: fieldName,
         field: fieldName as keyof T & string,
@@ -508,8 +423,6 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         accessibility: safeFieldDef.accessibility || undefined,
         statusSet: safeFieldDef.statusSet || undefined,
 
-        // Pre-computed formatter for fast path
-        formatter: formatter,
         fieldId: safeFieldDef.id || fieldName, // For reactive options lookup
       }
 
