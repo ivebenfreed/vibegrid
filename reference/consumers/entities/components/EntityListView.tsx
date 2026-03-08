@@ -282,7 +282,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const [reviewQueue, setReviewQueue] = useState<EntityRecord[]>([])
   // reviewSessionId forces EntityReviewSheet remount on each open, preventing stale queue
   const [reviewSessionId, setReviewSessionId] = useState(0)
-  const reviewQueueResult = useReviewQueue(resolvedName, orgId || null)
+  const reviewQueueResult = useReviewQueue(resolvedName, hasUploadMode ? orgId || null : null)
   // Use backend count when loaded; fall back to upload store count while loading
   const reviewCount = reviewQueueResult.isLoading
     ? uploadStore.reviewRequiredCount
