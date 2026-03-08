@@ -24,6 +24,121 @@ const logger = getLogger(
   'components/vibegrid/field-types/implementations/relationship/EntityReferenceFieldType',
 )
 
+// ====================================
+// RELATIONSHIP ARCHETYPE SCHEMA CACHE
+// ====================================
+
+/**
+ * Cached schema metadata for relationship archetype detection.
+ * Stores the archetype and relationship businessMetadata per entity type name.
+ * Populated lazily on first access per entity type, persists for the page session.
+ */
+const schemaCache = new Map<
+  string,
+  {
+    archetype: string
+    relationship?: {
+      sourceEntity: string
+      targetEntity: string
+      semantic: string
+      cardinality: string
+    }
+  } | null
+>()
+
+/**
+ * Check if a given entity type name corresponds to a relationship archetype schema.
+ * Results are cached per entity type to avoid repeated network calls.
+ */
+async function isRelationshipEntityType(targetEntity: string): Promise<boolean> {
+  const meta = await getRelationshipSchemaMetadata(targetEntity)
+  return meta?.archetype === 'relationship'
+}
+
+/**
+ * Fetch and cache schema metadata for an entity type.
+ * Returns cached result on subsequent calls.
+ */
+async function getRelationshipSchemaMetadata(entityTypeName: string): Promise<{
+  archetype: string
+  relationship?: {
+    sourceEntity: string
+    targetEntity: string
+    semantic: string
+    cardinality: string
+  }
+} | null> {
+  if (schemaCache.has(entityTypeName)) {
+    return schemaCache.get(entityTypeName) ?? null
+  }
+
+  try {
+    const result = (await orpcClient.dataforge.schema.getEntity({
+      entityName: entityTypeName,
+    })) as any
+    const schema = result?.entity ?? result?.schema ?? null
+    if (schema) {
+      const meta = {
+        archetype: schema.archetype || 'record',
+        relationship:
+          schema.businessMetadata?.relationship ??
+          schema.business_metadata?.relationship ??
+          undefined,
+      }
+      schemaCache.set(entityTypeName, meta)
+      return meta
+    }
+    schemaCache.set(entityTypeName, null)
+    return null
+  } catch {
+    schemaCache.set(entityTypeName, null)
+    return null
+  }
+}
+
+/**
+ * Create a relationship entity record via the standard data.create API.
+ * Used when the target entity type has archetype='relationship'.
+ */
+export async function createRelationshipEntityRecord(
+  relationshipEntityName: string,
+  sourceEntityId: string,
+  targetEntityId: string,
+): Promise<any> {
+  const meta = await getRelationshipSchemaMetadata(relationshipEntityName)
+  if (!meta?.relationship) {
+    throw new Error(`Schema metadata not found for relationship entity: ${relationshipEntityName}`)
+  }
+
+  const { sourceEntity, targetEntity, semantic } = meta.relationship
+  const result = await orpcClient.dataforge.data.create({
+    entityName: relationshipEntityName,
+    data: {
+      source_entity_type: sourceEntity,
+      source_entity_id: sourceEntityId,
+      target_entity_type: targetEntity,
+      target_entity_id: targetEntityId,
+      semantic,
+    },
+  })
+  return result
+}
+
+/**
+ * Soft-delete a relationship entity record via the standard data.delete API.
+ * Used when the target entity type has archetype='relationship'.
+ */
+export async function deleteRelationshipEntityRecord(
+  relationshipEntityName: string,
+  recordId: string,
+): Promise<any> {
+  const result = await orpcClient.dataforge.data.delete({
+    entityName: relationshipEntityName,
+    recordId,
+  })
+  return result
+}
+
 export class EntityDataLoader implements AsyncDataLoader {
   async loadRelationshipData(
     column: EnhancedColumn,
@@ -37,6 +152,15 @@ export class EntityDataLoader implements AsyncDataLoader {
       'Unknown'
 
     try {
+      // Check if this field targets a relationship archetype entity type
+      const isRelArchetype = await isRelationshipEntityType(targetEntity)
+
+      if (isRelArchetype) {
+        // Route to entity_records query for relationship archetype entities
+        return await this.loadRelationshipDataFromEntityRecords(targetEntity, rowIds)
+      }
+
+      // Fallback: existing entity_relationships endpoint
       const response = await fetch(
         `/api/dataforge/orgs/${orgId}/relationships/${targetEntity.toLowerCase()}?rowIds=${rowIds.join(',')}`,
       )
@@ -47,6 +171,67 @@ export class EntityDataLoader implements AsyncDataLoader {
     } catch (error) {
       logger.error('Failed to load entity relationship data', { error, column: column.id })
       throw error
+    }
+  }
+
+  /**
+   * Load relationship data from entity_records for relationship archetype entities.
+   * Queries entity_records for the relationship entity type and transforms results
+   * into the RelationshipData format expected by the renderer.
+   */
+  private async loadRelationshipDataFromEntityRecords(
+    relationshipEntityName: string,
+    rowIds: string[],
+  ): Promise<RelationshipData> {
+    const meta = await getRelationshipSchemaMetadata(relationshipEntityName)
+    if (!meta?.relationship) return {}
+
+    const { targetEntity: actualTargetEntity } = meta.relationship
+
+    try {
+      // Query all records of this relationship entity type
+      const result = await orpcClient.dataforge.data.query({
+        entityName: relationshipEntityName,
+        limit: 1000,
+      })
+
+      const records = result?.data || []
+
+      // Filter to records where source_entity_id is in our rowIds
+      const rowIdSet = new Set(rowIds)
+      const matchingRecords = records.filter((r: any) => rowIdSet.has(r.source_entity_id))
+
+      // Build RelationshipData keyed by target entity type (lowercase) and target entity ID
+      const relationshipData: RelationshipData = {}
+      const targetKey = actualTargetEntity.toLowerCase()
+      relationshipData[targetKey] = {}
+
+      // For each matching relationship record, fetch the target entity data
+      const targetIds = [...new Set(matchingRecords.map((r: any) => r.target_entity_id))]
+      for (const targetId of targetIds) {
+        try {
+          const targetResult = await orpcClient.dataforge.data.get({
+            entityName: actualTargetEntity,
+            recordId: targetId,
+          })
+          if (targetResult?.data) {
+            relationshipData[targetKey][targetId] = targetResult.data
+          }
+        } catch {
+          logger.warn('Failed to fetch target entity for relationship', {
+            targetId,
+            targetEntity: actualTargetEntity,
+          })
+        }
+      }
+
+      return relationshipData
+    } catch (error) {
+      logger.error('Failed to load relationship data from entity_records', {
+        error,
+        relationshipEntityName,
+      })
+      return {}
     }
   }
 
@@ -78,6 +263,21 @@ export class EntityDataLoader implements AsyncDataLoader {
     const targetEntity = column.relationshipConfig?.targetEntityType || 'Unknown'
 
     try {
+      // Check if this field targets a relationship archetype entity type
+      const isRelArchetype = await isRelationshipEntityType(targetEntity)
+
+      if (isRelArchetype) {
+        // For relationship archetype, search the actual target entity type
+        // (e.g., "Company"), not the relationship entity type (e.g., "ProjectVendor")
+        return await this.getSearchSuggestionsForRelationshipEntity(
+          targetEntity,
+          query,
+          column,
+          limit,
+        )
+      }
+
+      // Fallback: existing search endpoint
       const searchParams = new URLSearchParams({
         q: query,
         limit: String(limit),
@@ -99,6 +299,53 @@ export class EntityDataLoader implements AsyncDataLoader {
       }))
     } catch (error) {
       logger.error('Failed to search target entity', { error, query, targetEntity })
+      return []
+    }
+  }
+
+  /**
+   * Search suggestions for relationship archetype entities.
+   * Searches the actual target entity type (from schema metadata), not the relationship entity itself.
+   */
+  private async getSearchSuggestionsForRelationshipEntity(
+    relationshipEntityName: string,
+    query: string,
+    column: EnhancedColumn,
+    limit: number,
+  ): Promise<RelationshipOption[]> {
+    const meta = await getRelationshipSchemaMetadata(relationshipEntityName)
+    if (!meta?.relationship) return []
+
+    const actualTargetEntity = meta.relationship.targetEntity
+    const orgId = this.getOrgId()
+    const displayField = column.relationshipConfig?.displayField || 'name'
+
+    try {
+      const searchParams = new URLSearchParams({
+        q: query,
+        limit: String(limit),
+        fields: column.relationshipConfig?.searchFields?.join(',') || 'name,title',
+      })
+
+      const response = await fetch(
+        `/api/dataforge/orgs/${orgId}/data/${actualTargetEntity}/search?${searchParams}`,
+      )
+      if (!response.ok) throw new Error(`${actualTargetEntity} search failed: ${response.status}`)
+
+      const results = (await response.json()) as { data?: any[] }
+
+      return (results.data || []).map((item: any) => ({
+        value: item.id,
+        label: item[displayField] || item.name || item.title || item.id,
+        metadata: item,
+      }))
+    } catch (error) {
+      logger.error('Failed to search target entity for relationship archetype', {
+        error,
+        query,
+        relationshipEntityName,
+        actualTargetEntity,
+      })
       return []
     }
   }
