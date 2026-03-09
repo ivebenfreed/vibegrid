@@ -28,8 +28,6 @@ import {
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
-import { getOrCreateEntityCollection } from '@/shared/data/db/collections/registry'
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
@@ -874,34 +872,24 @@ export class TableCoreStore implements IStore {
   ): Promise<any | null> {
     try {
       const orgId = this.visualStateStore?.orgId || getActiveOrganizationId()
-      if (!orgId) {
-        logger.debug('Entity reference collection load skipped - no orgId', {
-          targetEntity,
-          entityId,
-        })
+      if (!orgId || !targetEntity) {
         return null
       }
 
-      if (!targetEntity) {
-        logger.debug('Entity reference collection load skipped - unknown target entity', {
-          entityId,
-        })
+      // Only check the collection if it already exists and is ready.
+      // Do NOT trigger a full collection preload just to resolve a single
+      // entity reference — large collections (e.g. Company with 8000+ records)
+      // block the renderer indefinitely while loading the entire dataset.
+      const { getExistingCollection } = await import('@/shared/data/db/collections/registry')
+      const collection = getExistingCollection(targetEntity, orgId)
+      if (!collection) {
         return null
       }
 
-      const normalizedEntity = targetEntity
-
-      const collection = getOrCreateEntityCollection(
-        normalizedEntity,
-        orgId,
-        createEntityCollection,
-      )
-
-      await collection.preload()
       const record = collection.get(entityId)
       if (record) {
         logger.debug('Entity reference record found in TanStack collection', {
-          targetEntity: normalizedEntity,
+          targetEntity,
           entityId,
         })
         return record
