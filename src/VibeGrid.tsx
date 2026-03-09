@@ -445,6 +445,18 @@ function VibeGridInnerBase(props: VibeGridProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<SimplePassiveRenderer | null>(null)
 
+  // Stable refs for callback props — prevents renderer destroy/recreate on every parent re-render.
+  // The renderer factory closure reads from these refs (always latest value), so the effect
+  // only re-runs when structural props change (stores, entityType, tableId, etc.).
+  const onCellClickRef = useRef(onCellClick)
+  onCellClickRef.current = onCellClick
+  const onEntityUpdateRef = useRef(onEntityUpdate)
+  onEntityUpdateRef.current = onEntityUpdate
+  const onBatchEntityUpdateRef = useRef(onBatchEntityUpdate)
+  onBatchEntityUpdateRef.current = onBatchEntityUpdate
+  const updateEntityRef = useRef(updateEntity)
+  updateEntityRef.current = updateEntity
+
   // NOTE: The old "SYNC TANSTACK DB DATA → TABLECORE STORE" useEffect has been removed.
   // useVibeGridData now pushes directly to tableCoreStore.setRows() internally,
   // which eliminates duplicate updates on server echo after optimistic updates.
@@ -679,8 +691,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     // Provide the container to InitStore
     stores.initStore.setContainer(containerRef.current)
 
-    // Provide a renderer factory that captures the current closure variables.
-    // InitStore will call this when columns are ready (via MobX reaction).
+    // Provide a renderer factory that delegates callbacks through refs (always latest value).
+    // This prevents unnecessary renderer destroy/recreate cycles when callback props change,
+    // while ensuring the renderer always calls the most current callback.
     stores.initStore.setRendererFactory((container: HTMLElement) => {
       logger.info('Renderer factory called by InitStore', { tableId, entityType })
 
@@ -690,9 +703,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
         entityType,
         enableSelectionColumn,
         bufferSize,
-        onEntityUpdate: onEntityUpdate || updateEntity,
-        onBatchEntityUpdate,
-        onCellClick,
+        onEntityUpdate: (rowId, updates) =>
+          (onEntityUpdateRef.current || updateEntityRef.current)?.(rowId, updates),
+        onBatchEntityUpdate: (updates) => onBatchEntityUpdateRef.current?.(updates),
+        onCellClick: (rowId, columnId) => onCellClickRef.current?.(rowId, columnId),
       })
     })
 
@@ -717,20 +731,18 @@ function VibeGridInnerBase(props: VibeGridProps) {
     }
   }, [
     stores,
-    onCellClick,
+    // NOTE: Callback props (onCellClick, onEntityUpdate, onBatchEntityUpdate, updateEntity)
+    // are intentionally NOT in deps — they're read from refs inside the renderer factory.
+    // This prevents unnecessary destroyRenderer()/createRenderer() cycles when parent
+    // re-renders with new inline callbacks, which caused the "double flash" on page reload.
     // NOTE: visualStateStore.columns.length intentionally NOT in deps.
     // The renderer reaction in InitStore watches columns.length and creates the renderer
     // when columns are ready — no need to destroy/recreate the renderer here.
-    // Including it caused unnecessary destroyRenderer() calls on every schema load,
-    // triggering the "Renderer already exists" warning.
-    onEntityUpdate,
-    onBatchEntityUpdate,
-    updateEntity,
     enableSelectionColumn,
     entityType,
     tableId,
     bufferSize,
-  ]) // Depend on stores and callbacks to recreate renderer when they change
+  ]) // Depend on stores and structural props only — callbacks via refs
 
   // Bridge MobX selection state to optional external callback.
   useEffect(() => {
