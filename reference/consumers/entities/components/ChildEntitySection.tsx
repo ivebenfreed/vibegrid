@@ -12,7 +12,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrganization } from '@/app/stores'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
@@ -109,6 +109,24 @@ export function ChildEntitySection({
     (row: Record<string, unknown>) => childIdSet.has(row.id as string),
     [childIdSet],
   )
+
+  // GH#1741: Detect all-pending compliance (indicates computation error)
+  useEffect(() => {
+    if (childEntityType !== 'SubcontractorAssignment') return
+    if (childRecords.length === 0) return
+
+    const allPending = childRecords.every((record) => {
+      const data = record.data as Record<string, unknown>
+      const certCompliance = data?.cert_compliance as
+        | { status?: string; score?: number }
+        | undefined
+      return certCompliance?.status === 'pending' && certCompliance?.score === 0
+    })
+
+    if (allPending) {
+      toast.error('Could not compute compliance — please try again')
+    }
+  }, [childEntityType, childRecords])
 
   // Create child record and link to parent
   const handleCreateSuccess = async (recordId: string): Promise<void> => {
