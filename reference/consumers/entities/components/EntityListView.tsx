@@ -245,6 +245,12 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const [isPageDragActive, setIsPageDragActive] = useState(false)
   const pageDragCounterRef = useRef(0)
 
+  // Track whether the grid has been shown at least once.
+  // Prevents VibGrid from unmounting on transient data state changes
+  // (e.g., TanStack Router re-renders, liveQuery re-subscriptions)
+  // which caused a visible double render on fresh page load.
+  const hasShownGridRef = useRef(false)
+
   // All hooks must be called unconditionally (React rules of hooks)
   const resolvedName = entityName ?? ''
   const schema = useEntitySchema(resolvedName)
@@ -378,9 +384,14 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     return <EntityNotFound entityName="unknown" />
   }
 
-  if (!listResult.isReady && listResult.rows.length === 0) {
+  if (!listResult.isReady && listResult.rows.length === 0 && !hasShownGridRef.current) {
     return <EntityListSkeleton />
   }
+
+  // Once we pass the skeleton guard, mark the grid as shown so transient
+  // data state resets (from router re-renders, query re-subscriptions) don't
+  // unmount VibGrid and cause a visible double render.
+  hasShownGridRef.current = true
 
   // Entity not found - schema doesn't exist
   if (!schema) {
