@@ -1595,12 +1595,12 @@ export class BodyRenderer {
               if (column.cellType) {
                 cell.setAttribute('data-field-type', column.cellType)
               }
-              while (cellContent.firstChild) {
-                cell.appendChild(cellContent.firstChild)
-              }
-              if (!cell.firstChild && cellContent.textContent) {
-                cell.textContent = cellContent.textContent
-              }
+              // Replace cell content with the renderer's container element.
+              // Do NOT move children — async renderers (e.g. EntityReferenceRenderer)
+              // hold a reference to their container and update it after fetch completes.
+              // Moving children orphans the container, so async updates go to a detached node.
+              cell.innerHTML = ''
+              cell.appendChild(cellContent)
             } else {
               cell.textContent = column.formatter
                 ? column.formatter(value, rowData, column)
