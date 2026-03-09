@@ -63,12 +63,9 @@ export class TextRenderer implements CellRenderer {
     container.textContent = displayValue
     container.title = displayValue // Tooltip for overflow text
 
-    // Single-line text overflow handling
+    // Overflow handling — don't set display:block, it overrides the
+    // flex centering applied by .vibegridx-cell (added by BodyRenderer)
     container.style.maxWidth = '100%'
-    container.style.overflow = 'hidden'
-    container.style.display = 'block'
-    container.style.textOverflow = 'ellipsis'
-    container.style.whiteSpace = 'nowrap'
 
     // Apply field-specific styling
     this.applyFieldTypeSpecificStyling(container, fieldType)

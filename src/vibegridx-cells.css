@@ -50,7 +50,12 @@
   pointer-events: none;
 }
 
-/* Text Cell Styles */
+/* Text Cell Styles - when used as the cell element itself (.vibegridx-cell) */
+.vibegridx-cell.vibegridx-cell-text {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vibegridx-text-content {
   display: inline-block;
   width: 100%;

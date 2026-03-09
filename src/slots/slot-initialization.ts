@@ -107,12 +107,9 @@ class TextCellRenderer implements CellRenderer {
     el.textContent = displayValue
     el.title = displayValue
 
-    // Overflow handling
+    // Overflow handling — don't set display:block, it overrides the
+    // flex centering applied by .vibegridx-cell (added by BodyRenderer)
     el.style.maxWidth = '100%'
-    el.style.overflow = 'hidden'
-    el.style.display = 'block'
-    el.style.textOverflow = 'ellipsis'
-    el.style.whiteSpace = 'nowrap'
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
