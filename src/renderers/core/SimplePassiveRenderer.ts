@@ -136,6 +136,7 @@ export class SimplePassiveRenderer {
   private visualObserverDisposer: (() => void) | null = null
   private columnVisibilityObserverDisposer: (() => void) | null = null
   private columnOrderObserverDisposer: (() => void) | null = null
+  private frozenColumnsObserverDisposer: (() => void) | null = null // Frozen column state observer
   private columnWidthsObserverDisposer: (() => void) | null = null // Add dedicated observer for column widths
   private virtualScrollObserverDisposer: (() => void) | null = null // Add dedicated observer for virtual scrolling
   private horizontalScrollObserverDisposer: (() => void) | null = null // Column virtualization observer
@@ -911,6 +912,22 @@ export class SimplePassiveRenderer {
         })
 
         // Force re-render when column order changes
+        runInAction(() => {
+          this.renderHeader()
+          this.renderBody()
+        })
+      },
+    )
+
+    // FROZEN COLUMNS OBSERVER: Re-render when columns are frozen/unfrozen
+    this.frozenColumnsObserverDisposer = reaction(
+      () => this.visualStateStore.frozenColumns,
+      () => {
+        if (!this.observersEnabled) return
+        if (!this.initStore.isFullyHydrated) return
+
+        fileLog.debug('🧊 Frozen columns changed - forcing layout re-render')
+
         runInAction(() => {
           this.renderHeader()
           this.renderBody()
@@ -2901,6 +2918,10 @@ export class SimplePassiveRenderer {
     if (this.columnOrderObserverDisposer) {
       this.columnOrderObserverDisposer()
       this.columnOrderObserverDisposer = null
+    }
+    if (this.frozenColumnsObserverDisposer) {
+      this.frozenColumnsObserverDisposer()
+      this.frozenColumnsObserverDisposer = null
     }
     if (this.columnWidthsObserverDisposer) {
       this.columnWidthsObserverDisposer()
