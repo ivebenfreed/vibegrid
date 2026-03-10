@@ -81,7 +81,7 @@ export class VisualStateStore implements IStore {
   @observable columnWidths: Record<string, number> = {}
   @observable columnVisibility: Record<string, boolean> = {}
   @observable columnOrder: string[] = []
-  @observable frozenColumns: Record<string, boolean> = {}
+  @observable frozenColumnCount: number = 0
 
   // ====================================
   // VIEWPORT STATE (delegated to ViewportStore)
@@ -303,7 +303,7 @@ export class VisualStateStore implements IStore {
     this.columnWidths = {}
     this.columnVisibility = {}
     this.columnOrder = []
-    this.frozenColumns = {}
+    this.frozenColumnCount = 0
     // Viewport state reset is handled by ViewportStore.reset()
     this.rowCount = 0
     this.rowHeight = 40
@@ -338,12 +338,9 @@ export class VisualStateStore implements IStore {
     const layouts: ColumnLayout[] = []
     const colMap = this.columnMapById
 
-    // Sort column order: frozen columns first, then non-frozen (preserving relative order)
-    const frozenOrder = this.columnOrder.filter((id) => this.frozenColumns[id])
-    const unfrozenOrder = this.columnOrder.filter((id) => !this.frozenColumns[id])
-    const sortedOrder = [...frozenOrder, ...unfrozenOrder]
-
-    sortedOrder.forEach((columnId, index) => {
+    // No reordering needed - frozen columns are the first N visible columns in order
+    let visibleIndex = 0
+    this.columnOrder.forEach((columnId, index) => {
       const column = colMap.get(columnId)
       if (!column) return
 
@@ -356,13 +353,14 @@ export class VisualStateStore implements IStore {
         xOffset: cumulativeX,
         visible,
         order: index,
-        frozen: !!this.frozenColumns[columnId],
+        frozen: visible && visibleIndex < this.frozenColumnCount,
       }
 
       layouts.push(layout)
 
       if (visible) {
         cumulativeX += width
+        visibleIndex++
       }
     })
 
@@ -380,16 +378,25 @@ export class VisualStateStore implements IStore {
    * Frozen column IDs (visible frozen columns in layout order)
    */
   @computed get frozenColumnIds(): string[] {
-    return this.visibleColumns.filter((col) => this.frozenColumns[col.id]).map((col) => col.id)
+    return this.visibleColumns.filter((col) => col.frozen).map((col) => col.id)
+  }
+
+  /**
+   * Derive frozenColumns record from frozenColumnCount for backward compatibility
+   */
+  @computed get frozenColumns(): Record<string, boolean> {
+    const result: Record<string, boolean> = {}
+    for (const col of this.visibleColumns) {
+      if (col.frozen) result[col.id] = true
+    }
+    return result
   }
 
   /**
    * Total width of frozen columns (visible only)
    */
   @computed get frozenColumnsWidth(): number {
-    return this.visibleColumns
-      .filter((col) => this.frozenColumns[col.id])
-      .reduce((sum, col) => sum + col.width, 0)
+    return this.visibleColumns.filter((col) => col.frozen).reduce((sum, col) => sum + col.width, 0)
   }
 
   /**
@@ -442,9 +449,8 @@ export class VisualStateStore implements IStore {
         lo = mid + 1
       }
     }
-    // Always start at 0 when frozen columns exist (they're sorted first and must always render)
-    const hasFrozenColumns = this.frozenColumnIds.length > 0
-    const start = hasFrozenColumns ? 0 : Math.max(0, firstVisible - buffer)
+    // Always start at 0 when frozen columns exist (they must always render)
+    const start = this.frozenColumnCount > 0 ? 0 : Math.max(0, firstVisible - buffer)
 
     // Binary search for last visible column (whose left edge is past scrollLeft + viewportWidth)
     const rightEdge = scrollLeft + viewportWidth
@@ -934,41 +940,49 @@ export class VisualStateStore implements IStore {
     this.columnWidths = defaultWidths
     this.columnVisibility = defaultVisibility
     this.columnOrder = defaultOrder
-    this.frozenColumns = {}
+    this.frozenColumnCount = 0
 
     logger.info('Columns reset to defaults', { columnsCount: this.columns.length })
   }
 
   /**
-   * Freeze a column (pin to left)
+   * Freeze columns up to (and including) the given column.
+   * Sets frozenColumnCount to the visible index + 1 of the target column.
    */
   @action
-  freezeColumn(columnId: string): void {
-    this.frozenColumns = { ...this.frozenColumns, [columnId]: true }
-    this.updateCoordinatorWithCurrentLayout()
-    logger.info('Column frozen', { columnId })
+  freezeUpTo(columnId: string): void {
+    const visibleCols = this.visibleColumns
+    const idx = visibleCols.findIndex((col) => col.id === columnId)
+    if (idx !== -1) {
+      this.frozenColumnCount = idx + 1
+      this.updateCoordinatorWithCurrentLayout()
+      logger.info('Columns frozen up to', { columnId, frozenCount: this.frozenColumnCount })
+    }
   }
 
   /**
-   * Unfreeze a column (unpin)
+   * Unfreeze all columns
    */
   @action
-  unfreezeColumn(columnId: string): void {
-    const { [columnId]: _, ...rest } = this.frozenColumns
-    this.frozenColumns = rest
+  unfreezeAll(): void {
+    this.frozenColumnCount = 0
     this.updateCoordinatorWithCurrentLayout()
-    logger.info('Column unfrozen', { columnId })
+    logger.info('All columns unfrozen')
   }
 
   /**
-   * Toggle column freeze state
+   * Toggle freeze: if column is already the freeze boundary, unfreeze all.
+   * Otherwise, freeze up to this column.
    */
   @action
   toggleFreezeColumn(columnId: string): void {
-    if (this.frozenColumns[columnId]) {
-      this.unfreezeColumn(columnId)
+    const visibleCols = this.visibleColumns
+    const idx = visibleCols.findIndex((col) => col.id === columnId)
+    if (idx !== -1 && idx + 1 === this.frozenColumnCount) {
+      // Clicking the current freeze boundary unfreezes all
+      this.unfreezeAll()
     } else {
-      this.freezeColumn(columnId)
+      this.freezeUpTo(columnId)
     }
   }
 

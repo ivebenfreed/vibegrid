@@ -921,7 +921,7 @@ export class SimplePassiveRenderer {
 
     // FROZEN COLUMNS OBSERVER: Re-render when columns are frozen/unfrozen
     this.frozenColumnsObserverDisposer = reaction(
-      () => this.visualStateStore.frozenColumns,
+      () => this.visualStateStore.frozenColumnCount,
       () => {
         if (!this.observersEnabled) return
         if (!this.initStore.isFullyHydrated) return

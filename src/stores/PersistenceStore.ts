@@ -87,7 +87,7 @@ export interface VibeGridPreferences {
   columnWidths: Record<string, number>
   columnOrder: string[]
   columnVisibility: Record<string, boolean>
-  frozenColumns: Record<string, boolean>
+  frozenColumnCount: number
 
   // Data display
   sortBy: SortConfig[]
@@ -370,7 +370,7 @@ export class PersistenceStore implements IStore {
       columnWidths: this.validateRecord(prefs.columnWidths, 'number'),
       columnOrder: this.validateArray(prefs.columnOrder, 'string'),
       columnVisibility: this.validateRecord(prefs.columnVisibility, 'boolean'),
-      frozenColumns: this.validateRecord(prefs.frozenColumns, 'boolean'),
+      frozenColumnCount: typeof prefs.frozenColumnCount === 'number' ? prefs.frozenColumnCount : 0,
       sortBy: this.validateArray(prefs.sortBy, 'object'),
       filters: this.validateArray(prefs.filters, 'object'),
       groupConfig: prefs.groupConfig || null,
@@ -411,8 +411,8 @@ export class PersistenceStore implements IStore {
         if (Object.keys(prefs.columnVisibility).length > 0) {
           this.visualStateStore!.columnVisibility = prefs.columnVisibility
         }
-        if (Object.keys(prefs.frozenColumns).length > 0) {
-          this.visualStateStore!.frozenColumns = prefs.frozenColumns
+        if (prefs.frozenColumnCount > 0) {
+          this.visualStateStore!.frozenColumnCount = prefs.frozenColumnCount
         }
         if (prefs.sortBy.length > 0) {
           this.visualStateStore!.sortBy = prefs.sortBy
@@ -523,7 +523,7 @@ export class PersistenceStore implements IStore {
           columnWidths: this.visualStateStore!.columnWidths,
           columnOrder: this.visualStateStore!.columnOrder,
           columnVisibility: this.visualStateStore!.columnVisibility,
-          frozenColumns: this.visualStateStore!.frozenColumns,
+          frozenColumnCount: this.visualStateStore!.frozenColumnCount,
           sortBy: this.visualStateStore!.sortBy,
           filters: this.visualStateStore!.filters,
           groupConfig: this.visualStateStore!.groupConfig,
@@ -656,7 +656,7 @@ export class PersistenceStore implements IStore {
         columnWidths: this.visualStateStore.columnWidths,
         columnOrder: this.visualStateStore.columnOrder,
         columnVisibility: this.visualStateStore.columnVisibility,
-        frozenColumns: this.visualStateStore.frozenColumns,
+        frozenColumnCount: this.visualStateStore.frozenColumnCount,
         sortBy: this.visualStateStore.sortBy,
         filters: this.visualStateStore.filters,
 
@@ -835,7 +835,7 @@ export class PersistenceStore implements IStore {
       columnWidths: this.visualStateStore.columnWidths,
       columnOrder: this.visualStateStore.columnOrder,
       columnVisibility: this.visualStateStore.columnVisibility,
-      frozenColumns: this.visualStateStore.frozenColumns,
+      frozenColumnCount: this.visualStateStore.frozenColumnCount,
       sortBy: this.visualStateStore.sortBy,
       filters: this.visualStateStore.filters,
       groupConfig: this.serializeGroupConfig(this.visualStateStore.groupConfig),
