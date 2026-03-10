@@ -29,6 +29,7 @@ export class FrozenColumnPane {
   private inner: HTMLElement
   private container: HTMLElement
   private isActive = false
+  private frozenPaneWidth = 0
   private hoverSyncOver: ((e: Event) => void) | null = null
   private hoverSyncOut: ((e: Event) => void) | null = null
 
@@ -68,6 +69,7 @@ export class FrozenColumnPane {
     }
 
     this.isActive = true
+    this.frozenPaneWidth = frozenPaneWidth
     this.stickyLayer.style.display = ''
     this.inner.style.width = `${frozenPaneWidth}px`
     this.inner.style.height = `${totalHeight}px`
@@ -102,6 +104,8 @@ export class FrozenColumnPane {
     // Copy row positioning (transform: translateY for virtual scroll position)
     clone.style.transform = originalRow.style.transform
     clone.style.height = originalRow.style.height || '40px'
+    // Explicit width ensures row background covers the full frozen area
+    clone.style.width = `${this.frozenPaneWidth}px`
 
     // Clone system columns
     const dragCol = originalRow.querySelector('.vibegridx-drag-column')

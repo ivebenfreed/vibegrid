@@ -1411,12 +1411,16 @@ body.vibegridx-dragging-active * {
   left: 0;
   overflow: hidden;
   pointer-events: none;
-  box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
+  /* Opaque background masks scrolling content behind the frozen area */
+  background: var(--background);
+  box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.1);
 }
 
-/* Frozen pane rows inherit body row styling */
+/* Frozen pane rows: inherit body row styling via .vibegridx-row class.
+   Override only pointer-events and contain (no layout containment needed in pane). */
 .vibegridx-frozen-body-pane .vibegridx-row {
   pointer-events: none;
+  contain: none;
 }
 
 /* Strip scroll-compensation transforms from cloned elements in the pane.
