@@ -1398,7 +1398,7 @@ body.vibegridx-dragging-active * {
   top: 0;
   width: 0;
   height: 0;
-  z-index: 5;
+  z-index: 2000; /* Above overlay container (z-index: 1000) and all overlay layers */
   overflow: visible;
   pointer-events: none;
   /* Reset scroll compensation — pane descendants don't need it */
