@@ -2229,8 +2229,56 @@ class EntityReferenceCellRenderer implements CellRenderer {
       }
     }
 
-    // Unresolved UUID - show placeholder
-    container.textContent = 'Loading...'
+    // Unresolved UUID - try async resolution via TableCoreStore
+    const entityId = String(value)
+    const tableCoreStore = (context as Record<string, any>).tableCoreStore as
+      | {
+          getEntityReferenceRecord: (t: string, id: string) => any
+          ensureEntityReferenceRecord: (t: string, id: string) => Promise<any>
+        }
+      | undefined
+    const targetEntity =
+      (column as any).relationshipConfig?.targetEntityType ||
+      (column as any).relationshipTargetEntity ||
+      (column as any).targetEntityType ||
+      null
+
+    if (tableCoreStore && targetEntity) {
+      // Check synchronous cache first
+      const cached = tableCoreStore.getEntityReferenceRecord(targetEntity, entityId)
+      if (cached) {
+        const name = cached.name || cached.title || `${targetEntity} ${entityId.slice(-4)}`
+        container.innerHTML = this.createEntityBadge(String(name), column)
+        applyAffordanceAttrs(container, this, isEditable)
+        return container
+      }
+
+      // Async resolve — show placeholder, update when data arrives
+      container.textContent = 'Loading...'
+      container.style.opacity = '0.6'
+      applyAffordanceAttrs(container, this, isEditable)
+
+      tableCoreStore
+        .ensureEntityReferenceRecord(targetEntity, entityId)
+        .then((record: any) => {
+          if (record) {
+            const name = record.name || record.title || `${targetEntity} ${entityId.slice(-4)}`
+            container.innerHTML = this.createEntityBadge(String(name), column)
+            container.style.opacity = '1'
+          } else {
+            container.textContent = `${targetEntity} ${entityId.slice(-4)}`
+            container.style.opacity = '0.6'
+          }
+        })
+        .catch(() => {
+          container.textContent = `${targetEntity} ${entityId.slice(-4)}`
+          container.style.opacity = '0.6'
+        })
+      return container
+    }
+
+    // No store or target entity — show truncated ID
+    container.textContent = entityId.length > 8 ? `${entityId.slice(-8)}` : String(value)
     container.style.opacity = '0.6'
     applyAffordanceAttrs(container, this, isEditable)
     return container

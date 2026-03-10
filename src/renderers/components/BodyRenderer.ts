@@ -793,6 +793,8 @@ export class BodyRenderer {
         const context: CellRendererContext = {
           viewMode: 'table',
           entityType: this.tableCoreStore?.entityType,
+          rowData,
+          tableCoreStore: this.tableCoreStore,
         }
 
         const renderer = this.slotRegistry.resolve(column, context)
@@ -1245,7 +1247,13 @@ export class BodyRenderer {
    * Update a single cell's value in the DOM
    * Preserves cell structure, only updates content
    */
-  updateCellValue(rowId: string, columnId: string, newValue: any, column: any): boolean {
+  updateCellValue(
+    rowId: string,
+    columnId: string,
+    newValue: any,
+    column: any,
+    rowData?: any,
+  ): boolean {
     const cellElement = this.container.querySelector(
       `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
     ) as HTMLElement
@@ -1267,9 +1275,14 @@ export class BodyRenderer {
 
     if (this.slotRegistry) {
       try {
-        const renderer = this.slotRegistry.resolve(column, { viewMode: 'grid' })
+        const context: CellRendererContext = {
+          viewMode: 'grid',
+          rowData,
+          tableCoreStore: this.tableCoreStore,
+        }
+        const renderer = this.slotRegistry.resolve(column, context)
         if (renderer) {
-          const newCellContent = renderer.render(newValue, column, { viewMode: 'grid' })
+          const newCellContent = renderer.render(newValue, column, context)
           // Replace content inside cell element
           cellElement.innerHTML = ''
           while (newCellContent.firstChild) {
@@ -1343,7 +1356,7 @@ export class BodyRenderer {
         }
 
         const newValue = rowData[columnId]
-        const success = this.updateCellValue(rowId, columnId, newValue, column)
+        const success = this.updateCellValue(rowId, columnId, newValue, column, rowData)
 
         if (success) {
           updateCount++
@@ -1585,6 +1598,8 @@ export class BodyRenderer {
             const context: CellRendererContext = {
               viewMode: 'table',
               entityType: this.tableCoreStore?.entityType,
+              rowData,
+              tableCoreStore: this.tableCoreStore,
             }
             const renderer = this.slotRegistry.resolve(column, context)
             if (renderer) {
