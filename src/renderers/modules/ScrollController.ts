@@ -199,7 +199,7 @@ export class ScrollController {
       if (this.container) {
         this.container.style.setProperty('--vg-scroll-left', `${options.left}px`)
         const transform = `translateX(${options.left}px)`
-        const headerFrozen = this.container.querySelectorAll(
+        const frozenEls = this.container.querySelectorAll(
           ScrollController.FROZEN_SELECTORS,
         )
         for (let i = 0; i < frozenEls.length; i++) {
