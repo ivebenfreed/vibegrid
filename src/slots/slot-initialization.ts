@@ -1590,8 +1590,8 @@ class EntityNameCellRenderer implements CellRenderer {
   }
 
   affordanceGroup = {
-    group: 'navigable-content',
-    whenNotEditable: 'readonly-display',
+    group: 'link-with-edit-icon',
+    whenNotEditable: 'link-only',
   }
 
   metadata = { category: 'basic' as const, description: 'Entity name cell renderer' }
@@ -2589,7 +2589,14 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   registry.register({ id: 'longtext', priority: 0, renderer: () => markdownCellRenderer })
 
   // --- 16. Entity Name ---
-  registry.register({ id: 'entity-name', priority: 0, renderer: () => entityNameCellRenderer })
+  // Priority 50 so it wins over the default text renderer (priority 0) for name columns.
+  // canHandle matches by column id ('name') or explicit isPrimaryField flag.
+  registry.register({
+    id: 'entity-name',
+    priority: 50,
+    canHandle: (column) => column.id === 'name' || (column as any).isPrimaryField === true,
+    renderer: () => entityNameCellRenderer,
+  })
 
   // --- 17. Row Expand ---
   registry.register({ id: 'row-expand', priority: 0, renderer: () => rowExpandCellRenderer })
