@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Snowflake, Save } from 'lucide-react'
+import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Save } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { toast } from 'sonner'
@@ -59,24 +59,18 @@ const SYSTEM_COLUMN_IDS = new Set([
 interface SortableColumnItemProps {
   column: Column
   isVisible: boolean
-  isFrozen: boolean
-  isFreezeBoundary: boolean
   canHide: boolean
   isDraggable: boolean
   onToggle: (columnId: string) => void
-  onFreezeUpTo: (columnId: string) => void
   getDisplayName: (column: Column) => string
 }
 
 const SortableColumnItem = observer(function SortableColumnItem({
   column,
   isVisible,
-  isFrozen,
-  isFreezeBoundary,
   canHide,
   isDraggable,
   onToggle,
-  onFreezeUpTo,
   getDisplayName,
 }: SortableColumnItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -92,68 +86,34 @@ const SortableColumnItem = observer(function SortableColumnItem({
   }
 
   return (
-    <>
-      <div
-        ref={setNodeRef}
-        style={style}
-        className={`group flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''} ${isFrozen ? 'bg-primary/5' : ''}`}
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''}`}
+    >
+      {/* Drag handle */}
+      <span
+        {...(isDraggable ? { ...attributes, ...listeners } : {})}
+        className={`text-muted-foreground flex-shrink-0 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-0'}`}
       >
-        {/* Drag handle */}
-        <span
-          {...(isDraggable ? { ...attributes, ...listeners } : {})}
-          className={`text-muted-foreground flex-shrink-0 ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-default opacity-0'}`}
-        >
-          <GripVertical className="h-3.5 w-3.5" />
-        </span>
+        <GripVertical className="h-3.5 w-3.5" />
+      </span>
 
-        {/* Checkbox */}
-        <Checkbox
-          checked={isVisible}
-          disabled={!canHide}
-          onCheckedChange={() => {
-            if (canHide) onToggle(column.id)
-          }}
-        />
+      {/* Checkbox */}
+      <Checkbox
+        checked={isVisible}
+        disabled={!canHide}
+        onCheckedChange={() => {
+          if (canHide) onToggle(column.id)
+        }}
+      />
 
-        {/* Column name */}
-        <span className="flex-1 text-sm truncate">{getDisplayName(column)}</span>
+      {/* Column name */}
+      <span className="flex-1 text-sm truncate">{getDisplayName(column)}</span>
 
-        {/* Freeze up to button */}
-        {!SYSTEM_COLUMN_IDS.has(column.id) && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className={`flex-shrink-0 p-0.5 rounded-sm hover:bg-muted ${isFrozen ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100'}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onFreezeUpTo(column.id)
-                }}
-              >
-                <Snowflake className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>{isFreezeBoundary ? 'Unfreeze all columns' : 'Freeze up to this column'}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* Required badge */}
-        {!canHide && <span className="text-xs text-muted-foreground flex-shrink-0">Required</span>}
-      </div>
-
-      {/* Freeze boundary divider */}
-      {isFreezeBoundary && (
-        <div className="flex items-center gap-2 px-2 py-0.5">
-          <div className="flex-1 border-t border-primary/30" />
-          <span className="text-[10px] text-primary/60 font-medium uppercase tracking-wider">
-            frozen above
-          </span>
-          <div className="flex-1 border-t border-primary/30" />
-        </div>
-      )}
-    </>
+      {/* Required badge */}
+      {!canHide && <span className="text-xs text-muted-foreground flex-shrink-0">Required</span>}
+    </div>
   )
 })
 
@@ -167,8 +127,6 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   const columns = visualStateStore.columns
   const columnVisibility = visualStateStore.columnVisibility
   const columnOrder = visualStateStore.columnOrder
-  const frozenColumnCount = visualStateStore.frozenColumnCount
-  const frozenColumnIds = visualStateStore.frozenColumnIds
   const isOpen = interactionStore.columnVisibilityMenuState.isOpen
   const searchValue = interactionStore.columnVisibilityMenuState.searchValue
   const entityType = visualStateStore.entityType
@@ -207,13 +165,6 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   const handleToggleColumn = React.useCallback(
     (columnId: string) => {
       visualStateStore.toggleColumnVisibility(columnId)
-    },
-    [visualStateStore],
-  )
-
-  const handleFreezeUpTo = React.useCallback(
-    (columnId: string) => {
-      visualStateStore.toggleFreezeColumn(columnId)
     },
     [visualStateStore],
   )
@@ -303,9 +254,6 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     return !SYSTEM_COLUMN_IDS.has(column.id)
   }
 
-  // Determine the freeze boundary column (the last frozen visible column)
-  const frozenColumnIdSet = new Set(frozenColumnIds)
-
   const hidableColumnCount = columns.filter((col) => canHideColumn(col)).length
 
   // Build sorted column list for display (respects current columnOrder)
@@ -333,20 +281,6 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
       )
     })
   }, [sortedColumns, searchValue, isOpen, getColumnDisplayName])
-
-  // Determine the freeze boundary: the last visible frozen column in display order
-  const freezeBoundaryColumnId = React.useMemo(() => {
-    if (frozenColumnCount === 0) return null
-    // Walk through visible columns in order to find the last frozen one
-    const visibleInOrder = filteredColumns.filter((c) => columnVisibility[c.id] !== false)
-    let lastFrozenId: string | null = null
-    for (const col of visibleInOrder) {
-      if (frozenColumnIdSet.has(col.id)) {
-        lastFrozenId = col.id
-      }
-    }
-    return lastFrozenId
-  }, [frozenColumnCount, filteredColumns, frozenColumnIdSet, columnVisibility])
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
@@ -438,12 +372,9 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
                   key={column.id}
                   column={column}
                   isVisible={isColumnVisible(column.id)}
-                  isFrozen={frozenColumnIdSet.has(column.id)}
-                  isFreezeBoundary={column.id === freezeBoundaryColumnId}
                   canHide={canHideColumn(column)}
                   isDraggable={isDraggableColumn(column)}
                   onToggle={handleToggleColumn}
-                  onFreezeUpTo={handleFreezeUpTo}
                   getDisplayName={getColumnDisplayName}
                 />
               ))}
@@ -464,7 +395,6 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Visible: {visibleColumnCount}</span>
             <span>Hidden: {hiddenColumnCount}</span>
-            {frozenColumnCount > 0 && <span>Frozen: {frozenColumnCount}</span>}
           </div>
 
           {/* Save to Schema button */}

@@ -37,14 +37,6 @@ export class ScrollController {
   private lastScrollTop: number = 0
   private scrollVelocityThreshold: number = 200
 
-  // Header-only frozen selectors — body frozen elements are handled by FrozenColumnPane.
-  // Header doesn't natively scroll so JS transform sync works without bounce.
-  private static readonly HEADER_FROZEN_SELECTORS = [
-    '.vibegridx-header-cell--frozen',
-    '.vibegridx-header-drag-column',
-    '.vibegridx-header-corner-cell',
-  ].join(',')
-
   // Event listeners for cleanup
   private eventListeners: Array<{
     element: EventTarget
@@ -120,21 +112,6 @@ export class ScrollController {
       // Sync header scroll immediately (lightweight operation)
       this.syncHeaderScroll(scrollLeft)
 
-      // Sync header frozen elements (header doesn't natively scroll, so JS sync works fine).
-      // Body frozen elements are handled by FrozenColumnPane (position: sticky).
-      if (this.container) {
-        this.container.style.setProperty('--vg-scroll-left', `${scrollLeft}px`)
-
-        // Direct inline transform on HEADER frozen elements only
-        const transform = `translateX(${scrollLeft}px)`
-        const headerFrozenEls = this.container.querySelectorAll(
-          ScrollController.HEADER_FROZEN_SELECTORS,
-        )
-        for (let i = 0; i < headerFrozenEls.length; i++) {
-          ;(headerFrozenEls[i] as HTMLElement).style.transform = transform
-        }
-      }
-
       // Cancel any pending scroll update to debounce rapid scroll events
       if (this.scrollRAF) {
         cancelAnimationFrame(this.scrollRAF)
@@ -166,8 +143,18 @@ export class ScrollController {
    */
   private syncHeaderScroll(scrollLeft: number): void {
     if (this.headerViewport) {
-      // Direct synchronous transform - no RAF needed for simple CSS transform
-      this.headerViewport.style.transform = `translateX(-${scrollLeft}px)`
+      // ✅ PERFORMANCE: Direct synchronous transform - no RAF needed for simple CSS transform
+      const transform = `translateX(-${scrollLeft}px)`
+      this.headerViewport.style.transform = transform
+
+      // ✅ PERFORMANCE: Only log sync issues, not every successful sync
+      fileLog.debug('🔄 Header scroll synced', { scrollLeft })
+    } else {
+      // Log missing header viewport as it's an actual issue
+      fileLog.warn('⚠️ Header viewport not found for scroll sync', {
+        scrollLeft,
+        headerViewport: this.headerViewport,
+      })
     }
   }
 
@@ -188,19 +175,9 @@ export class ScrollController {
       behavior: options.behavior || 'auto',
     })
 
-    // Sync header frozen elements when scrolling horizontally
-    if (options.left !== undefined) {
-      this.syncHeaderScroll(options.left)
-      if (this.container) {
-        this.container.style.setProperty('--vg-scroll-left', `${options.left}px`)
-        const transform = `translateX(${options.left}px)`
-        const headerFrozenEls = this.container.querySelectorAll(
-          ScrollController.HEADER_FROZEN_SELECTORS,
-        )
-        for (let i = 0; i < headerFrozenEls.length; i++) {
-          ;(headerFrozenEls[i] as HTMLElement).style.transform = transform
-        }
-      }
+    // Sync header position if scrolling horizontally
+    if (options.left !== undefined && this.headerViewport) {
+      this.headerViewport.style.transform = `translateX(-${options.left}px)`
     }
   }
 

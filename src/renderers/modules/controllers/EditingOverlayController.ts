@@ -234,9 +234,8 @@ export class EditingOverlayController extends OverlayController {
     this.editingOverlay.showAt(positionWithKey, cell, column, actualValue)
 
     // Mark the cell as being edited to hide its content via CSS
-    // Query body cells only — exclude frozen pane clones
     const cellElement = this.container.querySelector(
-      `.vibegridx-body [data-row-id="${rowId}"][data-column-id="${columnId}"]`,
+      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
     ) as HTMLElement
     if (cellElement) {
       cellElement.dataset.editing = 'true'
@@ -315,9 +314,8 @@ export class EditingOverlayController extends OverlayController {
     // Fallback: Calculate position directly from DOM
     fileLog.debug('DOM position not cached, calculating directly', { cellKey })
 
-    // Query body cells only — exclude frozen pane clones (data-frozen-clone)
     const cell = this.container.querySelector(
-      `.vibegridx-body [data-row-id="${rowId}"][data-column-id="${columnId}"]`,
+      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
     ) as HTMLElement
 
     if (!cell) {

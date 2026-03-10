@@ -63,8 +63,6 @@
   background: hsl(var(--muted));
   /* Allow drop indicator to be visible */
   z-index: 1;
-  /* No transition on header scroll - transform is set directly by ScrollController */
-  transition: none !important;
   /* Ensure proper containment */
   contain: layout style;
 }
@@ -82,6 +80,7 @@
   height: var(--vibegridx-header-height);
   position: relative;
   white-space: nowrap;
+  transition: transform 0.1s ease-out;
   /* Ensure proper width calculation */
   min-width: min-content;
   width: max-content;
@@ -505,7 +504,7 @@ body.vibegridx-dragging-active * {
   will-change: transform; /* PERF: Hint for GPU layer */
 }
 
-/* Drag column - fixed width, frozen in place during horizontal scroll */
+/* Drag column - fixed width */
 .vibegridx-drag-column {
   width: 30px; /* DRAG_COLUMN_WIDTH */
   height: 40px; /* ROW_HEIGHT */
@@ -515,7 +514,6 @@ body.vibegridx-dragging-active * {
   user-select: none;
   position: relative;
   flex-shrink: 0;
-  z-index: 2;
 }
 
 .vibegridx-drag-column--draggable {
@@ -542,7 +540,6 @@ body.vibegridx-dragging-active * {
   font-size: 12px;
   cursor: pointer;
   user-select: none;
-  z-index: 2;
   position: relative;
   flex-shrink: 0;
 }
@@ -1213,18 +1210,6 @@ body.vibegridx-dragging-active * {
   border-bottom: 1px solid var(--border);
 }
 
-/* System columns match row hover/selected state (they're frozen, must cover content behind) */
-.vibegridx-row:hover .vibegridx-drag-column,
-.vibegridx-row:hover .vibegridx-row-header-cell,
-.vibegridx-row-hovered .vibegridx-drag-column,
-.vibegridx-row-hovered .vibegridx-row-header-cell {
-  background: hsl(var(--accent)) !important;
-}
-.vibegridx-row.vibegridx-row-selected .vibegridx-drag-column,
-.vibegridx-row.vibegridx-row-selected .vibegridx-row-header-cell {
-  background: hsl(var(--primary) / 0.1) !important;
-}
-
 .vibegridx-row-header-cell {
   color: var(--muted-foreground) !important;
 }
@@ -1275,16 +1260,12 @@ body.vibegridx-dragging-active * {
   border-right: 1px solid var(--border) !important;
 }
 
-/* Header drag column and corner cell - frozen in place during horizontal scroll */
+/* Header drag column and corner cell */
 .vibegridx-header-drag-column,
 .vibegridx-header-corner-cell {
   background: var(--muted) !important;
   border-right: 1px solid var(--border) !important;
   border-bottom: 1px solid var(--border) !important;
-  transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none !important;
-  will-change: transform;
-  z-index: 4;
 }
 
 .dark .vibegridx-header-drag-column,
@@ -1379,64 +1360,4 @@ body.vibegridx-dragging-active * {
 .vibegridx-ghost-cell {
   flex: 1;
   height: 100%;
-}
-
-/* ====================================
- * FROZEN BODY PANE
- * ====================================
- * Non-scrolling overlay for frozen body columns.
- * Uses position: sticky inside the viewport scroll container so the
- * compositor handles horizontal pinning (zero lag) while vertical
- * scroll is native (element is inside the scroll container).
- *
- * Original frozen cells in the body are hidden (opacity: 0) but remain
- * in the DOM for click/interaction handling via pointer-events passthrough.
- * ==================================== */
-.vibegridx-frozen-body-pane {
-  position: sticky;
-  left: 0;
-  top: 0;
-  width: 0;
-  height: 0;
-  z-index: 2000; /* Above overlay container (z-index: 1000) and all overlay layers */
-  overflow: visible;
-  pointer-events: none;
-  /* Reset scroll compensation — pane descendants don't need it */
-  --vg-scroll-left: 0px;
-}
-
-.vibegridx-frozen-body-inner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  overflow: hidden;
-  pointer-events: none;
-  /* Opaque background masks scrolling content behind the frozen area */
-  background: var(--background);
-  box-shadow: 2px 0 6px -2px rgba(0, 0, 0, 0.1);
-}
-
-/* Frozen pane rows: inherit body row styling via .vibegridx-row class.
-   Override only pointer-events and contain (no layout containment needed in pane). */
-.vibegridx-frozen-body-pane .vibegridx-row {
-  pointer-events: none;
-  contain: none;
-}
-
-/* Strip scroll-compensation transforms from cloned elements in the pane.
-   Rows keep their translateY for vertical positioning. */
-.vibegridx-frozen-body-pane .vibegridx-drag-column,
-.vibegridx-frozen-body-pane .vibegridx-row-header-cell,
-.vibegridx-frozen-body-pane .vibegridx-cell--frozen {
-  transform: none !important;
-  opacity: 1 !important; /* Ensure clones are visible */
-}
-
-/* ===== HIDE ORIGINALS IN BODY =====
-   Body frozen elements are invisible but maintain layout space.
-   pointer-events pass through the frozen pane to these originals. */
-.vibegridx-body .vibegridx-drag-column,
-.vibegridx-body .vibegridx-row-header-cell,
-.vibegridx-body .vibegridx-cell--frozen {
-  opacity: 0;
 }

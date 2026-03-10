@@ -820,11 +820,6 @@ export class BodyRenderer {
           cellElement.style.left = `${xPosition}px`
         }
 
-        // Frozen column styling
-        if (this.visualStateStore.frozenColumns[column.id]) {
-          cellElement.classList.add('vibegridx-cell--frozen')
-        }
-
         // ARIA
         cellElement.setAttribute('role', 'gridcell')
         cellElement.setAttribute('aria-colindex', String(colIndex + 1))
