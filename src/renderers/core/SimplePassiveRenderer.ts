@@ -34,6 +34,7 @@ import { KeyboardNavigationController } from '../modules/KeyboardNavigationContr
 import { MouseController } from '../modules/MouseController'
 // Existing modular components
 import { type CoordinateMapping, OverlayManager } from '../modules/OverlayManager'
+import { FrozenColumnPane } from '../modules/FrozenColumnPane'
 import { ScrollController } from '../modules/ScrollController'
 import { SelectionController } from '../modules/SelectionController'
 
@@ -125,6 +126,7 @@ export class SimplePassiveRenderer {
   private mouseController: MouseController | null = null
   private groupRenderer: GroupRenderer | null = null
   private columnWidthManager: ColumnWidthManager | null = null
+  private frozenColumnPane: FrozenColumnPane | null = null
 
   // Service layer
   private interactionCoordinator: InteractionCoordinator | null = null
@@ -1813,6 +1815,17 @@ export class SimplePassiveRenderer {
       // GH#1437: Queue pre-render buffer for rows ahead
       this.preRenderBuffer.queueAhead(currentRange, 'down', rows.length)
 
+      // Update FrozenColumnPane after initial virtual render
+      if (this.frozenColumnPane && this.bodyContainer) {
+        const frozenPaneWidth =
+          GRID_DIMENSIONS.CONTENT_OFFSET_X + this.visualStateStore.frozenColumnsWidth
+        const totalBodyHeight = rows.reduce(
+          (sum: number, row: any) => sum + (row.height || ROW_HEIGHT),
+          0,
+        )
+        this.frozenColumnPane.update(this.bodyContainer, frozenPaneWidth, totalBodyHeight)
+      }
+
       const duration = performance.now() - startTime
       this.debugStore.recordRender(duration, currentRange.end - currentRange.start)
 
@@ -2042,6 +2055,17 @@ export class SimplePassiveRenderer {
     // GH#1437: Queue pre-render buffer fill for rows beyond the current range
     const scrollDirection = currentRange.start > previousRange.start ? 'down' : 'up'
     this.preRenderBuffer.queueAhead(currentRange, scrollDirection, rows.length)
+
+    // Update FrozenColumnPane after virtual scroll row changes
+    if (this.frozenColumnPane && this.bodyContainer) {
+      const frozenPaneWidth =
+        GRID_DIMENSIONS.CONTENT_OFFSET_X + this.visualStateStore.frozenColumnsWidth
+      const totalBodyHeight = rows.reduce(
+        (sum: number, row: any) => sum + (row.height || ROW_HEIGHT),
+        0,
+      )
+      this.frozenColumnPane.update(this.bodyContainer, frozenPaneWidth, totalBodyHeight)
+    }
   }
 
   /**
@@ -2362,6 +2386,8 @@ export class SimplePassiveRenderer {
     headerClipWrapper.appendChild(this.headerViewport)
 
     // Basic viewport structure (will be enhanced by ViewportManager)
+    // NOTE: contain changed from 'strict' to 'size style' to allow position: sticky
+    // for the FrozenColumnPane. Layout/paint containment would block sticky behavior.
     this.viewport = this.createElement('div', 'vibegridx-viewport')
     this.viewport.style.cssText = `
       position: absolute;
@@ -2370,7 +2396,7 @@ export class SimplePassiveRenderer {
       right: 0;
       bottom: 0;
       overflow: auto;
-      contain: strict;
+      contain: size style;
     `
 
     this.bodyContainer = this.createElement('div', 'vibegridx-body')
@@ -2391,6 +2417,13 @@ export class SimplePassiveRenderer {
     table.appendChild(headerClipWrapper)
     table.appendChild(this.viewport)
     this.container.appendChild(table)
+
+    // Create FrozenColumnPane — sticky overlay inside viewport for frozen body columns.
+    // Must be created after viewport is in the DOM.
+    this.frozenColumnPane = new FrozenColumnPane({
+      viewport: this.viewport,
+      container: this.container,
+    })
 
     fileLog.debug('✅ Basic DOM structure created', {
       instanceId: this.rendererInstanceId,
@@ -2658,6 +2691,14 @@ export class SimplePassiveRenderer {
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
+
+    // Update FrozenColumnPane with cloned frozen content from the rendered body rows.
+    // System columns width (70px) + frozen data columns width.
+    if (this.frozenColumnPane) {
+      const frozenPaneWidth =
+        GRID_DIMENSIONS.CONTENT_OFFSET_X + this.visualStateStore.frozenColumnsWidth
+      this.frozenColumnPane.update(this.bodyContainer, frozenPaneWidth, totalHeight)
+    }
 
     // Update debug metrics for initial render
     // Calculate truly visible rows (without buffer) for accurate debug display
@@ -2973,6 +3014,12 @@ export class SimplePassiveRenderer {
     }
 
     // ViewportManager cleanup not needed - visual-state handles this
+
+    // Clean up FrozenColumnPane
+    if (this.frozenColumnPane) {
+      this.frozenColumnPane.destroy()
+      this.frozenColumnPane = null
+    }
 
     // Clean up ScrollController
     if (this.scrollController) {

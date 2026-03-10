@@ -515,8 +515,6 @@ body.vibegridx-dragging-active * {
   user-select: none;
   position: relative;
   flex-shrink: 0;
-  transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none !important;
   z-index: 2;
 }
 
@@ -544,8 +542,6 @@ body.vibegridx-dragging-active * {
   font-size: 12px;
   cursor: pointer;
   user-select: none;
-  transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none !important;
   z-index: 2;
   position: relative;
   flex-shrink: 0;
@@ -1383,4 +1379,60 @@ body.vibegridx-dragging-active * {
 .vibegridx-ghost-cell {
   flex: 1;
   height: 100%;
+}
+
+/* ====================================
+ * FROZEN BODY PANE
+ * ====================================
+ * Non-scrolling overlay for frozen body columns.
+ * Uses position: sticky inside the viewport scroll container so the
+ * compositor handles horizontal pinning (zero lag) while vertical
+ * scroll is native (element is inside the scroll container).
+ *
+ * Original frozen cells in the body are hidden (opacity: 0) but remain
+ * in the DOM for click/interaction handling via pointer-events passthrough.
+ * ==================================== */
+.vibegridx-frozen-body-pane {
+  position: sticky;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 5;
+  overflow: visible;
+  pointer-events: none;
+  /* Reset scroll compensation — pane descendants don't need it */
+  --vg-scroll-left: 0px;
+}
+
+.vibegridx-frozen-body-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
+}
+
+/* Frozen pane rows inherit body row styling */
+.vibegridx-frozen-body-pane .vibegridx-row {
+  pointer-events: none;
+}
+
+/* Strip scroll-compensation transforms from cloned elements in the pane.
+   Rows keep their translateY for vertical positioning. */
+.vibegridx-frozen-body-pane .vibegridx-drag-column,
+.vibegridx-frozen-body-pane .vibegridx-row-header-cell,
+.vibegridx-frozen-body-pane .vibegridx-cell--frozen {
+  transform: none !important;
+  opacity: 1 !important; /* Ensure clones are visible */
+}
+
+/* ===== HIDE ORIGINALS IN BODY =====
+   Body frozen elements are invisible but maintain layout space.
+   pointer-events pass through the frozen pane to these originals. */
+.vibegridx-body .vibegridx-drag-column,
+.vibegridx-body .vibegridx-row-header-cell,
+.vibegridx-body .vibegridx-cell--frozen {
+  opacity: 0;
 }

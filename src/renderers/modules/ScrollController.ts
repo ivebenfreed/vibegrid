@@ -37,13 +37,10 @@ export class ScrollController {
   private lastScrollTop: number = 0
   private scrollVelocityThreshold: number = 200
 
-  // Selectors for ALL frozen elements — updated directly via JS for zero-lag sync.
-  // Virtual rendering caps DOM elements to ~30-50 visible rows, so this stays fast.
-  private static readonly FROZEN_SELECTORS = [
-    '.vibegridx-cell--frozen',
+  // Header-only frozen selectors — body frozen elements are handled by FrozenColumnPane.
+  // Header doesn't natively scroll so JS transform sync works without bounce.
+  private static readonly HEADER_FROZEN_SELECTORS = [
     '.vibegridx-header-cell--frozen',
-    '.vibegridx-drag-column',
-    '.vibegridx-row-header-cell',
     '.vibegridx-header-drag-column',
     '.vibegridx-header-corner-cell',
   ].join(',')
@@ -123,20 +120,18 @@ export class ScrollController {
       // Sync header scroll immediately (lightweight operation)
       this.syncHeaderScroll(scrollLeft)
 
-      // Update ALL frozen elements with direct inline transforms for zero-lag sync.
-      // CSS variable alone lags one frame behind native scroll because the browser
-      // composites the scroll position BEFORE firing the scroll event handler.
-      // CSS variable kept as fallback for elements created between scroll frames.
+      // Sync header frozen elements (header doesn't natively scroll, so JS sync works fine).
+      // Body frozen elements are handled by FrozenColumnPane (position: sticky).
       if (this.container) {
         this.container.style.setProperty('--vg-scroll-left', `${scrollLeft}px`)
 
-        // Direct inline transform on all frozen elements for zero-lag scroll sync
+        // Direct inline transform on HEADER frozen elements only
         const transform = `translateX(${scrollLeft}px)`
-        const frozenEls = this.container.querySelectorAll(
-          ScrollController.FROZEN_SELECTORS,
+        const headerFrozenEls = this.container.querySelectorAll(
+          ScrollController.HEADER_FROZEN_SELECTORS,
         )
-        for (let i = 0; i < frozenEls.length; i++) {
-          ;(frozenEls[i] as HTMLElement).style.transform = transform
+        for (let i = 0; i < headerFrozenEls.length; i++) {
+          ;(headerFrozenEls[i] as HTMLElement).style.transform = transform
         }
       }
 
@@ -193,17 +188,17 @@ export class ScrollController {
       behavior: options.behavior || 'auto',
     })
 
-    // Sync header and frozen elements when scrolling horizontally
+    // Sync header frozen elements when scrolling horizontally
     if (options.left !== undefined) {
       this.syncHeaderScroll(options.left)
       if (this.container) {
         this.container.style.setProperty('--vg-scroll-left', `${options.left}px`)
         const transform = `translateX(${options.left}px)`
-        const frozenEls = this.container.querySelectorAll(
-          ScrollController.FROZEN_SELECTORS,
+        const headerFrozenEls = this.container.querySelectorAll(
+          ScrollController.HEADER_FROZEN_SELECTORS,
         )
-        for (let i = 0; i < frozenEls.length; i++) {
-          ;(frozenEls[i] as HTMLElement).style.transform = transform
+        for (let i = 0; i < headerFrozenEls.length; i++) {
+          ;(headerFrozenEls[i] as HTMLElement).style.transform = transform
         }
       }
     }

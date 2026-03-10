@@ -16,12 +16,10 @@
   box-sizing: border-box;
 }
 
-/* Frozen/pinned cell - stays in place during horizontal scroll.
-   Transform is set via JS in ScrollController for zero-lag sync.
-   CSS variable is fallback for cells created between scroll frames. */
+/* Frozen/pinned cell - rendered in the frozen body pane overlay.
+   Original cells in the body are hidden (opacity: 0 via vibegridx.css).
+   The frozen pane uses position: sticky for compositor-level scroll sync. */
 .vibegridx-cell--frozen {
-  transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none !important;
   z-index: 2;
   background: hsl(var(--background));
   box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
@@ -43,7 +41,7 @@
   background: hsl(var(--accent));
 }
 
-/* Frozen header cell */
+/* Frozen header cell — still uses JS transform sync (header doesn't natively scroll) */
 .vibegridx-header-cell--frozen {
   transform: translateX(var(--vg-scroll-left, 0px));
   transition: none !important;
