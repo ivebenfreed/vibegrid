@@ -250,6 +250,11 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // (e.g., TanStack Router re-renders, liveQuery re-subscriptions)
   // which caused a visible double render on fresh page load.
   const hasShownGridRef = useRef(false)
+  const prevEntityRef = useRef(entityName)
+  if (prevEntityRef.current !== entityName) {
+    prevEntityRef.current = entityName
+    hasShownGridRef.current = false
+  }
 
   // All hooks must be called unconditionally (React rules of hooks)
   const resolvedName = entityName ?? ''
