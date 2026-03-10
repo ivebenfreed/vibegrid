@@ -515,6 +515,7 @@ body.vibegridx-dragging-active * {
   position: relative;
   flex-shrink: 0;
   transform: translateX(var(--vg-scroll-left, 0px));
+  transition: none;
   z-index: 2;
 }
 
@@ -543,6 +544,7 @@ body.vibegridx-dragging-active * {
   cursor: pointer;
   user-select: none;
   transform: translateX(var(--vg-scroll-left, 0px));
+  transition: none;
   z-index: 2;
   position: relative;
   flex-shrink: 0;
@@ -1271,6 +1273,7 @@ body.vibegridx-dragging-active * {
   border-right: 1px solid var(--border) !important;
   border-bottom: 1px solid var(--border) !important;
   transform: translateX(var(--vg-scroll-left, 0px));
+  transition: none;
   z-index: 4;
 }
 
