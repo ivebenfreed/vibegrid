@@ -1283,11 +1283,12 @@ export class BodyRenderer {
         const renderer = this.slotRegistry.resolve(column, context)
         if (renderer) {
           const newCellContent = renderer.render(newValue, column, context)
-          // Replace content inside cell element
+          // Replace cell content with the renderer's container element.
+          // Do NOT move children — async renderers (e.g. EntityReferenceRenderer)
+          // hold a reference to their container and update it after fetch completes.
+          // Moving children orphans the container, so async updates go to a detached node.
           cellElement.innerHTML = ''
-          while (newCellContent.firstChild) {
-            cellElement.appendChild(newCellContent.firstChild)
-          }
+          cellElement.appendChild(newCellContent)
           // Copy over data attributes from rendered element
           for (const attr of Array.from(newCellContent.attributes)) {
             if (attr.name.startsWith('data-')) {
