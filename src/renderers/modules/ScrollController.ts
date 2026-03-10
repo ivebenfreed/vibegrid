@@ -112,6 +112,11 @@ export class ScrollController {
       // Sync header scroll immediately (lightweight operation)
       this.syncHeaderScroll(scrollLeft)
 
+      // Update CSS variable for frozen columns (lightweight - single DOM write)
+      if (this.container) {
+        this.container.style.setProperty('--vg-scroll-left', `${scrollLeft}px`)
+      }
+
       // Cancel any pending scroll update to debounce rapid scroll events
       if (this.scrollRAF) {
         cancelAnimationFrame(this.scrollRAF)

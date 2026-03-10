@@ -42,9 +42,9 @@ function createMockVisualStateStore(
   }> = {},
 ): VisualStateStore {
   const columns: ColumnLayout[] = overrides.visibleColumns ?? [
-    { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
-    { id: 'col2', width: 200, xOffset: 220, visible: true, order: 1 },
-    { id: 'col3', width: 150, xOffset: 420, visible: true, order: 2 },
+    { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0, frozen: false },
+    { id: 'col2', width: 200, xOffset: 220, visible: true, order: 1, frozen: false },
+    { id: 'col3', width: 150, xOffset: 420, visible: true, order: 2, frozen: false },
   ]
 
   return {
@@ -322,8 +322,8 @@ describe('GridLineCanvas', () => {
   describe('draw vertical lines', () => {
     it('draws vertical lines for visible columns', () => {
       const columns: ColumnLayout[] = [
-        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
-        { id: 'col2', width: 200, xOffset: 220, visible: true, order: 1 },
+        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0, frozen: false },
+        { id: 'col2', width: 200, xOffset: 220, visible: true, order: 1, frozen: false },
       ]
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
@@ -353,7 +353,7 @@ describe('GridLineCanvas', () => {
 
     it('adjusts vertical line positions for scrollLeft', () => {
       const columns: ColumnLayout[] = [
-        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
+        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0, frozen: false },
       ]
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
@@ -530,7 +530,9 @@ describe('GridLineCanvas', () => {
   describe('drawFromScroll', () => {
     it('uses provided native scroll values when store scroll state is stale', () => {
       const visualStore = createMockVisualStateStore({
-        visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
+        visibleColumns: [
+          { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0, frozen: false },
+        ],
         visibleColumnRange: { start: 0, end: 1 },
         scrollLeft: 0,
         scrollTop: 0,

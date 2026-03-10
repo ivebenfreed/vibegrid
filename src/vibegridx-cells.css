@@ -16,6 +16,22 @@
   box-sizing: border-box;
 }
 
+/* Frozen/pinned cell - stays in place during horizontal scroll */
+.vibegridx-cell--frozen {
+  transform: translateX(var(--vg-scroll-left, 0px));
+  z-index: 2;
+  background: hsl(var(--background));
+  box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
+}
+
+/* Frozen header cell */
+.vibegridx-header-cell--frozen {
+  transform: translateX(var(--vg-scroll-left, 0px));
+  z-index: 3;
+  background: hsl(var(--muted));
+  box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
+}
+
 /* Flex-based cell variant (for non-absolute positioning) */
 .vibegridx-cell--flex {
   position: relative;

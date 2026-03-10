@@ -223,6 +223,11 @@ export class HeaderRenderer {
       headerCell.style.width = `${columnLayout.width}px`
       headerCell.style.height = `${HEADER_HEIGHT}px`
 
+      // Add frozen class if column is frozen (pinned to left)
+      if (columnLayout.frozen) {
+        headerCell.classList.add('vibegridx-header-cell--frozen')
+      }
+
       headerRow.appendChild(headerCell)
     })
 

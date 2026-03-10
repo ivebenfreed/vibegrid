@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Save } from 'lucide-react'
+import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Pin, PinOff, Save } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { toast } from 'sonner'
@@ -59,18 +59,22 @@ const SYSTEM_COLUMN_IDS = new Set([
 interface SortableColumnItemProps {
   column: Column
   isVisible: boolean
+  isFrozen: boolean
   canHide: boolean
   isDraggable: boolean
   onToggle: (columnId: string) => void
+  onToggleFreeze: (columnId: string) => void
   getDisplayName: (column: Column) => string
 }
 
 const SortableColumnItem = observer(function SortableColumnItem({
   column,
   isVisible,
+  isFrozen,
   canHide,
   isDraggable,
   onToggle,
+  onToggleFreeze,
   getDisplayName,
 }: SortableColumnItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -89,7 +93,7 @@ const SortableColumnItem = observer(function SortableColumnItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''}`}
+      className={`group flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''}`}
     >
       {/* Drag handle */}
       <span
@@ -111,6 +115,27 @@ const SortableColumnItem = observer(function SortableColumnItem({
       {/* Column name */}
       <span className="flex-1 text-sm truncate">{getDisplayName(column)}</span>
 
+      {/* Freeze/pin button */}
+      {!SYSTEM_COLUMN_IDS.has(column.id) && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className={`flex-shrink-0 p-0.5 rounded-sm hover:bg-muted ${isFrozen ? 'text-primary' : 'text-muted-foreground opacity-0 group-hover:opacity-100'}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleFreeze(column.id)
+              }}
+            >
+              {isFrozen ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>{isFrozen ? 'Unfreeze column' : 'Freeze column'}</p>
+          </TooltipContent>
+        </Tooltip>
+      )}
+
       {/* Required badge */}
       {!canHide && <span className="text-xs text-muted-foreground flex-shrink-0">Required</span>}
     </div>
@@ -127,6 +152,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   const columns = visualStateStore.columns
   const columnVisibility = visualStateStore.columnVisibility
   const columnOrder = visualStateStore.columnOrder
+  const frozenColumns = visualStateStore.frozenColumns
   const isOpen = interactionStore.columnVisibilityMenuState.isOpen
   const searchValue = interactionStore.columnVisibilityMenuState.searchValue
   const entityType = visualStateStore.entityType
@@ -165,6 +191,13 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   const handleToggleColumn = React.useCallback(
     (columnId: string) => {
       visualStateStore.toggleColumnVisibility(columnId)
+    },
+    [visualStateStore],
+  )
+
+  const handleToggleFreeze = React.useCallback(
+    (columnId: string) => {
+      visualStateStore.toggleFreezeColumn(columnId)
     },
     [visualStateStore],
   )
@@ -372,9 +405,11 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
                   key={column.id}
                   column={column}
                   isVisible={isColumnVisible(column.id)}
+                  isFrozen={!!frozenColumns[column.id]}
                   canHide={canHideColumn(column)}
                   isDraggable={isDraggableColumn(column)}
                   onToggle={handleToggleColumn}
+                  onToggleFreeze={handleToggleFreeze}
                   getDisplayName={getColumnDisplayName}
                 />
               ))}
@@ -395,6 +430,9 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Visible: {visibleColumnCount}</span>
             <span>Hidden: {hiddenColumnCount}</span>
+            {Object.keys(frozenColumns).length > 0 && (
+              <span>Frozen: {Object.keys(frozenColumns).length}</span>
+            )}
           </div>
 
           {/* Save to Schema button */}
