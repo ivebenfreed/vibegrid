@@ -504,7 +504,7 @@ body.vibegridx-dragging-active * {
   will-change: transform; /* PERF: Hint for GPU layer */
 }
 
-/* Drag column - fixed width */
+/* Drag column - fixed width, frozen in place during horizontal scroll */
 .vibegridx-drag-column {
   width: 30px; /* DRAG_COLUMN_WIDTH */
   height: 40px; /* ROW_HEIGHT */
@@ -514,6 +514,8 @@ body.vibegridx-dragging-active * {
   user-select: none;
   position: relative;
   flex-shrink: 0;
+  transform: translateX(var(--vg-scroll-left, 0px));
+  z-index: 2;
 }
 
 .vibegridx-drag-column--draggable {
@@ -540,6 +542,8 @@ body.vibegridx-dragging-active * {
   font-size: 12px;
   cursor: pointer;
   user-select: none;
+  transform: translateX(var(--vg-scroll-left, 0px));
+  z-index: 2;
   position: relative;
   flex-shrink: 0;
 }
@@ -1260,12 +1264,14 @@ body.vibegridx-dragging-active * {
   border-right: 1px solid var(--border) !important;
 }
 
-/* Header drag column and corner cell */
+/* Header drag column and corner cell - frozen in place during horizontal scroll */
 .vibegridx-header-drag-column,
 .vibegridx-header-corner-cell {
   background: var(--muted) !important;
   border-right: 1px solid var(--border) !important;
   border-bottom: 1px solid var(--border) !important;
+  transform: translateX(var(--vg-scroll-left, 0px));
+  z-index: 4;
 }
 
 .dark .vibegridx-header-drag-column,
