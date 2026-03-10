@@ -63,6 +63,8 @@
   background: hsl(var(--muted));
   /* Allow drop indicator to be visible */
   z-index: 1;
+  /* No transition on header scroll - transform is set directly by ScrollController */
+  transition: none !important;
   /* Ensure proper containment */
   contain: layout style;
 }
@@ -80,7 +82,6 @@
   height: var(--vibegridx-header-height);
   position: relative;
   white-space: nowrap;
-  transition: transform 0.1s ease-out;
   /* Ensure proper width calculation */
   min-width: min-content;
   width: max-content;
@@ -515,7 +516,8 @@ body.vibegridx-dragging-active * {
   position: relative;
   flex-shrink: 0;
   transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none;
+  transition: none !important;
+  will-change: transform;
   z-index: 2;
 }
 
@@ -544,7 +546,8 @@ body.vibegridx-dragging-active * {
   cursor: pointer;
   user-select: none;
   transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none;
+  transition: none !important;
+  will-change: transform;
   z-index: 2;
   position: relative;
   flex-shrink: 0;
@@ -1273,7 +1276,8 @@ body.vibegridx-dragging-active * {
   border-right: 1px solid var(--border) !important;
   border-bottom: 1px solid var(--border) !important;
   transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none;
+  transition: none !important;
+  will-change: transform;
   z-index: 4;
 }
 

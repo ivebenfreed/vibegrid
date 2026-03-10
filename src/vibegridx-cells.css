@@ -16,10 +16,13 @@
   box-sizing: border-box;
 }
 
-/* Frozen/pinned cell - stays in place during horizontal scroll */
+/* Frozen/pinned cell - stays in place during horizontal scroll.
+   Transform is set via JS in ScrollController for zero-lag sync.
+   CSS variable is fallback for cells created between scroll frames. */
 .vibegridx-cell--frozen {
   transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none;
+  transition: none !important;
+  will-change: transform;
   z-index: 2;
   background: hsl(var(--background));
   box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
@@ -28,7 +31,8 @@
 /* Frozen header cell */
 .vibegridx-header-cell--frozen {
   transform: translateX(var(--vg-scroll-left, 0px));
-  transition: none;
+  transition: none !important;
+  will-change: transform;
   z-index: 3;
   background: hsl(var(--muted));
   box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
