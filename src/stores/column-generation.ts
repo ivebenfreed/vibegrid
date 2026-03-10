@@ -327,8 +327,28 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     return getBasicColumns<T>()
   }
 
+  // Deduplicate fields by fieldName — migration 20260305000000 introduced duplicate
+  // entries in business_metadata.fields by appending customFields onto allFields
+  // (which already contained customFields). Keep first occurrence of each field.
+  const seenFieldNames = new Set<string>()
+  const dedupedFields = schemaFields.filter((fieldDef: any) => {
+    const name = fieldDef?.fieldName || fieldDef?.name
+    if (!name || seenFieldNames.has(name)) return false
+    seenFieldNames.add(name)
+    return true
+  })
+
+  if (dedupedFields.length < schemaFields.length) {
+    fileLog.warn('⚠️ Deduplicated schema fields', {
+      entityType,
+      before: schemaFields.length,
+      after: dedupedFields.length,
+      duplicatesRemoved: schemaFields.length - dedupedFields.length,
+    })
+  }
+
   // Generate columns from schema fields - Synchronous approach with lazy color loading
-  const allColumns = schemaFields
+  const allColumns = dedupedFields
     .map((fieldDef: any) => {
       // FieldDefinition uses "fieldName" property (from @/types/dataforge)
       const fieldName = fieldDef?.fieldName || fieldDef?.name

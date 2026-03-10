@@ -66,13 +66,21 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     if (selectedCells.size === 0) return []
 
     const rowCellCounts = new Map<string, { selected: number; total: number }>()
-    const visibleColumns = visualStateStore.visibleColumns.filter((col) => col.id !== 'selection')
+    // Deduplicate by column ID — columnOrder can contain duplicate IDs (e.g. COI schema),
+    // but selectedCells is a Set keyed by `rowId:columnId` so duplicates collapse.
+    // Without deduplication, total > selected and rows are never "fully selected".
+    const seenColumnIds = new Set<string>()
+    const uniqueVisibleColumns = visualStateStore.visibleColumns.filter((col) => {
+      if (col.id === 'selection' || seenColumnIds.has(col.id)) return false
+      seenColumnIds.add(col.id)
+      return true
+    })
 
     // Count selected cells per row
     for (const cellId of selectedCells) {
       const [rowId] = cellId.split(':')
       if (!rowCellCounts.has(rowId)) {
-        rowCellCounts.set(rowId, { selected: 0, total: visibleColumns.length })
+        rowCellCounts.set(rowId, { selected: 0, total: uniqueVisibleColumns.length })
       }
       const counts = rowCellCounts.get(rowId)!
       counts.selected++
