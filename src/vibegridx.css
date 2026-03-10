@@ -517,7 +517,6 @@ body.vibegridx-dragging-active * {
   flex-shrink: 0;
   transform: translateX(var(--vg-scroll-left, 0px));
   transition: none !important;
-  will-change: transform;
   z-index: 2;
 }
 
@@ -547,7 +546,6 @@ body.vibegridx-dragging-active * {
   user-select: none;
   transform: translateX(var(--vg-scroll-left, 0px));
   transition: none !important;
-  will-change: transform;
   z-index: 2;
   position: relative;
   flex-shrink: 0;
@@ -1217,6 +1215,18 @@ body.vibegridx-dragging-active * {
   background: var(--muted) !important;
   border-right: 1px solid var(--border) !important;
   border-bottom: 1px solid var(--border);
+}
+
+/* System columns match row hover/selected state (they're frozen, must cover content behind) */
+.vibegridx-row:hover .vibegridx-drag-column,
+.vibegridx-row:hover .vibegridx-row-header-cell,
+.vibegridx-row-hovered .vibegridx-drag-column,
+.vibegridx-row-hovered .vibegridx-row-header-cell {
+  background: hsl(var(--accent)) !important;
+}
+.vibegridx-row.vibegridx-row-selected .vibegridx-drag-column,
+.vibegridx-row.vibegridx-row-selected .vibegridx-row-header-cell {
+  background: hsl(var(--primary) / 0.1) !important;
 }
 
 .vibegridx-row-header-cell {

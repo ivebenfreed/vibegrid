@@ -22,17 +22,31 @@
 .vibegridx-cell--frozen {
   transform: translateX(var(--vg-scroll-left, 0px));
   transition: none !important;
-  will-change: transform;
   z-index: 2;
   background: hsl(var(--background));
   box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
+}
+
+/* Frozen cell inherits row hover/selected state backgrounds */
+.vibegridx-row:hover > .vibegridx-cell--frozen,
+.vibegridx-row-hovered .vibegridx-cell--frozen {
+  background: hsl(var(--accent));
+}
+.vibegridx-row.vibegridx-row-selected > .vibegridx-cell--frozen {
+  background: hsl(var(--primary) / 0.1);
+}
+.vibegridx-row-alt .vibegridx-cell--frozen {
+  background: hsl(var(--muted));
+}
+.vibegridx-row-alt:hover > .vibegridx-cell--frozen,
+.vibegridx-row-alt.vibegridx-row-hovered .vibegridx-cell--frozen {
+  background: hsl(var(--accent));
 }
 
 /* Frozen header cell */
 .vibegridx-header-cell--frozen {
   transform: translateX(var(--vg-scroll-left, 0px));
   transition: none !important;
-  will-change: transform;
   z-index: 3;
   background: hsl(var(--muted));
   box-shadow: 2px 0 4px -2px hsl(var(--border) / 0.5);
