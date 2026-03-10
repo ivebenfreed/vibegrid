@@ -384,7 +384,26 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         searchFields: string[]
       } | null = null
 
-      if (cellType.includes('entity_reference')) {
+      if (fieldType === 'relationship_link') {
+        // relationship_link fields carry metadata from the backend injection
+        const linkedEntity = (safeFieldDef as any).linkedEntity
+        const relationshipEntity = (safeFieldDef as any).relationshipEntity
+        const direction = (safeFieldDef as any).direction as 'source' | 'target' | undefined
+
+        relationshipMetadata = {
+          targetEntityType: linkedEntity || relationshipEntity || null,
+          displayField: 'name',
+          searchFields: ['name', 'title'],
+        }
+
+        fileLog.debug('[COLUMN-GEN] Relationship link field detected', {
+          entityType,
+          fieldName,
+          relationshipEntity,
+          linkedEntity,
+          direction,
+        })
+      } else if (cellType.includes('entity_reference')) {
         const targetEntityType =
           safeFieldDef.relationshipTable ||
           safeFieldDef.targetEntityType ||
@@ -451,11 +470,24 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         ;(column as any).relationshipDisplayField = relationshipMetadata.displayField
         ;(column as any).relationshipSearchFields = relationshipMetadata.searchFields
         if (relationshipMetadata.targetEntityType) {
-          ;(column as any).relationshipConfig = {
-            targetEntityType: relationshipMetadata.targetEntityType,
-            cardinality: 'many-to-one',
-            displayField: relationshipMetadata.displayField,
-            searchFields: relationshipMetadata.searchFields,
+          if (fieldType === 'relationship_link') {
+            // Relationship link fields: configure for relationship archetype data loading
+            const relCardinality = (safeFieldDef as any).cardinality || 'many'
+            ;(column as any).relationshipConfig = {
+              targetEntityType: relationshipMetadata.targetEntityType,
+              cardinality: relCardinality === 'one' ? 'many-to-one' : 'many-to-many',
+              displayField: relationshipMetadata.displayField,
+              searchFields: relationshipMetadata.searchFields,
+              relationshipEntity: (safeFieldDef as any).relationshipEntity,
+              direction: (safeFieldDef as any).direction,
+            }
+          } else {
+            ;(column as any).relationshipConfig = {
+              targetEntityType: relationshipMetadata.targetEntityType,
+              cardinality: 'many-to-one',
+              displayField: relationshipMetadata.displayField,
+              searchFields: relationshipMetadata.searchFields,
+            }
           }
         }
       }
@@ -568,6 +600,10 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
     case 'custom_user_reference':
       return 'custom_user_reference'
     case 'custom_entity_reference':
+      return 'custom_entity_reference'
+
+    // Relationship link fields (auto-injected) → reuse entity reference renderer
+    case 'relationship_link':
       return 'custom_entity_reference'
 
     // Rollup types

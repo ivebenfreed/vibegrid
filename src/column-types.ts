@@ -125,6 +125,7 @@ export type CellType =
   | 'custom_user_reference'
   | 'entity_reference' // DataForge variant
   | 'custom_entity_reference'
+  | 'relationship_link' // Auto-injected relationship link field (renders as entity reference)
   // Computed/rollup types
   | 'rollup_count'
   | 'rollup_sum'

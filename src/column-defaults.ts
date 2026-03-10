@@ -69,6 +69,7 @@ export const COLUMN_DEFAULTS: Record<
   custom_user_reference: { width: 180, minWidth: 140, maxWidth: 300 },
   entity_reference: { width: 180, minWidth: 140, maxWidth: 300 },
   custom_entity_reference: { width: 180, minWidth: 140, maxWidth: 300 },
+  relationship_link: { width: 180, minWidth: 140, maxWidth: 300 },
 
   // Computed/rollup types
   rollup_count: { width: 100, minWidth: 80, maxWidth: 150 },
