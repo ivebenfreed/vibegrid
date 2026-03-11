@@ -240,6 +240,23 @@ describe('GridLineCanvas', () => {
       expect(gridLines.canvas.style.height).toBe('600px')
     })
 
+    it('clamps canvas height to content height when rows are fewer than viewport', () => {
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        totalRows: 3, // 3 * 40 = 120px content
+        visibleRowRange: { start: 0, end: 3 },
+      })
+      const visualStore = createMockVisualStateStore()
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.updateCanvasSize()
+
+      // Canvas should be clamped to 120px (3 rows * 40px), not 600px
+      expect(gridLines.canvas.style.height).toBe('120px')
+      expect(gridLines.canvas.height).toBe(120) // DPR = 1
+    })
+
     it('applies DPR scale to context', () => {
       Object.defineProperty(window, 'devicePixelRatio', { value: 2, writable: true })
 

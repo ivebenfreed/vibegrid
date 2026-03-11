@@ -100,17 +100,25 @@ export class GridLineCanvas {
   /**
    * Set canvas size to match viewport dimensions.
    * Handles DPR scaling for Retina displays.
+   * Canvas height is clamped to content height so it doesn't extend the
+   * scroll area when rows don't fill the viewport.
    */
   updateCanvasSize(): void {
     const { viewportWidth, viewportHeight } = this.viewportStore
 
+    // Clamp canvas height to actual content so the canvas doesn't extend
+    // the scroll container beyond the last row
+    const contentHeight = this.getTotalContentHeight()
+    const canvasHeight =
+      contentHeight > 0 ? Math.min(viewportHeight, contentHeight) : viewportHeight
+
     // Internal resolution (accounts for DPR)
     this.canvas.width = viewportWidth * this.dpr
-    this.canvas.height = viewportHeight * this.dpr
+    this.canvas.height = canvasHeight * this.dpr
 
     // CSS display size
     this.canvas.style.width = `${viewportWidth}px`
-    this.canvas.style.height = `${viewportHeight}px`
+    this.canvas.style.height = `${canvasHeight}px`
 
     // Scale context for DPR
     this.ctx.scale(this.dpr, this.dpr)
@@ -257,26 +265,31 @@ export class GridLineCanvas {
   }
 
   /**
+   * Calculate total content height based on all rows.
+   * Returns 0 if no rows exist.
+   */
+  private getTotalContentHeight(): number {
+    const totalRows = this.viewportStore.totalRows
+    if (totalRows === 0) return 0
+
+    const rowOffsets = this.viewportStore.rowOffsets
+    if (rowOffsets && rowOffsets.length > totalRows) {
+      return rowOffsets[totalRows]
+    }
+    return totalRows * GRID_DIMENSIONS.ROW_HEIGHT
+  }
+
+  /**
    * Calculate the visible content height in viewport coordinates.
    * Returns the pixel height occupied by rows visible in the viewport,
    * clamped so vertical lines don't extend past the last row.
    */
   private getVisibleContentHeight(canvasHeight: number, scrollTop: number): number {
-    const totalRows = this.viewportStore.totalRows
-    if (totalRows === 0) return 0
-
-    const rowOffsets = this.viewportStore.rowOffsets
-    let totalContentHeight: number
-
-    if (rowOffsets && rowOffsets.length > totalRows) {
-      // Variable-height rows: last offset is the total content height
-      totalContentHeight = rowOffsets[totalRows]
-    } else {
-      totalContentHeight = totalRows * GRID_DIMENSIONS.ROW_HEIGHT
-    }
+    const contentHeight = this.getTotalContentHeight()
+    if (contentHeight === 0) return 0
 
     // Convert to viewport coordinates: content below scrollTop
-    const visibleContentHeight = totalContentHeight - scrollTop
+    const visibleContentHeight = contentHeight - scrollTop
     return Math.min(canvasHeight, visibleContentHeight)
   }
 
