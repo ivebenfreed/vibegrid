@@ -259,7 +259,7 @@ export class KeyboardController {
    */
   private handleNavigationModeKey(event: KeyboardEvent): void {
     const isCtrlKey = event.ctrlKey || event.metaKey
-    const isShiftKey = event.shiftKey
+    const _isShiftKey = event.shiftKey
 
     // First, try navigation/interaction keys (non-Ctrl)
     if (!isCtrlKey && this.keyboardNavController) {
@@ -287,20 +287,10 @@ export class KeyboardController {
           this.onCut?.()
           fileLog.debug('⌨️ Ctrl+X - Cut')
           break
+        // GH#1827 P2: Ctrl+Z/Y/Shift+Z removed — handled by global FocusAwareUndoRouter
         case 'z':
-          event.preventDefault()
-          if (isShiftKey) {
-            this.onRedo?.()
-            fileLog.debug('⌨️ Ctrl+Shift+Z - Redo')
-          } else {
-            this.onUndo?.()
-            fileLog.debug('⌨️ Ctrl+Z - Undo')
-          }
-          break
         case 'y':
-          event.preventDefault()
-          this.onRedo?.()
-          fileLog.debug('⌨️ Ctrl+Y - Redo')
+          // Let the global undo handler (FocusAwareUndoRouter) handle these
           break
         case 'a':
           // Let KeyboardNavigationController handle Ctrl+A

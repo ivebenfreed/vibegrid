@@ -448,8 +448,7 @@ export class SimplePassiveRenderer {
       onCopy: () => this.eventManager?.handleCopyAction(),
       onPaste: () => this.eventManager?.handlePasteAction(),
       onCut: () => this.eventManager?.handleCutAction(),
-      onUndo: () => this.eventManager?.handleUndoAction(),
-      onRedo: () => this.eventManager?.handleRedoAction(),
+      // GH#1827 P2: onUndo/onRedo removed — handled by FocusAwareUndoRouter
     })
 
     fileLog.info(

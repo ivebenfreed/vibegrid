@@ -23,6 +23,8 @@ import { action, computed, makeObservable, observable, runInAction, untracked } 
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import type { CommandBus } from '@/systems/commands/CommandBus'
+import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import type { SlotRegistry } from '../slots/SlotRegistry'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
@@ -175,6 +177,7 @@ export class EditingStore implements IStore {
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Used by Phase 2+ CellRenderer context
   private visualStateStore: VisualStateStore
   private collection: any = null // TanStack DB collection for mutations
+  private commandBus: CommandBus | null = null // CommandBus for history/undo tracking
   private disposers = new DisposerManager()
 
   constructor(tableCoreStore: TableCoreStore, visualStateStore: VisualStateStore) {
@@ -243,6 +246,15 @@ export class EditingStore implements IStore {
   setSlotRegistry(registry: SlotRegistry): void {
     this.slotRegistry = registry
     fileLog.debug('SlotRegistry set', { hasRegistry: !!registry })
+  }
+
+  /**
+   * Set CommandBus for history/undo tracking
+   * When set, cell edits are wrapped in UpdateEntityRecordCommand
+   */
+  setCommandBus(commandBus: CommandBus): void {
+    this.commandBus = commandBus
+    fileLog.debug('CommandBus set', { hasCommandBus: !!commandBus })
   }
 
   // ====================================
@@ -647,7 +659,7 @@ export class EditingStore implements IStore {
    * @param finalValue Value to save
    */
   private async saveToDatabase(session: EditSession, finalValue: any): Promise<void> {
-    const { cellId, originalValue: _originalValue } = session
+    const { cellId, originalValue } = session
     const [rowId, columnId] = cellId.split(':')
 
     // Get field name from column
@@ -678,17 +690,54 @@ export class EditingStore implements IStore {
       return
     }
 
-    // Start performance timing
+    // Route through CommandBus if available (enables undo/redo tracking)
+    if (this.commandBus) {
+      try {
+        const command = new UpdateEntityRecordCommand()
+        const result = await this.commandBus.execute(command, {
+          collection: this.collection,
+          entityName: this.tableCoreStore.entityType,
+          recordId: String(rowId),
+          field,
+          newValue: finalValue,
+          previousValue: originalValue,
+        })
+
+        if (result.success) {
+          fileLog.info('Edit saved via CommandBus', {
+            rowId,
+            field,
+            finalValue,
+            cellId,
+            note: 'Command tracked in history for undo/redo',
+          })
+          return
+        }
+        fileLog.error('CommandBus execute failed, falling back to direct update', {
+          rowId,
+          field,
+          error: result.error?.message,
+        })
+      } catch (err) {
+        fileLog.error('CommandBus execute threw, falling back to direct update', {
+          rowId,
+          field,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+      // Fall through to direct collection update below
+    }
+
+    // Fallback: Direct collection update (no undo tracking)
     const startTime = performance.now()
-    // Optimistic update using TanStack DB collection
     try {
       const tx = this.collection.update(String(rowId), (draft: any) => {
         draft[field] = finalValue
-        draft.updatedAt = new Date().toISOString()
+        draft.updated_at = new Date().toISOString()
       })
 
       const localDuration = performance.now() - startTime
-      fileLog.info('Optimistic edit applied to collection', {
+      fileLog.info('Optimistic edit applied to collection (no CommandBus)', {
         rowId,
         field,
         finalValue,

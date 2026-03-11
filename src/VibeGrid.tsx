@@ -16,6 +16,7 @@ import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCommandBus, useUndoRouter } from '@/app/stores'
 import {
   useDependencyCollection,
   useMembersCollection,
@@ -531,6 +532,36 @@ function VibeGridInnerBase(props: VibeGridProps) {
     editingStore.setCollection(collection)
   }, [collection, editingStore, entityType])
 
+  // Set CommandBus on EditingStore for undo/redo tracking (GH#1827)
+  const commandBus = useCommandBus()
+  useEffect(() => {
+    if (!editingStore || !commandBus) return
+    editingStore.setCommandBus(commandBus)
+  }, [editingStore, commandBus])
+
+  // GH#1827 P2: Register VibGrid as an undo surface via FocusAwareUndoRouter
+  const undoRouter = useUndoRouter()
+  useEffect(() => {
+    if (!commandBus || !undoRouter) return
+    const dispose = undoRouter.registerSurface('vibegrid', {
+      canUndo: () => commandBus.canUndo,
+      canRedo: () => commandBus.canRedo,
+      undo: async () => {
+        await commandBus.undo()
+      },
+      redo: async () => {
+        await commandBus.redo()
+      },
+      undoDescription: () => {
+        const history = commandBus.commandHistory
+        if (history.length === 0) return 'grid edit'
+        return history[history.length - 1].metadata.description
+      },
+      containerSelector: '[data-surface="vibegrid"]',
+    })
+    return dispose
+  }, [commandBus, undoRouter])
+
   // Set TanStack DB collection on GanttViewStore for bar drag persistence
   useEffect(() => {
     if (!ganttViewStore || !collection) return
@@ -944,6 +975,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       className={`vibegridx-container ${className}`}
       data-testid={`vibegrid-pure-${tableId}`}
       data-entity-type={entityType}
+      data-surface="vibegrid"
       style={{
         width,
         height,

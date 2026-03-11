@@ -195,33 +195,7 @@ export class EventManager {
     this.overlayManager?.hideContextMenu()
   }
 
-  /**
-   * Handle undo action
-   */
-  handleUndoAction(): void {
-    fileLog.debug('↶ Undo action triggered')
-
-    // Implement undo via tableCoreStore if available
-    if (this.tableCoreStore.undo) {
-      this.tableCoreStore.undo()
-    } else {
-      fileLog.debug('↶ Undo not available')
-    }
-  }
-
-  /**
-   * Handle redo action
-   */
-  handleRedoAction(): void {
-    fileLog.debug('↷ Redo action triggered')
-
-    // Implement redo via tableCoreStore if available
-    if (this.tableCoreStore.redo) {
-      this.tableCoreStore.redo()
-    } else {
-      fileLog.debug('↷ Redo not available')
-    }
-  }
+  // GH#1827 P2: handleUndoAction/handleRedoAction removed — handled by FocusAwareUndoRouter
 
   /**
    * Clear values from selected cells

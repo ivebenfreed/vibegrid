@@ -2111,19 +2111,7 @@ export class TableCoreStore implements IStore {
     logger.warn('deleteRow() not implemented - legacy method stub')
   }
 
-  /**
-   * @deprecated Stub method for type compatibility
-   */
-  undo(): void {
-    logger.warn('undo() not implemented - legacy method stub')
-  }
-
-  /**
-   * @deprecated Stub method for type compatibility
-   */
-  redo(): void {
-    logger.warn('redo() not implemented - legacy method stub')
-  }
+  // GH#1827 P2: undo()/redo() stubs removed — handled by FocusAwareUndoRouter via CommandBus
 
   /**
    * Update coordinator with current row order and clear selections
