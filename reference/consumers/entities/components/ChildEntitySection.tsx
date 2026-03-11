@@ -31,6 +31,7 @@ import { useChildEntityData } from '../hooks/useChildEntityData'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
+import { CreateRelationshipDialog } from './dialogs/CreateRelationshipDialog'
 import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog'
 import { EditRecordDialog } from './dialogs/EditRecordDialog'
 import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
@@ -313,15 +314,28 @@ export function ChildEntitySection({
         </CardContent>
       </Card>
 
-      {/* Create Dialog */}
-      {childSchema && (
-        <CreateRecordDialog
-          schema={childSchema}
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          onSuccess={handleCreateSuccess}
-        />
-      )}
+      {/* Create Dialog - relationship archetypes get a specialized picker dialog */}
+      {childSchema &&
+        (childSchema.archetype === 'relationship' &&
+        childSchema.businessMetadata?.relationship?.targetEntity ? (
+          <CreateRelationshipDialog
+            schema={childSchema}
+            parentEntityType={parentEntityType}
+            parentRecordId={parentRecordId}
+            targetEntityType={childSchema.businessMetadata.relationship.targetEntity}
+            semanticTag={semanticTag}
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            onSuccess={handleCreateSuccess}
+          />
+        ) : (
+          <CreateRecordDialog
+            schema={childSchema}
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            onSuccess={handleCreateSuccess}
+          />
+        ))}
 
       {/* Edit Dialog */}
       {editRecord && childSchema && (
