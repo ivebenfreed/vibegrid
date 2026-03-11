@@ -343,11 +343,12 @@ describe('GridLineCanvas', () => {
       // Should call moveTo/lineTo for each column border
       // col1 right edge: 70 + 150 - 0 = 220 -> 220.5
       // col2 right edge: 220 + 200 - 0 = 420 -> 420.5
+      // Vertical lines clamped to content height: 5 rows * 40px = 200
       expect(mockCtx.beginPath).toHaveBeenCalled()
       expect(mockCtx.moveTo).toHaveBeenCalledWith(220.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 600)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 200)
       expect(mockCtx.moveTo).toHaveBeenCalledWith(420.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(420.5, 600)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(420.5, 200)
       expect(mockCtx.stroke).toHaveBeenCalled()
     })
 
@@ -371,8 +372,62 @@ describe('GridLineCanvas', () => {
       gridLines.draw()
 
       // col1 right edge: 70 + 150 - 50 = 170 -> 170.5
+      // Vertical lines clamped to content height: 5 rows * 40px = 200
       expect(mockCtx.moveTo).toHaveBeenCalledWith(170.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(170.5, 600)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(170.5, 200)
+    })
+
+    it('clamps vertical lines to content height when rows do not fill viewport', () => {
+      const columns: ColumnLayout[] = [
+        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
+      ]
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: columns,
+        visibleColumnRange: { start: 0, end: 1 },
+        scrollLeft: 0,
+        scrollTop: 0,
+      })
+      // 3 rows at 40px = 120px content, viewport is 600px
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 3 },
+        totalRows: 3,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // Vertical lines should stop at 120px (3 * 40), NOT extend to 600px
+      // col1 right edge: 70 + 150 = 220 -> 220.5
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 120)
+      // Verify it was NOT called with the full viewport height
+      expect(mockCtx.lineTo).not.toHaveBeenCalledWith(220.5, 600)
+    })
+
+    it('extends vertical lines to viewport height when rows fill viewport', () => {
+      const columns: ColumnLayout[] = [
+        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
+      ]
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: columns,
+        visibleColumnRange: { start: 0, end: 1 },
+        scrollLeft: 0,
+        scrollTop: 0,
+      })
+      // 20 rows at 40px = 800px content, viewport is 600px
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 20 },
+        totalRows: 20,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // Vertical lines should extend to full viewport height (600px) since content exceeds it
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 600)
     })
 
     it('does not draw when no visible columns', () => {

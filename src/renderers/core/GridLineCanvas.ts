@@ -200,7 +200,7 @@ export class GridLineCanvas {
     // row colors + grid lines, so the transition when cells appear is just
     // text filling in on an already-correct background.
     this.drawRowBackgrounds(viewportWidth, viewportHeight, scrollTop)
-    this.drawVerticalLines(viewportWidth, viewportHeight, scrollLeft)
+    this.drawVerticalLines(viewportWidth, viewportHeight, scrollLeft, scrollTop)
     this.drawHorizontalLines(viewportWidth, viewportHeight, scrollTop)
   }
 
@@ -257,15 +257,49 @@ export class GridLineCanvas {
   }
 
   /**
+   * Calculate the visible content height in viewport coordinates.
+   * Returns the pixel height occupied by rows visible in the viewport,
+   * clamped so vertical lines don't extend past the last row.
+   */
+  private getVisibleContentHeight(canvasHeight: number, scrollTop: number): number {
+    const totalRows = this.viewportStore.totalRows
+    if (totalRows === 0) return 0
+
+    const rowOffsets = this.viewportStore.rowOffsets
+    let totalContentHeight: number
+
+    if (rowOffsets && rowOffsets.length > totalRows) {
+      // Variable-height rows: last offset is the total content height
+      totalContentHeight = rowOffsets[totalRows]
+    } else {
+      totalContentHeight = totalRows * GRID_DIMENSIONS.ROW_HEIGHT
+    }
+
+    // Convert to viewport coordinates: content below scrollTop
+    const visibleContentHeight = totalContentHeight - scrollTop
+    return Math.min(canvasHeight, visibleContentHeight)
+  }
+
+  /**
    * Draw vertical lines at column borders.
    * Uses visibleColumns and visibleColumnRange from VisualStateStore.
    * Column layouts don't change during scroll so MobX values are fine here.
+   * Lines are clamped to actual content height so they don't extend past the last row.
    */
-  private drawVerticalLines(canvasWidth: number, canvasHeight: number, scrollLeft: number): void {
+  private drawVerticalLines(
+    canvasWidth: number,
+    canvasHeight: number,
+    scrollLeft: number,
+    scrollTop: number,
+  ): void {
     const visibleColumns = this.visualStateStore.visibleColumns
     const { start, end } = this.visualStateStore.visibleColumnRange
 
     if (visibleColumns.length === 0) return
+
+    // Clamp line height to actual row content — prevents lines extending below last row
+    const lineHeight = this.getVisibleContentHeight(canvasHeight, scrollTop)
+    if (lineHeight <= 0) return
 
     this.ctx.beginPath()
     this.ctx.strokeStyle = this.borderColor
@@ -276,7 +310,7 @@ export class GridLineCanvas {
       const leftX = Math.round(visibleColumns[start].xOffset - scrollLeft) + 0.5
       if (leftX >= 0 && leftX <= canvasWidth) {
         this.ctx.moveTo(leftX, 0)
-        this.ctx.lineTo(leftX, canvasHeight)
+        this.ctx.lineTo(leftX, lineHeight)
       }
     }
 
@@ -286,7 +320,7 @@ export class GridLineCanvas {
       const x = Math.round(col.xOffset + col.width - scrollLeft) + 0.5
       if (x >= 0 && x <= canvasWidth) {
         this.ctx.moveTo(x, 0)
-        this.ctx.lineTo(x, canvasHeight)
+        this.ctx.lineTo(x, lineHeight)
       }
     }
 
