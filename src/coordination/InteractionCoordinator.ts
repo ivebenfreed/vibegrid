@@ -275,7 +275,9 @@ export class InteractionCoordinator {
       if (key === 'Enter' && !event?.shiftKey && !this.editingStore.isActiveModalTextEditor) {
         event?.preventDefault?.()
         event?.stopPropagation?.()
-        this.editingStore.commitEdit('enter')
+        // Read the current value from the editor DOM element
+        const editorValue = this.readEditorValue(event)
+        this.editingStore.commitEdit('enter', editorValue)
         this.container.focus()
         return true
       }
@@ -285,7 +287,9 @@ export class InteractionCoordinator {
         event?.preventDefault?.()
         event?.stopPropagation?.()
 
-        this.editingStore.commitEdit('tab')
+        // Read the current value from the editor DOM element
+        const editorValue = this.readEditorValue(event)
+        this.editingStore.commitEdit('tab', editorValue)
 
         if (!this.keyboardNavController) {
           this.container.focus()
@@ -315,6 +319,40 @@ export class InteractionCoordinator {
 
     const navEvent = event || this.createKeyboardEvent(key, modifiers)
     return this.keyboardNavController.handleKeyDown(navEvent)
+  }
+
+  /**
+   * Read the current value from an active editor input element.
+   * Returns undefined if no editor input is focused, so commitEdit
+   * falls back to pendingValue.
+   */
+  private readEditorValue(event?: KeyboardEvent): any {
+    const target = event?.target as HTMLElement | undefined
+    if (!target) return undefined
+
+    if (target.tagName === 'INPUT') {
+      const input = target as HTMLInputElement
+      if (input.type === 'number') {
+        if (input.value === '') return null
+        const num = parseFloat(input.value)
+        return Number.isNaN(num) ? undefined : num
+      }
+      return input.value
+    }
+
+    if (target.tagName === 'TEXTAREA') {
+      return (target as HTMLTextAreaElement).value
+    }
+
+    if (target.tagName === 'SELECT') {
+      return (target as unknown as HTMLSelectElement).value
+    }
+
+    if (target.isContentEditable) {
+      return target.textContent
+    }
+
+    return undefined
   }
 
   /**

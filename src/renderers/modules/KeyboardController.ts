@@ -183,9 +183,48 @@ export class KeyboardController {
   }
 
   /**
+   * Read the current value from an active editor input element.
+   * Returns undefined if no editor input is focused, so commitEdit
+   * falls back to pendingValue.
+   */
+  private readEditorValue(event: KeyboardEvent): any {
+    const target = event.target as HTMLElement
+    if (!target) return undefined
+
+    if (target.tagName === 'INPUT') {
+      const input = target as HTMLInputElement
+      // For number inputs, parse the value
+      if (input.type === 'number') {
+        if (input.value === '') return null
+        const num = parseFloat(input.value)
+        return Number.isNaN(num) ? undefined : num
+      }
+      return input.value
+    }
+
+    if (target.tagName === 'TEXTAREA') {
+      return (target as HTMLTextAreaElement).value
+    }
+
+    if (target.tagName === 'SELECT') {
+      return (target as unknown as HTMLSelectElement).value
+    }
+
+    if (target.isContentEditable) {
+      return target.textContent
+    }
+
+    return undefined
+  }
+
+  /**
    * Handle keyboard events in edit mode
    *
    * PHASE 3: Allows native editor shortcuts, blocks grid shortcuts
+   *
+   * When the event target is an editor input, reads the current DOM value
+   * and passes it to commitEdit as the explicit value. This ensures the
+   * actual edited value is saved (not the stale pendingValue).
    */
   private handleEditModeKey(event: KeyboardEvent): void {
     const key = event.key
@@ -218,18 +257,22 @@ export class KeyboardController {
         if (!event.shiftKey) {
           event.preventDefault()
           event.stopPropagation()
-          fileLog.debug('⌨️ Enter - Commit edit')
-          this.editingStore.commitEdit('enter')
+          // Read the current value from the editor DOM element
+          const enterValue = this.readEditorValue(event)
+          fileLog.debug('⌨️ Enter - Commit edit', { editorValue: enterValue })
+          this.editingStore.commitEdit('enter', enterValue)
           // Restore focus to container for keyboard navigation
           this.container.focus()
         }
         break
 
-      case 'Tab':
+      case 'Tab': {
         event.preventDefault()
         event.stopPropagation()
-        fileLog.debug('⌨️ Tab - Commit and navigate')
-        this.editingStore.commitEdit('tab')
+        // Read the current value from the editor DOM element
+        const tabValue = this.readEditorValue(event)
+        fileLog.debug('⌨️ Tab - Commit and navigate', { editorValue: tabValue })
+        this.editingStore.commitEdit('tab', tabValue)
         // Restore focus to container for keyboard navigation
         this.container.focus()
         // Then navigate
@@ -244,6 +287,7 @@ export class KeyboardController {
           this.keyboardNavController.handleKeyDown(arrowEvent)
         }
         break
+      }
 
       default:
         // All other keys go to editor
