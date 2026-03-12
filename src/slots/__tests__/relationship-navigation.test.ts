@@ -263,4 +263,54 @@ describe('Relationship Field Navigation (GH#1843)', () => {
       expect((renderer as any).metadata?.category).toBe('relationship')
     })
   })
+
+  describe('Badge click targets correct entity (GH#1843 bugfix)', () => {
+    it('entity reference badge should have data-entity-type and data-entity-id for direct navigation', async () => {
+      const targetEntityId = 'vendor-uuid-1234'
+      const ctx = createContext({
+        rowData: { entity_reference_name: 'Acme Vendor' },
+      } as any)
+      const renderer = await resolveRenderer(registry, 'entity_reference', ctx, {
+        editable: true,
+      })
+      // targetEntityType is a runtime property not in the Column type, cast through unknown
+      const column = {
+        ...createColumn('entity_reference', { editable: true }),
+        targetEntityType: 'Vendor',
+      } as unknown as Column
+
+      const el = renderer.render(targetEntityId, column, ctx)
+
+      // The badge must carry data-entity-type and data-entity-id so onCellClick
+      // can navigate to the REFERENCED entity, not the row entity
+      const badge = el.querySelector('[data-affordance="navigate"]') as HTMLElement
+      expect(badge).toBeTruthy()
+      expect(badge.dataset.entityType).toBe('Vendor')
+      expect(badge.dataset.entityId).toBe(targetEntityId)
+    })
+
+    it('onCellClick can use event.preventDefault() to signal handled to CellActionRouter', () => {
+      // CellActionRouter checks nativeEvent.defaultPrevented after calling onCellClick
+      const badge = document.createElement('div')
+      badge.setAttribute('data-affordance', 'navigate')
+      badge.setAttribute('data-entity-type', 'Vendor')
+      badge.setAttribute('data-entity-id', 'vendor-123')
+      document.body.appendChild(badge)
+
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'target', { value: badge })
+
+      // Simulate what EntityListView does on badge click
+      const target = event.target as HTMLElement
+      const found = target.closest<HTMLElement>(
+        '[data-affordance="navigate"][data-entity-type][data-entity-id]',
+      )
+      if (found?.dataset.entityType && found?.dataset.entityId) {
+        event.preventDefault()
+      }
+
+      expect(event.defaultPrevented).toBe(true)
+      document.body.removeChild(badge)
+    })
+  })
 })

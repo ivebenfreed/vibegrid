@@ -690,6 +690,11 @@
   text-decoration: underline;
 }
 
+/* Entity Reference: arrow opacity on hover */
+.vibegridx-entity-badge:hover .vibegridx-entity-badge-arrow {
+  opacity: 1 !important;
+}
+
 /* User Reference: pencil icon visibility on container hover */
 .vibegridx-user-reference:hover .vibegridx-user-reference-edit-icon {
   opacity: 0.6 !important;
