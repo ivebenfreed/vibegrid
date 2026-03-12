@@ -27,7 +27,7 @@ vi.mock('@/shared/lib/logging', () => ({
   }),
 }))
 
-vi.mock('@/server/domain/shared/dataforge-stubs/display-formatters', () => ({
+vi.mock('@/shared/lib/display-formatters', () => ({
   formatFieldForDisplay: (value: unknown) => String(value ?? ''),
 }))
 

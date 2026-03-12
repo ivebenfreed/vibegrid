@@ -5,7 +5,7 @@
  * formatting, and editing. Integrates with backend Enhanced Field Handler metadata.
  */
 
-import { formatFieldForDisplay } from '@/server/domain/shared/dataforge-stubs/display-formatters'
+import { formatFieldForDisplay } from '@/shared/lib/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
 import type { FieldTypeAffordance } from '../../../affordances/types'
 import type {

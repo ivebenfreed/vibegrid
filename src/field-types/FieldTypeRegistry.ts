@@ -19,7 +19,7 @@ export type {
   EditorMetadata,
   FieldCapabilities,
   ValidationMetadata,
-} from '@/server/domain/shared/dataforge-stubs/field-types'
+} from '@/shared/types/field-metadata'
 
 export interface FieldMetadata {
   supportsSorting: boolean

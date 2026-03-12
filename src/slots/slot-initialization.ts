@@ -6,7 +6,7 @@
  * Idempotent - safe to call multiple times on the same registry.
  */
 
-import { formatFieldForDisplay } from '@/server/domain/shared/dataforge-stubs/display-formatters'
+import { formatFieldForDisplay } from '@/shared/lib/display-formatters'
 import { getLogger } from '@/shared/lib/logging'
 import { getOptionIconDisplay } from '../utils/icon-mapping'
 import type { Column } from '../types'
