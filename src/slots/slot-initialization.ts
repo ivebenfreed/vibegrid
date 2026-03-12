@@ -2213,6 +2213,10 @@ class EntityReferenceCellRenderer implements CellRenderer {
     if (isEmpty(value)) {
       renderEmpty(container, isEditable)
       applyAffordanceAttrs(container, this, isEditable)
+      // Empty cells: whole area should trigger edit, not navigate (nothing to navigate to)
+      if (isEditable) {
+        container.setAttribute('data-affordance', 'edit')
+      }
       return container
     }
 
@@ -2380,31 +2384,56 @@ class EntityReferenceCellRenderer implements CellRenderer {
       'display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:500;cursor:pointer;color:var(--entity-badge-text, #0369a1);background-color:var(--entity-badge-bg, #f0f9ff);border:1px solid var(--entity-badge-border, #bae6fd);white-space:nowrap;'
     overflowBadge.dataset.affordanceRole = 'overflow-trigger'
 
-    // Hover on overflow badge shows popover with all entity badges
+    // Hover on overflow badge shows popover with all entity badges.
+    // Popover is created once (lazily) and shown/hidden to avoid DOM churn.
     let popover: HTMLElement | null = null
     let hideTimeout: ReturnType<typeof setTimeout> | null = null
 
-    const showPopover = () => {
-      if (hideTimeout) clearTimeout(hideTimeout)
-      if (popover) return
+    // Lazy-render: only create badge DOM for visible items.
+    // Renders an initial batch, then appends more as user scrolls near the bottom.
+    const BATCH_SIZE = 20
+    let renderedCount = 0
+
+    const renderBatch = (pop: HTMLElement, count: number): void => {
+      const rowData = (context as Record<string, unknown>).rowData as
+        | Record<string, unknown>
+        | undefined
+      const end = Math.min(renderedCount + count, values.length)
+      for (let i = renderedCount; i < end; i++) {
+        const eid = String(values[i])
+        const resolvedName = getResolvedDisplayName(
+          rowData,
+          column,
+          context as Record<string, unknown>,
+        )
+        const displayName = resolvedName ?? eid.slice(-4)
+        const wrapper = document.createElement('div')
+        wrapper.innerHTML = this.createEntityBadge(displayName, column, eid)
+        const badge = wrapper.firstElementChild as HTMLElement
+        if (badge) pop.appendChild(badge)
+      }
+      renderedCount = end
+    }
+
+    const ensurePopover = (): HTMLElement => {
+      if (popover) return popover
 
       popover = document.createElement('div')
       popover.className = 'vibegridx-entity-overflow-popover'
       popover.style.cssText =
-        'position:fixed;z-index:9999;display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;border:1px solid var(--border, #e5e7eb);background-color:var(--card, white);box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:200px;overflow-y:auto;'
+        'position:fixed;z-index:9999;display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;border:1px solid var(--border, #e5e7eb);background-color:var(--card, white);box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:200px;max-width:320px;overflow-y:auto;'
 
-      const rect = overflowBadge.getBoundingClientRect()
-      popover.style.left = `${rect.left}px`
-      popover.style.top = `${rect.bottom + 4}px`
+      // Render first batch only
+      renderBatch(popover, BATCH_SIZE)
 
-      // Render all badges in popover
-      for (const entityIdValue of values) {
-        const eid = String(entityIdValue)
-        const wrapper = document.createElement('div')
-        wrapper.innerHTML = this.createEntityBadge(eid.slice(-4), column, eid)
-        const badge = wrapper.firstElementChild as HTMLElement
-        if (badge) popover.appendChild(badge)
-      }
+      // Load more as user scrolls near bottom
+      popover.addEventListener('scroll', () => {
+        if (renderedCount >= values.length) return
+        const el = popover!
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+          renderBatch(el, BATCH_SIZE)
+        }
+      })
 
       popover.addEventListener('mouseenter', () => {
         if (hideTimeout) clearTimeout(hideTimeout)
@@ -2414,12 +2443,21 @@ class EntityReferenceCellRenderer implements CellRenderer {
       })
 
       document.body.appendChild(popover)
+      return popover
+    }
+
+    const showPopover = () => {
+      if (hideTimeout) clearTimeout(hideTimeout)
+      const el = ensurePopover()
+      const rect = overflowBadge.getBoundingClientRect()
+      el.style.left = `${rect.left}px`
+      el.style.top = `${rect.bottom + 4}px`
+      el.style.display = 'flex'
     }
 
     const hidePopover = () => {
-      if (popover && popover.parentNode) {
-        popover.parentNode.removeChild(popover)
-        popover = null
+      if (popover) {
+        popover.style.display = 'none'
       }
     }
 
@@ -2519,6 +2557,10 @@ class UserReferenceCellRenderer implements CellRenderer {
     if (isEmpty(value)) {
       renderEmpty(container, isEditable)
       applyAffordanceAttrs(container, this, isEditable)
+      // Empty cells: whole area should trigger edit, not navigate (nothing to navigate to)
+      if (isEditable) {
+        container.setAttribute('data-affordance', 'edit')
+      }
       return container
     }
 
