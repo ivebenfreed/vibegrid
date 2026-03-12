@@ -33,6 +33,7 @@ import { GanttToolbar } from './components/GanttToolbar'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
+import { useEntityReferenceData } from './hooks/useEntityReferenceData'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
@@ -492,6 +493,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
     logger.debug('Syncing members to TableCoreStore', { memberCount: members.length })
     tableCoreStore.setMembersData(members)
   }, [members, tableCoreStore])
+
+  // Reactive bridge: entity reference target collections → tableCoreStore.entityReferenceData
+  // Renders one invisible bridge component per target entity type (e.g., Company, Vendor)
+  // so that entity_reference cells update automatically when target entities change
+  const entityRefBridges = useEntityReferenceData(tableCoreStore)
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
@@ -994,6 +1000,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Debug overlay - enable via console: __VIBEGRID_DEBUG__.enable() */}
       {debugStore && <DebugOverlay debugStore={debugStore} />}
+
+      {/* Invisible data bridges for reactive entity reference resolution */}
+      {entityRefBridges}
 
       {/* Header with menu components - Show as soon as columns are ready */}
       {shouldShowHeader && (

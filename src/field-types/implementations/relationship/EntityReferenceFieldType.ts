@@ -657,14 +657,28 @@ export class EntityReferenceRenderer implements CellRenderer {
         return null
       }
 
+      // For relationship archetype entities, the value stored in the field is the
+      // actual target entity ID (e.g., Company UUID), not a relationship record ID.
+      // We need to resolve through the archetype metadata to fetch from the correct entity type.
+      const meta = await getRelationshipSchemaMetadata(targetEntity)
+      const fetchEntityName =
+        meta?.archetype === 'relationship' && meta.relationship?.targetEntity
+          ? meta.relationship.targetEntity
+          : targetEntity
+
       const response = await orpcClient.dataforge.data.get({
-        entityName: targetEntity,
+        entityName: fetchEntityName,
         recordId: entityId,
       })
 
       const record = response?.data
       if (record && tableCoreStore) {
+        // Cache under the column's target entity type so synchronous lookups in render/update work
         tableCoreStore.setEntityReferenceRecord(targetEntity, entityId, record)
+        // Also cache under the resolved entity type for cross-column consistency
+        if (fetchEntityName !== targetEntity) {
+          tableCoreStore.setEntityReferenceRecord(fetchEntityName, entityId, record)
+        }
       }
 
       return record ?? null
