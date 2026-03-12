@@ -679,3 +679,23 @@
 .vibegridx-cell-url:hover .vibegridx-url-edit-icon {
   opacity: 0.6 !important;
 }
+
+/* Entity Reference: pencil icon visibility on container hover */
+.vibegridx-entity-reference:hover .vibegridx-entity-reference-edit-icon {
+  opacity: 0.6 !important;
+}
+
+/* Entity Reference: badge text underline on hover */
+.vibegridx-entity-badge:hover .vibegridx-entity-name {
+  text-decoration: underline;
+}
+
+/* User Reference: pencil icon visibility on container hover */
+.vibegridx-user-reference:hover .vibegridx-user-reference-edit-icon {
+  opacity: 0.6 !important;
+}
+
+/* User Reference: badge text underline on hover */
+.vibegridx-user-badge:hover .vibegridx-user-name {
+  text-decoration: underline;
+}

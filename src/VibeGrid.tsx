@@ -88,7 +88,7 @@ interface VibeGridProps<_T = any> {
   width?: number | string
 
   // Event handlers (all optional)
-  onCellClick?: (rowId: string, columnId: string) => void
+  onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
   onCellDoubleClick?: (rowId: string, columnId: string) => void
   onSelectionChange?: (selectedCells: Set<string>) => void
   onEditingChange?: (editingCell: { rowId: string; columnId: string } | null) => void
@@ -743,7 +743,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         onEntityUpdate: (rowId, updates) =>
           (onEntityUpdateRef.current || updateEntityRef.current)?.(rowId, updates),
         onBatchEntityUpdate: (updates) => onBatchEntityUpdateRef.current?.(updates),
-        onCellClick: (rowId, columnId) => onCellClickRef.current?.(rowId, columnId),
+        onCellClick: (rowId, columnId, event) => onCellClickRef.current?.(rowId, columnId, event),
       })
     })
 

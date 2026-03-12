@@ -803,7 +803,7 @@ export interface RendererOptions {
   coordinateManager?: any // Will be typed as VibeGridXCoordinateManager
   relationshipData?: RelationshipDataProvider
   enableSelectionColumn?: boolean
-  onCellClick?: (rowId: string, columnId: string, event: MouseEvent) => void
+  onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
   onCellDoubleClick?: (rowId: string, columnId: string, event: MouseEvent) => void
   onColumnClick?: (columnId: string, event: MouseEvent) => void
   onColumnDragStart?: (columnId: string, x: number, y: number) => void

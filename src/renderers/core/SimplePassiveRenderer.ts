@@ -66,7 +66,7 @@ export interface SimplePassiveRendererOptions {
   onBatchEntityUpdate?: (
     updates: Array<{ id: string; updates: Record<string, any> }>,
   ) => Promise<void> | void
-  onCellClick?: (rowId: string, columnId: string) => void
+  onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
 }
 
 export class SimplePassiveRenderer {

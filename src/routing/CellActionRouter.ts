@@ -47,7 +47,11 @@ export type CellAction = 'navigate' | 'edit' | 'custom' | 'none'
  * Return 'handled' to prevent default action.
  * Return void or undefined to allow default action.
  */
-export type OnCellClickCallback = (rowId: string, columnId: string) => undefined | 'handled'
+export type OnCellClickCallback = (
+  rowId: string,
+  columnId: string,
+  event?: MouseEvent,
+) => undefined | 'handled'
 
 // ====================================
 // ROUTER
@@ -116,7 +120,7 @@ export class CellActionRouter {
           columnId: column.id,
         })
 
-        const result = this.onCellClick(row.id, column.id)
+        const result = this.onCellClick(row.id, column.id, nativeEvent)
 
         // Check if callback prevented default
         if (result === 'handled' || nativeEvent.defaultPrevented) {

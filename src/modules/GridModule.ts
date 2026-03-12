@@ -39,7 +39,7 @@ export interface GridModuleRenderProps {
   /** Enable hierarchy mode */
   enableHierarchy?: boolean
   /** Cell click handler */
-  onCellClick?: (rowId: string, columnId: string) => void
+  onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
   /** Entity update handler */
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
   /** Any additional props */

@@ -50,6 +50,7 @@ import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
 import { ComplianceSummaryBanner } from './ComplianceSummaryBanner'
 import { QuickCreatePanel } from './QuickCreatePanel'
+import { EntityPreviewCard } from '@/systems/vibegrid/components/EntityPreviewCard'
 
 const logger = getLogger(['entity', 'EntityListView'])
 
@@ -69,7 +70,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 }: {
   entityName: string
   orgId: string
-  onCellClick: (rowId: string, columnId: string) => void
+  onCellClick: (rowId: string, columnId: string, event?: MouseEvent) => void
   enableInlineCreation: boolean
   onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
@@ -287,6 +288,14 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
     enabled: hasUploadMode,
   })
+
+  // GH#1843: EntityPreviewCard state for relationship badge clicks
+  const [previewCard, setPreviewCard] = useState<{
+    open: boolean
+    entityType: string
+    entityId: string
+    anchorEl: HTMLElement | null
+  }>({ open: false, entityType: '', entityId: '', anchorEl: null })
 
   // GH#1534: Entity review queue state
   const [reviewSheetOpen, setReviewSheetOpen] = useState(false)
@@ -543,9 +552,28 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
               hasUploadMode={hasUploadMode}
-              onCellClick={(rowId, _columnId) => {
-                // CellActionRouter only fires onCellClick for navigate-affordance cells,
-                // so navigate unconditionally — no column name check needed.
+              onCellClick={(rowId, _columnId, event) => {
+                // GH#1843: Check if click originated from a relationship badge
+                if (event) {
+                  const badge = (event.target as HTMLElement).closest<HTMLElement>(
+                    '[data-affordance="navigate"][data-entity-type][data-entity-id]',
+                  )
+                  if (badge) {
+                    const targetEntityType = badge.dataset.entityType
+                    const targetEntityId = badge.dataset.entityId
+                    if (targetEntityType && targetEntityId) {
+                      setPreviewCard({
+                        open: true,
+                        entityType: targetEntityType,
+                        entityId: targetEntityId,
+                        anchorEl: badge,
+                      })
+                      return
+                    }
+                  }
+                }
+
+                // Default: navigate to the row's own entity detail page
                 if (entityName === 'Document') {
                   navigate({
                     to: '/documents/$id',
@@ -617,6 +645,23 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         entityQueue={reviewQueue}
         entityTypeName={schema.entityName}
       />
+
+      {/* GH#1843: EntityPreviewCard for relationship badge clicks */}
+      {previewCard.open && (
+        <EntityPreviewCard
+          entityType={previewCard.entityType}
+          entityId={previewCard.entityId}
+          anchorRef={previewCard.anchorEl}
+          onClose={() => setPreviewCard((s) => ({ ...s, open: false }))}
+          onNavigate={(type, id) => {
+            setPreviewCard((s) => ({ ...s, open: false }))
+            navigate({
+              to: '/entities/$entityName/$id',
+              params: { entityName: type, id } as any,
+            })
+          }}
+        />
+      )}
     </>
   )
 })

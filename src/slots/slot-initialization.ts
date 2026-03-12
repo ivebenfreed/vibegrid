@@ -2180,13 +2180,30 @@ class EntityReferenceCellRenderer implements CellRenderer {
     const isEditable = column.editable !== false
 
     container.className = 'vibegridx-entity-reference'
-    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden;'
+    container.style.cssText =
+      'max-width: 100%; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 4px;'
 
     if (isEmpty(value)) {
       renderEmpty(container, isEditable)
       applyAffordanceAttrs(container, this, isEditable)
       return container
     }
+
+    // Multi-value handling: array of entity IDs
+    if (Array.isArray(value) && value.length >= 2) {
+      return this.renderMultiValue(value, column, context, container, isEditable)
+    }
+
+    // Unwrap single-element arrays
+    const singleValue = Array.isArray(value) ? value[0] : value
+
+    // Resolve the raw entity ID for data attributes
+    const rawEntityId =
+      typeof singleValue === 'string'
+        ? singleValue
+        : typeof singleValue === 'object' && singleValue !== null && 'id' in singleValue
+          ? String((singleValue as Record<string, unknown>).id)
+          : String(singleValue)
 
     const rowData = (context as Record<string, unknown>).rowData as
       | Record<string, unknown>
@@ -2196,8 +2213,8 @@ class EntityReferenceCellRenderer implements CellRenderer {
     if (rowData) {
       const resolvedName = rowData[`${column.id}_name`]
       if (resolvedName) {
-        container.innerHTML = this.createEntityBadge(String(resolvedName), column)
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createEntityBadge(String(resolvedName), column, rawEntityId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
 
@@ -2209,28 +2226,29 @@ class EntityReferenceCellRenderer implements CellRenderer {
             ? String(
                 (resolvedValue as Record<string, unknown>).name ||
                   (resolvedValue as Record<string, unknown>).title ||
-                  value,
+                  singleValue,
               )
             : String(resolvedValue)
-        container.innerHTML = this.createEntityBadge(name, column)
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createEntityBadge(name, column, rawEntityId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
     }
 
-    // If value is an object with .name or .title, use that
-    if (typeof value === 'object' && value !== null) {
+    // If singleValue is an object with .name or .title, use that
+    if (typeof singleValue === 'object' && singleValue !== null) {
       const candidate =
-        (value as Record<string, unknown>).name || (value as Record<string, unknown>).title
+        (singleValue as Record<string, unknown>).name ||
+        (singleValue as Record<string, unknown>).title
       if (candidate) {
-        container.innerHTML = this.createEntityBadge(String(candidate), column)
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createEntityBadge(String(candidate), column, rawEntityId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
     }
 
     // Unresolved UUID - try async resolution via TableCoreStore
-    const entityId = String(value)
+    const entityId = String(singleValue)
     const tableCoreStore = (context as Record<string, any>).tableCoreStore as
       | {
           getEntityReferenceRecord: (t: string, id: string) => any
@@ -2248,22 +2266,23 @@ class EntityReferenceCellRenderer implements CellRenderer {
       const cached = tableCoreStore.getEntityReferenceRecord(targetEntity, entityId)
       if (cached) {
         const name = cached.name || cached.title || `${targetEntity} ${entityId.slice(-4)}`
-        container.innerHTML = this.createEntityBadge(String(name), column)
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createEntityBadge(String(name), column, entityId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
 
       // Async resolve — show placeholder, update when data arrives
+      // Don't apply navigable affordance (pencil icon) during loading state
       container.textContent = 'Loading...'
       container.style.opacity = '0.6'
-      applyAffordanceAttrs(container, this, isEditable)
 
       tableCoreStore
         .ensureEntityReferenceRecord(targetEntity, entityId)
         .then((record: any) => {
           if (record) {
             const name = record.name || record.title || `${targetEntity} ${entityId.slice(-4)}`
-            container.innerHTML = this.createEntityBadge(String(name), column)
+            container.innerHTML = this.createEntityBadge(String(name), column, entityId)
+            this.applyNavigableAffordance(container, isEditable)
             container.style.opacity = '1'
           } else {
             container.textContent = `${targetEntity} ${entityId.slice(-4)}`
@@ -2278,9 +2297,108 @@ class EntityReferenceCellRenderer implements CellRenderer {
     }
 
     // No store or target entity — show truncated ID
-    container.textContent = entityId.length > 8 ? `${entityId.slice(-8)}` : String(value)
+    container.textContent = entityId.length > 8 ? `${entityId.slice(-8)}` : String(singleValue)
     container.style.opacity = '0.6'
     applyAffordanceAttrs(container, this, isEditable)
+    return container
+  }
+
+  /** Apply container attrs + pencil icon for navigable badge pattern */
+  private applyNavigableAffordance(container: HTMLElement, isEditable: boolean): void {
+    // Set container-level attributes for CSS (but NOT data-affordance — that lives on child elements)
+    container.setAttribute('data-affordance-group', this.affordanceGroup.group)
+    container.setAttribute('data-editable', isEditable ? 'true' : 'false')
+
+    // Append pencil edit icon when editable
+    if (isEditable) {
+      const pencilIcon = document.createElement('span')
+      pencilIcon.className = 'vibegridx-entity-reference-edit-icon'
+      pencilIcon.textContent = '✏️'
+      pencilIcon.style.cssText =
+        'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0; cursor: pointer;'
+      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.affordanceRole = 'icon'
+      pencilIcon.title = 'Edit link'
+      container.appendChild(pencilIcon)
+    }
+  }
+
+  /** Render multi-value relationship cell: first badge + "+N more" overflow */
+  private renderMultiValue(
+    values: unknown[],
+    column: Column,
+    context: CellRendererContext,
+    container: HTMLElement,
+    isEditable: boolean,
+  ): HTMLElement {
+    // Render first badge using single-value path
+    const firstId = String(values[0])
+    const rowData = (context as Record<string, unknown>).rowData as
+      | Record<string, unknown>
+      | undefined
+    const resolvedName = rowData?.[`${column.id}_name`]
+    const displayName = resolvedName ? String(resolvedName) : firstId.slice(-4)
+    container.innerHTML = this.createEntityBadge(displayName, column, firstId)
+
+    // "+N more" overflow badge
+    const overflowCount = values.length - 1
+    const overflowBadge = document.createElement('span')
+    overflowBadge.className = 'vibegridx-entity-overflow-badge'
+    overflowBadge.textContent = `+${overflowCount} more`
+    overflowBadge.style.cssText =
+      'display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:500;cursor:pointer;color:var(--entity-badge-text, #0369a1);background-color:var(--entity-badge-bg, #f0f9ff);border:1px solid var(--entity-badge-border, #bae6fd);white-space:nowrap;'
+    overflowBadge.dataset.affordanceRole = 'overflow-trigger'
+
+    // Hover on overflow badge shows popover with all entity badges
+    let popover: HTMLElement | null = null
+    let hideTimeout: ReturnType<typeof setTimeout> | null = null
+
+    const showPopover = () => {
+      if (hideTimeout) clearTimeout(hideTimeout)
+      if (popover) return
+
+      popover = document.createElement('div')
+      popover.className = 'vibegridx-entity-overflow-popover'
+      popover.style.cssText =
+        'position:fixed;z-index:9999;display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;border:1px solid var(--border, #e5e7eb);background-color:var(--card, white);box-shadow:0 4px 12px rgba(0,0,0,0.15);max-height:200px;overflow-y:auto;'
+
+      const rect = overflowBadge.getBoundingClientRect()
+      popover.style.left = `${rect.left}px`
+      popover.style.top = `${rect.bottom + 4}px`
+
+      // Render all badges in popover
+      for (const entityIdValue of values) {
+        const eid = String(entityIdValue)
+        const wrapper = document.createElement('div')
+        wrapper.innerHTML = this.createEntityBadge(eid.slice(-4), column, eid)
+        const badge = wrapper.firstElementChild as HTMLElement
+        if (badge) popover.appendChild(badge)
+      }
+
+      popover.addEventListener('mouseenter', () => {
+        if (hideTimeout) clearTimeout(hideTimeout)
+      })
+      popover.addEventListener('mouseleave', () => {
+        hideTimeout = setTimeout(hidePopover, 150)
+      })
+
+      document.body.appendChild(popover)
+    }
+
+    const hidePopover = () => {
+      if (popover && popover.parentNode) {
+        popover.parentNode.removeChild(popover)
+        popover = null
+      }
+    }
+
+    overflowBadge.addEventListener('mouseenter', showPopover)
+    overflowBadge.addEventListener('mouseleave', () => {
+      hideTimeout = setTimeout(hidePopover, 150)
+    })
+
+    container.appendChild(overflowBadge)
+    this.applyNavigableAffordance(container, isEditable)
     return container
   }
 
@@ -2317,13 +2435,15 @@ class EntityReferenceCellRenderer implements CellRenderer {
     return String(value)
   }
 
-  private createEntityBadge(displayName: string, column: Column): string {
+  private createEntityBadge(displayName: string, column: Column, entityId?: string): string {
     const targetEntity = (column as unknown as Record<string, unknown>).targetEntityType as
       | string
       | undefined
     const iconLetter = (targetEntity || displayName).charAt(0).toUpperCase()
+    const entityTypeAttr = targetEntity ? ` data-entity-type="${targetEntity}"` : ''
+    const entityIdAttr = entityId ? ` data-entity-id="${entityId}"` : ''
 
-    return `<div class="vibegridx-entity-badge" data-action="edit" title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;background-color:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;max-width:100%;min-width:0;"><div class="vibegridx-entity-icon" style="width:14px;height:14px;border-radius:3px;background-color:#0ea5e9;color:white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;flex-shrink:0;">${iconLetter}</div><span class="vibegridx-entity-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span></div>`
+    return `<div class="vibegridx-entity-badge" data-affordance="navigate"${entityTypeAttr}${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--entity-badge-bg, #f0f9ff);color:var(--entity-badge-text, #0369a1);border:1px solid var(--entity-badge-border, #bae6fd);max-width:100%;min-width:0;"><div class="vibegridx-entity-icon" style="width:14px;height:14px;border-radius:3px;background-color:var(--entity-badge-icon-bg, #0ea5e9);color:white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;flex-shrink:0;">${iconLetter}</div><span class="vibegridx-entity-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-entity-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
   }
 
   affordances = {
@@ -2336,14 +2456,14 @@ class EntityReferenceCellRenderer implements CellRenderer {
   }
 
   interactionPolicy = {
-    defaultAction: 'edit' as const,
-    editTrigger: 'content-click' as const,
+    defaultAction: 'navigate' as const,
+    editTrigger: 'icon' as const,
     blurPolicy: 'commit' as const,
   }
 
   affordanceGroup = {
-    group: 'editable-badge',
-    whenNotEditable: 'readonly-badge',
+    group: 'navigable-badge-with-edit-icon',
+    whenNotEditable: 'link-only',
   }
 
   metadata = { category: 'relationship' as const, description: 'Entity reference cell renderer' }
@@ -2357,13 +2477,16 @@ class UserReferenceCellRenderer implements CellRenderer {
     const isEditable = column.editable !== false
 
     container.className = 'vibegridx-user-reference'
-    container.style.cssText = 'max-width: 100%; min-width: 0; overflow: hidden;'
+    container.style.cssText =
+      'max-width: 100%; min-width: 0; overflow: hidden; display: flex; align-items: center; gap: 4px;'
 
     if (isEmpty(value)) {
       renderEmpty(container, isEditable)
       applyAffordanceAttrs(container, this, isEditable)
       return container
     }
+
+    const rawUserId = typeof value === 'string' ? value : String(value)
 
     const rowData = (context as Record<string, unknown>).rowData as
       | Record<string, unknown>
@@ -2373,16 +2496,16 @@ class UserReferenceCellRenderer implements CellRenderer {
     if (rowData) {
       const resolvedName = rowData[`${column.id}_name`]
       if (resolvedName) {
-        container.innerHTML = this.createUserBadgeFromName(String(resolvedName))
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createUserBadgeFromName(String(resolvedName), rawUserId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
 
       // Legacy: check _resolved suffix (deprecated, kept as fallback)
       const resolvedValue = rowData[`${column.id}_resolved`]
       if (resolvedValue) {
-        container.innerHTML = this.createUserBadgeFromName(String(resolvedValue))
-        applyAffordanceAttrs(container, this, isEditable)
+        container.innerHTML = this.createUserBadgeFromName(String(resolvedValue), rawUserId)
+        this.applyNavigableAffordance(container, isEditable)
         return container
       }
     }
@@ -2390,7 +2513,7 @@ class UserReferenceCellRenderer implements CellRenderer {
     // If value is not a UUID (no dash pattern), treat as display name
     if (typeof value === 'string' && !/^[0-9a-f-]{36}$/i.test(value)) {
       container.innerHTML = this.createUserBadgeFromName(value)
-      applyAffordanceAttrs(container, this, isEditable)
+      this.applyNavigableAffordance(container, isEditable)
       return container
     }
 
@@ -2425,9 +2548,10 @@ class UserReferenceCellRenderer implements CellRenderer {
     return `User ${String(value).slice(-4)}`
   }
 
-  private createUserBadgeFromName(displayName: string): string {
+  private createUserBadgeFromName(displayName: string, userId?: string): string {
     const initials = this.getInitials(displayName)
-    return `<div class="vibegridx-user-badge" data-action="edit" title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;background-color:#f3f4f6;color:#374151;border:1px solid #d1d5db;max-width:100%;min-width:0;"><div class="vibegridx-user-avatar" style="width:18px;height:18px;border-radius:50%;background-color:#6366f1;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div><span class="vibegridx-user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span></div>`
+    const entityIdAttr = userId ? ` data-entity-id="${userId}"` : ''
+    return `<div class="vibegridx-user-badge" data-affordance="navigate" data-entity-type="User"${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--user-badge-bg, #f3f4f6);color:var(--user-badge-text, #374151);border:1px solid var(--user-badge-border, #d1d5db);max-width:100%;min-width:0;"><div class="vibegridx-user-avatar" style="width:18px;height:18px;border-radius:50%;background-color:var(--user-badge-avatar-bg, #6366f1);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div><span class="vibegridx-user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-user-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
   }
 
   private getInitials(name: string): string {
@@ -2442,6 +2566,24 @@ class UserReferenceCellRenderer implements CellRenderer {
       .join('')
   }
 
+  /** Apply container attrs + pencil icon for navigable badge pattern */
+  private applyNavigableAffordance(container: HTMLElement, isEditable: boolean): void {
+    container.setAttribute('data-affordance-group', this.affordanceGroup.group)
+    container.setAttribute('data-editable', isEditable ? 'true' : 'false')
+
+    if (isEditable) {
+      const pencilIcon = document.createElement('span')
+      pencilIcon.className = 'vibegridx-user-reference-edit-icon'
+      pencilIcon.textContent = '✏️'
+      pencilIcon.style.cssText =
+        'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0; cursor: pointer;'
+      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.affordanceRole = 'icon'
+      pencilIcon.title = 'Edit link'
+      container.appendChild(pencilIcon)
+    }
+  }
+
   affordances = {
     sortable: true,
     filterable: true,
@@ -2452,14 +2594,14 @@ class UserReferenceCellRenderer implements CellRenderer {
   }
 
   interactionPolicy = {
-    defaultAction: 'edit' as const,
-    editTrigger: 'content-click' as const,
+    defaultAction: 'navigate' as const,
+    editTrigger: 'icon' as const,
     blurPolicy: 'commit' as const,
   }
 
   affordanceGroup = {
-    group: 'editable-badge',
-    whenNotEditable: 'readonly-badge',
+    group: 'navigable-badge-with-edit-icon',
+    whenNotEditable: 'link-only',
   }
 
   metadata = { category: 'relationship' as const, description: 'User reference cell renderer' }
