@@ -2436,9 +2436,10 @@ class EntityReferenceCellRenderer implements CellRenderer {
   }
 
   private createEntityBadge(displayName: string, column: Column, entityId?: string): string {
-    const targetEntity = (column as unknown as Record<string, unknown>).targetEntityType as
-      | string
-      | undefined
+    const targetEntity =
+      ((column as any).relationshipConfig?.targetEntityType as string | undefined) ||
+      ((column as any).relationshipTargetEntity as string | undefined) ||
+      ((column as any).targetEntityType as string | undefined)
     const iconLetter = (targetEntity || displayName).charAt(0).toUpperCase()
     const entityTypeAttr = targetEntity ? ` data-entity-type="${targetEntity}"` : ''
     const entityIdAttr = entityId ? ` data-entity-id="${entityId}"` : ''
