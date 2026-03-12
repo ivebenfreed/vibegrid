@@ -364,8 +364,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       }
 
       // Skip system fields — DB infrastructure, not user-facing entity data
-      if ((fieldDef as any)?.isSystem === true) {
-        fileLog.debug('⏭️ Skipping isSystem field', { fieldName })
+      // Manifests use `system: true`, legacy schemas may use `isSystem: true`
+      if ((fieldDef as any)?.isSystem === true || (fieldDef as any)?.system === true) {
+        fileLog.debug('⏭️ Skipping system field', { fieldName })
         return null
       }
 

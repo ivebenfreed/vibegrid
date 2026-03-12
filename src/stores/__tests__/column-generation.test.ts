@@ -53,6 +53,25 @@ describe('column-generation: system field filtering', () => {
     expect(ids).toContain('updated_at')
   })
 
+  it('excludes fields marked system: true (manifest style)', async () => {
+    const registry = makeSchemaRegistry([
+      { name: 'name', type: 'text' },
+      { name: 'source_system', type: 'text', system: true },
+      { name: 'external_id', type: 'text', system: true },
+      { name: 'sync_status', type: 'text', system: true },
+      { name: 'description', type: 'text' },
+    ])
+
+    const columns = await generateColumnsFromEntitySchema('TestEntity', registry)
+    const ids = columns.map((c) => c.id)
+
+    expect(ids).toContain('name')
+    expect(ids).toContain('description')
+    expect(ids).not.toContain('source_system')
+    expect(ids).not.toContain('external_id')
+    expect(ids).not.toContain('sync_status')
+  })
+
   it('excludes serverOnly fields', async () => {
     const registry = makeSchemaRegistry([
       { name: 'name', type: 'text' },
