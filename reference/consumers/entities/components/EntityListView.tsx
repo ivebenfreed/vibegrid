@@ -26,6 +26,7 @@ import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
+import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
@@ -49,6 +50,7 @@ import { EntityListSkeleton } from './EntityListSkeleton'
 import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
 import { ComplianceSummaryBanner } from './ComplianceSummaryBanner'
+import { EntityDrawer } from './EntityDrawer'
 import { QuickCreatePanel } from './QuickCreatePanel'
 
 const logger = getLogger(['entity', 'EntityListView'])
@@ -287,6 +289,13 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
     enabled: hasUploadMode,
   })
+
+  // GH#1843: Related entity drawer state for relationship badge clicks
+  const [drawerState, setDrawerState] = useState<{
+    open: boolean
+    entityType: string
+    entityId: string
+  }>({ open: false, entityType: '', entityId: '' })
 
   // GH#1534: Entity review queue state
   const [reviewSheetOpen, setReviewSheetOpen] = useState(false)
@@ -544,7 +553,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onOpenReview={handleOpenReview}
               hasUploadMode={hasUploadMode}
               onCellClick={(rowId, _columnId, event) => {
-                // GH#1843: Check if click originated from a relationship badge — navigate to referenced entity
+                // GH#1843: Check if click originated from a relationship badge — open drawer for referenced entity
                 if (event) {
                   const badge = (event.target as HTMLElement).closest<HTMLElement>(
                     '[data-affordance="navigate"][data-entity-type][data-entity-id]',
@@ -554,9 +563,10 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                     const targetEntityId = badge.dataset.entityId
                     if (targetEntityType && targetEntityId) {
                       event.preventDefault()
-                      navigate({
-                        to: '/entities/$entityName/$id',
-                        params: { entityName: targetEntityType, id: targetEntityId } as any,
+                      setDrawerState({
+                        open: true,
+                        entityType: targetEntityType,
+                        entityId: targetEntityId,
                       })
                       return
                     }
@@ -635,6 +645,58 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         entityQueue={reviewQueue}
         entityTypeName={schema.entityName}
       />
+
+      {/* GH#1843: Related entity drawer for relationship badge clicks */}
+      {drawerState.entityType && (
+        <RelatedEntityDrawer
+          entityType={drawerState.entityType}
+          entityId={drawerState.entityId}
+          open={drawerState.open}
+          onOpenChange={(open) => setDrawerState((s) => ({ ...s, open }))}
+          onNavigate={() => {
+            setDrawerState((s) => ({ ...s, open: false }))
+            navigate({
+              to: '/entities/$entityName/$id',
+              params: { entityName: drawerState.entityType, id: drawerState.entityId } as any,
+            })
+          }}
+        />
+      )}
     </>
   )
 })
+
+/**
+ * Thin wrapper that fetches schema + record for a referenced entity,
+ * then renders EntityDrawer. Keeps data fetching out of the main component.
+ */
+function RelatedEntityDrawer({
+  entityType,
+  entityId,
+  open,
+  onOpenChange,
+  onNavigate,
+}: {
+  entityType: string
+  entityId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onNavigate: () => void
+}) {
+  const drawerSchema = useEntitySchema(entityType)
+  const { data: record } = useEntityRecordQuery(entityType, entityId, {
+    enabled: open && !!entityId,
+  })
+
+  if (!drawerSchema) return null
+
+  return (
+    <EntityDrawer
+      schema={drawerSchema}
+      record={(record as EntityRecord) ?? null}
+      open={open}
+      onOpenChange={onOpenChange}
+      onNavigate={onNavigate}
+    />
+  )
+}
