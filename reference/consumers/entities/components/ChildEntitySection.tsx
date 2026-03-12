@@ -281,6 +281,7 @@ export function ChildEntitySection({
                   enableSorting={true}
                   enableDragAndDrop={false}
                   showToolbar={false}
+                  showHeader={false}
                   showPagination={false}
                   disableSearch={true}
                   systemPredicate={childFilterPredicate}
