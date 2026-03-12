@@ -1,4 +1,8 @@
+import type React from 'react'
 import ReactDOM from 'react-dom/client'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { rootStore, StoreProvider } from '@/app/stores'
+import { queryClient } from '@/shared/data/api/client'
 import { getLogger } from '@/shared/lib/logging'
 import { isDropdownType as isDropdownCellType } from '../column-types'
 import type { CellRef, Column } from '../types'
@@ -7,6 +11,24 @@ import { createEditor } from './editors'
 import type { VisualCellPosition } from './OverlayTypes'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'EditingOverlay'])
+
+/**
+ * Wrap editor content with app-level providers (StoreProvider, QueryClientProvider).
+ * EditingOverlay creates its own ReactDOM.createRoot which is outside the main React tree,
+ * so editors that use hooks like useEntityCollection → useOrganization → useRootStore
+ * (e.g., RelationshipEditor) would crash without these providers.
+ */
+function OverlayProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <StoreProvider store={rootStore}>{children}</StoreProvider>
+    </QueryClientProvider>
+  )
+}
+
+function wrapWithProviders(element: React.ReactElement): React.ReactElement {
+  return <OverlayProviders>{element}</OverlayProviders>
+}
 
 // ====================================
 // EDITING OVERLAY - React Portal for Cell Editing
@@ -352,7 +374,7 @@ export class EditingOverlay {
         typeof editorComponent.type === 'function' ? editorComponent.type.name : 'unknown',
     })
 
-    this.root.render(editorComponent)
+    this.root.render(wrapWithProviders(editorComponent))
 
     // CRITICAL: Show portal AFTER React has rendered to prevent flash
     // Use queueMicrotask to ensure React's synchronous render has completed,
@@ -396,15 +418,17 @@ export class EditingOverlay {
     // Re-render with validation errors
     if (this.currentCell && this.currentColumn && this.currentValue !== null && this.root) {
       this.root.render(
-        createEditor({
-          cell: this.currentCell,
-          column: this.currentColumn,
-          initialValue: this.currentValue,
-          onCommit: this.config.onCommit,
-          onCancel: this.config.onCancel,
-          onUpdate: this.config.onUpdate,
-          relationshipContext: this.config.relationshipContext,
-        }),
+        wrapWithProviders(
+          createEditor({
+            cell: this.currentCell,
+            column: this.currentColumn,
+            initialValue: this.currentValue,
+            onCommit: this.config.onCommit,
+            onCancel: this.config.onCancel,
+            onUpdate: this.config.onUpdate,
+            relationshipContext: this.config.relationshipContext,
+          }),
+        ),
       )
     }
   }
