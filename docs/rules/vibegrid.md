@@ -65,6 +65,10 @@ Client-side CSV export with two entry points, gated by `enableExport` prop (defa
 
 **Tests:** `utils/__tests__/csv-export.test.ts` (60 tests)
 
+## Undo/Redo Integration
+
+VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When the grid has focus, Ctrl+Z/Ctrl+Shift+Z routes to grid-specific undo history. Entity mutations through the grid use `CommandBus.execute()` which automatically tracks undo state.
+
 ## Key Files
 
 | File | Purpose |
