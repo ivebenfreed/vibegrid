@@ -143,13 +143,37 @@ function applyFilters(rows: any[], filters: FilterConfig[]): any[] {
   })
 }
 
+/**
+ * Extract a sortable numeric value from a computed_decision_table object.
+ * Sort order: fail (0-99) < pending (100) < pass (101-200), using score as sub-sort.
+ */
+function decisionTableSortValue(val: unknown): number {
+  if (val == null || typeof val !== 'object') return 100 // pending
+  const obj = val as Record<string, unknown>
+  const score = typeof obj.score === 'number' ? obj.score : 0
+  if (obj.status === 'pass' || obj.passed === true) return 101 + score
+  if (obj.status === 'fail' || obj.passed === false) return score
+  return 100 // pending
+}
+
+/**
+ * Normalize a cell value for sorting. Objects with status/passed (decision tables)
+ * are converted to a sortable number.
+ */
+function sortableValue(val: any): any {
+  if (val != null && typeof val === 'object' && ('status' in val || 'passed' in val)) {
+    return decisionTableSortValue(val)
+  }
+  return val
+}
+
 function applySorting(rows: any[], sortBy: SortConfig[]): any[] {
   if (!sortBy || sortBy.length === 0) return rows
 
   return [...rows].sort((a, b) => {
     for (const sort of sortBy) {
-      const aVal = a.data ? a.data[sort.field] : a[sort.field]
-      const bVal = b.data ? b.data[sort.field] : b[sort.field]
+      const aVal = sortableValue(a.data ? a.data[sort.field] : a[sort.field])
+      const bVal = sortableValue(b.data ? b.data[sort.field] : b[sort.field])
 
       if (aVal === bVal) continue
 
