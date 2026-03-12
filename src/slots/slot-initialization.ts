@@ -36,6 +36,33 @@ function isEmpty(value: unknown): boolean {
   return value == null || value === ''
 }
 
+/**
+ * Get backend-resolved display name for an entity reference field.
+ * Returns the `{column.id}_name` value ONLY if it's a synthetic resolved field
+ * (injected by UnifiedResolver), not a real schema field that happens to match.
+ * Prevents collisions like "project" (entity ref) + "project_name" (extracted text).
+ */
+function getResolvedDisplayName(
+  rowData: Record<string, unknown> | undefined,
+  column: { id: string },
+  context: Record<string, unknown>,
+): string | null {
+  if (!rowData) return null
+  const nameKey = `${column.id}_name`
+  const resolved = rowData[nameKey]
+  if (!resolved) return null
+
+  // If the _name key is a real schema field, don't treat it as resolved display data
+  const tableCoreStore = context.tableCoreStore as
+    | { columns?: Array<{ field?: string; id?: string }> }
+    | undefined
+  if (tableCoreStore?.columns?.some((col) => col.field === nameKey || col.id === nameKey)) {
+    return null
+  }
+
+  return String(resolved)
+}
+
 // ============================================================
 // FALLBACK RENDERER (priority -1, catch-all)
 // ============================================================
@@ -2210,14 +2237,18 @@ class EntityReferenceCellRenderer implements CellRenderer {
       | undefined
 
     // Check for backend-resolved display name (_name suffix from UnifiedResolver)
-    if (rowData) {
-      const resolvedName = rowData[`${column.id}_name`]
-      if (resolvedName) {
-        container.innerHTML = this.createEntityBadge(String(resolvedName), column, rawEntityId)
-        this.applyNavigableAffordance(container, isEditable)
-        return container
-      }
+    const resolvedDisplayName = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
+    if (resolvedDisplayName) {
+      container.innerHTML = this.createEntityBadge(resolvedDisplayName, column, rawEntityId)
+      this.applyNavigableAffordance(container, isEditable)
+      return container
+    }
 
+    if (rowData) {
       // Legacy: check __resolved_ prefix (deprecated, kept as fallback)
       const resolvedValue = rowData[`__resolved_${column.id}`]
       if (resolvedValue) {
@@ -2336,8 +2367,8 @@ class EntityReferenceCellRenderer implements CellRenderer {
     const rowData = (context as Record<string, unknown>).rowData as
       | Record<string, unknown>
       | undefined
-    const resolvedName = rowData?.[`${column.id}_name`]
-    const displayName = resolvedName ? String(resolvedName) : firstId.slice(-4)
+    const resolvedName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
+    const displayName = resolvedName ?? firstId.slice(-4)
     container.innerHTML = this.createEntityBadge(displayName, column, firstId)
 
     // "+N more" overflow badge
@@ -2409,10 +2440,14 @@ class EntityReferenceCellRenderer implements CellRenderer {
       | Record<string, unknown>
       | undefined
 
-    if (rowData) {
-      const resolvedName = rowData[`${column.id}_name`]
-      if (resolvedName) return String(resolvedName)
+    const resolvedDisplayName2 = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
+    if (resolvedDisplayName2) return resolvedDisplayName2
 
+    if (rowData) {
       const resolvedValue = rowData[`__resolved_${column.id}`]
       if (resolvedValue) {
         if (typeof resolvedValue === 'object' && resolvedValue !== null) {
@@ -2494,14 +2529,18 @@ class UserReferenceCellRenderer implements CellRenderer {
       | undefined
 
     // Check for backend-resolved display name (_name suffix from UnifiedResolver)
-    if (rowData) {
-      const resolvedName = rowData[`${column.id}_name`]
-      if (resolvedName) {
-        container.innerHTML = this.createUserBadgeFromName(String(resolvedName), rawUserId)
-        this.applyNavigableAffordance(container, isEditable)
-        return container
-      }
+    const userResolvedName = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
+    if (userResolvedName) {
+      container.innerHTML = this.createUserBadgeFromName(userResolvedName, rawUserId)
+      this.applyNavigableAffordance(container, isEditable)
+      return container
+    }
 
+    if (rowData) {
       // Legacy: check _resolved suffix (deprecated, kept as fallback)
       const resolvedValue = rowData[`${column.id}_resolved`]
       if (resolvedValue) {
@@ -2534,10 +2573,14 @@ class UserReferenceCellRenderer implements CellRenderer {
       | Record<string, unknown>
       | undefined
 
-    if (rowData) {
-      const resolvedName = rowData[`${column.id}_name`]
-      if (resolvedName) return String(resolvedName)
+    const userFormatResolved = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
+    if (userFormatResolved) return userFormatResolved
 
+    if (rowData) {
       const resolvedValue = rowData[`${column.id}_resolved`]
       if (resolvedValue) return String(resolvedValue)
     }

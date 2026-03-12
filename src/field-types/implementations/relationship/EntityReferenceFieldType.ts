@@ -399,9 +399,12 @@ export class EntityReferenceRenderer implements CellRenderer {
       return container
     }
 
-    // Check for backend-resolved display fields (_name suffix from UnifiedResolver)
-    const resolvedName = rowData[`${column.id}_name`]
-    if (resolvedName) {
+    // Check for backend-resolved display fields (_name suffix from UnifiedResolver).
+    // Skip if the _name key is a real schema field (not a synthetic resolved field) to
+    // avoid collisions like "project" entity ref + "project_name" extracted text field.
+    const nameKey = `${column.id}_name`
+    const resolvedName = rowData[nameKey]
+    if (resolvedName && !this.isSchemaField(nameKey, column)) {
       container.innerHTML = this.createEntityBadge({ name: resolvedName }, value, column)
       return container
     }
@@ -723,6 +726,17 @@ export class EntityReferenceRenderer implements CellRenderer {
 
   private getTableCoreStore(column: EnhancedColumn): TableCoreStore | undefined {
     return (column as any).tableCoreStore || (column as any).tableCore$
+  }
+
+  /**
+   * Check if a key is a real schema field (has its own column definition).
+   * Used to avoid treating data fields like "project_name" as resolved display
+   * names for entity reference columns like "project".
+   */
+  private isSchemaField(fieldKey: string, column: EnhancedColumn): boolean {
+    const tableCoreStore = this.getTableCoreStore(column)
+    if (!tableCoreStore?.columns) return false
+    return tableCoreStore.columns.some((col: any) => col.field === fieldKey || col.id === fieldKey)
   }
 }
 
