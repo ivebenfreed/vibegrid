@@ -61,6 +61,7 @@ interface SortableColumnItemProps {
   isVisible: boolean
   canHide: boolean
   isDraggable: boolean
+  isSearchMatch: boolean
   onToggle: (columnId: string) => void
   getDisplayName: (column: Column) => string
 }
@@ -70,6 +71,7 @@ const SortableColumnItem = observer(function SortableColumnItem({
   isVisible,
   canHide,
   isDraggable,
+  isSearchMatch,
   onToggle,
   getDisplayName,
 }: SortableColumnItemProps) {
@@ -81,7 +83,7 @@ const SortableColumnItem = observer(function SortableColumnItem({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.5 : isSearchMatch ? 1 : 0.35,
     zIndex: isDragging ? 10 : undefined,
   }
 
@@ -89,7 +91,7 @@ const SortableColumnItem = observer(function SortableColumnItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-sm hover:bg-accent ${!canHide ? 'opacity-60' : ''} ${isSearchMatch ? 'bg-accent/50' : ''}`}
     >
       {/* Drag handle */}
       <span
@@ -268,19 +270,23 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     return [...ordered, ...extra]
   }, [columns, columnOrder, isOpen])
 
-  // Filtered sorted columns for search
-  const filteredColumns = React.useMemo(() => {
-    if (!isOpen) return []
-    if (!searchValue) return sortedColumns
-    return sortedColumns.filter((column) => {
+  // Set of column IDs matching the search (empty search = all match)
+  const matchingColumnIds = React.useMemo(() => {
+    if (!searchValue) return null // null means "all match"
+    const query = searchValue.toLowerCase()
+    const ids = new Set<string>()
+    for (const column of sortedColumns) {
       const displayName = getColumnDisplayName(column)
-      return (
-        displayName.toLowerCase().includes(searchValue.toLowerCase()) ||
-        column.id.toLowerCase().includes(searchValue.toLowerCase()) ||
-        (column.field && column.field.toLowerCase().includes(searchValue.toLowerCase()))
-      )
-    })
-  }, [sortedColumns, searchValue, isOpen, getColumnDisplayName])
+      if (
+        displayName.toLowerCase().includes(query) ||
+        column.id.toLowerCase().includes(query) ||
+        (column.field && column.field.toLowerCase().includes(query))
+      ) {
+        ids.add(column.id)
+      }
+    }
+    return ids
+  }, [sortedColumns, searchValue, getColumnDisplayName])
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
@@ -364,16 +370,17 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             onDragEnd={handleDragEnd}
           >
             <SortableContext
-              items={filteredColumns.map((c) => c.id)}
+              items={sortedColumns.map((c) => c.id)}
               strategy={verticalListSortingStrategy}
             >
-              {filteredColumns.map((column) => (
+              {sortedColumns.map((column) => (
                 <SortableColumnItem
                   key={column.id}
                   column={column}
                   isVisible={isColumnVisible(column.id)}
                   canHide={canHideColumn(column)}
                   isDraggable={isDraggableColumn(column)}
+                  isSearchMatch={matchingColumnIds === null || matchingColumnIds.has(column.id)}
                   onToggle={handleToggleColumn}
                   getDisplayName={getColumnDisplayName}
                 />
@@ -381,9 +388,9 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             </SortableContext>
           </DndContext>
 
-          {filteredColumns.length === 0 && searchValue && (
+          {matchingColumnIds !== null && matchingColumnIds.size === 0 && (
             <div className="px-2 py-4 text-center text-xs text-muted-foreground">
-              No columns found matching "{searchValue}"
+              No columns matching "{searchValue}"
             </div>
           )}
         </div>
