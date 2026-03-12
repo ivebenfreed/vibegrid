@@ -1819,45 +1819,71 @@ class ComputedDecisionTableCellRenderer implements CellRenderer {
     container.style.cssText =
       'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
 
-    const valueSpan = document.createElement('span')
-    valueSpan.textContent = this.formatDecisionValue(value)
-    valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
+    const { label, status } = this.resolveDecision(value)
+    const badge = document.createElement('span')
+    badge.textContent = label
+    badge.style.cssText = this.badgeStyle(status)
 
-    const indicator = document.createElement('span')
-    indicator.textContent = '\uD83D\uDCCB'
-    indicator.title = 'Decision table result'
-    indicator.style.cssText = 'font-size: 10px; opacity: 0.7;'
+    // Add violations tooltip for fail state
+    const obj = value as Record<string, unknown> | null
+    if (status === 'fail' && obj) {
+      const violations = Array.isArray(obj.violations) ? obj.violations : []
+      if (violations.length > 0) {
+        badge.textContent = `${label} \u25BE`
+        badge.style.cursor = 'pointer'
+        const lines = violations.map((v: Record<string, unknown>) => {
+          const severity = v.severity === 'warning' ? '\u26A0' : '\u2717'
+          const name = v.ruleName ? `${v.ruleName}: ` : ''
+          return `${severity} ${name}${v.message ?? ''}`
+        })
+        badge.title = `${violations.length} violation${violations.length > 1 ? 's' : ''}:\n${lines.join('\n')}`
+      }
+    }
 
-    container.appendChild(valueSpan)
-    container.appendChild(indicator)
-
+    container.appendChild(badge)
     applyAffordanceAttrs(container, this, false)
     return container
   }
 
   format(value: unknown, _column: Column, _context: CellRendererContext): string {
-    return this.formatDecisionValue(value)
+    return this.resolveDecision(value).label
   }
 
   validate(_value: unknown, _column: Column, _context: CellRendererContext): string | null {
     return null
   }
 
-  private formatDecisionValue(value: unknown): string {
-    if (value == null) return '\u2014'
+  private resolveDecision(value: unknown): { label: string; status: 'pass' | 'fail' | 'pending' } {
+    if (value == null) return { label: 'pending', status: 'pending' }
     if (typeof value === 'object') {
       const obj = value as Record<string, unknown>
       if (obj.status != null) {
+        const s = String(obj.status)
         const score = typeof obj.score === 'number' ? ` (${Math.round(obj.score)})` : ''
-        return `${String(obj.status)}${score}`
+        const status = s === 'pass' ? 'pass' : s === 'fail' ? 'fail' : 'pending'
+        return { label: `${s}${score}`, status }
       }
       if (obj.passed != null) {
-        const label = obj.passed ? 'pass' : 'fail'
+        const passed = !!obj.passed
+        const label = passed ? 'pass' : 'fail'
         const score = typeof obj.score === 'number' ? ` (${Math.round(obj.score)})` : ''
-        return `${label}${score}`
+        return { label: `${label}${score}`, status: passed ? 'pass' : 'fail' }
       }
     }
-    return String(value)
+    return { label: String(value), status: 'pending' }
+  }
+
+  private badgeStyle(status: 'pass' | 'fail' | 'pending'): string {
+    const base =
+      'display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; border: 1px solid; padding: 1px 8px; font-size: 12px; line-height: 1.4; font-weight: 500;'
+    switch (status) {
+      case 'pass':
+        return `${base} background-color: var(--color-green-100, #dcfce7); color: var(--color-green-800, #166534); border-color: var(--color-green-200, #bbf7d0);`
+      case 'fail':
+        return `${base} background-color: var(--color-red-100, #fee2e2); color: var(--color-red-800, #991b1b); border-color: var(--color-red-200, #fecaca);`
+      default:
+        return `${base} background-color: var(--color-muted, #f1f5f9); color: var(--color-muted-foreground, #64748b); border-color: var(--color-border, #e2e8f0);`
+    }
   }
 
   affordances = {
