@@ -1825,16 +1825,24 @@ class ComputedDecisionTableCellRenderer implements CellRenderer {
     badge.style.cssText = this.badgeStyle(status)
 
     // Add violations tooltip for fail state
+    // Note: ComputedFieldResult.violations is string[] (message strings, not objects)
     const obj = value as Record<string, unknown> | null
     if (status === 'fail' && obj) {
       const violations = Array.isArray(obj.violations) ? obj.violations : []
       if (violations.length > 0) {
         badge.textContent = `${label} \u25BE`
         badge.style.cursor = 'pointer'
-        const lines = violations.map((v: Record<string, unknown>) => {
-          const severity = v.severity === 'warning' ? '\u26A0' : '\u2717'
-          const name = v.ruleName ? `${v.ruleName}: ` : ''
-          return `${severity} ${name}${v.message ?? ''}`
+        const lines = violations.map((v: unknown) => {
+          // violations can be plain strings (from computed-field-helpers)
+          // or objects with { ruleId, ruleName, severity, message } (from DecisionResult)
+          if (typeof v === 'string') return `\u2717 ${v}`
+          if (typeof v === 'object' && v !== null) {
+            const vo = v as Record<string, unknown>
+            const severity = vo.severity === 'warning' ? '\u26A0' : '\u2717'
+            const name = vo.ruleName ? `${vo.ruleName}: ` : ''
+            return `${severity} ${name}${vo.message ?? ''}`
+          }
+          return String(v)
         })
         badge.title = `${violations.length} violation${violations.length > 1 ? 's' : ''}:\n${lines.join('\n')}`
       }

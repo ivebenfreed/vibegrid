@@ -10,17 +10,18 @@
  * - pending (gray badge, no score)
  */
 
+/**
+ * Actual shape from computed-field-helpers (ComputedFieldResult):
+ *   { status: 'pass' | 'fail' | 'pending', score: number, violations: string[] }
+ *
+ * Legacy shape from DecisionResult (raw engine output):
+ *   { passed: boolean | null, score: number, violations: { message: string, ... }[] }
+ */
 interface DecisionTableFieldValue {
-  passed: boolean | null
+  status?: 'pass' | 'fail' | 'pending'
+  passed?: boolean | null
   score: number | null
-  decision: string
-  violations: Array<{
-    ruleId?: string
-    ruleName?: string
-    severity?: string
-    message: string
-  }>
-  error?: string
+  violations: Array<string | { message: string; [key: string]: unknown }>
 }
 
 interface DecisionTableBadgeProps {
@@ -28,8 +29,15 @@ interface DecisionTableBadgeProps {
   onExpand?: () => void
 }
 
+function resolveStatus(value: DecisionTableFieldValue): 'pass' | 'fail' | 'pending' {
+  if (value.status) return value.status
+  if (value.passed === true) return 'pass'
+  if (value.passed === false) return 'fail'
+  return 'pending'
+}
+
 export function DecisionTableBadge({ value, onExpand }: DecisionTableBadgeProps) {
-  if (!value || value.passed === null) {
+  if (!value) {
     return (
       <span className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs bg-muted text-muted-foreground border-border">
         pending
@@ -37,7 +45,17 @@ export function DecisionTableBadge({ value, onExpand }: DecisionTableBadgeProps)
     )
   }
 
-  if (value.passed === true) {
+  const status = resolveStatus(value)
+
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs bg-muted text-muted-foreground border-border">
+        pending
+      </span>
+    )
+  }
+
+  if (status === 'pass') {
     return (
       <span className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
         pass{value.score !== null ? ` (${value.score})` : ''}
@@ -45,7 +63,7 @@ export function DecisionTableBadge({ value, onExpand }: DecisionTableBadgeProps)
     )
   }
 
-  // passed === false
+  // fail
   return (
     <button
       type="button"
