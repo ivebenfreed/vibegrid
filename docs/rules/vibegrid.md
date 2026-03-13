@@ -23,6 +23,9 @@ relatedFeatures:
 | Cell renderers (domain) | `features/{domain}/schemas/` |
 | Slot registrations | `systems/vibegrid/slots/` |
 | Row interactions | `systems/vibegrid/processors/` |
+| Cell action dispatch | `systems/vibegrid/routing/` |
+| Interaction coordination | `systems/vibegrid/coordination/` |
+| Inline edit overlays | `systems/vibegrid/overlays/` |
 | Column schemas | `features/{domain}/schemas/` |
 
 ## Implementation Rules
@@ -80,4 +83,3 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | `stores/GanttViewStore.ts` | Gantt state |
 | `utils/csv-export.ts` | CSV export utilities |
 | `utils/cascade-scheduler.ts` | Date cascading |
-| `processors/DependencyProcessor.ts` | Dependency CRUD |
