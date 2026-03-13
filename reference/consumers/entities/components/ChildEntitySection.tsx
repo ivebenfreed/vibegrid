@@ -28,6 +28,7 @@ import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import type { ChildEntityConfig } from '../hooks/useChildEntityData'
 import { useChildEntityData } from '../hooks/useChildEntityData'
+import { useLinkedFieldEnrichment } from '../hooks/useLinkedFieldEnrichment'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
@@ -50,17 +51,28 @@ export function ChildEntitySection({
   parentRecordId,
   childEntityConfig,
 }: ChildEntitySectionProps): React.ReactElement {
-  const { childEntityType, relationshipType, direction, semanticTag } = childEntityConfig
+  const { childEntityType, semanticTag } = childEntityConfig
   const organizationStore = useOrganization()
   const orgId = organizationStore.activeOrganizationId || ''
 
-  const { childRecords, childSchema, isLoading, error, retry } = useChildEntityData({
-    parentEntityType,
-    parentRecordId,
-    childEntityConfig,
-  })
+  const { childRecords, childSchema, isLoading, error, retry, derivedDirection } =
+    useChildEntityData({
+      parentEntityType,
+      parentRecordId,
+      childEntityConfig,
+    })
 
   const displayName = EntityNameUtils.toDisplayFormat(childEntityType)
+
+  // GH#1861: Linked field enrichment for relationship archetypes
+  const { enrichedRecords, linkedColumns } = useLinkedFieldEnrichment({
+    childRecords,
+    childSchema,
+    includedLinkedFields: childEntityConfig.includedLinkedFields,
+    derivedDirection,
+  })
+
+  const hasLinkedFields = linkedColumns.length > 0
 
   // Creation mode detection (same as EntityListView)
   const creationConfigQuery = useQuery({
@@ -75,15 +87,20 @@ export function ChildEntitySection({
   const hasUploadMode = creationModes.includes('upload')
   const primaryFileConfig = creationConfigQuery.data?.primaryFile
 
+  // Resolve relationship config: use explicit config values or derive from schema
+  const resolvedRelationshipType =
+    childEntityConfig.relationshipType ??
+    (childSchema?.archetype === 'relationship' ? 'entity' : undefined)
+
   // Parent context for auto-linking uploaded entities
   const parentContext = useMemo(
     () => ({
       parent_entity_type: parentEntityType,
       parent_entity_id: parentRecordId,
-      relationship_type: relationshipType,
-      direction,
+      relationship_type: resolvedRelationshipType ?? 'entity',
+      direction: derivedDirection ?? 'outgoing',
     }),
-    [parentEntityType, parentRecordId, relationshipType, direction],
+    [parentEntityType, parentRecordId, resolvedRelationshipType, derivedDirection],
   )
 
   // Upload orchestration
@@ -111,6 +128,12 @@ export function ChildEntitySection({
     [childIdSet],
   )
 
+  // GH#1861: Collection override with enriched data when linked fields are active
+  const collectionOverrideData = useMemo(() => {
+    if (!hasLinkedFields) return undefined
+    return { items: enrichedRecords, count: enrichedRecords.length }
+  }, [hasLinkedFields, enrichedRecords])
+
   // GH#1741: Detect all-pending compliance (indicates computation error)
   useEffect(() => {
     if (childEntityType !== 'SubcontractorAssignment') return
@@ -134,14 +157,15 @@ export function ChildEntitySection({
     // After creating the child record, create the relationship to the parent
     try {
       const semanticProps = semanticTag ? { semantic: semanticTag } : undefined
+      const relType = resolvedRelationshipType ?? 'entity'
       const relInput =
-        direction === 'incoming'
+        derivedDirection === 'incoming'
           ? {
               sourceEntityType: childEntityType,
               sourceEntityId: recordId,
               targetEntityType: parentEntityType,
               targetEntityId: parentRecordId,
-              relationshipType,
+              relationshipType: relType,
               properties: semanticProps,
             }
           : {
@@ -149,7 +173,7 @@ export function ChildEntitySection({
               sourceEntityId: parentRecordId,
               targetEntityType: childEntityType,
               targetEntityId: recordId,
-              relationshipType,
+              relationshipType: relType,
               properties: semanticProps,
             }
 
@@ -269,6 +293,7 @@ export function ChildEntitySection({
               <VibeGridStoreProvider
                 tableId={`child-${childEntityType}-${parentRecordId}`}
                 entityType={childEntityType}
+                collectionOverride={collectionOverrideData}
               >
                 <VibeGrid
                   tableId={`child-${childEntityType}-${parentRecordId}`}
@@ -284,7 +309,9 @@ export function ChildEntitySection({
                   showHeader={false}
                   showPagination={false}
                   disableSearch={true}
-                  systemPredicate={childFilterPredicate}
+                  skipDataFetching={hasLinkedFields}
+                  systemPredicate={hasLinkedFields ? undefined : childFilterPredicate}
+                  appendColumns={linkedColumns.length > 0 ? linkedColumns : undefined}
                   onCellClick={(rowId) => {
                     const record = childRecords.find((r) => r.id === rowId)
                     if (record) setEditRecord(record)
