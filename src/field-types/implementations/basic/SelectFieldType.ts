@@ -247,7 +247,10 @@ export class SelectRenderer implements CellRenderer {
 
     // Use schema data
     const options = this.getOptions(column)
-    const found = options.find((opt) => opt.value === stringValue)
+    // Exact match first, then case-insensitive fallback (handles e.g. saved 'a' vs option 'A')
+    const found =
+      options.find((opt) => opt.value === stringValue) ??
+      options.find((opt) => opt.value.toLowerCase() === stringValue.toLowerCase())
 
     return found || null
   }
@@ -465,11 +468,13 @@ export class SelectEditor implements CellEditor {
         optionElement.disabled = true
       }
 
-      // Set selected state
+      // Set selected state (case-insensitive for values saved with different casing)
       if (select.multiple && Array.isArray(currentValue)) {
-        optionElement.selected = currentValue.includes(option.value)
+        optionElement.selected = currentValue.some(
+          (v: any) => String(v).toLowerCase() === option.value.toLowerCase(),
+        )
       } else {
-        optionElement.selected = String(currentValue) === option.value
+        optionElement.selected = String(currentValue).toLowerCase() === option.value.toLowerCase()
       }
 
       select.appendChild(optionElement)
@@ -584,8 +589,13 @@ export class SelectFormatter implements CellFormatter {
   }
 
   private findOption(value: any, column: EnhancedColumn): SelectOption | null {
+    const stringValue = String(value)
     const options = this.getOptions(column)
-    return options.find((opt) => opt.value === String(value)) || null
+    return (
+      options.find((opt) => opt.value === stringValue) ??
+      options.find((opt) => opt.value.toLowerCase() === stringValue.toLowerCase()) ??
+      null
+    )
   }
 
   private getOptions(column: EnhancedColumn): SelectOption[] {
