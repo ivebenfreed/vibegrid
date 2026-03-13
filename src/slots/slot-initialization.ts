@@ -709,7 +709,12 @@ class SelectCellRenderer implements CellRenderer {
   private findOption(value: unknown, column: Column): SelectOption | null {
     const stringValue = String(value)
     const options = this.getOptions(column)
-    return options.find((opt) => opt.value === stringValue) || null
+    // Exact match first, then case-insensitive fallback (handles e.g. saved 'a' vs option 'A')
+    return (
+      options.find((opt) => opt.value === stringValue) ??
+      options.find((opt) => opt.value.toLowerCase() === stringValue.toLowerCase()) ??
+      null
+    )
   }
 
   private getOptions(column: Column): SelectOption[] {
