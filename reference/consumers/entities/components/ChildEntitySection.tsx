@@ -3,7 +3,7 @@
  *
  * Renders a Card section containing:
  * - Section header with entity type label and record count badge
- * - Full VibeGrid with child records (filtered via systemPredicate)
+ * - Full VibeGrid with child records (via collectionOverride)
  * - CRUD actions: create (with parent relationship auto-set), edit, delete
  * - Loading skeleton, empty state, error state
  *
@@ -12,7 +12,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrganization } from '@/app/stores'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
@@ -74,6 +74,17 @@ export function ChildEntitySection({
 
   const hasLinkedFields = linkedColumns.length > 0
 
+  // Always use collectionOverride for embedded child grids.
+  // useChildEntityData already filters records — no need for VibeGrid to re-fetch.
+  // This eliminates a race condition where skipDataFetching toggles based on schema cache timing.
+  const collectionData = useMemo(
+    () => ({
+      items: hasLinkedFields ? enrichedRecords : childRecords,
+      count: hasLinkedFields ? enrichedRecords.length : childRecords.length,
+    }),
+    [hasLinkedFields, enrichedRecords, childRecords],
+  )
+
   // Creation mode detection (same as EntityListView)
   const creationConfigQuery = useQuery({
     queryKey: uploadQueryKeys.creationConfig(orgId, childEntityType),
@@ -118,21 +129,6 @@ export function ChildEntitySection({
   const [createOpen, setCreateOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<EntityRecord | null>(null)
   const [deleteRecord, setDeleteRecord] = useState<EntityRecord | null>(null)
-
-  // Build a stable set of child IDs for the system predicate
-  const childIdSet = useMemo(() => new Set(childRecords.map((r) => r.id)), [childRecords])
-
-  // System predicate: only show rows that are in our child ID set
-  const childFilterPredicate = useCallback(
-    (row: Record<string, unknown>) => childIdSet.has(row.id as string),
-    [childIdSet],
-  )
-
-  // GH#1861: Collection override with enriched data when linked fields are active
-  const collectionOverrideData = useMemo(() => {
-    if (!hasLinkedFields) return undefined
-    return { items: enrichedRecords, count: enrichedRecords.length }
-  }, [hasLinkedFields, enrichedRecords])
 
   // GH#1741: Detect all-pending compliance (indicates computation error)
   useEffect(() => {
@@ -293,7 +289,7 @@ export function ChildEntitySection({
               <VibeGridStoreProvider
                 tableId={`child-${childEntityType}-${parentRecordId}`}
                 entityType={childEntityType}
-                collectionOverride={collectionOverrideData}
+                collectionOverride={collectionData}
               >
                 <VibeGrid
                   tableId={`child-${childEntityType}-${parentRecordId}`}
@@ -309,8 +305,7 @@ export function ChildEntitySection({
                   showHeader={false}
                   showPagination={false}
                   disableSearch={true}
-                  skipDataFetching={hasLinkedFields}
-                  systemPredicate={hasLinkedFields ? undefined : childFilterPredicate}
+                  skipDataFetching={true}
                   appendColumns={linkedColumns.length > 0 ? linkedColumns : undefined}
                   onCellClick={(rowId) => {
                     const record = childRecords.find((r) => r.id === rowId)
