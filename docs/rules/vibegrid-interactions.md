@@ -62,7 +62,7 @@ const rowExpansionConfig: RowExpansionConfig = {
 
 **Pattern:** Register with SlotRegistry for domain-specific or view-specific rendering.
 
-SlotRegistry replaces the old FieldTypeRegistry + ModularCellBridge + CellFactory layers.
+SlotRegistry works alongside FieldTypeRegistry to provide declarative, priority-based cell renderer resolution. FieldTypeRegistry handles base field type rendering; SlotRegistry enables domain-specific and view-specific overrides.
 
 **Domain-specific renderer:**
 ```typescript
