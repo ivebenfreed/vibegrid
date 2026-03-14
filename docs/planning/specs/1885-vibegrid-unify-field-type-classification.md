@@ -52,15 +52,8 @@ Full audit: `planning/research/2026-03-14-vibegrid-code-issues-audit.md`
 | `json`/`jsonb` | Yes (conditional) | **Missing** | No |
 | `reference-multi` | Yes (ReferenceMultiEditor) | **Missing** | No |
 | `datetime-local` | Yes (DateEditor) | **Missing** from dropdown list | No |
-| `rich_text` | **Missing** (only `rich-text`) | **Missing** | **Missing** |
-| `string` | **Missing** (falls to default TextEditor) | In text list | No |
-| `enum` | **Missing** (falls to default TextEditor) | In dropdown list | No |
-| `datetime`/`time`/`timestamptz` | **Missing** (fall to default TextEditor) | **Missing** | No |
-
-> **Note on runtime vs CellType union:** Some types in this map (e.g., `string`, `float`, `enum`, `switch`,
-> `checkbox`, `tags`, `multiselect`, `jsonb`, `reference-multi`, `relationship-single/multi/collection`) exist
-> at runtime from DataForge but are NOT members of the TypeScript `CellType` union in `column-types.ts`.
-> The map is typed as `Record<string, FieldTypeCategory>` (not `Record<CellType, ...>`) to handle these.
+| `string` | **Missing** | In text list | No |
+| `enum` | **Missing** | In dropdown list | No |
 
 ## Solution
 
@@ -195,18 +188,14 @@ export function isDateType(cellType: string): boolean {
 - Add missing case `'string'` → `TextEditor` (before default)
 - Add missing case `'enum'` → `SelectEditor` (alongside existing `'select'` case)
 - Add missing case `'multi-select'` → `MultiSelectEditor` (alongside existing `'select-multi'` case)
-- Add missing case `'rich_text'` → `ModalTextEditor` (alongside existing `'rich-text'` case)
-- Add missing cases `'datetime'`, `'time'`, `'timestamptz'` → `DateEditor` (alongside existing `'datetime-local'` case)
-- Export `isTagsLikeField()` (currently private) so EditingOverlay can import it
 - Handle `json`/`jsonb` positioning: For `showAt()`, use `isTagsLikeField()` from this file to determine whether to use text or dropdown positioning for json types
-- Remove bare `'relationship'` from EditingOverlay's dropdown list during refactor (stale value — no code produces this cellType)
 
 **File: `overlays/EditingOverlay.tsx`**
 - For `json`/`jsonb` types: import `isTagsLikeField` from editors and use it in `showAt()` to determine positioning. If tags-like → dropdown positioning, otherwise → text positioning. This keeps the positioning in sync with the editor component selection.
 
 ### Phase 3: Fix EditingOverlay bugs and centralize constants
 
-**Bug fix: `updateValidationErrors`** in `EditingOverlay.tsx:417-434`
+**Bug fix: `updateValidationErrors`** in `EditingOverlay.tsx:417-433`
 
 Two bugs: (1) missing `validationErrors` prop, (2) missing `tableInteraction$` handler branching.
 
@@ -286,7 +275,7 @@ is appended to the viewport container and needs to float above all grid content 
 | `systems/vibegrid/constants/field-type-categories.ts` | **NEW** — unified type classification |
 | `systems/vibegrid/constants/__tests__/field-type-categories.test.ts` | **NEW** — unit tests |
 | `systems/vibegrid/overlays/EditingOverlay.tsx` | Use shared classification, fix validation + handler bugs, use constants |
-| `systems/vibegrid/overlays/editors/index.tsx` | Add `string`, `enum`, `multi-select`, `rich_text`, `datetime`, `time`, `timestamptz` cases; export `isTagsLikeField` |
+| `systems/vibegrid/overlays/editors/index.tsx` | Add `string`, `enum`, `multi-select` cases |
 | `systems/vibegrid/stores/EditingStore.ts` | Use `isModalTextType()` |
 | `systems/vibegrid/constants/grid-dimensions.ts` | Add overlay dimension constants |
 | `systems/vibegrid/column-types.ts` | Deprecation comments on old type Sets |
