@@ -145,6 +145,7 @@ export type CellType =
   | 'entity-name' // Primary field with navigate affordance
 
 // OPTIMIZED: Pre-computed Sets for O(1) lookup performance
+/** @deprecated Use FIELD_TYPE_CATEGORIES from './constants/field-type-categories' instead */
 export const SELECT_CELL_TYPES = new Set<CellType>([
   'enum' as CellType,
   'select',
@@ -154,6 +155,7 @@ export const SELECT_CELL_TYPES = new Set<CellType>([
   'reference-select',
 ] as const)
 
+/** @deprecated Use isDropdownPositioned() from './constants/field-type-categories' instead */
 export const DROPDOWN_CELL_TYPES = new Set<CellType>([
   ...SELECT_CELL_TYPES,
   'boolean',
@@ -161,6 +163,7 @@ export const DROPDOWN_CELL_TYPES = new Set<CellType>([
   'datetime',
 ] as const)
 
+/** @deprecated Use isTextPositioned() from './constants/field-type-categories' instead */
 export const TEXT_CELL_TYPES = new Set<CellType>([
   'text',
   'longtext',
@@ -171,8 +174,11 @@ export const TEXT_CELL_TYPES = new Set<CellType>([
 ] as const)
 
 // Utility functions for optimal type checking
+/** @deprecated Use FIELD_TYPE_CATEGORIES from './constants/field-type-categories' instead */
 export const isSelectType = (cellType: string): boolean =>
   SELECT_CELL_TYPES.has(cellType as CellType)
+/** @deprecated Use isDropdownPositioned() from './constants/field-type-categories' instead */
 export const isDropdownType = (cellType: string): boolean =>
   DROPDOWN_CELL_TYPES.has(cellType as CellType)
+/** @deprecated Use isTextPositioned() from './constants/field-type-categories' instead */
 export const isTextType = (cellType: string): boolean => TEXT_CELL_TYPES.has(cellType as CellType)

@@ -23,6 +23,7 @@ import { action, computed, makeObservable, observable, runInAction, untracked } 
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import { isModalTextType } from '../constants/field-type-categories'
 import type { CommandBus } from '@/systems/commands/CommandBus'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import type { SlotRegistry } from '../slots/SlotRegistry'
@@ -145,11 +146,13 @@ export class EditingStore implements IStore {
   get isActiveModalTextEditor(): boolean {
     if (!this.currentSession) return false
 
-    const type = `${
-      this.currentSession.column.cellType || this.currentSession.column.type || ''
-    }`.toLowerCase()
+    const type = (
+      this.currentSession.column.cellType ||
+      this.currentSession.column.type ||
+      ''
+    ).toLowerCase()
 
-    return ['longtext', 'richtext', 'rich-text', 'html', 'markdown', 'textarea'].includes(type)
+    return isModalTextType(type)
   }
 
   /**

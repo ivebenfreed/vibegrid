@@ -4,10 +4,15 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { rootStore, StoreProvider } from '@/app/stores'
 import { queryClient } from '@/shared/data/api/client'
 import { getLogger } from '@/shared/lib/logging'
-import { isDropdownType as isDropdownCellType } from '../column-types'
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
+import {
+  isDateType,
+  isDropdownPositioned,
+  isTextPositioned,
+} from '../constants/field-type-categories'
 import type { CellRef, Column } from '../types'
 // Pure Observable architecture - no XState dependencies
-import { createEditor } from './editors'
+import { createEditor, isTagsLikeField } from './editors'
 import type { VisualCellPosition } from './OverlayTypes'
 
 const fileLog = getLogger(['vibegrid', 'overlays', 'EditingOverlay'])
@@ -79,13 +84,29 @@ export class EditingOverlay {
     this.createPortal()
   }
 
+  private buildEditorCallbacks() {
+    return {
+      onCommit: this.config.tableInteraction$
+        ? async (value: any) => {
+            await this.config.tableInteraction$.saveEdit(value)
+          }
+        : this.config.onCommit,
+      onCancel: this.config.onCancel,
+      onUpdate: this.config.tableInteraction$
+        ? (value: any) => {
+            this.config.tableInteraction$.updateEditValue(value)
+          }
+        : this.config.onUpdate,
+    }
+  }
+
   private createPortal(): void {
     // Create portal container
     this.portal = document.createElement('div')
     this.portal.className = 'vibegridx-editing-portal'
     this.portal.style.cssText = `
       position: absolute;
-      z-index: ${this.config.zIndex || 1000};
+      z-index: ${this.config.zIndex || GRID_DIMENSIONS.EDITING_OVERLAY_Z_INDEX};
       pointer-events: auto;
       box-sizing: border-box;
     `
@@ -188,52 +209,28 @@ export class EditingOverlay {
     })
 
     // Check editor type to determine positioning strategy
-    const isTextType = [
-      'text',
-      'string',
-      'email',
-      'url',
-      'textarea',
-      'longtext',
-      'number',
-      'integer',
-      'float',
-    ].includes(column.cellType || column.type || 'text')
-    const isDropdownType =
-      [
-        'boolean',
-        'relationship',
-        'relationship-single',
-        'relationship-multi',
-        'relationship-collection',
-        'date',
-        'datetime',
-        'timestamp',
-        'select',
-        'single-select',
-        'enum',
-        'select-multi',
-        'priority_option',
-        'status_option',
-        'category_option',
-        'task_type_option',
-        'user_reference',
-        'custom_user_reference',
-        'entity_reference',
-        'custom_entity_reference',
-        'reference-select',
-      ].includes(column.cellType || column.type || 'text') ||
-      isDropdownCellType(column.cellType || column.type || 'text')
+    const cellType = column.cellType || column.type || 'text'
+    const isTextType = isTextPositioned(cellType)
+    const isDropdownType = isDropdownPositioned(cellType)
+
+    // json/jsonb: positioning depends on whether the field is tags-like
+    // (matches the same check used in createEditor for component selection)
+    const isJsonType = cellType === 'json' || cellType === 'jsonb'
+    const isJsonDropdown = isJsonType && isTagsLikeField(column, value)
+    const isJsonText = isJsonType && !isJsonDropdown
 
     fileLog.debug('EditingOverlay: Editor type detection', {
-      columnType: column.cellType || column.type || 'text',
+      columnType: cellType,
       isTextType,
       isDropdownType,
+      isJsonType,
+      isJsonDropdown,
+      isJsonText,
       columnOptions: column.options,
       columnEnumOptions: column.enumOptions,
     })
 
-    if (isTextType) {
+    if (isTextType || isJsonText) {
       // Text editors: Position exactly over the cell and hide cell content
       this.portal.style.left = `${position.x}px`
       this.portal.style.top = `${position.y}px`
@@ -249,27 +246,24 @@ export class EditingOverlay {
       this.hideCellContent(cell)
 
       // NOTE: Portal visibility is set AFTER React render below
-    } else if (isDropdownType) {
+    } else if (isDropdownType || isJsonDropdown) {
       // Dropdown editors: Use the position from visual state (single source of truth)
-      const columnType = column.cellType || column.type || ''
 
       // For date pickers, use larger height to avoid scrolling
-      const isDateType = [
-        'date',
-        'datetime',
-        'datetime-local',
-        'timestamp',
-        'timestamptz',
-      ].includes(columnType)
+      const isDate = isDateType(cellType)
 
       // Only date pickers need a fixed width - other dropdowns auto-size to content
-      const dropdownWidth = isDateType ? Math.max(position.width, 300) : 'auto'
-      const dropdownHeight = isDateType ? 450 : 300 // Larger for date pickers
+      const dropdownWidth = isDate
+        ? Math.max(position.width, GRID_DIMENSIONS.DATE_PICKER_MIN_WIDTH)
+        : 'auto'
+      const dropdownHeight = isDate
+        ? GRID_DIMENSIONS.DATE_PICKER_MAX_HEIGHT
+        : GRID_DIMENSIONS.DROPDOWN_MAX_HEIGHT
 
       fileLog.debug('EditingOverlay: Using visual state coordinates', {
         position: { x: position.x, y: position.y, width: position.width, height: position.height },
         cellId: `${cell.rowId}:${cell.columnId}`,
-        isDateType,
+        isDate,
         dropdownHeight,
       })
 
@@ -287,7 +281,7 @@ export class EditingOverlay {
       this.portal.style.borderRadius = '4px'
       this.portal.style.boxShadow =
         '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-      this.portal.style.zIndex = '1001' // Above everything
+      this.portal.style.zIndex = String(GRID_DIMENSIONS.EDITING_DROPDOWN_Z_INDEX)
       this.portal.style.overflow = 'auto'
 
       // Add editing indicator to the original cell
@@ -342,28 +336,13 @@ export class EditingOverlay {
     // Convert Map<string, string> to string[] for editor props
     const validationErrorsList = validationErrors ? Array.from(validationErrors.values()) : []
 
+    const callbacks = this.buildEditorCallbacks()
+
     const editorComponent = createEditor({
       cell,
       column,
       initialValue: value,
-      onCommit: this.config.tableInteraction$
-        ? // Direct commit to observables (new architecture)
-          async (value) => {
-            fileLog.debug('EditingOverlay direct commit with value', { value })
-            // Don't call updateEditValue here - saveEdit should use the passed value directly
-            await this.config.tableInteraction$.saveEdit(value)
-          }
-        : // Fallback to renderer callback (old architecture)
-          this.config.onCommit,
-      onCancel: this.config.onCancel,
-      onUpdate: this.config.tableInteraction$
-        ? // Direct update to observables (new architecture)
-          (value) => {
-            fileLog.debug('EditingOverlay direct onUpdate with value', { value })
-            this.config.tableInteraction$.updateEditValue(value)
-          }
-        : // Fallback to renderer callback (old architecture)
-          this.config.onUpdate,
+      ...callbacks,
       validationErrors: validationErrorsList,
       relationshipContext: enhancedRelationshipContext,
     })
@@ -390,7 +369,7 @@ export class EditingOverlay {
             this.portal.style.display = 'block'
 
             // Smooth scroll for dropdowns (after portal is visible)
-            if (isDropdownType) {
+            if (isDropdownType || isJsonDropdown) {
               this.portal.scrollIntoView({
                 behavior: 'smooth',
                 block: 'nearest',
@@ -415,18 +394,18 @@ export class EditingOverlay {
   }
 
   public updateValidationErrors(_errors: Map<string, string>): void {
-    // Re-render with validation errors
     if (this.currentCell && this.currentColumn && this.currentValue !== null && this.root) {
+      const validationErrorsList = _errors ? Array.from(_errors.values()) : []
+      const callbacks = this.buildEditorCallbacks()
       this.root.render(
         wrapWithProviders(
           createEditor({
             cell: this.currentCell,
             column: this.currentColumn,
             initialValue: this.currentValue,
-            onCommit: this.config.onCommit,
-            onCancel: this.config.onCancel,
-            onUpdate: this.config.onUpdate,
+            ...callbacks,
             relationshipContext: this.config.relationshipContext,
+            validationErrors: validationErrorsList,
           }),
         ),
       )
