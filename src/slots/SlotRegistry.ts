@@ -427,21 +427,25 @@ export class SlotRegistry {
       return this.resolvedCache.get(cacheKey)!
     }
 
-    // Graceful degradation: Return fallback text renderer if preload complete
+    // Preload complete but cache miss — column wasn't in preloadForColumns() column set.
+    // This indicates a bug: either preload ran before all columns were ready,
+    // or the resolve context differs from the preload context (different entityType/viewMode).
+    // Use synchronous resolution as a safety net, but warn so we can fix the root cause.
     if (this.preloadReady) {
-      logger.warn(
-        `Renderer for "${column.cellType}" not preloaded, using fallback. ` +
-          `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
-      )
-
-      // Try to find any text renderer in cache
-      for (const [key, renderer] of this.resolvedCache.entries()) {
-        if (key.startsWith('text::')) {
-          return renderer
-        }
+      const renderer = this.resolveSynchronous(column, context, cacheKey)
+      if (renderer) {
+        logger.warn(
+          `Cache miss for "${column.cellType}" (col=${column.id}) after preload — resolved synchronously. ` +
+            `This means preloadForColumns() missed this column. ` +
+            `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
+        )
+        return renderer
       }
 
-      // No text renderer in cache - return null for graceful degradation
+      logger.warn(
+        `No renderer found for "${column.cellType}". ` +
+          `Context: viewMode=${context.viewMode}, entityType=${context.entityType}`,
+      )
       return null
     }
 

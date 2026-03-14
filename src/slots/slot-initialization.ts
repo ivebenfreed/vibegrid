@@ -217,7 +217,11 @@ class NumberCellRenderer implements CellRenderer {
       if (column.required) return `${column.name || 'Field'} is required`
       return null
     }
-    const numValue = Number(value)
+    const raw =
+      typeof value === 'object' && value !== null && 'amount' in value
+        ? (value as { amount: number }).amount
+        : value
+    const numValue = Number(raw)
     if (Number.isNaN(numValue)) return `${column.name || 'Field'} must be a valid number`
     const cellType = (column.cellType || 'number') as string
     if (cellType === 'integer' && !Number.isInteger(numValue)) {
@@ -234,7 +238,12 @@ class NumberCellRenderer implements CellRenderer {
 
   private formatNumber(value: unknown, column: Column): string {
     if (value == null) return ''
-    const numValue = Number(value)
+    // Handle currency objects: {amount: number, currency: string}
+    const raw =
+      typeof value === 'object' && value !== null && 'amount' in value
+        ? (value as { amount: number }).amount
+        : value
+    const numValue = Number(raw)
     if (Number.isNaN(numValue)) return String(value)
 
     const cellType = (column.cellType || 'number') as string
@@ -251,10 +260,14 @@ class NumberCellRenderer implements CellRenderer {
       case 'percentage':
         return `${numValue.toFixed(1)}%`
       case 'currency': {
-        const currency = column.currency || 'USD'
+        // Extract currency code from value object or column config
+        const currencyCode =
+          (typeof value === 'object' && value !== null && 'currency' in value
+            ? (value as { currency: string }).currency
+            : column.currency) || 'USD'
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
-          currency,
+          currency: currencyCode,
         }).format(numValue)
       }
       default:
