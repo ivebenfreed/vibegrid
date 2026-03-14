@@ -118,7 +118,7 @@ export function NumberEditor({
     height: '100%',
     display: 'flex',
     alignItems: 'center',
-    fontSize: '14px', // Match CellFactory view mode
+    fontSize: '14px', // Match grid cell font size
     boxSizing: 'border-box',
   }
 
@@ -140,6 +140,8 @@ export function NumberEditor({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: editor overlay captures events to prevent grid interaction
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard events handled by inner input
     <div
       style={containerStyle}
       onMouseDown={(e) => {

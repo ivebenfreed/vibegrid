@@ -104,7 +104,7 @@ describe('column-generation: system field filtering', () => {
 })
 
 describe('column-generation: D2 SlotRegistry migration', () => {
-  it('enrichColumnsWithFieldTypes is a pass-through (no FieldTypeRegistry)', () => {
+  it('enrichColumnsWithFieldTypes is a pass-through (SlotRegistry handles rendering)', () => {
     const columns = [
       { id: 'name', field: 'name', cellType: 'text' },
       { id: 'budget', field: 'budget', cellType: 'decimal' },

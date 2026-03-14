@@ -5,14 +5,6 @@ import { InitStore } from '../InitStore'
 // MobX strict mode (matches project config)
 configure({ enforceActions: 'always' })
 
-// Mock field type registry to avoid side effects
-vi.mock('../../field-types/FieldTypeRegistry', () => ({
-  fieldTypeRegistry: {
-    ensureInitialized: vi.fn().mockResolvedValue(undefined),
-    getRegisteredTypes: vi.fn().mockReturnValue([]),
-  },
-}))
-
 // Mock DisposerManager
 vi.mock('@/app/stores/utils/disposer', () => ({
   DisposerManager: class MockDisposerManager {

@@ -6,11 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import type {
-  EnhancedColumn,
-  RelationshipData,
-  RelationshipOption,
-} from '../field-types/FieldTypeRegistry'
+import type { EnhancedColumn, RelationshipData, RelationshipOption } from '../field-types/types'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'RelationshipDataManager.ts'])
 
@@ -157,7 +153,7 @@ export class RelationshipDataManager {
       }
     })
 
-    keysToRemove.forEach((key) => this.cache.delete(key))
+    for (const key of keysToRemove) this.cache.delete(key)
 
     fileLog.debug('Invalidated relationship cache', {
       columnId: column.id,
@@ -178,7 +174,7 @@ export class RelationshipDataManager {
       }
     })
 
-    keysToRemove.forEach((key) => this.cache.delete(key))
+    for (const key of keysToRemove) this.cache.delete(key)
 
     if (keysToRemove.length > 0) {
       fileLog.debug('Cleaned up expired cache entries', {

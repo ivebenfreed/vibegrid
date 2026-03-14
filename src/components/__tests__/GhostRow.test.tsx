@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { Column } from '../../types'
 
-// Mock FormFieldValue to avoid FieldTypeRegistry complexity
+// Mock FormFieldValue to avoid SlotRegistry complexity
 vi.mock('../FormFieldValue', () => ({
   FormFieldValue: ({ fieldId }: { fieldId: string }) => <input data-testid={`field-${fieldId}`} />,
 }))

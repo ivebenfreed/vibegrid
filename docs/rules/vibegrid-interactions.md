@@ -62,7 +62,7 @@ const rowExpansionConfig: RowExpansionConfig = {
 
 **Pattern:** Register with SlotRegistry for domain-specific or view-specific rendering.
 
-SlotRegistry works alongside FieldTypeRegistry to provide declarative, priority-based cell renderer resolution. FieldTypeRegistry handles base field type rendering; SlotRegistry enables domain-specific and view-specific overrides.
+SlotRegistry is the sole cell rendering system (FieldTypeRegistry, ModularCellBridge, CellFactory have been removed).
 
 **Domain-specific renderer:**
 ```typescript
@@ -95,7 +95,8 @@ registerSlots: (slotRegistry) => {
 systems/vibegrid/
 ├── modules/{mode}/         # View mode implementations (GridModule)
 ├── slots/SlotRegistry.ts   # Unified cell renderer resolution
-├── field-types/            # Built-in field type renderers
+├── slots/slot-initialization.ts  # All built-in CellRenderer classes
+├── field-types/types.ts    # Type definitions (EnhancedColumn, etc.)
 └── processors/             # Row interaction processors
 
 features/{domain}/
@@ -150,6 +151,7 @@ mutationObserver.observe(container, {
 | File | Purpose |
 |------|---------|
 | `systems/vibegrid/slots/SlotRegistry.ts` | Unified cell renderer resolution |
+| `systems/vibegrid/slots/slot-initialization.ts` | All 27 built-in CellRenderer classes |
 | `systems/vibegrid/modules/GridModule.ts` | View module interface (includes registerSlots) |
 | `systems/vibegrid/column-types.ts` | BaseCellType union |
 | `systems/vibegrid/components/ExpandedContentPortals.tsx` | React portal bridge for row expansion |

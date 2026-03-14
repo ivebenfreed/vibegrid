@@ -19,9 +19,10 @@ relatedFeatures:
 | Code Type | Location |
 |-----------|----------|
 | View mode modules | `systems/vibegrid/modules/{mode}/` |
-| Cell renderers (generic) | `systems/vibegrid/field-types/` |
+| Cell renderers (all) | `systems/vibegrid/slots/slot-initialization.ts` |
+| Cell renderer types | `systems/vibegrid/field-types/types.ts` |
 | Cell renderers (domain) | `features/{domain}/schemas/` |
-| Slot registrations | `systems/vibegrid/slots/` |
+| SlotRegistry | `systems/vibegrid/slots/SlotRegistry.ts` |
 | Row interactions | `systems/vibegrid/processors/` |
 | Cell action dispatch | `systems/vibegrid/routing/` |
 | Interaction coordination | `systems/vibegrid/coordination/` |
@@ -33,14 +34,14 @@ relatedFeatures:
 1. **All mutations via CommandBus** — no direct API calls from view modules
 2. **Real-time via EventBus** — no polling; use event-driven invalidation
 3. **New view modes** — implement `GridModule`, register with `viewModeRegistry.register()`
-4. **Cell renderers** — register via `SlotRegistry` only (not FieldTypeRegistry)
+4. **Cell renderers** — register via `SlotRegistry` only (FieldTypeRegistry has been removed)
 5. **Row actions** — set `enableSelectionColumn={true}`, bulk handlers receive `(rowIds[], rowsData[])`
 6. **Non-DataForge sources** — use `collectionOverride` + `skipDataFetching={true}`
 
 ## Anti-Patterns
 
 - Adding view modes by editing VibeGrid.tsx switch → use ViewModeRegistry
-- Registering cell renderers in 3 places → use SlotRegistry only
+- Registering cell renderers outside SlotRegistry → all renderers in `slots/slot-initialization.ts`
 - Expansion/collapse logic in `features/` → should be grid primitive
 - Direct API calls from view modules → use CommandBus
 - Polling for data updates → use EventBus

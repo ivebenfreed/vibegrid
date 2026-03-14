@@ -764,7 +764,7 @@ export class BodyRenderer {
   // ====================================
 
   /**
-   * Create a cell element using the unified CellFactory
+   * Create a cell element using SlotRegistry
    */
   createCellElement(
     row: any,
@@ -774,7 +774,7 @@ export class BodyRenderer {
     widthOverride?: number,
     _context: 'scroll' | 'initial' | 'manual' = 'initial',
   ): HTMLElement {
-    // PERFORMANCE: Simplified cell creation using ModularCellBridge efficiently
+    // PERFORMANCE: Simplified cell creation using SlotRegistry
     const baseRowData = row.data || row
 
     // GH#1240: Inject expansion state for row-expand column
@@ -848,7 +848,7 @@ export class BodyRenderer {
     throw new Error('SlotRegistry not available for cell rendering')
   }
 
-  // Note: Basic cell fallback removed - CellFactory must work
+  // Note: Basic cell fallback removed - SlotRegistry must work
 
   /**
    * Add interaction handlers to cell elements
@@ -877,7 +877,7 @@ export class BodyRenderer {
     }
   }
 
-  // Note: Cell formatting methods removed - now handled by unified CellFactory
+  // Note: Cell formatting methods removed - now handled by SlotRegistry
 
   // ====================================
   // ROW MANAGEMENT METHODS

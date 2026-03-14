@@ -21,7 +21,7 @@ import { getLogger } from '@/shared/lib/logging'
 import {
   createRelationshipEntityRecord,
   deleteRelationshipEntityRecord,
-} from '../../field-types/implementations/relationship/EntityReferenceFieldType'
+} from './relationship-utils'
 import { orpcClient } from '@/shared/data/orpc/client'
 import type { CellType } from '../../types'
 import { ComboboxEditor } from './ComboboxEditor'

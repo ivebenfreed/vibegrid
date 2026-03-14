@@ -59,6 +59,7 @@ describe('VibeGrid dead code removal (P1)', () => {
       'RENDERER_CONSOLIDATION_PLAN.md',
       'PURE_OBSERVABLES_SPLIT_PLAN.md',
       'VIBEGRID_SYNC_FIX_SUMMARY.md',
+      'FIELD_TYPE_MODULAR_ARCHITECTURE_PLAN.md',
     ]
 
     for (const doc of staleDocs) {
@@ -69,12 +70,7 @@ describe('VibeGrid dead code removal (P1)', () => {
   })
 
   describe('active docs are preserved', () => {
-    const activeDocs = [
-      'UX_SPEC.md',
-      'FIELD_TYPE_MODULAR_ARCHITECTURE_PLAN.md',
-      'stores/PERSISTENCE-README.md',
-      'stores/reactive-patterns.md',
-    ]
+    const activeDocs = ['UX_SPEC.md', 'stores/PERSISTENCE-README.md', 'stores/reactive-patterns.md']
 
     for (const doc of activeDocs) {
       it(`${doc} still exists`, () => {
