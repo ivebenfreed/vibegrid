@@ -67,5 +67,5 @@ CSV, Excel, and PDF Export Engines - Data export functionality
 ## Notes
 - **Performance:** PDF generation leverages Cloudflare's Browser Rendering API to offload heavy rendering tasks from the edge worker.
 - **Formatting:** The system uses a plugin-based architecture via `FieldTypeRegistry` where each field type defines its own export formatting rules.
-- **Storage:** Exported packages are stored in the `PROCORE_ATTACHMENTS` R2 bucket with organization-scoped keys.
+- **Storage:** Exported packages are stored in the `FILES_BUCKET` R2 bucket with organization-scoped keys.
 - **Excel Support:** While full `.xlsx` generation is planned, current "Excel" support primarily relies on CSV formatting optimized for direct import into Excel (handling numeric strings and date formats).
