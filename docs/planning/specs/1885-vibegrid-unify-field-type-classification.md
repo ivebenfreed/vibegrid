@@ -9,14 +9,27 @@ phases:
     title: Create unified FIELD_TYPE_CATEGORIES map
     estimate: 1h
     depends_on: []
+    tasks:
+      - "Create field-type-categories.ts with FIELD_TYPE_CATEGORIES map and helper functions"
+      - "Create unit tests for field-type-categories"
   - id: p2
     title: Refactor consumers to use shared map
     estimate: 1h
     depends_on: [p1]
+    tasks:
+      - "Refactor EditingOverlay.tsx to use shared classification helpers"
+      - "Refactor EditingStore.ts to use isModalTextType()"
+      - "Add missing editor cases in editors/index.tsx and export isTagsLikeField"
+      - "Handle json/jsonb positioning in EditingOverlay using isTagsLikeField"
   - id: p3
     title: Fix EditingOverlay bugs and centralize constants
     estimate: 30m
     depends_on: [p1]
+    tasks:
+      - "Fix updateValidationErrors bug - add validationErrors prop and buildEditorCallbacks method"
+      - "Add overlay dimension constants to grid-dimensions.ts"
+      - "Replace hardcoded values in EditingOverlay with constants"
+      - "Add deprecation comments to column-types.ts old Sets"
 ---
 
 # VibeGrid: Unify Field Type Classification

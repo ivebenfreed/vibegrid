@@ -18,7 +18,7 @@ import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 const fileLog = getLogger(['vibegrid', 'overlays', 'editors', 'index'])
 
 // Helper function to detect if a field should be treated as tags
-function isTagsLikeField(column: Column, initialValue: any): boolean {
+export function isTagsLikeField(column: Column, initialValue: any): boolean {
   // Check column name patterns
   const columnName = (column.name || column.id || '').toLowerCase()
   const tagsPatterns = ['tags', 'tag', 'labels', 'keywords', 'categories']
@@ -108,6 +108,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
   switch (cellType) {
     case 'text':
+    case 'string':
       fileLog.debug('createEditor: Creating TextEditor')
       return <TextEditor {...props} />
 
@@ -115,6 +116,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'longtext':
     case 'richtext':
     case 'rich-text':
+    case 'rich_text':
     case 'html':
     case 'markdown':
       // All multi-line/rich text types use ModalTextEditor for consistent editing
@@ -129,9 +131,11 @@ export function createEditor(props: EditorProps): React.ReactElement {
 
     case 'select':
     case 'single-select':
+    case 'enum':
       return <SelectEditor {...props} />
 
     case 'select-multi':
+    case 'multi-select':
       return <MultiSelectEditor {...props} />
 
     case 'tags':
@@ -168,7 +172,10 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'date':
       return <DateEditor {...props} />
     case 'datetime-local':
+    case 'datetime':
     case 'timestamp':
+    case 'time':
+    case 'timestamptz':
       return <DateEditor {...props} includeTime />
 
     case 'email':

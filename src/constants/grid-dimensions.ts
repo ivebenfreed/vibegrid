@@ -58,6 +58,13 @@ export const GRID_DIMENSIONS = {
     MODAL_BACKDROP: 9990,
     MODAL_CONTENT: 9999,
   },
+
+  // Editing overlay dimensions
+  DROPDOWN_MAX_HEIGHT: 300,
+  DATE_PICKER_MAX_HEIGHT: 450,
+  DATE_PICKER_MIN_WIDTH: 300,
+  EDITING_OVERLAY_Z_INDEX: 1000, // Portal z-index (above grid content)
+  EDITING_DROPDOWN_Z_INDEX: 1001, // Dropdown z-index (above overlay)
 } as const
 
 // Type for dimensions (useful for props/interfaces)
