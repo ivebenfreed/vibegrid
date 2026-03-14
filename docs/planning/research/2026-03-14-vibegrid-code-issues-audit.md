@@ -165,6 +165,88 @@ This is inherently fragile — any new editor type that doesn't fit neatly into 
 | 1309 | Create VibeGrid field type development guide | Documentation |
 | 1255 | VibeGrid Core Runtime Overhaul | Foundational |
 
+### 9. CSS/JS Dimension Mismatches
+
+**Severity: MEDIUM — Silent inconsistency**
+
+Several CSS values don't match their JS constant counterparts:
+
+| Dimension | CSS Value | JS Constant | File |
+|-----------|-----------|-------------|------|
+| Header height | `--vibegridx-header-height: 40px` | `HEADER_HEIGHT: 48` | `vibegridx.css:9` vs `grid-dimensions.ts:11` |
+| Cell min-width | `var(--cell-min-width, 60px)` | `MIN_COLUMN_WIDTH: 50` | `vibegridx.css` header-cell vs `grid-dimensions.ts:16` |
+| Cell max-width | `var(--cell-max-width, 400px)` | `MAX_COLUMN_WIDTH: 500` | `vibegridx.css` header-cell vs `grid-dimensions.ts:17` |
+
+The header height mismatch (40px CSS vs 48px JS) is particularly concerning — the CSS renders at 40px but virtualization calculations use 48px, which could cause subtle scroll offset issues.
+
+### 10. Editing Flow Issues
+
+**Severity: MEDIUM — UX and correctness gaps**
+
+Detailed audit of the edit lifecycle revealed 14 specific issues:
+
+**Validation gaps:**
+- **Validation cleared on keystroke** (`EditingStore.ts:347`): When user types, `session.validation` is immediately set to `null`. The user sees no feedback while fixing the value — validation only re-runs on next commit attempt.
+- **No real-time validation**: `validateEdit()` method exists (line 787) but is never called automatically. Fields with length/format constraints don't get live feedback.
+- **`updateValidationErrors()` never called**: The method exists in EditingOverlay (line 417) but no caller was found — validation display may not update on commit failure.
+
+**NumberEditor intermediate states** (`NumberEditor.tsx:109`): Regex `/^-?\d*\.?\d*$/` allows `-`, `.`, `-.` as inputs. These fail `parseFloat()` and silently cancel the edit.
+
+**DateEditor discoverability** (`DateEditor.tsx:136`): When `includeTime=true`, calendar transitions to time picker after date selection with no "Step 1/2" indicator. Users may not realize they need to confirm time.
+
+**JSON tags detection too aggressive** (`editors/index.tsx:152`): Any column with comma-separated values gets routed to `MultiSelectEditor`, even regular text fields containing commas.
+
+**Relationship archetype cache never invalidates** (`RelationshipEditor.tsx:36`): Module-level `Map` persists for entire page session. Schema changes during long sessions would show stale data.
+
+**Race condition complexity** (`EditingStore.ts:370-393`): The `sessionReady` flag with 3-retry `setTimeout` loop is complex. If retries are exhausted, commit fails silently with only a log message.
+
+**No user notification on edit cancel**: `cancelEdit('scroll')` triggered when scroll delta exceeds 40px can silently discard user input without notification.
+
+**Portal position divergence** (`EditingOverlayController.ts:300-367`): Three fallback positioning strategies (cached DOM, direct calculation, container-based) that could produce different results in edge cases.
+
+### 11. Public API Consistency
+
+**Severity: LOW — Generally clean**
+
+The VibeGrid public API is well-structured with consistent naming patterns:
+
+| Pattern | Convention | Examples |
+|---------|-----------|----------|
+| Callbacks | `on*` prefix | `onCellClick`, `onEntityUpdate`, `onViewModeChange` |
+| Feature flags | `enable*` prefix | `enableGrouping`, `enableFiltering`, `enableExport` |
+| Visibility | `show*` prefix | `showToolbar`, `showHeader`, `showPagination` |
+
+**Minor inconsistencies found:**
+- `enableDragAndDrop` and `enableDragDrop` both exist as props (duplicated name, aliased)
+- `appendColumns` naming doesn't follow the `*Override` pattern used by `columnOverrides`
+- Mixed kebab/snake/camelCase in CellType strings follows DataForge conventions but is inconsistent: `rich-text` vs `rich_text` vs `richtext`
+
+**Dead code is clean**: `__tests__/dead-code-removal.test.ts` verifies that removed symbols (`createVibeGrid`, `LEGEND_STATE`, backup files) haven't reappeared. Underscore-prefixed destructured props (`_onCellDoubleClick`, `_collectionOverride`) are intentional Biome lint compliance for props handled by context providers.
+
+### 12. Store Architecture Scale
+
+**Severity: LOW — Informational**
+
+13 MobX stores totaling ~320KB of source code manage grid state:
+
+| Store | Size | Purpose |
+|-------|------|---------|
+| `TableCoreStore` | 67KB | Data, configuration, persistence |
+| `GanttViewStore` | 49KB | Gantt-specific state |
+| `InteractionStore` | 48KB | Selection, menus, focus |
+| `VisualStateStore` | 44KB | Layout, sorting, grouping, filtering |
+| `PersistenceStore` | 27KB | LocalStorage persistence |
+| `EditingStore` | 23KB | Inline editing lifecycle |
+| `InitStore` | 22KB | Initialization, slot registry |
+| `HierarchyStore` | 14KB | Parent-child relationships |
+| `KanbanViewStore` | 12KB | Kanban-specific state |
+| `DebugStore` | 9.5KB | Debug logging controls |
+| `ViewportStore` | 8.6KB | Scroll & viewport |
+| `InlineCreationStore` | 8.5KB | Ghost row state |
+| `ViewModeStore` | 4.2KB | View mode toggling |
+
+All stores use `@observable`/`@computed`/`@action` decorators via `makeObservable()`. They are provided via a central `VibeGridStores` context and initialized in `InitStore`.
+
 ## Recommendations
 
 | Priority | Issue | Action | Effort |
@@ -178,6 +260,12 @@ This is inherently fragile — any new editor type that doesn't fit neatly into 
 | **P3** | Legacy TanStack Query import | EditingOverlay wraps with QueryClientProvider — investigate if still needed | Small |
 | **P3** | Mega Column interface | Split into `ColumnBase + ColumnFormatting + ColumnValidation` or similar | Large |
 | **P3** | CSS hardcoded values | Replace inline `40px`/`70px` with CSS variables | Small |
+| **P2** | CSS/JS dimension mismatches | Fix header height (40px CSS vs 48px JS) and min/max column width mismatches | Small |
+| **P2** | Validation UX | Add real-time validation via `validateEdit()` with debounce; don't clear errors on keystroke | Medium |
+| **P2** | NumberEditor intermediate states | Tighten regex to reject `-`, `.`, `-.` or show inline error | Small |
+| **P3** | Scroll cancel notification | Show toast when edit is cancelled due to scroll threshold | Small |
+| **P3** | Relationship cache invalidation | Clear `relationshipArchetypeCache` on schema change events | Small |
+| **P3** | Duplicate prop names | Remove `enableDragDrop` alias, keep `enableDragAndDrop` only | Small |
 
 ## Open Questions
 
