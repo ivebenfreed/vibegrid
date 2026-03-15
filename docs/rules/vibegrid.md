@@ -63,7 +63,7 @@ All stores are instance-scoped per grid. Key stores:
 | `HierarchyStore` | Tree/master-detail hierarchy state |
 | `DebugStore` | Performance metrics (enable via `localStorage.vibegrid_debug=true`) |
 
-Bundle type: `VibeGridStores` in `stores/context.ts`.
+Bundle type: `VibeGridStores` in `stores/context.tsx`.
 
 ## Implementation Rules
 
@@ -154,7 +154,7 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | `modules/GridModule.ts` | View module interface (id, render, init, registerSlots) |
 | `slots/SlotRegistry.ts` | Unified cell renderer resolution (instance-scoped) |
 | `slots/slot-initialization.ts` | All 27+ built-in CellRenderer registrations |
-| `stores/context.ts` | `VibeGridStores` bundle + `useVibeGridStores()` hook |
+| `stores/context.tsx` | `VibeGridStores` bundle + `useVibeGridStores()` hook |
 | `stores/TableCoreStore.ts` | Data state (rows, sort, filter, group, processedRows) |
 | `stores/VisualStateStore.ts` | Column layout, geometry, visual config |
 | `stores/InteractionStore.ts` | UI state (selection, menus, expansion) |

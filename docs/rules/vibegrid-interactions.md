@@ -55,7 +55,7 @@ systems/vibegrid/
 ├── slots/SlotRegistry.ts   # Unified cell renderer resolution (instance-scoped)
 ├── slots/slot-initialization.ts  # All 27+ built-in CellRenderer classes
 ├── stores/                 # 13 MobX stores (all instance-scoped per grid)
-│   ├── context.ts          # VibeGridStores bundle + useVibeGridStores() hook
+│   ├── context.tsx         # VibeGridStores bundle + useVibeGridStores() hook
 │   ├── TableCoreStore.ts   # Data state (rows, sort, filter, group)
 │   ├── VisualStateStore.ts # Column layout, geometry, visual config
 │   ├── InteractionStore.ts # Selection, hover, drag, menus, expansion
