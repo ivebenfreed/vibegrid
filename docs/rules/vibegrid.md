@@ -38,6 +38,38 @@ relatedFeatures:
 5. **Row actions** — set `enableSelectionColumn={true}`, bulk handlers receive `(rowIds[], rowsData[])`
 6. **Non-DataForge sources** — use `collectionOverride` + `skipDataFetching={true}`
 
+## Accessibility & Browser Automation
+
+VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
+
+| Attribute | Element | Purpose |
+|-----------|---------|---------|
+| `aria-rowindex` | rows | Row addressing (1-based, header=1) |
+| `aria-colindex` | cells | Column addressing (1-based) |
+| `aria-label` | cells | `"{Column}: {value}"` for snapshot readability |
+| `aria-roledescription` | affordances | `"link"` (navigate) or `"editable cell"` (edit) |
+| `data-testid` | cells | `cell-{rowId}-{colId}` for deterministic selection |
+| `data-affordance` | interactive elements | `navigate`, `edit`, `none` |
+| `aria-rowcount` / `aria-colcount` | grid | Total dimensions |
+
+**Hiding pattern:** Use `opacity: 0` + `pointer-events: none` (NOT `display: none`) for hover-to-reveal elements. `display: none` removes elements from Chrome's accessibility tree entirely, breaking screen readers and agent-browser snapshot. `visibility: hidden` also hides from the a11y tree. Only `opacity: 0` keeps elements discoverable.
+
+```css
+/* CORRECT — stays in ARIA tree */
+.hidden-until-hover {
+  opacity: 0;
+  pointer-events: none;
+}
+.hovered .hidden-until-hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* WRONG — removed from ARIA tree */
+.hidden-until-hover { display: none; }
+.hidden-until-hover { visibility: hidden; }
+```
+
 ## Anti-Patterns
 
 - Adding view modes by editing VibeGrid.tsx switch → use ViewModeRegistry
@@ -45,6 +77,7 @@ relatedFeatures:
 - Expansion/collapse logic in `features/` → should be grid primitive
 - Direct API calls from view modules → use CommandBus
 - Polling for data updates → use EventBus
+- Using `display: none` for hover-to-reveal elements → use `opacity: 0` (keeps ARIA tree intact)
 
 ## CSV Export
 

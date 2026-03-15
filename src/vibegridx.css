@@ -559,14 +559,19 @@ body.vibegridx-dragging-active * {
 }
 
 /* Combined number + checkbox behaviour:
-   - Number visible by default, checkbox hidden
+   - Number visible by default, checkbox hidden (but stays in ARIA tree)
    - On row hover: swap to checkbox
-   - When checkbox is checked (row selected): keep checkbox visible */
+   - When checkbox is checked (row selected): keep checkbox visible
+   NOTE: Uses opacity:0 (not display:none) so checkbox remains in the
+   accessibility tree for screen readers and agent-browser snapshot.
+   display:none removes elements from the a11y tree entirely. */
 .vibegridx-row-header-cell .vibegridx-row-number {
   display: block;
 }
 .vibegridx-row-header-cell .vibegridx-row-checkbox {
-  display: none;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
 }
 
 /* Show checkbox on row hover (JS adds .vibegridx-row-hovered via mouseover delegation) */
@@ -574,7 +579,9 @@ body.vibegridx-dragging-active * {
   display: none;
 }
 .vibegridx-row-hovered .vibegridx-row-header-cell .vibegridx-row-checkbox {
-  display: block;
+  opacity: 1;
+  position: static;
+  pointer-events: auto;
 }
 
 /* Keep checkbox visible (and hide number) when row is selected */
@@ -582,7 +589,9 @@ body.vibegridx-dragging-active * {
   display: none;
 }
 .vibegridx-row-header-cell:has(.vibegridx-row-checkbox:checked) .vibegridx-row-checkbox {
-  display: block;
+  opacity: 1;
+  position: static;
+  pointer-events: auto;
 }
 
 /* ====================================
