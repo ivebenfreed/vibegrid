@@ -12,7 +12,7 @@
 
 import { useLiveQuery } from '@tanstack/react-db'
 import { Download } from 'lucide-react'
-import { reaction, runInAction } from 'mobx'
+import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -132,9 +132,6 @@ interface VibeGridProps<_T = any> {
 
   // Column overrides for nested grids (GH#1240)
   columnOverrides?: Column[]
-
-  // Additional columns appended after schema-generated columns (GH#1861)
-  appendColumns?: Column[]
 
   // Toolbar and header visibility (GH#1240)
   showToolbar?: boolean
@@ -489,20 +486,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
     tableCoreStore,
     stores,
   ])
-
-  // GH#1861: Append additional columns (e.g., linked entity fields) after schema columns load
-  const { appendColumns: appendColumnsProp } = props
-  useEffect(() => {
-    if (!appendColumnsProp?.length || !tableCoreStore?.columns?.length) return
-    // Only append if not already present
-    const existingIds = new Set(tableCoreStore.columns.map((c: any) => c.id))
-    const newColumns = appendColumnsProp.filter((c: any) => !existingIds.has(c.id))
-    if (newColumns.length > 0) {
-      runInAction(() => {
-        tableCoreStore.columns = [...tableCoreStore.columns, ...newColumns]
-      })
-    }
-  }, [appendColumnsProp, tableCoreStore?.columns, tableCoreStore])
 
   // Sync members data to store for UserReference fields
   useEffect(() => {

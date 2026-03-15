@@ -77,6 +77,11 @@ export interface VibeGridStoreProviderProps {
    * This allows VibeGrid to work with in-memory mock data instead of API calls.
    */
   collectionOverride?: any
+  /**
+   * GH#1861: Additional columns merged into schema-generated columns during init.
+   * Included in preloadForColumns() and VisualStateStore initialization — no post-init effect needed.
+   */
+  appendColumns?: import('../types').Column[]
 }
 
 // ====================================
@@ -111,6 +116,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
   tableId = 'default',
   schemaRegistryOverride,
   collectionOverride,
+  appendColumns,
 }) => {
   const [initError, setInitError] = useState<string | null>(null)
 
@@ -177,6 +183,11 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     // TableCoreStore needs SchemaRegistry for column generation
     // Cast to any to allow mock schema registry (SchemaRegistryLike) to pass type check
     tableCoreStore.setSchemaRegistry(schemaRegistry as any)
+
+    // GH#1861: Set appendColumns before init() so they're merged during column generation
+    if (appendColumns?.length) {
+      tableCoreStore.setAppendColumns(appendColumns)
+    }
 
     // TableCoreStore needs CoordinateManager for row position tracking
     tableCoreStore.setCoordinateManager(coordinateManager)
@@ -255,7 +266,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       debugStore,
       inlineCreationStore,
     }
-  }, [entityType, orgId, tableId, schemaRegistry])
+  }, [entityType, orgId, tableId, schemaRegistry, appendColumns])
 
   // Cleanup on unmount
   useEffect(() => {
