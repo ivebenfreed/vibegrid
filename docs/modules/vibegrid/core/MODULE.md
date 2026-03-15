@@ -11,9 +11,11 @@ features:
 
 # Core Grid Engine
 
-> TODO: Add domain reframe, primary question, and module description.
+> How does the grid render, scroll, select, and edit 10k+ rows at 60fps?
+
+High-performance virtualized data grid with DOM recycling (30-50 rows in DOM), dual-layer cell rendering (shell cells at scroll time, rich cells during idle), and delta-based selection updates. All state managed via MobX stores scoped per grid instance.
 
 ## Features
 
-- [core](core.md)
-- [row-expansion](row-expansion.md)
+- [core](core.md) — Grid rendering, virtualization, keyboard navigation, selection
+- [row-expansion](row-expansion.md) — Inline expansion for one-to-many relationships

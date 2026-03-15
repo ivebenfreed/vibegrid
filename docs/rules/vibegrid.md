@@ -29,6 +29,42 @@ relatedFeatures:
 | Inline edit overlays | `systems/vibegrid/overlays/` |
 | Column schemas | `features/{domain}/schemas/` |
 
+## Instance Scoping
+
+All stores and SlotRegistry are **instance-scoped** per `<VibeGrid>` component (created fresh via React Context, not global singletons). Access stores via `useVibeGridStores()` hook. The only global singleton is `viewModeRegistry`.
+
+## SlotRegistry Lifecycle
+
+```
+1. register()              — Register slots at startup (registerDefaultSlots + module.registerSlots)
+2. preloadForColumns()     — Async: resolve + cache renderers for current columns (called by InitStore)
+3. resolve()               — Sync: return cached renderer during render (throws if preload incomplete)
+```
+
+`preloadForColumns()` is called on mount, view mode change, and column change. `preloadReady` (MobX observable) gates cell rendering.
+
+## Stores
+
+All stores are instance-scoped per grid. Key stores:
+
+| Store | Responsibility |
+|-------|---------------|
+| `TableCoreStore` | Data loading, sorting, filtering, grouping, processedRows |
+| `VisualStateStore` | Column dimensions, layout geometry, sort/filter/group config |
+| `InteractionStore` | Selection, hover, drag, menus, clipboard, expanded rows |
+| `EditingStore` | Edit session lifecycle (start/commit/cancel), validation, blur policy |
+| `ViewportStore` | Scroll position, viewport dimensions, visible row/column ranges |
+| `InitStore` | Initialization coordinator, hydration progress, lifecycle |
+| `PersistenceStore` | localStorage save/load (debounced, org-scoped keys) |
+| `ViewModeStore` | Current view mode toggle (table/gantt/kanban) |
+| `GanttViewStore` | Gantt zoom, bar positions, date field mapping |
+| `KanbanViewStore` | Kanban grouping field, column ordering, card drag |
+| `InlineCreationStore` | Ghost row inline creation within groups |
+| `HierarchyStore` | Tree/master-detail hierarchy state |
+| `DebugStore` | Performance metrics (enable via `localStorage.vibegrid_debug=true`) |
+
+Bundle type: `VibeGridStores` in `stores/context.ts`.
+
 ## Implementation Rules
 
 1. **All mutations via CommandBus** — no direct API calls from view modules
@@ -114,9 +150,16 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | File | Purpose |
 |------|---------|
 | `VibeGrid.tsx` | Main component, module activation |
-| `modules/ViewModeRegistry.ts` | View mode registration + lazy loading |
-| `slots/SlotRegistry.ts` | Unified cell renderer resolution |
-| `stores/InteractionStore.ts` | UI state (selection, menus) |
-| `stores/GanttViewStore.ts` | Gantt state |
+| `modules/ViewModeRegistry.ts` | View mode registration + lazy loading (global singleton) |
+| `modules/GridModule.ts` | View module interface (id, render, init, registerSlots) |
+| `slots/SlotRegistry.ts` | Unified cell renderer resolution (instance-scoped) |
+| `slots/slot-initialization.ts` | All 27+ built-in CellRenderer registrations |
+| `stores/context.ts` | `VibeGridStores` bundle + `useVibeGridStores()` hook |
+| `stores/TableCoreStore.ts` | Data state (rows, sort, filter, group, processedRows) |
+| `stores/VisualStateStore.ts` | Column layout, geometry, visual config |
+| `stores/InteractionStore.ts` | UI state (selection, menus, expansion) |
+| `stores/EditingStore.ts` | Cell edit session lifecycle |
+| `stores/ViewportStore.ts` | Scroll position, visible ranges |
+| `stores/InitStore.ts` | Grid initialization coordinator |
 | `utils/csv-export.ts` | CSV export utilities |
 | `utils/cascade-scheduler.ts` | Date cascading |

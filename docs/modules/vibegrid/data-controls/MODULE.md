@@ -10,8 +10,10 @@ features:
 
 # Data Controls
 
-> TODO: Add domain reframe, primary question, and module description.
+> How does the user slice, filter, group, and save views of their data?
+
+Multi-level filtering, hierarchical grouping with aggregations, smart text search, and persistent presets. Managed via VisualStateStore (config) and GroupProcessor (client-side transformation).
 
 ## Features
 
-- [data-controls](data-controls.md)
+- [data-controls](data-controls.md) — Filtering, grouping, aggregations, saved presets

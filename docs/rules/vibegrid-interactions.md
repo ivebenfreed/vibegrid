@@ -27,6 +27,14 @@ Conventions for cell renderers, row expansion, and view module slots.
 
 **SlotRegistry is the sole cell rendering system.** FieldTypeRegistry, ModularCellBridge, and CellFactory have been removed.
 
+**CellRendererContext** fields used for slot resolution:
+- `viewMode` — current view mode (table, kanban, gantt)
+- `entityType` — entity type being rendered (e.g., 'Project')
+- `schemaId` — schema ID for custom entities
+- `organizationId` — for multi-tenant renderer isolation
+
+Cache key: `fieldType::columnId::entityType::schemaId::viewMode::organizationId`. `gridId` is NOT included (renderers don't vary per grid instance).
+
 ## Row Expansion
 
 | What | Where |
@@ -44,10 +52,17 @@ Configure via `rowExpansionConfig` prop. State managed by `InteractionStore` (ex
 ```
 systems/vibegrid/
 ├── modules/{mode}/         # View mode implementations (GridModule)
-├── slots/SlotRegistry.ts   # Unified cell renderer resolution
-├── slots/slot-initialization.ts  # All built-in CellRenderer classes
-├── field-types/types.ts    # Type definitions (EnhancedColumn, etc.)
+├── slots/SlotRegistry.ts   # Unified cell renderer resolution (instance-scoped)
+├── slots/slot-initialization.ts  # All 27+ built-in CellRenderer classes
+├── stores/                 # 13 MobX stores (all instance-scoped per grid)
+│   ├── context.ts          # VibeGridStores bundle + useVibeGridStores() hook
+│   ├── TableCoreStore.ts   # Data state (rows, sort, filter, group)
+│   ├── VisualStateStore.ts # Column layout, geometry, visual config
+│   ├── InteractionStore.ts # Selection, hover, drag, menus, expansion
+│   ├── EditingStore.ts     # Cell edit session lifecycle
+│   └── ViewportStore.ts    # Scroll position, visible ranges
 ├── processors/             # Row interaction processors
+├── renderers/              # DOM rendering (BodyRenderer, CellUpgradeScheduler)
 └── components/             # React bridges (ExpandedContentPortals, etc.)
 
 features/{domain}/
