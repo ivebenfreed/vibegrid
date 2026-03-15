@@ -5,21 +5,23 @@ entry_points:
   - apps/web/src/systems/vibegrid/**/*
 built:
   - Table view module with virtual scrolling
+  - Kanban view module (KanbanModule + KanbanViewStore)
+  - Gantt view module (GanttModule + GanttViewStore)
   - ViewModeRegistry with lazy loading
   - SlotRegistry with priority-based cell renderer resolution
-  - Row expansion with detail panels
+  - Row expansion with detail panels (RowExpansionProcessor + ExpandedContentPortals)
   - Filter bar with field-type-aware controls
+  - Saved views (SaveViewDialog + ViewPicker)
   - Selection column and bulk handler plumbing
+  - Bulk action toolbar (ActionsBar)
+  - Column reordering and persistence (ColumnDragOverlayDOM + PersistenceStore)
   - InteractionStore (selection, menus, context)
   - Non-DataForge data source support (collectionOverride)
-  - CSV export (toolbar + bulk action, client-side, GH#1551)
+  - CSV export (toolbar + bulk action, client-side)
+  - Inline row creation (InlineCreationStore + ghost rows)
 not_built:
-  - Kanban view module
-  - Gantt view module (partial — GanttViewStore exists, full module TBD)
-  - Bulk action toolbar UI
-  - Column reordering and persistence
   - PDF export
-  - Saved filter presets
+  - Excel (.xlsx) export
 ---
 
 # VibeGrid

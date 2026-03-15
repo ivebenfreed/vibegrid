@@ -70,7 +70,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1435)
 - **Trigger:** User scrolls horizontally in a grid with many columns
 - **Expected:** Only delta columns are added/removed from DOM (not full re-render), using binary search for visible range, Map-based O(1) lookups, and deferred render gating
-- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:964` (horizontal scroll observer), `stores/VisualStateStore.ts:355` (binary search), `coordinates/VibeGridXCoordinateManager.ts:81` (columnMap)
+- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (horizontal scroll observer), `stores/VisualStateStore.ts` (binary search), `coordinates/VibeGridXCoordinateManager.ts` (columnMap)
 - **Verify:** Horizontal scroll maintains 60fps, DOM cell count stays bounded, no duplicate cells appear
 
 ### B10: Dual-layer shell cell rendering on scroll
@@ -78,7 +78,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1437)
 - **Trigger:** User scrolls horizontally or vertically, causing new cells to enter viewport
 - **Expected:** New cells render as lightweight shell cells (~0.05ms each, textContent only, no MobX/affordances/handlers), then upgrade to rich cells via hybrid rAF/rIC scheduler during idle. Clicking a shell cell triggers immediate synchronous upgrade before interaction processing.
-- **Source:** `systems/vibegrid/renderers/core/CellUpgradeScheduler.ts:1` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:1341` (upgrade context)
+- **Source:** `systems/vibegrid/renderers/core/RenderScheduler.ts` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (upgrade context)
 - **Verify:** Horizontal scroll maintains 60fps, shell cells show text immediately, rich upgrade completes within 2 frames for viewport cells
 
 ### B11: Delta-based selection updates
@@ -86,7 +86,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1437)
 - **Trigger:** User selects or deselects cells
 - **Expected:** Only cells whose selection state changed get DOM class updates (O(delta) instead of O(n) full-grid scan). Shell cells that become selected are immediately upgraded to rich cells.
-- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:445` (delta reaction), `systems/vibegrid/renderers/components/BodyRenderer.ts:133` (checkbox-only reaction)
+- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (delta reaction), `systems/vibegrid/renderers/components/BodyRenderer.ts` (checkbox-only reaction)
 - **Verify:** Selecting 1 cell in 1000-row grid updates only that cell, no full-grid flash
 
 ### B12: Canvas grid lines visible during scroll jumps
@@ -102,14 +102,14 @@ High-performance virtualized data grid component for rendering and editing large
 - **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
 - **InitStore** (`stores/InitStore.ts`) - Deterministic renderer lifecycle via MobX reaction: waits for columns > 0 + container + factory before creating renderer; destroys on cleanup
 - **Event handling** - Single scroll/resize path through ViewportStore; no duplicate listeners
-- **CellUpgradeScheduler** (`renderers/core/CellUpgradeScheduler.ts`) - Hybrid rAF/rIC scheduler for shell-to-rich cell upgrades: viewport cells upgraded via rAF (5ms budget), buffer cells via rIC (8ms budget), backpressure at 200 queue max, synchronous upgradeNow for user interactions (GH#1437)
+- **RenderScheduler** (`renderers/core/RenderScheduler.ts`) - Hybrid rAF/rIC scheduler for shell-to-rich cell upgrades: viewport cells upgraded via rAF (5ms budget), buffer cells via rIC (8ms budget), backpressure at 200 queue max, synchronous upgradeNow for user interactions (GH#1437)
 - **Selection delta reaction** - MobX reaction on selectionVersion computes diff of previous vs current selectedCells, applies O(delta) DOM class updates instead of O(n) full-grid scan (GH#1437)
 - Legacy dead code (`.backup` files, unused stores) removed
 
 ## Notes
 
 - Canvas grid lines: background `<canvas>` element draws body grid lines independently of DOM row availability, replacing CSS borders for scroll-jump resilience (GH#1442)
-- Dual-layer cell rendering: shell cells (~0.05ms) at scroll time, rich cells (~0.67ms) upgraded during idle via CellUpgradeScheduler (GH#1437)
+- Dual-layer cell rendering: shell cells (~0.05ms) at scroll time, rich cells (~0.67ms) upgraded during idle via RenderScheduler (GH#1437)
 - Column virtualization uses incremental DOM updates - only visible columns + buffer rendered, delta adds/removes on scroll (GH#1435)
 - Virtual scrolling uses DOM recycling - only 30-50 row elements in DOM regardless of total rows
 - Performance target: <16ms frame time for 60fps, <5ms per cell update

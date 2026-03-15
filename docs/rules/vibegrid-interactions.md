@@ -62,7 +62,7 @@ systems/vibegrid/
 │   ├── EditingStore.ts     # Cell edit session lifecycle
 │   └── ViewportStore.ts    # Scroll position, visible ranges
 ├── processors/             # Row interaction processors
-├── renderers/              # DOM rendering (BodyRenderer, CellUpgradeScheduler)
+├── renderers/              # DOM rendering (BodyRenderer, RenderScheduler)
 └── components/             # React bridges (ExpandedContentPortals, etc.)
 
 features/{domain}/
