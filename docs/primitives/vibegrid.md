@@ -211,22 +211,18 @@ Appears when one or more rows are selected. The toolbar provides:
 
 Bulk handlers receive arrays: `(rowIds[], rowsData[])`. All mutations go through the command system for undo/redo capability.
 
-### CSV Export (GH#1551)
+### CSV Export
 
-Two entry points, both gated by `enableExport` prop (default `false`):
+Two entry points:
 
 | Entry Point | What It Exports | UI Location |
 |-------------|-----------------|-------------|
 | **Toolbar button** | All filtered/sorted rows | Header bar, after Columns toggle |
 | **ActionsBar action** | Selected rows only | Bulk action bar (preserves selection after export) |
 
-Export is fully client-side — no backend call. All data is already in `TableCoreStore.processedRows`.
+Exports visible columns only, with type-aware formatting (dates, booleans, multi-select, rich text). Both buttons disabled during incremental processing.
 
-- **Columns**: Visible columns only (respects Column Visibility, excludes system columns)
-- **Filename**: `{entityType}-export-YYYY-MM-DD.csv`
-- **Format**: RFC 4180 CSV with UTF-8 BOM for Excel compatibility
-- **Field formatting**: Dates as ISO strings, booleans as `true`/`false`, multi-select as comma-separated labels, rich text stripped to plain text
-- **Guard**: Both buttons disabled during incremental processing
+For implementation details (file paths, format specifics), see [Rules: VibeGrid](../../.claude/rules/vibegrid.md#csv-export).
 
 ---
 

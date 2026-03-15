@@ -32,7 +32,7 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Components:** `VibegridBodyRenderer.tsx`, `ExpandColumn.tsx`
+**Components:** `BodyRenderer`, `RowExpandFieldType` (in `slot-initialization.ts`)
 **Conditions:** Rows not in expandedRowIds set
 
 ### S2: Expanded
@@ -49,7 +49,7 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Components:** `VibegridBodyRenderer.tsx`, `RowExpansionContent.tsx`
+**Components:** `BodyRenderer`, `ExpandedContentPortals.tsx` (React portal bridge)
 **Conditions:** Row ID in expandedRowIds set, children loaded
 
 ### S3: Loading
@@ -64,7 +64,7 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Components:** `ExpandColumn.tsx` (spinner), `RowExpansionContent.tsx` (skeleton)
+**Components:** `RowExpandFieldType` (spinner), `ExpandedContentPortals.tsx` (skeleton)
 **Conditions:** loadChildren() in progress
 
 ### S4: Error
@@ -78,7 +78,7 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Components:** `RowExpansionContent.tsx`
+**Components:** `ExpandedContentPortals.tsx`
 **Conditions:** loadChildren() threw error
 
 ### S5: No Children
@@ -92,7 +92,7 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
        └─ No chevron (canExpand returns false or empty children)
 ```
 
-**Components:** `ExpandColumn.tsx`
+**Components:** `RowExpandFieldType`
 **Conditions:** canExpand returns false OR loadChildren returned empty array
 
 ---
@@ -102,36 +102,20 @@ Generic row expansion for VibeGrid, enabling inline display of one-to-many relat
 ### RowExpansionConfig Interface
 
 ```typescript
-interface RowExpansionConfig<TRow = any> {
+interface RowExpansionConfig {
   enabled: boolean
-  childEntityType?: string           // e.g., 'Coverage' for COI→Coverage
-  canExpand?: (row: TRow) => boolean // Controls chevron visibility
-  loadChildren: (row: TRow) => Promise<any[]>
-  renderExpanded?: (row: TRow, children: any[], isLoading: boolean, error?: Error) => React.ReactNode
-  cacheKey?: (row: TRow) => string   // For TanStack Query
-  expandedHeight?: number            // Fixed height with internal scroll
+  allowMultiple: boolean
+  expandedContentHeight: number
+  loadExpandedData: (rowId: string, rowData: unknown) => Promise<unknown>
+  renderExpandedContent: (props: ExpandedContentProps) => React.ReactNode
 }
 ```
 
-### useRowExpansion Hook
-
-```typescript
-function useRowExpansion<TRow, TChild>(
-  row: TRow,
-  loadChildren: (row: TRow) => Promise<TChild[]>,
-  isExpanded: boolean,
-  orgId: string,
-  entityType: string,
-  cacheKey: (row: TRow) => string = (r) => r.id
-) {
-  return useQuery({
-    queryKey: ['vibegrid', 'row-expansion', orgId, entityType, cacheKey(row)],
-    queryFn: () => loadChildren(row),
-    enabled: isExpanded,
-    staleTime: 5 * 60 * 1000,
-  })
-}
-```
+**Key components:**
+- `RowExpansionProcessor` — manages expansion state and data loading
+- `ExpandedContentPortals` — bridges DOM containers to React rendering via `MutationObserver`
+- `RowExpandFieldType` — renders expand/collapse buttons in cells
+- State stored in `InteractionStore` (expandedRowIds, expandedRowStates)
 
 ### CommandBus: entity.reassign-parent
 
@@ -176,11 +160,11 @@ const nestedTableId = `${parentTableId}:child:${childEntityType || 'self'}:${par
 ### B1: User Expands Row to View Children
 
 - **ID:** expand-row-inline
-- **Status:** [ ] Planned
+- **Status:** [x] Implemented
 - **Trigger:** User clicks expand chevron in first column of row
-- **Expected:** Row expands inline, showing nested VibeGrid with child records. Chevron rotates 90° to indicate expanded state.
-- **Verify:** Expanded content appears directly below parent row. Child VibeGrid renders with correct data.
-- **Source:** TBD - Not yet implemented
+- **Expected:** Row expands inline, showing custom content via `renderExpandedContent`. Chevron rotates to indicate expanded state.
+- **Verify:** Expanded content appears directly below parent row via React portal.
+- **Source:** `systems/vibegrid/processors/RowExpansionProcessor.ts`, `systems/vibegrid/components/ExpandedContentPortals.tsx`
 - **UI:** S1 → S3 → S2
 - **API:** N/A (client-side state)
 - **Data:** N/A
@@ -188,11 +172,11 @@ const nestedTableId = `${parentTableId}:child:${childEntityType || 'self'}:${par
 ### B2: Multiple Rows Expand Simultaneously
 
 - **ID:** multi-expand
-- **Status:** [ ] Planned
+- **Status:** [x] Implemented
 - **Trigger:** User expands Row A, then expands Row B without collapsing Row A
 - **Expected:** Both rows remain expanded. No exclusive accordion behavior.
-- **Verify:** expandedRowIds Set contains both row IDs. Both child grids render.
-- **Source:** TBD - Not yet implemented
+- **Verify:** expandedRowIds Set contains both row IDs. Both expanded contents render.
+- **Source:** `stores/InteractionStore.ts` (expandedRowIds Set)
 - **UI:** S2 (multiple)
 - **API:** N/A
 - **Data:** N/A
@@ -212,11 +196,11 @@ const nestedTableId = `${parentTableId}:child:${childEntityType || 'self'}:${par
 ### B4: Child Data Loads Lazily
 
 - **ID:** lazy-load-children
-- **Status:** [ ] Planned
+- **Status:** [x] Implemented
 - **Trigger:** User expands row for first time
-- **Expected:** Chevron shows loading spinner. loadChildren() async function called. Child grid populates when data arrives.
-- **Verify:** Network request fires on expand (not on page load). Child VibeGrid displays loading skeleton, then data.
-- **Source:** TBD - Not yet implemented
+- **Expected:** `loadExpandedData` async function called. Expanded content renders when data arrives. Results cached in `expandedRowStates`.
+- **Verify:** Data loading fires on expand (not on page load). Expanded area shows content after load.
+- **Source:** `systems/vibegrid/processors/RowExpansionProcessor.ts`
 - **UI:** S1 → S3 → S2
 - **API:** Feature-specific (e.g., dataforge.entities.list)
 - **Data:** DataForge relationship query

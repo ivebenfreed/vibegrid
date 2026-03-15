@@ -78,7 +78,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1437)
 - **Trigger:** User scrolls horizontally or vertically, causing new cells to enter viewport
 - **Expected:** New cells render as lightweight shell cells (~0.05ms each, textContent only, no MobX/affordances/handlers), then upgrade to rich cells via hybrid rAF/rIC scheduler during idle. Clicking a shell cell triggers immediate synchronous upgrade before interaction processing.
-- **Source:** `systems/vibegrid/renderers/core/CellUpgradeScheduler.ts:1` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:1341` (upgrade context), `systems/vibegrid/field-types/ModularCellBridge.ts:253` (createShellCell)
+- **Source:** `systems/vibegrid/renderers/core/CellUpgradeScheduler.ts:1` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:1341` (upgrade context)
 - **Verify:** Horizontal scroll maintains 60fps, shell cells show text immediately, rich upgrade completes within 2 frames for viewport cells
 
 ### B11: Delta-based selection updates

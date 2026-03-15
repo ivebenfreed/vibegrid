@@ -27,7 +27,7 @@ CSV, Excel, and PDF Export Engines - Data export functionality
 - **Trigger:** System iterates through grid rows during an export operation.
 - **Expected:** Each field type applies its specialized `formatForExport` logic (e.g., Currency to numeric string, Phone to E.164, Date to ISO-8601) to ensure compatibility with spreadsheet software.
 - **Verify:** Inspect the generated export string and ensure complex objects are flattened and formatted correctly for CSV/Excel.
-- **Source:** `apps/web/src/systems/vibegrid/field-types/FieldTypeRegistry.ts`
+- **Source:** `apps/web/src/systems/vibegrid/utils/csv-export.ts` (formatCellValue)
 
 ### B3: Package Documents into ZIP Archive
 - **ID:** B3
@@ -66,6 +66,6 @@ CSV, Excel, and PDF Export Engines - Data export functionality
 
 ## Notes
 - **Performance:** PDF generation leverages Cloudflare's Browser Rendering API to offload heavy rendering tasks from the edge worker.
-- **Formatting:** The system uses a plugin-based architecture via `FieldTypeRegistry` where each field type defines its own export formatting rules.
+- **Formatting:** Export formatting is handled by `formatCellValue()` in `csv-export.ts`, with type-aware formatting for all `CellType` variants.
 - **Storage:** Exported packages are stored in the `FILES_BUCKET` R2 bucket with organization-scoped keys.
 - **Excel Support:** While full `.xlsx` generation is planned, current "Excel" support primarily relies on CSV formatting optimized for direct import into Excel (handling numeric strings and date formats).

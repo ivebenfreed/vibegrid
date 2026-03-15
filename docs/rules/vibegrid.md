@@ -74,6 +74,9 @@ VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
 
 - Adding view modes by editing VibeGrid.tsx switch → use ViewModeRegistry
 - Registering cell renderers outside SlotRegistry → all renderers in `slots/slot-initialization.ts`
+- Using FieldTypeRegistry, ModularCellBridge, or CellFactory → these are removed; SlotRegistry is sole system
+- Inline rendering logic in column definitions → register via SlotRegistry
+- Global slot overrides without contextFilter → scope by entityType or schemaId
 - Expansion/collapse logic in `features/` → should be grid primitive
 - Direct API calls from view modules → use CommandBus
 - Polling for data updates → use EventBus
