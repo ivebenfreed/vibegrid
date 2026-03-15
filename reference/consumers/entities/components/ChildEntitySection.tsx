@@ -290,6 +290,7 @@ export function ChildEntitySection({
                 tableId={`child-${childEntityType}-${parentRecordId}`}
                 entityType={childEntityType}
                 collectionOverride={collectionData}
+                appendColumns={linkedColumns.length > 0 ? linkedColumns : undefined}
               >
                 <VibeGrid
                   tableId={`child-${childEntityType}-${parentRecordId}`}
@@ -306,7 +307,6 @@ export function ChildEntitySection({
                   showPagination={false}
                   disableSearch={true}
                   skipDataFetching={true}
-                  appendColumns={linkedColumns.length > 0 ? linkedColumns : undefined}
                   onCellClick={(rowId) => {
                     const record = childRecords.find((r) => r.id === rowId)
                     if (record) setEditRecord(record)

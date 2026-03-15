@@ -341,6 +341,9 @@ export class TableCoreStore implements IStore {
 
   /** GH#1240: Row expansion configuration */
   private rowExpansionConfig: RowExpansionConfig | null = null
+
+  /** GH#1861: Additional columns to append after schema generation */
+  private pendingAppendColumns: Column[] | null = null
   private disposers = new DisposerManager()
   private visualConfigDisposer: (() => void) | null = null
 
@@ -356,6 +359,15 @@ export class TableCoreStore implements IStore {
   // ====================================
   // DEPENDENCY INJECTION
   // ====================================
+
+  /**
+   * GH#1861: Set additional columns to merge after schema generation.
+   * Must be called before init() so they're included in the initial column set,
+   * preloadForColumns(), and VisualStateStore initialization.
+   */
+  setAppendColumns(columns: Column[]): void {
+    this.pendingAppendColumns = columns
+  }
 
   /**
    * Set visual state inputs (filters, sorting, grouping)
@@ -1887,8 +1899,21 @@ export class TableCoreStore implements IStore {
         throw new Error(`No columns generated for entity: ${this.entityType}`)
       }
 
+      // GH#1861: Merge appended columns (e.g., linked entity fields) into the
+      // initial column set so they're available for preloadForColumns() and
+      // VisualStateStore initialization — no post-init useEffect needed.
+      let allColumns = generatedColumns
+      if (this.pendingAppendColumns?.length) {
+        const existingIds = new Set(generatedColumns.map((c) => c.id))
+        const newColumns = this.pendingAppendColumns.filter((c) => !existingIds.has(c.id))
+        if (newColumns.length > 0) {
+          allColumns = [...generatedColumns, ...newColumns]
+        }
+        this.pendingAppendColumns = null
+      }
+
       runInAction(() => {
-        this.columns = generatedColumns
+        this.columns = allColumns
         this.isSchemaLoaded = true
         this.schemaError = null
       })
@@ -1897,10 +1922,10 @@ export class TableCoreStore implements IStore {
       if (this.visualStateStore) {
         const orgId = this.visualStateStore.orgId || getActiveOrganizationId() || ''
         const userId = this.visualStateStore.userId || ''
-        this.visualStateStore.initializeColumns(generatedColumns, this.entityType, orgId, userId)
+        this.visualStateStore.initializeColumns(allColumns, this.entityType, orgId, userId)
         logger.info('✅ Columns initialized in VisualStateStore', {
           entityType: this.entityType,
-          columnCount: generatedColumns.length,
+          columnCount: allColumns.length,
         })
       } else {
         logger.warn('⚠️ VisualStateStore not available for column initialization', {
