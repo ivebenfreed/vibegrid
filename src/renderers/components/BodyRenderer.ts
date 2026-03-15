@@ -871,6 +871,12 @@ export class BodyRenderer {
     // Set test ID for automated testing
     cellElement.setAttribute('data-testid', `cell-${row.id}-${column.id}`)
 
+    // Set aria-label for accessibility and agent-browser snapshot visibility
+    const cellText = cellElement.textContent?.trim()
+    if (cellText && column.name) {
+      cellElement.setAttribute('aria-label', `${column.name}: ${cellText}`)
+    }
+
     // Set field type metadata for CellActionRouter
     if (column.cellType) {
       cellElement.setAttribute('data-field-type', column.cellType)
