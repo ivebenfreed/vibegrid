@@ -36,6 +36,9 @@ export class FillHandleLayerDOM {
 
   // Drag state
   private isDragging = false
+  private cachedBounds: any = null
+  private lastRowsToFill: number = 0
+  private lastFillDirection: string | null = null
 
   // Visual settings
   private handleSize = 10

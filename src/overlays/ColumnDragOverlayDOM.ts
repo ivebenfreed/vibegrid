@@ -28,6 +28,7 @@ export class ColumnDragOverlayDOM {
   private columnPreview: HTMLDivElement | null = null
   private dropIndicator: HTMLDivElement | null = null
   private dropIndex: number = -1
+  private dragState: ColumnDragState | null = null
 
   constructor(container: HTMLElement, config: ColumnDragOverlayConfig) {
     this.container = container
