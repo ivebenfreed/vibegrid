@@ -195,6 +195,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableSorting={true}
         enableDragAndDrop={true}
         enableDelete={true}
+        enableExport={true}
         enableInlineCreation={enableInlineCreation}
         onInlineCreate={onInlineCreate}
         onEscalate={onEscalate}
