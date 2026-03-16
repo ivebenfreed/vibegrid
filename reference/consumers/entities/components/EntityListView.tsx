@@ -188,7 +188,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       <VibeGrid
         tableId={`entity-list-${entityName}`}
         entityType={entityName}
-        height="calc(100vh - 280px)"
+        height="100%"
         enableSelectionColumn={true}
         enableGrouping={true}
         enableFiltering={true}
@@ -543,7 +543,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         </div>
 
         {/* Vibegrid Container — position:relative anchors QuickCreatePanel */}
-        <div className="relative flex-1 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <VibeGridStoreProvider tableId={`entity-list-${entityName}`} entityType={entityName}>
             <EntityListViewUrlSync
               entityName={entityName}
