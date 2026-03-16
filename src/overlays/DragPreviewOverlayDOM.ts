@@ -25,7 +25,6 @@ export interface DragState {
 export class DragPreviewOverlayDOM {
   private container: HTMLElement
   private config: DragPreviewOverlayConfig
-  private coordinateMapping: CoordinateMapping | null = null
 
   // DOM elements
   private overlayContainer: HTMLDivElement | null = null

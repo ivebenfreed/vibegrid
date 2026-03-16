@@ -36,9 +36,6 @@ export class FillHandleLayerDOM {
 
   // Drag state
   private isDragging = false
-  private cachedBounds: ReturnType<FillHandleLayerDOM['getSelectionBounds']> = null
-  private lastRowsToFill: number = 0
-  private lastFillDirection: 'up' | 'down' | null = null
 
   // Visual settings
   private handleSize = 10

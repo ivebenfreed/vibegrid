@@ -134,7 +134,9 @@ function ChildTabEntry({
         {entitySchemas && entitySchemas.length > 0 ? (
           <Select
             value={entry.childEntityType}
-            onValueChange={(val) => onUpdate(index, { ...entry, childEntityType: val })}
+            onValueChange={(val) => {
+              if (val !== null) onUpdate(index, { ...entry, childEntityType: val })
+            }}
           >
             <SelectTrigger
               id={`child-entity-type-${index}`}
@@ -168,7 +170,9 @@ function ChildTabEntry({
         </Label>
         <Select
           value={entry.relationshipType}
-          onValueChange={(val) => onUpdate(index, { ...entry, relationshipType: val })}
+          onValueChange={(val) => {
+            if (val !== null) onUpdate(index, { ...entry, relationshipType: val })
+          }}
         >
           <SelectTrigger
             id={`child-rel-type-${index}`}

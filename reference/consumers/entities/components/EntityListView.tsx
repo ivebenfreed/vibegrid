@@ -523,7 +523,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             {/* Streaming progress bar */}
             {listResult.isStreaming && listResult.streamProgress.batches > 0 && (
               <div className="mt-2 w-48">
-                <Progress value={undefined} className="h-1" />
+                <Progress value={null} className="h-1" />
               </div>
             )}
           </div>

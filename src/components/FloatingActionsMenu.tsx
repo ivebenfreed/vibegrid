@@ -139,13 +139,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
           }
         }}
       >
-        <DropdownMenuContent
-          align="end"
-          sideOffset={4}
-          className="min-w-[160px]"
-          onEscapeKeyDown={() => interactionStore.closeRowActionMenu()}
-          onInteractOutside={() => interactionStore.closeRowActionMenu()}
-        >
+        <DropdownMenuContent align="end" sideOffset={4} className="min-w-[160px]">
           {visibleActions.map((action, index) => {
             const Icon = action.icon
             return (

@@ -80,15 +80,17 @@ export const GanttFilters = observer(function GanttFilters({ className }: GanttF
 
       {/* Date range picker */}
       <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant={dateRangeFilter.start || dateRangeFilter.end ? 'secondary' : 'ghost'}
-            size="sm"
-            className="h-7"
-          >
-            <CalendarRange className="h-3 w-3 mr-1" />
-            {dateRangeLabel}
-          </Button>
+        <PopoverTrigger
+          render={
+            <Button
+              variant={dateRangeFilter.start || dateRangeFilter.end ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7"
+            />
+          }
+        >
+          <CalendarRange className="h-3 w-3 mr-1" />
+          {dateRangeLabel}
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
           <CalendarPicker

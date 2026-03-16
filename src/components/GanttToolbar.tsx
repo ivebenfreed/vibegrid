@@ -137,7 +137,7 @@ export const GanttToolbar = observer(function GanttToolbar() {
         <Select
           value={sortField}
           onValueChange={(field) => {
-            visualStateStore?.setSortBy([{ field, direction: sortDirection }])
+            if (field !== null) visualStateStore?.setSortBy([{ field, direction: sortDirection }])
           }}
         >
           <SelectTrigger className="w-28 h-8">
@@ -190,16 +190,18 @@ export const GanttToolbar = observer(function GanttToolbar() {
 
       {/* Field mapping settings */}
       <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            title="Configure date fields"
-            className={settingsOpen ? 'bg-accent' : ''}
-          >
-            <Settings2 className="h-4 w-4 mr-1" />
-            Fields
-          </Button>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Configure date fields"
+              className={settingsOpen ? 'bg-accent' : ''}
+            />
+          }
+        >
+          <Settings2 className="h-4 w-4 mr-1" />
+          Fields
         </PopoverTrigger>
         <PopoverContent className="w-72" align="start">
           <div className="grid gap-4">
@@ -217,7 +219,9 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.startField}
-                onValueChange={(value) => ganttViewStore.setFieldMapping({ startField: value })}
+                onValueChange={(value) => {
+                  if (value !== null) ganttViewStore.setFieldMapping({ startField: value })
+                }}
               >
                 <SelectTrigger id="start-field" className="h-8">
                   <SelectValue placeholder="Select field" />
@@ -245,7 +249,9 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.endField}
-                onValueChange={(value) => ganttViewStore.setFieldMapping({ endField: value })}
+                onValueChange={(value) => {
+                  if (value !== null) ganttViewStore.setFieldMapping({ endField: value })
+                }}
               >
                 <SelectTrigger id="end-field" className="h-8">
                   <SelectValue placeholder="Select field" />
@@ -273,7 +279,9 @@ export const GanttToolbar = observer(function GanttToolbar() {
               </Label>
               <Select
                 value={fieldMapping.labelField}
-                onValueChange={(value) => ganttViewStore.setFieldMapping({ labelField: value })}
+                onValueChange={(value) => {
+                  if (value !== null) ganttViewStore.setFieldMapping({ labelField: value })
+                }}
               >
                 <SelectTrigger id="label-field" className="h-8">
                   <SelectValue placeholder="Select field" />

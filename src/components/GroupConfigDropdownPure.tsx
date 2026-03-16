@@ -259,21 +259,23 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant={hasActiveGrouping ? 'default' : 'outline'}
-          size="sm"
-          className={`h-8 ${className}`}
-        >
-          <Settings2 size={14} className="mr-1" />
-          Group By
-          {hasActiveGrouping && (
-            <Badge variant="secondary" className="ml-1 text-xs px-1 py-0">
-              {activeGroupCount}
-            </Badge>
-          )}
-          <ChevronDown size={14} className="ml-1" />
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant={hasActiveGrouping ? 'default' : 'outline'}
+            size="sm"
+            className={`h-8 ${className}`}
+          />
+        }
+      >
+        <Settings2 size={14} className="mr-1" />
+        Group By
+        {hasActiveGrouping && (
+          <Badge variant="secondary" className="ml-1 text-xs px-1 py-0">
+            {activeGroupCount}
+          </Badge>
+        )}
+        <ChevronDown size={14} className="ml-1" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         {/* Current Grouping Fields */}
