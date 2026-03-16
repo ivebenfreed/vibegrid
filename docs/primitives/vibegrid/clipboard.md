@@ -1,5 +1,5 @@
 ---
-domain: vibegrid
+primitive: vibegrid
 status: active
 relatedRules:
   - vibegrid

@@ -55,18 +55,10 @@ phases:
           Read ALL VIbeGrid feature documentation. These are your source of truth
           for what to test. Read each file IN FULL:
 
-          **Module docs (behaviors with Trigger/Expected/Verify):**
+          **Primitive behavior docs (TEVS format — Trigger/Expected/Verify/Source):**
           ```bash
-          cat docs/modules/vibegrid/core/core.md
-          cat docs/modules/vibegrid/data-controls/data-controls.md
-          cat docs/modules/vibegrid/gantt/gantt.md
-          cat docs/modules/vibegrid/export-services/export-services.md
-          cat docs/modules/vibegrid/core/row-expansion.md
-          ```
-
-          **Feature docs (additional behaviors):**
-          ```bash
-          cat docs/features/entity-views/entity-view-customization.md
+          # Dynamic discovery — read ALL behavior docs under the primitive
+          for f in docs/primitives/vibegrid/*.md; do cat "$f"; done
           ```
 
           **Rules (architecture, slot registry, cell renderers, interactions):**
@@ -75,15 +67,15 @@ phases:
           cat .claude/rules/vibegrid-interactions.md
           ```
 
-          **Also check for any NEW docs that may have been added since this template
-          was written:**
+          **Coverage gate:** Count total behaviors discovered:
           ```bash
-          find docs/modules/vibegrid/ -name "*.md" -type f
-          find docs/features/ -name "*vibegrid*" -o -name "*grid*" -o -name "*entity-view*" | head -20
+          grep -c '^### B[0-9]' docs/primitives/vibegrid/*.md
           ```
+          The test task count in P2 MUST match this total. If it doesn't,
+          you missed behaviors.
 
           After reading everything, you should have a complete inventory of:
-          - Every behavior (B1, B2, ...) across all VIbeGrid modules
+          - Every behavior (B1, B2, ...) across all VIbeGrid behavior docs
           - Every cell renderer type from the slot registry
           - Every interaction pattern from the interaction rules
           - Every view mode and its specific features
@@ -358,12 +350,14 @@ Systematic feature coverage testing for VIbeGrid, driven by feature documentatio
 Test coverage comes from the feature docs — NOT hardcoded lists:
 
 ```
-docs/modules/vibegrid/core/core.md           — Grid rendering, virtualization, selection
-docs/modules/vibegrid/data-controls/          — Search, filtering, grouping, presets
-docs/modules/vibegrid/gantt/gantt.md          — Timeline, task bars, dependencies
-docs/modules/vibegrid/export-services/        — CSV, PDF, ZIP export
-docs/modules/vibegrid/core/row-expansion.md   — Row expansion states
-docs/features/entity-views/                   — View save/load/share
+docs/primitives/vibegrid/core.md              — Grid rendering, virtualization, selection
+docs/primitives/vibegrid/editing.md           — Inline editing, blur policy, undo/redo
+docs/primitives/vibegrid/clipboard.md         — Copy/paste, fill handle
+docs/primitives/vibegrid/column-interactions.md — Resize, reorder, context menu, bulk actions
+docs/primitives/vibegrid/data-controls.md     — Search, filtering, grouping, presets
+docs/primitives/vibegrid/gantt.md             — Timeline, task bars, dependencies
+docs/primitives/vibegrid/export-services.md   — CSV, PDF, ZIP export
+docs/primitives/vibegrid/row-expansion.md     — Row expansion states
 .claude/rules/vibegrid.md                     — Architecture, slot registry
 .claude/rules/vibegrid-interactions.md        — Cell renderers, interaction patterns
 ```

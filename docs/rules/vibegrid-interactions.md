@@ -1,18 +1,13 @@
 ---
 paths: apps/web/src/systems/vibegrid/**/*
-relatedFeatures:
-  - vibegrid/data-controls
-  - vibegrid/export-services
-  - vibegrid/row-expansion
-  - vibegrid/gantt
-  - vibegrid/core
+relatedPrimitive: vibegrid
 ---
 
 # VibeGrid Interactions
 
 Conventions for cell renderers, row expansion, and view module slots.
 
-> For detailed API patterns and TypeScript examples, see module docs: `docs/modules/vibegrid/core/core.md`
+> For detailed behavior docs and TypeScript examples, see primitive behaviors: `docs/primitives/vibegrid/`
 
 ## Cell Renderer Registration
 
@@ -71,14 +66,18 @@ features/{domain}/
 └── styles/{entity}-grid.css         # Grid styles
 ```
 
-## Feature Documentation
+## Behavior Documentation
 
 | Feature | Doc | Key Behaviors |
 |---------|-----|---------------|
-| Cell editing | `docs/modules/vibegrid/core/editing.md` | Start/commit/cancel, blur policy, 17 editor types, undo/redo |
-| Column interactions | `docs/modules/vibegrid/core/column-interactions.md` | Resize, reorder, context menu, row drag, bulk actions |
-| Clipboard & fill | `docs/modules/vibegrid/core/clipboard.md` | Copy/paste with type validation, fill handle |
-| Core grid | `docs/modules/vibegrid/core/core.md` | Render, sort, select, keyboard nav, inline creation |
+| Cell editing | `docs/primitives/vibegrid/editing.md` | Start/commit/cancel, blur policy, 17 editor types, undo/redo |
+| Column interactions | `docs/primitives/vibegrid/column-interactions.md` | Resize, reorder, context menu, row drag, bulk actions |
+| Clipboard & fill | `docs/primitives/vibegrid/clipboard.md` | Copy/paste with type validation, fill handle |
+| Core grid | `docs/primitives/vibegrid/core.md` | Render, sort, select, keyboard nav, inline creation |
+| Data controls | `docs/primitives/vibegrid/data-controls.md` | Search, filtering, grouping, presets |
+| Row expansion | `docs/primitives/vibegrid/row-expansion.md` | Expand/collapse, lazy loading, portal bridge |
+| Gantt | `docs/primitives/vibegrid/gantt.md` | Timeline, zoom, task bars, dependencies |
+| Export | `docs/primitives/vibegrid/export-services.md` | CSV, PDF, ZIP export |
 
 ## Anti-Patterns
 
