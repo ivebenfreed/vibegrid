@@ -211,10 +211,11 @@ phases:
             description="FAIL: Sort click has no effect, rows stay in original order. Evidence: /tmp/vg-sort-fail.png")
           ```
 
-          **Renderer testing:** For each renderer type, find a cell of that type
-          in the grid and verify it renders correctly:
+          **Renderer testing:** Use `scrollToColumn` to bring columns into view,
+          then verify rendering:
           ```bash
-          agent-browser snapshot -i -s "[aria-label*='Currency']"
+          # Scroll to the column first
+          agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_currency", "instant")'
           agent-browser screenshot /tmp/vg-renderer-currency.png
           # Judge: does it show $ prefix, comma separators, 2 decimal places?
           ```
@@ -438,6 +439,15 @@ agent-browser click "[aria-rowindex='3'] .vibegridx-row-checkbox"
 
 # Column header
 agent-browser click "[role='columnheader'][aria-colindex='2']"
+
+# Scroll to a column by ID (centers it in viewport, syncs header)
+agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_email")'
+
+# Scroll to column with instant jump (no smooth animation)
+agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_currency", "instant")'
+
+# IMPORTANT: Always scroll via .vibegridx-viewport (NOT .vibegridx-header-clip)
+# The header syncs automatically via CSS transform
 ```
 
 ## Regression Tracking

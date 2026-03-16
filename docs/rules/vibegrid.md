@@ -88,6 +88,13 @@ VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
 | `data-affordance` | interactive elements | `navigate`, `edit`, `none` |
 | `aria-rowcount` / `aria-colcount` | grid | Total dimensions |
 
+**Programmatic column scroll:**
+```bash
+# Scroll to column by ID (centers in viewport, syncs header)
+agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("column_id")'
+# Instant (no animation): scrollToColumn("column_id", "instant")
+```
+
 **Hiding pattern:** Use `opacity: 0` + `pointer-events: none` (NOT `display: none`) for hover-to-reveal elements. `display: none` removes elements from Chrome's accessibility tree entirely, breaking screen readers and agent-browser snapshot. `visibility: hidden` also hides from the a11y tree. Only `opacity: 0` keeps elements discoverable.
 
 ```css
