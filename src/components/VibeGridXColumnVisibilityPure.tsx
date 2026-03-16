@@ -25,6 +25,7 @@ import { Checkbox } from '@/shared/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -312,12 +313,14 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
         side="bottom"
         alignOffset={-8}
       >
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Columns</span>
-          <span className="text-xs text-muted-foreground">
-            {visibleColumnCount}/{columns.length}
-          </span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center justify-between">
+            <span>Columns</span>
+            <span className="text-xs text-muted-foreground">
+              {visibleColumnCount}/{columns.length}
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         <div className="px-2 pb-2">
           <Input

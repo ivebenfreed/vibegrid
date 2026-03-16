@@ -23,6 +23,7 @@ import { Button } from '@/shared/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -281,7 +282,9 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
         {/* Current Grouping Fields */}
         {hasActiveGrouping && (
           <>
-            <DropdownMenuLabel className="text-xs">Active Grouping</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs">Active Grouping</DropdownMenuLabel>
+            </DropdownMenuGroup>
             <div className="px-1">
               <DndContext
                 sensors={sensors}
@@ -310,7 +313,9 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
         {/* Available Fields to Group By */}
         {availableForGrouping.length > 0 && (
           <>
-            <DropdownMenuLabel className="text-xs">Group by Field</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-xs">Group by Field</DropdownMenuLabel>
+            </DropdownMenuGroup>
             {availableForGrouping.map((column) => {
               // Format the type label for better user understanding
               const cellType = column.cellType || column.type || 'select'
