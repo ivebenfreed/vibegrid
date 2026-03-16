@@ -28,7 +28,7 @@ function _inferEntityFromFieldName(fieldName: string): string {
 }
 
 export function ReferenceSelectEditor({
-  cell,
+  cell: _cell,
   column,
   initialValue,
   onCommit,
@@ -49,14 +49,14 @@ export function ReferenceSelectEditor({
   const getReferenceConfig = () => {
     const cellType = column.cellType || column.type;
 
-    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
+    if (cellType === 'user_reference') {
       return {
         referenceType: 'user_reference' as const,
         referenceEntity: 'User'
       };
     }
 
-    if (cellType === 'entity_reference' || cellType === 'custom_entity_reference') {
+    if (cellType === 'entity_reference') {
       const entityType = column.referenceType || inferEntityFromFieldName(column.id);
       return {
         referenceType: 'entity_reference' as const,

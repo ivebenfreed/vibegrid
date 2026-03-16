@@ -161,7 +161,10 @@ export class InteractionCoordinator {
     // Get interaction policy from SlotRegistry (D2) or fallback
     let interactionPolicy: any
     if (this.slotRegistry) {
-      const context: CellRendererContext = { viewMode: 'table' }
+      const context: CellRendererContext = {
+        viewMode: 'table',
+        entityType: this.tableCoreStore.entityType,
+      }
       const renderer = this.slotRegistry.resolve(column, context)
       interactionPolicy = renderer?.interactionPolicy
     }
@@ -208,7 +211,10 @@ export class InteractionCoordinator {
     // Get interaction policy from SlotRegistry (D2)
     let policy: any
     if (this.slotRegistry) {
-      const context: CellRendererContext = { viewMode: 'table' }
+      const context: CellRendererContext = {
+        viewMode: 'table',
+        entityType: this.tableCoreStore.entityType,
+      }
       const renderer = this.slotRegistry.resolve(column, context)
       policy = renderer?.interactionPolicy
     }

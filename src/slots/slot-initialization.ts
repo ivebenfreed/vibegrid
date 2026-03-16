@@ -2973,22 +2973,12 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
 
   // --- 18. Entity Reference ---
   registry.register({
-    id: 'custom_entity_reference',
-    priority: 0,
-    renderer: () => entityReferenceCellRenderer,
-  })
-  registry.register({
     id: 'entity_reference',
     priority: 0,
     renderer: () => entityReferenceCellRenderer,
   })
 
   // --- 19. User Reference ---
-  registry.register({
-    id: 'custom_user_reference',
-    priority: 0,
-    renderer: () => userReferenceCellRenderer,
-  })
   registry.register({
     id: 'user_reference',
     priority: 0,

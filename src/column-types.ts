@@ -121,10 +121,8 @@ export type CellType =
   | 'discussion_type_option'
   // Reference types
   | 'reference-select'
-  | 'user_reference' // DataForge variant
-  | 'custom_user_reference'
-  | 'entity_reference' // DataForge variant
-  | 'custom_entity_reference'
+  | 'user_reference'
+  | 'entity_reference'
   | 'relationship_link' // Auto-injected relationship link field (renders as entity reference)
   // Computed/rollup types
   | 'rollup_count'

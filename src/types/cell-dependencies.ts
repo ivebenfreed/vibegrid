@@ -79,7 +79,7 @@ export const CELL_TYPE_DEPENDENCIES: Record<string, Partial<CellRenderDependenci
   },
 
   // Relationship cells - require resolved relationship data
-  'relationship-single': {
+  entity_reference: {
     schema: true,
     data: true,
     relationships: [], // Will be populated dynamically based on column
@@ -87,7 +87,7 @@ export const CELL_TYPE_DEPENDENCIES: Record<string, Partial<CellRenderDependenci
     formatting: true,
   },
 
-  'relationship-multi': {
+  user_reference: {
     schema: true,
     data: true,
     relationships: [], // Will be populated dynamically based on column

@@ -99,7 +99,7 @@ export function RelationshipEditor({
     (column as any).targetEntityType ||
     (column as any).relationshipTargetEntity
 
-  const isUserReference = cellType === 'user_reference' || cellType === 'custom_user_reference'
+  const isUserReference = cellType === 'user_reference'
 
   // Relationship archetype detection state (GH#1739 P3)
   const [relArchetypeInfo, setRelArchetypeInfo] = React.useState<{
@@ -281,9 +281,9 @@ export function RelationshipEditor({
   const getPlaceholder = () => {
     // Type assertions for relationship types not in the base Column type
     const type = cellType as string
-    if (type === 'user_reference' || type === 'custom_user_reference') {
+    if (type === 'user_reference') {
       return 'Select user...'
-    } else if (type === 'entity_reference' || type === 'custom_entity_reference') {
+    } else if (type === 'entity_reference') {
       return 'Select entity...'
     }
     return 'Select...'
@@ -292,9 +292,9 @@ export function RelationshipEditor({
   const getSearchPlaceholder = () => {
     // Type assertions for relationship types not in the base Column type
     const type = cellType as string
-    if (type === 'user_reference' || type === 'custom_user_reference') {
+    if (type === 'user_reference') {
       return 'Search users...'
-    } else if (type === 'entity_reference' || type === 'custom_entity_reference') {
+    } else if (type === 'entity_reference') {
       return 'Search entities...'
     }
     return 'Search...'

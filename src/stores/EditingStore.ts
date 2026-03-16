@@ -427,9 +427,10 @@ export class EditingStore implements IStore {
     // VALIDATION: Validate using SlotRegistry CellRenderer (D2)
     const valueToSave = finalValue
     if (this.slotRegistry) {
-      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      const slotCtx = { viewMode: 'table' as const, entityType: this.tableCoreStore.entityType }
+      const renderer = this.slotRegistry.resolve(column, slotCtx)
       if (renderer?.validate) {
-        const validationError = renderer.validate(finalValue, column, { viewMode: 'table' })
+        const validationError = renderer.validate(finalValue, column, slotCtx)
         if (validationError) {
           fileLog.warn('Validation failed - keeping editor open', {
             cellId,
@@ -643,7 +644,10 @@ export class EditingStore implements IStore {
    */
   private getBlurPolicy(column: any): BlurPolicy {
     if (this.slotRegistry) {
-      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      const renderer = this.slotRegistry.resolve(column, {
+        viewMode: 'table',
+        entityType: this.tableCoreStore.entityType,
+      })
       return renderer?.interactionPolicy?.blurPolicy || 'commit'
     }
     return 'commit'
@@ -797,9 +801,10 @@ export class EditingStore implements IStore {
     const { column } = this.currentSession
 
     if (this.slotRegistry) {
-      const renderer = this.slotRegistry.resolve(column, { viewMode: 'table' })
+      const slotCtx = { viewMode: 'table' as const, entityType: this.tableCoreStore.entityType }
+      const renderer = this.slotRegistry.resolve(column, slotCtx)
       if (renderer?.validate) {
-        const validationError = renderer.validate(valueToValidate, column, { viewMode: 'table' })
+        const validationError = renderer.validate(valueToValidate, column, slotCtx)
 
         this.currentSession.validation = {
           isValid: !validationError,

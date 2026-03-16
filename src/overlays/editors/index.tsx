@@ -183,13 +183,8 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'phone':
       return <TextEditor {...props} />
 
-    case 'custom_entity_reference':
-    case 'relationship-single':
+    case 'entity_reference':
       return <RelationshipEditor {...props} />
-
-    case 'relationship-multi':
-    case 'relationship-collection':
-      return <MultiRelationshipEditor {...props} />
 
     case 'reference-select':
       fileLog.debug('createEditor: Creating ReferenceSelectEditor')
@@ -207,14 +202,9 @@ export function createEditor(props: EditorProps): React.ReactElement {
       fileLog.debug('createEditor: Creating SelectEditor for system option type', { cellType })
       return <SelectEditor {...props} />
 
-    // User and entity reference types - use dedicated RelationshipEditor
+    // User reference type - use dedicated RelationshipEditor
     case 'user_reference':
-    case 'custom_user_reference':
       fileLog.debug('createEditor: Creating RelationshipEditor for user reference', { cellType })
-      return <RelationshipEditor {...props} />
-
-    case 'entity_reference':
-      fileLog.debug('createEditor: Creating RelationshipEditor for entity reference', { cellType })
       return <RelationshipEditor {...props} />
 
     default:
