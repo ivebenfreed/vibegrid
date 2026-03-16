@@ -128,7 +128,12 @@ function GroupingControls({
       <CardContent className="flex gap-4 items-end">
         <div className="space-y-1.5">
           <Label htmlFor="group-by">Group By</Label>
-          <Select value={groupBy} onValueChange={onGroupByChange}>
+          <Select
+            value={groupBy}
+            onValueChange={(value) => {
+              if (value !== null) onGroupByChange(value)
+            }}
+          >
             <SelectTrigger id="group-by" className="w-[180px]" data-testid="group-by-select">
               <SelectValue />
             </SelectTrigger>

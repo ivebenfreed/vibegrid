@@ -305,15 +305,22 @@ export const ViewPicker = observer(function ViewPicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5" data-testid="view-picker-trigger">
-          <ViewModeIcon mode={currentViewMode} className="size-4" />
-          <span className="max-w-[120px] truncate">{triggerLabel}</span>
-          {hasUnsavedChanges && (
-            <span className="size-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
-          )}
-          <ChevronDown className="size-3.5 opacity-60" />
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            data-testid="view-picker-trigger"
+          />
+        }
+      >
+        <ViewModeIcon mode={currentViewMode} className="size-4" />
+        <span className="max-w-[120px] truncate">{triggerLabel}</span>
+        {hasUnsavedChanges && (
+          <span className="size-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+        )}
+        <ChevronDown className="size-3.5 opacity-60" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-0" data-testid="view-picker-content">
         {isLoading ? (
@@ -611,14 +618,16 @@ function ViewItem({
 
       {/* Context menu */}
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="shrink-0 p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-accent rounded"
-            data-testid={`view-picker-menu-${view.id}`}
-          >
-            <MoreHorizontal className="size-3.5 text-muted-foreground" />
-          </button>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className="shrink-0 p-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-accent rounded"
+              data-testid={`view-picker-menu-${view.id}`}
+            />
+          }
+        >
+          <MoreHorizontal className="size-3.5 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {canRename && (

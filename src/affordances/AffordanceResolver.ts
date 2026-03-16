@@ -8,7 +8,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import type { EnhancedColumn, VibeGridFieldType } from '../field-types/FieldTypeRegistry'
+import type { EnhancedColumn, VibeGridFieldType } from '../field-types/types'
 import { AFFORDANCE_GROUPS, hasAffordanceGroup } from './AffordanceGroups'
 import type {
   AffordanceAction,

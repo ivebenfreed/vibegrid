@@ -25,7 +25,7 @@ function TextEditorComponent({
   onCommit,
   onCancel,
   onUpdate,
-  onBlur,
+  onBlur: _onBlur,
   multiline = false,
   validationErrors = [],
 }: TextEditorProps) {
@@ -106,7 +106,7 @@ function TextEditorComponent({
     height: '100%',
     display: 'flex',
     alignItems: 'center',
-    fontSize: '14px', // Match CellFactory view mode
+    fontSize: '14px', // Match grid cell font size
     boxSizing: 'border-box',
   }
 
@@ -144,6 +144,8 @@ function TextEditorComponent({
 
   if (multiline) {
     return (
+      // biome-ignore lint/a11y/noStaticElementInteractions: editor overlay captures events to prevent grid interaction
+      // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard events handled by inner input
       <div
         style={containerStyle}
         onMouseDown={(e) => {
@@ -179,6 +181,8 @@ function TextEditorComponent({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: editor overlay captures events to prevent grid interaction
+    // biome-ignore lint/a11y/useKeyWithClickEvents: keyboard events handled by inner input
     <div
       style={containerStyle}
       onMouseDown={(e) => {

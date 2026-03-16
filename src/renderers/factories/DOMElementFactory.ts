@@ -257,10 +257,14 @@ export class DOMElementFactory {
   createHeaderCell(column: any, width: number): HTMLElement {
     const headerCell = this.createElement('div', 'vibegridx-header-cell')
     headerCell.dataset.field = column.id // Add field ID for sort updates
+    const isNarrowIndicator = width <= 50 && !(column.label || column.name)
+    if (isNarrowIndicator) {
+      headerCell.classList.add('vibegridx-narrow-indicator')
+    }
     headerCell.style.cssText = `
       flex: 0 0 ${width}px;
       height: 100%;
-      padding: 0 12px;
+      padding: 0 ${isNarrowIndicator ? '4' : '12'}px;
       display: flex;
       align-items: center;
       font-weight: 600;
@@ -304,24 +308,33 @@ export class DOMElementFactory {
     }
 
     // Header text
-    const headerText = this.createElement('span', 'vibegridx-header-text')
-    headerText.style.cssText =
-      'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
-    const headerLabel = column.label || column.name || column.id
-    headerText.textContent = headerLabel
-    headerText.title = headerLabel
+    const headerLabel = column.label || column.name || ''
+    const isIconOnly = !headerLabel && column.sortable !== false
 
-    textGroup.appendChild(headerText)
+    if (!isIconOnly) {
+      const headerText = this.createElement('span', 'vibegridx-header-text')
+      headerText.style.cssText =
+        'flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+      const displayLabel = headerLabel || column.id
+      headerText.textContent = displayLabel
+      headerText.title = displayLabel
+      textGroup.appendChild(headerText)
+    }
 
     // Sort icon (if column is sortable)
     if (column.sortable !== false) {
+      // When icon-only (no label), center the sort icon
+      if (isIconOnly) {
+        textGroup.style.cssText =
+          'display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0;'
+      }
       const sortIcon = this.createElement('span', 'vibegridx-sort-icon')
       sortIcon.style.cssText = `
         flex-shrink: 0;
         min-width: 20px;
         width: 20px;
         height: 20px;
-        margin-left: 6px;
+        ${isIconOnly ? '' : 'margin-left: 6px;'}
         display: flex;
         align-items: center;
         justify-content: center;

@@ -525,7 +525,12 @@ export const UsersPage = observer(function UsersPage() {
                   <Label htmlFor="org-select" className="text-xs text-muted-foreground">
                     Organization
                   </Label>
-                  <Select value={selectedOrgId} onValueChange={setSelectedOrgId}>
+                  <Select
+                    value={selectedOrgId}
+                    onValueChange={(value) => {
+                      if (value !== null) setSelectedOrgId(value)
+                    }}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select organization..." />
                     </SelectTrigger>
@@ -548,7 +553,12 @@ export const UsersPage = observer(function UsersPage() {
                   <Label htmlFor="role-select" className="text-xs text-muted-foreground">
                     Role
                   </Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                  <Select
+                    value={selectedRole}
+                    onValueChange={(value) => {
+                      if (value !== null) setSelectedRole(value)
+                    }}
+                  >
                     <SelectTrigger className="w-[130px]">
                       <SelectValue />
                     </SelectTrigger>

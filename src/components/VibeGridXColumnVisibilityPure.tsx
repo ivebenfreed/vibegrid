@@ -25,6 +25,7 @@ import { Checkbox } from '@/shared/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -134,7 +135,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   const entityType = visualStateStore.entityType
 
   // DnD state
-  const [isDragging, setIsDragging] = React.useState(false)
+  const [_isDragging, setIsDragging] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
 
   // DnD sensors
@@ -290,40 +291,36 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={`h-8 px-2 ${className}`}>
-          <Columns3 className="h-4 w-4 mr-1" />
-          <span className="text-xs">
-            Columns
-            {hiddenColumnCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-                {hiddenColumnCount} hidden
-              </span>
-            )}
-          </span>
-          <ChevronDown className="h-3 w-3 ml-1" />
-        </Button>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="sm" className={`h-8 px-2 ${className}`} />}
+      >
+        <Columns3 className="h-4 w-4 mr-1" />
+        <span className="text-xs">
+          Columns
+          {hiddenColumnCount > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
+              {hiddenColumnCount} hidden
+            </span>
+          )}
+        </span>
+        <ChevronDown className="h-3 w-3 ml-1" />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="w-64 data-[state=open]:animate-none data-[state=closed]:animate-none"
+        className="w-64 data-[open]:animate-none data-[closed]:animate-none"
         align="end"
         sideOffset={8}
-        avoidCollisions={true}
-        sticky="always"
-        updatePositionStrategy="optimized"
         side="bottom"
         alignOffset={-8}
-        onInteractOutside={(e) => {
-          if (isDragging) e.preventDefault()
-        }}
       >
-        <DropdownMenuLabel className="flex items-center justify-between">
-          <span>Columns</span>
-          <span className="text-xs text-muted-foreground">
-            {visibleColumnCount}/{columns.length}
-          </span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center justify-between">
+            <span>Columns</span>
+            <span className="text-xs text-muted-foreground">
+              {visibleColumnCount}/{columns.length}
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         <div className="px-2 pb-2">
           <Input
@@ -406,17 +403,19 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
 
           {/* Save to Schema button */}
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs w-full"
-                onClick={handleSaveToSchema}
-                disabled={isSaving || !entityType}
-              >
-                <Save className="h-3 w-3 mr-1" />
-                {isSaving ? 'Saving...' : 'Save Order to Schema'}
-              </Button>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs w-full"
+                  onClick={handleSaveToSchema}
+                  disabled={isSaving || !entityType}
+                />
+              }
+            >
+              <Save className="h-3 w-3 mr-1" />
+              {isSaving ? 'Saving...' : 'Save Order to Schema'}
             </TooltipTrigger>
             <TooltipContent>
               <p>Persist current column order as the default for all users</p>

@@ -1,7 +1,7 @@
 /**
  * FormFieldValue - Shared field value renderer for VibeForm layouts
  *
- * Renders a field value using ModularCellBridge (existing VibeGrid cell renderers).
+ * Renders a field value using SlotRegistry cell renderers.
  * Used by SingleColumnForm, TwoColumnForm, GroupedForm, GridForm, InlineRow,
  * and PropertySheet (display mode).
  */

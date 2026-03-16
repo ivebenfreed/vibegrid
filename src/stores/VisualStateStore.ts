@@ -220,7 +220,7 @@ export class VisualStateStore implements IStore {
 
   /**
    * Set SlotRegistry for affordance precomputation via CellRenderer.affordanceGroup.
-   * Replaces ModularCellBridge affordance precompute in D2 pipeline.
+   * Uses CellRenderer.affordanceGroup for affordance precomputation.
    */
   @action
   setSlotRegistry(registry: SlotRegistry): void {

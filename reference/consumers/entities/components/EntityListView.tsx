@@ -195,6 +195,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableSorting={true}
         enableDragAndDrop={true}
         enableDelete={true}
+        enableExport={true}
         enableInlineCreation={enableInlineCreation}
         onInlineCreate={onInlineCreate}
         onEscalate={onEscalate}
@@ -523,7 +524,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             {/* Streaming progress bar */}
             {listResult.isStreaming && listResult.streamProgress.batches > 0 && (
               <div className="mt-2 w-48">
-                <Progress value={undefined} className="h-1" />
+                <Progress value={null} className="h-1" />
               </div>
             )}
           </div>

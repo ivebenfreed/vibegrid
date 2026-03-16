@@ -179,7 +179,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
       fileLog.warn('Failed to fetch organizations for column options')
     }
 
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(columns) as any
   }
 
@@ -189,7 +189,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     const { platformOrganizationColumns } = await import(
       '@/features/admin/schemas/platform-organization-schema'
     )
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(platformOrganizationColumns) as any
   }
 
@@ -199,7 +199,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     const { emailThreadColumns } = await import(
       '@/features/email-inbox/schemas/email-thread-schema'
     )
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(emailThreadColumns) as any
   }
 
@@ -209,7 +209,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     const { commandCenterItemColumns } = await import(
       '@/features/command-center/schemas/command-center-item-schema'
     )
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
   }
 
@@ -220,7 +220,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
   //   const { rfiModuleItemColumns } = await import(
   //     '@/features/rfi-module/schemas/rfi-module-item-schema'
   //   )
-  //   // Enrich columns with field types for fast path in ModularCellBridge
+  //   // Pass through enrichColumnsWithFieldTypes for compatibility
   //   return enrichColumnsWithFieldTypes(rfiModuleItemColumns) as any
   // }
 
@@ -230,7 +230,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
       entityType,
     })
     const { bidPackageColumns } = await import('@/features/bid-mail/schemas/bid-package-schema')
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(bidPackageColumns) as any
   }
 
@@ -242,7 +242,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
     const { globalBidPackageColumns } = await import(
       '@/features/bid-mail/schemas/global-bid-package-schema'
     )
-    // Enrich columns with field types for fast path in ModularCellBridge
+    // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(globalBidPackageColumns) as any
   }
 

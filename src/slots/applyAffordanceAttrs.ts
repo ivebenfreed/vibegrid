@@ -30,9 +30,11 @@ export function applyAffordanceAttrs(
     switch (policy.defaultAction) {
       case 'edit':
         element.setAttribute('data-affordance', 'edit')
+        element.setAttribute('aria-roledescription', 'editable cell')
         break
       case 'navigate':
         element.setAttribute('data-affordance', 'navigate')
+        element.setAttribute('aria-roledescription', 'link')
         break
       case 'none':
         element.setAttribute('data-affordance', 'none')

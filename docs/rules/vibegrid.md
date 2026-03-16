@@ -1,11 +1,6 @@
 ---
 paths: apps/web/src/systems/vibegrid/**/*
-relatedFeatures:
-  - vibegrid/data-controls
-  - vibegrid/export-services
-  - vibegrid/row-expansion
-  - vibegrid/gantt
-  - vibegrid/core
+relatedPrimitive: vibegrid
 ---
 
 # VibeGrid
@@ -19,31 +14,111 @@ relatedFeatures:
 | Code Type | Location |
 |-----------|----------|
 | View mode modules | `systems/vibegrid/modules/{mode}/` |
-| Cell renderers (generic) | `systems/vibegrid/field-types/` |
+| Cell renderers (all) | `systems/vibegrid/slots/slot-initialization.ts` |
+| Cell renderer types | `systems/vibegrid/field-types/types.ts` |
 | Cell renderers (domain) | `features/{domain}/schemas/` |
-| Slot registrations | `systems/vibegrid/slots/` |
+| SlotRegistry | `systems/vibegrid/slots/SlotRegistry.ts` |
 | Row interactions | `systems/vibegrid/processors/` |
 | Cell action dispatch | `systems/vibegrid/routing/` |
 | Interaction coordination | `systems/vibegrid/coordination/` |
 | Inline edit overlays | `systems/vibegrid/overlays/` |
 | Column schemas | `features/{domain}/schemas/` |
 
+## Instance Scoping
+
+All stores and SlotRegistry are **instance-scoped** per `<VibeGrid>` component (created fresh via React Context, not global singletons). Access stores via `useVibeGridStores()` hook. The only global singleton is `viewModeRegistry`.
+
+## SlotRegistry Lifecycle
+
+```
+1. register()              — Register slots at startup (registerDefaultSlots + module.registerSlots)
+2. preloadForColumns()     — Async: resolve + cache renderers for current columns (called by InitStore)
+3. resolve()               — Sync: return cached renderer during render (throws if preload incomplete)
+```
+
+`preloadForColumns()` is called on mount, view mode change, and column change. `preloadReady` (MobX observable) gates cell rendering.
+
+## Stores
+
+All stores are instance-scoped per grid. Key stores:
+
+| Store | Responsibility |
+|-------|---------------|
+| `TableCoreStore` | Data loading, sorting, filtering, grouping, processedRows |
+| `VisualStateStore` | Column dimensions, layout geometry, sort/filter/group config |
+| `InteractionStore` | Selection, hover, drag, menus, clipboard, expanded rows |
+| `EditingStore` | Edit session lifecycle (start/commit/cancel), validation, blur policy |
+| `ViewportStore` | Scroll position, viewport dimensions, visible row/column ranges |
+| `InitStore` | Initialization coordinator, hydration progress, lifecycle |
+| `PersistenceStore` | localStorage save/load (debounced, org-scoped keys) |
+| `ViewModeStore` | Current view mode toggle (table/gantt/kanban) |
+| `GanttViewStore` | Gantt zoom, bar positions, date field mapping |
+| `KanbanViewStore` | Kanban grouping field, column ordering, card drag |
+| `InlineCreationStore` | Ghost row inline creation within groups |
+| `HierarchyStore` | Tree/master-detail hierarchy state |
+| `DebugStore` | Performance metrics (enable via `localStorage.vibegrid_debug=true`) |
+
+Bundle type: `VibeGridStores` in `stores/context.tsx`.
+
 ## Implementation Rules
 
 1. **All mutations via CommandBus** — no direct API calls from view modules
 2. **Real-time via EventBus** — no polling; use event-driven invalidation
 3. **New view modes** — implement `GridModule`, register with `viewModeRegistry.register()`
-4. **Cell renderers** — register via `SlotRegistry` only (not FieldTypeRegistry)
+4. **Cell renderers** — register via `SlotRegistry` only (FieldTypeRegistry has been removed)
 5. **Row actions** — set `enableSelectionColumn={true}`, bulk handlers receive `(rowIds[], rowsData[])`
 6. **Non-DataForge sources** — use `collectionOverride` + `skipDataFetching={true}`
+
+## Accessibility & Browser Automation
+
+VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
+
+| Attribute | Element | Purpose |
+|-----------|---------|---------|
+| `aria-rowindex` | rows | Row addressing (1-based, header=1) |
+| `aria-colindex` | cells | Column addressing (1-based) |
+| `aria-label` | cells | `"{Column}: {value}"` for snapshot readability |
+| `aria-roledescription` | affordances | `"link"` (navigate) or `"editable cell"` (edit) |
+| `data-testid` | cells | `cell-{rowId}-{colId}` for deterministic selection |
+| `data-affordance` | interactive elements | `navigate`, `edit`, `none` |
+| `aria-rowcount` / `aria-colcount` | grid | Total dimensions |
+
+**Programmatic column scroll:**
+```bash
+# Scroll to column by ID (centers in viewport, syncs header)
+agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("column_id")'
+# Instant (no animation): scrollToColumn("column_id", "instant")
+```
+
+**Hiding pattern:** Use `opacity: 0` + `pointer-events: none` (NOT `display: none`) for hover-to-reveal elements. `display: none` removes elements from Chrome's accessibility tree entirely, breaking screen readers and agent-browser snapshot. `visibility: hidden` also hides from the a11y tree. Only `opacity: 0` keeps elements discoverable.
+
+```css
+/* CORRECT — stays in ARIA tree */
+.hidden-until-hover {
+  opacity: 0;
+  pointer-events: none;
+}
+.hovered .hidden-until-hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* WRONG — removed from ARIA tree */
+.hidden-until-hover { display: none; }
+.hidden-until-hover { visibility: hidden; }
+```
 
 ## Anti-Patterns
 
 - Adding view modes by editing VibeGrid.tsx switch → use ViewModeRegistry
-- Registering cell renderers in 3 places → use SlotRegistry only
+- Registering cell renderers outside SlotRegistry → all renderers in `slots/slot-initialization.ts`
+- Using FieldTypeRegistry, ModularCellBridge, or CellFactory → these are removed; SlotRegistry is sole system
+- Inline rendering logic in column definitions → register via SlotRegistry
+- Global slot overrides without contextFilter → scope by entityType or schemaId
 - Expansion/collapse logic in `features/` → should be grid primitive
 - Direct API calls from view modules → use CommandBus
 - Polling for data updates → use EventBus
+- Using `display: none` for hover-to-reveal elements → use `opacity: 0` (keeps ARIA tree intact)
 
 ## CSV Export
 
@@ -77,9 +152,16 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | File | Purpose |
 |------|---------|
 | `VibeGrid.tsx` | Main component, module activation |
-| `modules/ViewModeRegistry.ts` | View mode registration + lazy loading |
-| `slots/SlotRegistry.ts` | Unified cell renderer resolution |
-| `stores/InteractionStore.ts` | UI state (selection, menus) |
-| `stores/GanttViewStore.ts` | Gantt state |
+| `modules/ViewModeRegistry.ts` | View mode registration + lazy loading (global singleton) |
+| `modules/GridModule.ts` | View module interface (id, render, init, registerSlots) |
+| `slots/SlotRegistry.ts` | Unified cell renderer resolution (instance-scoped) |
+| `slots/slot-initialization.ts` | All 27+ built-in CellRenderer registrations |
+| `stores/context.tsx` | `VibeGridStores` bundle + `useVibeGridStores()` hook |
+| `stores/TableCoreStore.ts` | Data state (rows, sort, filter, group, processedRows) |
+| `stores/VisualStateStore.ts` | Column layout, geometry, visual config |
+| `stores/InteractionStore.ts` | UI state (selection, menus, expansion) |
+| `stores/EditingStore.ts` | Cell edit session lifecycle |
+| `stores/ViewportStore.ts` | Scroll position, visible ranges |
+| `stores/InitStore.ts` | Grid initialization coordinator |
 | `utils/csv-export.ts` | CSV export utilities |
 | `utils/cascade-scheduler.ts` | Date cascading |

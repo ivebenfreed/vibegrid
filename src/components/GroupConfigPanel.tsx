@@ -205,10 +205,10 @@ export function GroupConfigPanel({
             Group By
           </CardTitle>
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-              </Button>
+            <CollapsibleTrigger
+              render={<Button variant="ghost" size="sm" className="h-6 w-6 p-0" />}
+            >
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </CollapsibleTrigger>
           </Collapsible>
         </div>
@@ -250,9 +250,9 @@ export function GroupConfigPanel({
 
                       <Select
                         value={field.sortDirection}
-                        onValueChange={(value: 'asc' | 'desc') =>
-                          handleGroupFieldSort(index, value)
-                        }
+                        onValueChange={(value) => {
+                          if (value !== null) handleGroupFieldSort(index, value as 'asc' | 'desc')
+                        }}
                       >
                         <SelectTrigger className="h-6 w-16 text-xs">
                           <SelectValue />
@@ -277,7 +277,11 @@ export function GroupConfigPanel({
               )}
 
               {/* Add Group Field */}
-              <Select onValueChange={handleAddGroupField}>
+              <Select
+                onValueChange={(value: string | null) => {
+                  if (value !== null) handleAddGroupField(value)
+                }}
+              >
                 <SelectTrigger className="h-8 text-sm">
                   <div className="flex items-center gap-2">
                     <Plus size={14} />
@@ -385,11 +389,13 @@ export function GroupConfigPanel({
 
                       {/* Add Aggregation */}
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="outline" size="sm" className="w-full h-7 text-xs">
-                            <Plus size={12} className="mr-1" />
-                            Add aggregation...
-                          </Button>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="outline" size="sm" className="w-full h-7 text-xs" />
+                          }
+                        >
+                          <Plus size={12} className="mr-1" />
+                          Add aggregation...
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56">
                           {aggregatableColumns

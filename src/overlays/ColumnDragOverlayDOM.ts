@@ -22,13 +22,13 @@ export class ColumnDragOverlayDOM {
   private container: HTMLElement
   private config: ColumnDragOverlayConfig
   private coordinateMapping: CoordinateMapping | null = null
-  private dragState: ColumnDragState | null = null
 
   // DOM elements
   private overlayContainer: HTMLDivElement | null = null
   private columnPreview: HTMLDivElement | null = null
   private dropIndicator: HTMLDivElement | null = null
   private dropIndex: number = -1
+  private dragState: ColumnDragState | null = null
 
   constructor(container: HTMLElement, config: ColumnDragOverlayConfig) {
     this.container = container

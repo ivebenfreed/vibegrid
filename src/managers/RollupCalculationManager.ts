@@ -6,11 +6,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
-import type {
-  EnhancedColumn,
-  RollupCalculator,
-  RollupConfig,
-} from '../field-types/FieldTypeRegistry'
+import type { EnhancedColumn, RollupCalculator, RollupConfig } from '../field-types/types'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'RollupCalculationManager.ts'])

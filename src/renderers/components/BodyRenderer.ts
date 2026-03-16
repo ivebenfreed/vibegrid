@@ -764,7 +764,7 @@ export class BodyRenderer {
   // ====================================
 
   /**
-   * Create a cell element using the unified CellFactory
+   * Create a cell element using SlotRegistry
    */
   createCellElement(
     row: any,
@@ -774,7 +774,7 @@ export class BodyRenderer {
     widthOverride?: number,
     _context: 'scroll' | 'initial' | 'manual' = 'initial',
   ): HTMLElement {
-    // PERFORMANCE: Simplified cell creation using ModularCellBridge efficiently
+    // PERFORMANCE: Simplified cell creation using SlotRegistry
     const baseRowData = row.data || row
 
     // GH#1240: Inject expansion state for row-expand column
@@ -848,7 +848,7 @@ export class BodyRenderer {
     throw new Error('SlotRegistry not available for cell rendering')
   }
 
-  // Note: Basic cell fallback removed - CellFactory must work
+  // Note: Basic cell fallback removed - SlotRegistry must work
 
   /**
    * Add interaction handlers to cell elements
@@ -871,13 +871,19 @@ export class BodyRenderer {
     // Set test ID for automated testing
     cellElement.setAttribute('data-testid', `cell-${row.id}-${column.id}`)
 
+    // Set aria-label for accessibility and agent-browser snapshot visibility
+    const cellText = cellElement.textContent?.trim()
+    if (cellText && column.name) {
+      cellElement.setAttribute('aria-label', `${column.name}: ${cellText}`)
+    }
+
     // Set field type metadata for CellActionRouter
     if (column.cellType) {
       cellElement.setAttribute('data-field-type', column.cellType)
     }
   }
 
-  // Note: Cell formatting methods removed - now handled by unified CellFactory
+  // Note: Cell formatting methods removed - now handled by SlotRegistry
 
   // ====================================
   // ROW MANAGEMENT METHODS
@@ -1276,7 +1282,8 @@ export class BodyRenderer {
     if (this.slotRegistry) {
       try {
         const context: CellRendererContext = {
-          viewMode: 'grid',
+          viewMode: 'table',
+          entityType: this.tableCoreStore?.entityType,
           rowData,
           tableCoreStore: this.tableCoreStore,
         }

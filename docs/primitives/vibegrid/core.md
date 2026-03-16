@@ -1,5 +1,5 @@
 ---
-domain: vibegrid
+primitive: vibegrid
 status: active
 relatedRules:
   - vibegrid
@@ -53,11 +53,21 @@ High-performance virtualized data grid component for rendering and editing large
 - **Expected:** Selected rows highlight with distinct background color, selection count updates in toolbar, actions bar enables
 - **Verify:** Selected rows visually distinct, selection state persists during scroll, bulk actions available when multiple rows selected
 
-### B7: Keyboard navigation (arrows, tab)
+### B7: Keyboard navigation
 - **ID:** keyboard-navigation
-- **Trigger:** User presses arrow keys, Tab, Shift+Tab, Enter, or Escape
-- **Expected:** Focus moves between cells (arrows), columns (Tab), rows (Enter), exit edit mode (Escape)
-- **Verify:** Visual focus indicator moves with keyboard input, accessible via screen reader, no mouse required for navigation
+- **Trigger:** User presses keyboard shortcuts while grid has focus
+- **Expected:** Full keyboard shortcut support:
+  - **Arrow keys** — move focus between cells
+  - **Tab / Shift+Tab** — move to next/previous column
+  - **Enter** — start editing focused cell, or move to next row if editing
+  - **Escape** — cancel current edit, or deselect if not editing
+  - **Ctrl+C / Ctrl+V / Ctrl+X** — copy/paste/cut (see `clipboard.md`)
+  - **Ctrl+Z / Ctrl+Shift+Z** — undo/redo (see `editing.md`)
+  - **Page Up / Page Down** — scroll by viewport height
+  - **Ctrl+Home / Ctrl+End** — jump to first/last row
+  - **Delete / Backspace** — clear selected cell values
+- **Verify:** Each shortcut performs its action, focus indicator moves visually, no mouse required
+- **Source:** `renderers/modules/KeyboardController.ts`, `coordination/InteractionCoordinator.ts`
 
 ### B8: Empty state shows placeholder
 - **ID:** empty-state-placeholder
@@ -70,7 +80,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1435)
 - **Trigger:** User scrolls horizontally in a grid with many columns
 - **Expected:** Only delta columns are added/removed from DOM (not full re-render), using binary search for visible range, Map-based O(1) lookups, and deferred render gating
-- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:964` (horizontal scroll observer), `stores/VisualStateStore.ts:355` (binary search), `coordinates/VibeGridXCoordinateManager.ts:81` (columnMap)
+- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (horizontal scroll observer), `stores/VisualStateStore.ts` (binary search), `coordinates/VibeGridXCoordinateManager.ts` (columnMap)
 - **Verify:** Horizontal scroll maintains 60fps, DOM cell count stays bounded, no duplicate cells appear
 
 ### B10: Dual-layer shell cell rendering on scroll
@@ -78,7 +88,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1437)
 - **Trigger:** User scrolls horizontally or vertically, causing new cells to enter viewport
 - **Expected:** New cells render as lightweight shell cells (~0.05ms each, textContent only, no MobX/affordances/handlers), then upgrade to rich cells via hybrid rAF/rIC scheduler during idle. Clicking a shell cell triggers immediate synchronous upgrade before interaction processing.
-- **Source:** `systems/vibegrid/renderers/core/CellUpgradeScheduler.ts:1` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:1341` (upgrade context), `systems/vibegrid/field-types/ModularCellBridge.ts:253` (createShellCell)
+- **Source:** `systems/vibegrid/renderers/core/RenderScheduler.ts` (scheduler), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (upgrade context)
 - **Verify:** Horizontal scroll maintains 60fps, shell cells show text immediately, rich upgrade completes within 2 frames for viewport cells
 
 ### B11: Delta-based selection updates
@@ -86,7 +96,7 @@ High-performance virtualized data grid component for rendering and editing large
 - **Status:** [x] Implemented (GH#1437)
 - **Trigger:** User selects or deselects cells
 - **Expected:** Only cells whose selection state changed get DOM class updates (O(delta) instead of O(n) full-grid scan). Shell cells that become selected are immediately upgraded to rich cells.
-- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts:445` (delta reaction), `systems/vibegrid/renderers/components/BodyRenderer.ts:133` (checkbox-only reaction)
+- **Source:** `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (delta reaction), `systems/vibegrid/renderers/components/BodyRenderer.ts` (checkbox-only reaction)
 - **Verify:** Selecting 1 cell in 1000-row grid updates only that cell, no full-grid flash
 
 ### B12: Canvas grid lines visible during scroll jumps
@@ -97,19 +107,35 @@ High-performance virtualized data grid component for rendering and editing large
 - **Source:** `systems/vibegrid/renderers/core/GridLineCanvas.ts` (canvas renderer), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (integration)
 - **Verify:** Scrollbar drag to row 5000 shows grid lines immediately (no blank white/dark flash), canvas redraw <1ms, theme-aware (light/dark mode)
 
+### B13: Inline row creation (ghost rows)
+- **ID:** inline-creation
+- **Status:** [x] Implemented
+- **Trigger:** User clicks "+ Add" button within an expanded group, or uses a keyboard shortcut for new row
+- **Expected:** A ghost row appears at the bottom of the group with inline editable fields. For simple entities (≤3 fields, no relationship fields), editing happens inline. For complex entities, an escalation opens the full creation form.
+- **Verify:** Ghost row appears in correct group, inline editing works for simple fields, complex entities escalate to form
+- **Source:** `stores/InlineCreationStore.ts`
+
+### B14: Programmatic scroll to column
+- **ID:** scroll-to-column
+- **Status:** [x] Implemented
+- **Trigger:** Product code calls `viewportStore.scrollToColumn(columnId)` or browser automation calls `document.querySelector('.vibegridx-viewport').scrollToColumn(columnId)`
+- **Expected:** Grid scrolls horizontally to center the target column in the viewport. Header syncs automatically via CSS transform.
+- **Verify:** Target column centered in viewport, header and body aligned
+- **Source:** `renderers/modules/ScrollController.ts` → `scrollToColumn()`, `stores/ViewportStore.ts`
+
 ## Architecture (GH#1413, GH#1435, GH#1437, GH#1442)
 
 - **ViewportStore** (`stores/ViewportStore.ts`) - Single source of truth for scroll position, viewport dimensions, content dimensions, row offsets, and visible range calculations
 - **InitStore** (`stores/InitStore.ts`) - Deterministic renderer lifecycle via MobX reaction: waits for columns > 0 + container + factory before creating renderer; destroys on cleanup
 - **Event handling** - Single scroll/resize path through ViewportStore; no duplicate listeners
-- **CellUpgradeScheduler** (`renderers/core/CellUpgradeScheduler.ts`) - Hybrid rAF/rIC scheduler for shell-to-rich cell upgrades: viewport cells upgraded via rAF (5ms budget), buffer cells via rIC (8ms budget), backpressure at 200 queue max, synchronous upgradeNow for user interactions (GH#1437)
+- **RenderScheduler** (`renderers/core/RenderScheduler.ts`) - Hybrid rAF/rIC scheduler for shell-to-rich cell upgrades: viewport cells upgraded via rAF (5ms budget), buffer cells via rIC (8ms budget), backpressure at 200 queue max, synchronous upgradeNow for user interactions (GH#1437)
 - **Selection delta reaction** - MobX reaction on selectionVersion computes diff of previous vs current selectedCells, applies O(delta) DOM class updates instead of O(n) full-grid scan (GH#1437)
 - Legacy dead code (`.backup` files, unused stores) removed
 
 ## Notes
 
 - Canvas grid lines: background `<canvas>` element draws body grid lines independently of DOM row availability, replacing CSS borders for scroll-jump resilience (GH#1442)
-- Dual-layer cell rendering: shell cells (~0.05ms) at scroll time, rich cells (~0.67ms) upgraded during idle via CellUpgradeScheduler (GH#1437)
+- Dual-layer cell rendering: shell cells (~0.05ms) at scroll time, rich cells (~0.67ms) upgraded during idle via RenderScheduler (GH#1437)
 - Column virtualization uses incremental DOM updates - only visible columns + buffer rendered, delta adds/removes on scroll (GH#1435)
 - Virtual scrolling uses DOM recycling - only 30-50 row elements in DOM regardless of total rows
 - Performance target: <16ms frame time for 60fps, <5ms per cell update
