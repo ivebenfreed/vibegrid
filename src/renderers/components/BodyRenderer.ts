@@ -1282,7 +1282,8 @@ export class BodyRenderer {
     if (this.slotRegistry) {
       try {
         const context: CellRendererContext = {
-          viewMode: 'grid',
+          viewMode: 'table',
+          entityType: this.tableCoreStore?.entityType,
           rowData,
           tableCoreStore: this.tableCoreStore,
         }
