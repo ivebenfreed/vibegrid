@@ -53,11 +53,21 @@ High-performance virtualized data grid component for rendering and editing large
 - **Expected:** Selected rows highlight with distinct background color, selection count updates in toolbar, actions bar enables
 - **Verify:** Selected rows visually distinct, selection state persists during scroll, bulk actions available when multiple rows selected
 
-### B7: Keyboard navigation (arrows, tab)
+### B7: Keyboard navigation
 - **ID:** keyboard-navigation
-- **Trigger:** User presses arrow keys, Tab, Shift+Tab, Enter, or Escape
-- **Expected:** Focus moves between cells (arrows), columns (Tab), rows (Enter), exit edit mode (Escape)
-- **Verify:** Visual focus indicator moves with keyboard input, accessible via screen reader, no mouse required for navigation
+- **Trigger:** User presses keyboard shortcuts while grid has focus
+- **Expected:** Full keyboard shortcut support:
+  - **Arrow keys** — move focus between cells
+  - **Tab / Shift+Tab** — move to next/previous column
+  - **Enter** — start editing focused cell, or move to next row if editing
+  - **Escape** — cancel current edit, or deselect if not editing
+  - **Ctrl+C / Ctrl+V / Ctrl+X** — copy/paste/cut (see `clipboard.md`)
+  - **Ctrl+Z / Ctrl+Shift+Z** — undo/redo (see `editing.md`)
+  - **Page Up / Page Down** — scroll by viewport height
+  - **Ctrl+Home / Ctrl+End** — jump to first/last row
+  - **Delete / Backspace** — clear selected cell values
+- **Verify:** Each shortcut performs its action, focus indicator moves visually, no mouse required
+- **Source:** `renderers/modules/KeyboardController.ts`, `coordination/InteractionCoordinator.ts`
 
 ### B8: Empty state shows placeholder
 - **ID:** empty-state-placeholder
@@ -96,6 +106,22 @@ High-performance virtualized data grid component for rendering and editing large
 - **Expected:** Grid lines remain visible immediately via background canvas, even before row DOM elements are created. Canvas redraws on scroll via MobX reaction, reading column positions from VisualStateStore and row offsets from TableCoreStore. Replaces CSS-based cell borders with single canvas rendering path.
 - **Source:** `systems/vibegrid/renderers/core/GridLineCanvas.ts` (canvas renderer), `systems/vibegrid/renderers/core/SimplePassiveRenderer.ts` (integration)
 - **Verify:** Scrollbar drag to row 5000 shows grid lines immediately (no blank white/dark flash), canvas redraw <1ms, theme-aware (light/dark mode)
+
+### B13: Inline row creation (ghost rows)
+- **ID:** inline-creation
+- **Status:** [x] Implemented
+- **Trigger:** User clicks "+ Add" button within an expanded group, or uses a keyboard shortcut for new row
+- **Expected:** A ghost row appears at the bottom of the group with inline editable fields. For simple entities (≤3 fields, no relationship fields), editing happens inline. For complex entities, an escalation opens the full creation form.
+- **Verify:** Ghost row appears in correct group, inline editing works for simple fields, complex entities escalate to form
+- **Source:** `stores/InlineCreationStore.ts`
+
+### B14: Programmatic scroll to column
+- **ID:** scroll-to-column
+- **Status:** [x] Implemented
+- **Trigger:** Product code calls `viewportStore.scrollToColumn(columnId)` or browser automation calls `document.querySelector('.vibegridx-viewport').scrollToColumn(columnId)`
+- **Expected:** Grid scrolls horizontally to center the target column in the viewport. Header syncs automatically via CSS transform.
+- **Verify:** Target column centered in viewport, header and body aligned
+- **Source:** `renderers/modules/ScrollController.ts` → `scrollToColumn()`, `stores/ViewportStore.ts`
 
 ## Architecture (GH#1413, GH#1435, GH#1437, GH#1442)
 

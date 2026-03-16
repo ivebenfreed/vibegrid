@@ -71,6 +71,15 @@ features/{domain}/
 └── styles/{entity}-grid.css         # Grid styles
 ```
 
+## Feature Documentation
+
+| Feature | Doc | Key Behaviors |
+|---------|-----|---------------|
+| Cell editing | `docs/modules/vibegrid/core/editing.md` | Start/commit/cancel, blur policy, 17 editor types, undo/redo |
+| Column interactions | `docs/modules/vibegrid/core/column-interactions.md` | Resize, reorder, context menu, row drag, bulk actions |
+| Clipboard & fill | `docs/modules/vibegrid/core/clipboard.md` | Copy/paste with type validation, fill handle |
+| Core grid | `docs/modules/vibegrid/core/core.md` | Render, sort, select, keyboard nav, inline creation |
+
 ## Anti-Patterns
 
 - Inline rendering logic in column definitions → register via SlotRegistry
