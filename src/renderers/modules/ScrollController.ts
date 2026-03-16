@@ -13,6 +13,10 @@ export interface ScrollControllerOptions {
   headerViewport?: HTMLElement | null
   container?: HTMLElement
   viewportStore?: ViewportStore
+  coordinateManager?: {
+    getColumnOffset(columnId: string): number
+    getColumnWidth(columnId: string): number
+  } | null
   onScroll?: (scrollLeft: number, scrollTop: number) => void
   onRapidScroll?: (scrollLeft: number, scrollTop: number) => void
   onClickOutside?: (e: MouseEvent) => void
@@ -33,6 +37,7 @@ export class ScrollController {
   private keyboardNavController?: any
   private selectionController?: any
   private interactionStore?: any
+  private coordinateManager: ScrollControllerOptions['coordinateManager']
   private lastScrollLeft: number = 0
   private lastScrollTop: number = 0
   private scrollVelocityThreshold: number = 200
@@ -55,8 +60,17 @@ export class ScrollController {
     this.keyboardNavController = options.keyboardNavController
     this.selectionController = options.selectionController
     this.interactionStore = options.interactionStore
+    this.coordinateManager = options.coordinateManager || null
 
     this.setupScrollHandling()
+
+    // Wire scrollToColumn on ViewportStore so product code can call it
+    if (this.viewportStore) {
+      this.viewportStore.setScrollToColumnFn(this.scrollToColumn.bind(this))
+    }
+
+    // Expose scrollToColumn on the viewport DOM element for browser automation
+    ;(this.viewport as any).scrollToColumn = this.scrollToColumn.bind(this)
   }
 
   /**
@@ -292,6 +306,36 @@ export class ScrollController {
         isDirectViewport: isDirectViewportClick,
       })
     }
+  }
+
+  /**
+   * Scroll the viewport to bring a column into view, centered horizontally.
+   * Returns true if the column was found and scrolled to.
+   */
+  scrollToColumn(columnId: string, behavior?: ScrollBehavior): boolean {
+    if (!this.coordinateManager) {
+      fileLog.warn('scrollToColumn: no coordinateManager available')
+      return false
+    }
+
+    const offset = this.coordinateManager.getColumnOffset(columnId)
+    const width = this.coordinateManager.getColumnWidth(columnId)
+    if (offset === 0 && width === 120) {
+      // getColumnOffset returns 0 for unknown columns, check if it's actually column 0
+      const knownOffset = this.coordinateManager.getColumnOffset(columnId)
+      if (knownOffset === 0 && !this.viewport.querySelector(`[data-column-id="${columnId}"]`)) {
+        fileLog.warn('scrollToColumn: column not found', { columnId })
+        return false
+      }
+    }
+
+    // Center the column in the viewport
+    const viewportWidth = this.viewport.clientWidth
+    const targetLeft = Math.max(0, offset - (viewportWidth - width) / 2)
+
+    this.scrollTo({ left: targetLeft, behavior: behavior || 'smooth' })
+    fileLog.debug('scrollToColumn', { columnId, offset, width, targetLeft })
+    return true
   }
 
   /**

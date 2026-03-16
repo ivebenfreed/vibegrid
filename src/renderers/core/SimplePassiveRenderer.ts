@@ -1375,6 +1375,7 @@ export class SimplePassiveRenderer {
         headerViewport: this.headerViewport || undefined,
         container: this.container,
         viewportStore: this.stores.viewportStore,
+        coordinateManager: this.stores.coordinateManager,
         onClickOutside: (e: MouseEvent) => {
           // ✅ Route through InteractionCoordinator for proper service layer handling
           if (this.interactionCoordinator) {

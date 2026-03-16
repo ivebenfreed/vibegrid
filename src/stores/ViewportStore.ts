@@ -80,6 +80,13 @@ export class ViewportStore implements IStore {
 
   private disposers = new DisposerManager()
 
+  /**
+   * Callback for programmatic column scrolling.
+   * Set by ScrollController during initialization.
+   */
+  private _scrollToColumnFn: ((columnId: string, behavior?: ScrollBehavior) => boolean) | null =
+    null
+
   constructor() {
     makeObservable(this)
     logger.debug('ViewportStore created')
@@ -104,6 +111,26 @@ export class ViewportStore implements IStore {
   setTableCoreStore(store: any): void {
     this.tableCoreStore = store
     logger.info('TableCoreStore set on ViewportStore')
+  }
+
+  /**
+   * Set the scroll-to-column implementation (called by ScrollController during init)
+   */
+  setScrollToColumnFn(fn: (columnId: string, behavior?: ScrollBehavior) => boolean): void {
+    this._scrollToColumnFn = fn
+  }
+
+  /**
+   * Scroll the grid viewport to bring a column into view.
+   * Centers the column horizontally if it's outside the current viewport.
+   * Returns true if the column was found and scrolled to.
+   */
+  scrollToColumn(columnId: string, behavior?: ScrollBehavior): boolean {
+    if (!this._scrollToColumnFn) {
+      logger.warn('scrollToColumn called before ScrollController initialized')
+      return false
+    }
+    return this._scrollToColumnFn(columnId, behavior)
   }
 
   // ====================================
