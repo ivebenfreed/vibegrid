@@ -258,6 +258,9 @@ export class DOMElementFactory {
     const headerCell = this.createElement('div', 'vibegridx-header-cell')
     headerCell.dataset.field = column.id // Add field ID for sort updates
     const isNarrowIndicator = width <= 50 && !(column.label || column.name)
+    if (isNarrowIndicator) {
+      headerCell.classList.add('vibegridx-narrow-indicator')
+    }
     headerCell.style.cssText = `
       flex: 0 0 ${width}px;
       height: 100%;

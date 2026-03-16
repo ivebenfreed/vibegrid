@@ -109,6 +109,18 @@
 
 /* Active state cursor handled programmatically */
 
+/* Narrow indicator columns (e.g. unread dot) — icon-only header */
+.vibegridx-header-cell.vibegridx-narrow-indicator {
+  min-width: auto;
+  max-width: none;
+  overflow: visible;
+  padding: 0 4px;
+}
+
+.vibegridx-header-cell.vibegridx-narrow-indicator .vibegridx-sort-icon {
+  margin-left: 0;
+}
+
 /* First header cell needs left border */
 .vibegridx-header-cell:first-child {
   border-left: 1px solid var(--border);
