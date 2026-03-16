@@ -19,12 +19,12 @@ Inline cell editing with type-aware editors, blur policy system, validation, and
 
 ### Inline Cell Editing
 
-### B1: Double-click or Enter starts cell editing
+### B1: Single-click starts cell editing
 - **ID:** start-edit
-- **Trigger:** User double-clicks a cell, presses Enter on a focused cell, or clicks a cell's edit affordance (`data-affordance="edit"`)
+- **Trigger:** User single-clicks a cell's edit affordance (`data-affordance="edit"`), clicks the cell content area, or presses Enter on a focused cell. Clicking the cell padding (outside content) triggers row selection instead.
 - **Expected:** Edit overlay opens positioned over the cell. The appropriate editor type renders based on the column's `CellType`. Cell value is loaded into the editor.
-- **Verify:** Edit overlay visible, editor matches field type (text input for text, date picker for date, select dropdown for select), existing value pre-populated
-- **Source:** `stores/EditingStore.ts` → `startEdit()`, `overlays/EditingOverlay.tsx`
+- **Verify:** Edit overlay visible, editor matches field type (text input for text, date picker for date, select dropdown for select), existing value pre-populated. Click on cell padding selects the row, not edit.
+- **Source:** `stores/EditingStore.ts` → `startEdit()`, `overlays/EditingOverlay.tsx`, `coordination/InteractionCoordinator.ts`
 
 ### B2: Commit edit on Enter or blur
 - **ID:** commit-edit
