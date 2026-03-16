@@ -598,14 +598,10 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
       return 'user_reference'
     case 'entity_reference':
       return 'entity_reference'
-    case 'custom_user_reference':
-      return 'custom_user_reference'
-    case 'custom_entity_reference':
-      return 'custom_entity_reference'
 
     // Relationship link fields (auto-injected) → reuse entity reference renderer
     case 'relationship_link':
-      return 'custom_entity_reference'
+      return 'entity_reference'
 
     // Rollup types
     case 'rollup_count':

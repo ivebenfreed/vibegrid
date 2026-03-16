@@ -68,7 +68,6 @@ export class ScrollController {
     if (this.viewportStore) {
       this.viewportStore.setScrollToColumnFn(this.scrollToColumn.bind(this))
     }
-
     // Expose scrollToColumn on the viewport DOM element for browser automation
     ;(this.viewport as any).scrollToColumn = this.scrollToColumn.bind(this)
   }

@@ -197,12 +197,8 @@ export interface VibeGridFieldType {
 // Utility functions
 export function isRelationshipField(column: EnhancedColumn): boolean {
   const relationshipTypes = [
-    'custom_user_reference',
-    'custom_entity_reference',
     'user_reference',
     'entity_reference',
-    'relationship-single',
-    'relationship-multi',
     'reference-select',
     'reference-multi',
   ]

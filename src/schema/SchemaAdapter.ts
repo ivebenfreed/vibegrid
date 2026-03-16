@@ -108,12 +108,8 @@ export class SchemaAdapter {
    */
   static isRelationshipField(column: Column): boolean {
     const relationshipTypes = [
-      'custom_user_reference',
-      'custom_entity_reference',
       'user_reference',
       'entity_reference',
-      'relationship-single',
-      'relationship-multi',
       'reference-select',
       'reference-multi',
     ]
@@ -421,8 +417,6 @@ export class SchemaAdapter {
       case 'file':
       case 'image':
         return 'file'
-      case 'custom_user_reference':
-      case 'custom_entity_reference':
       case 'user_reference':
       case 'entity_reference':
         return 'relationship-select'

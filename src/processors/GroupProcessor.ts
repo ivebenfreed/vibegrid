@@ -41,6 +41,7 @@ interface GroupTree {
 // GROUP PROCESSOR CLASS
 // ====================================
 
+// biome-ignore lint/complexity/noStaticOnlyClass: Legacy class structure used across codebase
 export class GroupProcessor {
   // ====================================
   // MAIN PROCESSING METHOD
@@ -531,7 +532,7 @@ export class GroupProcessor {
       }
     }
 
-    groups.forEach((group) => addGroupAndChildren(group, 0))
+    for (const group of groups) addGroupAndChildren(group, 0)
 
     fileLog.debug('GroupProcessor.flattenGroupTree result', {
       totalVirtualRows: virtualRows.length,
@@ -598,12 +599,7 @@ export class GroupProcessor {
   /**
    * Relationship field types that require entity name resolution.
    */
-  private static readonly RELATIONSHIP_FIELD_TYPES = [
-    'user_reference',
-    'custom_user_reference',
-    'entity_reference',
-    'custom_entity_reference',
-  ]
+  private static readonly RELATIONSHIP_FIELD_TYPES = ['user_reference', 'entity_reference']
 
   /**
    * Check if a column is a relationship field.
@@ -619,7 +615,7 @@ export class GroupProcessor {
   private static getTargetEntityType(column: Column): string {
     const cellType = column.cellType as string
     // For user references, target is always 'PlatformUser'
-    if (cellType === 'user_reference' || cellType === 'custom_user_reference') {
+    if (cellType === 'user_reference') {
       return 'PlatformUser'
     }
     // For entity references, get from column metadata
@@ -791,7 +787,7 @@ export class GroupProcessor {
     })
 
     // Add any remaining rows that weren't in the order config
-    rowsById.forEach((row) => orderedRows.push(row))
+    for (const row of rowsById.values()) orderedRows.push(row)
 
     return orderedRows
   }

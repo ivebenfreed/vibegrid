@@ -153,9 +153,7 @@ export function formatCellValue(
 
     // Reference — use display value as-is
     case 'user_reference':
-    case 'custom_user_reference':
     case 'entity_reference':
-    case 'custom_entity_reference':
     case 'reference-select':
       return String(value)
 

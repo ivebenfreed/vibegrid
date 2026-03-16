@@ -66,9 +66,7 @@ export const COLUMN_DEFAULTS: Record<
   // Reference types
   'reference-select': { width: 160, minWidth: 120, maxWidth: 300 },
   user_reference: { width: 180, minWidth: 140, maxWidth: 300 },
-  custom_user_reference: { width: 180, minWidth: 140, maxWidth: 300 },
   entity_reference: { width: 180, minWidth: 140, maxWidth: 300 },
-  custom_entity_reference: { width: 180, minWidth: 140, maxWidth: 300 },
   relationship_link: { width: 180, minWidth: 140, maxWidth: 300 },
 
   // Computed/rollup types

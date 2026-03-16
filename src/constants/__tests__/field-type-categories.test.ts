@@ -59,13 +59,8 @@ describe('FIELD_TYPE_CATEGORIES', () => {
       'multi-select',
       'multiselect',
       'tags',
-      'relationship-single',
-      'relationship-multi',
-      'relationship-collection',
-      'custom_entity_reference',
       'entity_reference',
       'user_reference',
-      'custom_user_reference',
       'reference-select',
       'reference-multi',
       'priority_option',
@@ -144,7 +139,7 @@ describe('isDropdownPositioned', () => {
   it('returns true for dropdown types', () => {
     expect(isDropdownPositioned('select')).toBe(true)
     expect(isDropdownPositioned('date')).toBe(true)
-    expect(isDropdownPositioned('relationship-single')).toBe(true)
+    expect(isDropdownPositioned('entity_reference')).toBe(true)
   })
 
   it('returns true for boolean types (positioned as dropdown)', () => {
@@ -178,6 +173,27 @@ describe('isModalTextType', () => {
     expect(isModalTextType('text')).toBe(false)
     expect(isModalTextType('select')).toBe(false)
     expect(isModalTextType('number')).toBe(false)
+  })
+})
+
+describe('GH#1906: collapsed reference field types', () => {
+  it('maps only canonical reference types to dropdown', () => {
+    expect(FIELD_TYPE_CATEGORIES.entity_reference).toBe('dropdown')
+    expect(FIELD_TYPE_CATEGORIES.user_reference).toBe('dropdown')
+  })
+
+  it('does not map removed reference type aliases', () => {
+    // These were removed in GH#1906 — they should not exist in the category map
+    const removedTypes = [
+      'custom_entity_reference',
+      'custom_user_reference',
+      'relationship-single',
+      'relationship-multi',
+      'relationship-collection',
+    ]
+    for (const type of removedTypes) {
+      expect(FIELD_TYPE_CATEGORIES[type]).toBeUndefined()
+    }
   })
 })
 
