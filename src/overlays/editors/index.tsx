@@ -4,14 +4,10 @@ import type { CellRef, Column } from '../../types'
 import { BooleanEditor } from './BooleanEditor'
 import { DateEditor } from './DateEditor'
 import { ModalTextEditor } from './ModalTextEditor'
-import { MultiRelationshipEditor } from './MultiRelationshipEditor'
-import { MultiSelectEditor } from './MultiSelectEditor'
 import { NumberEditor } from './NumberEditor'
-import { ReferenceMultiEditor } from './ReferenceMultiEditor'
-import { ReferenceSelectEditor } from './ReferenceSelectEditor'
-import { RelationshipEditor } from './RelationshipEditor'
-import { SelectEditor } from './SelectEditor'
-import { SingleRelationshipEditor } from './SingleRelationshipEditor'
+import { PickerEntityEditor } from './PickerEntityEditor'
+import { PickerEnumEditor } from './PickerEnumEditor'
+import { PickerMultiEditor } from './PickerMultiEditor'
 import { TextEditor } from './TextEditor'
 import { ValidationErrorDisplay } from './ValidationErrorDisplay'
 
@@ -34,11 +30,11 @@ export function isTagsLikeField(column: Column, initialValue: any): boolean {
     column.options.length > 0
   )
 
-  // For tags fields, we should use MultiSelectEditor if:
+  // For tags fields, we should use PickerMultiEditor if:
   // 1. The column name indicates it's a tags field (most important)
   // 2. OR it has comma-separated values
   // 3. OR it has predefined options
-  // The tags field should use MultiSelectEditor even without predefined options
+  // The tags field should use PickerMultiEditor even without predefined options
   const result: boolean = isTagsName || hasCommaSeperatedValues || hasOptions
 
   fileLog.debug('isTagsLikeField analysis', {
@@ -57,16 +53,12 @@ export function isTagsLikeField(column: Column, initialValue: any): boolean {
 export {
   TextEditor,
   NumberEditor,
-  SelectEditor,
-  MultiSelectEditor,
+  PickerEnumEditor,
+  PickerMultiEditor,
+  PickerEntityEditor,
   BooleanEditor,
   DateEditor,
-  SingleRelationshipEditor,
-  MultiRelationshipEditor,
-  ReferenceSelectEditor,
-  ReferenceMultiEditor,
   ModalTextEditor,
-  RelationshipEditor,
   ValidationErrorDisplay,
 }
 
@@ -132,17 +124,17 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'select':
     case 'single-select':
     case 'enum':
-      return <SelectEditor {...props} />
+      return <PickerEnumEditor {...props} />
 
     case 'select-multi':
     case 'multi-select':
-      return <MultiSelectEditor {...props} />
+      return <PickerMultiEditor {...props} />
 
     case 'tags':
     case 'multiselect':
-      // Tags fields should use MultiSelectEditor with dynamic options
-      fileLog.debug('createEditor: Creating MultiSelectEditor for tags field')
-      return <MultiSelectEditor {...props} />
+      // Tags fields should use PickerMultiEditor with dynamic options
+      fileLog.debug('createEditor: Creating PickerMultiEditor for tags field')
+      return <PickerMultiEditor {...props} />
 
     case 'json':
     case 'jsonb':
@@ -154,8 +146,8 @@ export function createEditor(props: EditorProps): React.ReactElement {
       })
 
       if (isTagsLikeField(column, props.initialValue)) {
-        fileLog.debug('createEditor: JSON field detected as tags, using MultiSelectEditor')
-        return <MultiSelectEditor {...props} />
+        fileLog.debug('createEditor: JSON field detected as tags, using PickerMultiEditor')
+        return <PickerMultiEditor {...props} />
       }
 
       // Fallback to text editor for regular JSON
@@ -184,28 +176,28 @@ export function createEditor(props: EditorProps): React.ReactElement {
       return <TextEditor {...props} />
 
     case 'entity_reference':
-      return <RelationshipEditor {...props} />
+      return <PickerEntityEditor {...props} />
 
     case 'reference-select':
-      fileLog.debug('createEditor: Creating ReferenceSelectEditor')
-      return <ReferenceSelectEditor {...props} />
+      fileLog.debug('createEditor: Creating PickerEntityEditor for reference-select')
+      return <PickerEntityEditor {...props} />
 
     case 'reference-multi':
-      fileLog.debug('createEditor: Creating ReferenceMultiEditor')
-      return <ReferenceMultiEditor {...props} />
+      fileLog.debug('createEditor: Creating PickerMultiEditor for reference-multi')
+      return <PickerMultiEditor {...props} />
 
     // System option reference types
     case 'priority_option':
     case 'status_option':
     case 'category_option':
     case 'task_type_option':
-      fileLog.debug('createEditor: Creating SelectEditor for system option type', { cellType })
-      return <SelectEditor {...props} />
+      fileLog.debug('createEditor: Creating PickerEnumEditor for system option type', { cellType })
+      return <PickerEnumEditor {...props} />
 
-    // User reference type - use dedicated RelationshipEditor
+    // User reference type - use dedicated PickerEntityEditor
     case 'user_reference':
-      fileLog.debug('createEditor: Creating RelationshipEditor for user reference', { cellType })
-      return <RelationshipEditor {...props} />
+      fileLog.debug('createEditor: Creating PickerEntityEditor for user reference', { cellType })
+      return <PickerEntityEditor {...props} />
 
     default:
       // Default to text editor for unknown types

@@ -1,5 +1,6 @@
+import { Check } from 'lucide-react'
+import React from 'react'
 import type { CellRef, Column } from '../../types'
-import { ComboboxEditor } from './ComboboxEditor'
 
 interface BooleanEditorProps {
   cell: CellRef
@@ -11,42 +12,60 @@ interface BooleanEditorProps {
 }
 
 export function BooleanEditor({
-  cell,
-  column,
+  cell: _cell,
+  column: _column,
   initialValue,
   onCommit,
   onCancel,
-  variant = 'checkbox',
+  variant: _variant = 'checkbox',
 }: BooleanEditorProps) {
-  // Convert boolean to string for ComboboxEditor
-  const stringValue = initialValue === null ? null : String(initialValue)
+  const [hasCommitted, setHasCommitted] = React.useState(false)
+  const options = [
+    { value: 'true', label: 'Yes' },
+    { value: 'false', label: 'No' },
+  ]
 
-  const handleCommit = (value: any) => {
-    if (value === null) {
+  const handleSelect = (value: string) => {
+    if (hasCommitted) return
+    setHasCommitted(true)
+    if (value === '__null__') {
       onCommit(null)
     } else {
       onCommit(value === 'true')
     }
   }
 
-  // Create boolean options
-  const booleanColumn = {
-    ...column,
-    options: [
-      { value: 'true', label: 'Yes' },
-      { value: 'false', label: 'No' },
-    ],
-  }
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onCancel()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onCancel])
+
+  const stringValue = initialValue === null ? null : String(initialValue)
 
   return (
-    <ComboboxEditor
-      cell={cell}
-      column={booleanColumn}
-      initialValue={stringValue}
-      onCommit={handleCommit}
-      onCancel={onCancel}
-      placeholder="Select..."
-      searchPlaceholder="Search..."
-    />
+    <div className="w-full border rounded-md shadow-lg bg-background">
+      <div className="p-1">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground ${
+              stringValue === opt.value ? 'bg-accent/50 font-medium' : ''
+            }`}
+            onClick={() => handleSelect(opt.value)}
+          >
+            <span className="flex-1">{opt.label}</span>
+            {stringValue === opt.value && <Check className="h-4 w-4 text-primary" />}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
