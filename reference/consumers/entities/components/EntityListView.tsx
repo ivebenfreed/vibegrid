@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Loader2 } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, Loader2, Play } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -180,6 +180,35 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     hidden: () => !hasUploadMode,
   }
 
+  // GH#1926 Phase 4: LienWaiverCycle-specific entity actions
+  const startCycleAction: RowAction = {
+    id: 'start-cycle',
+    label: 'Start Cycle',
+    icon: Play,
+    hidden: (rowData: any) => {
+      // Only show for LienWaiverCycle entities in 'open' status
+      const status = rowData?.status ?? rowData?.data?.status
+      return entityName !== 'LienWaiverCycle' || status !== 'open'
+    },
+  }
+
+  const exportWaiversAction: RowAction = {
+    id: 'export-waivers',
+    label: 'Export Waivers',
+    icon: Download,
+    hidden: (rowData: any) => {
+      // Only show for LienWaiverCycle entities in 'complete' or 'closed' status
+      const status = rowData?.status ?? rowData?.data?.status
+      return entityName !== 'LienWaiverCycle' || (status !== 'complete' && status !== 'closed')
+    },
+  }
+
+  // Assemble row actions based on entity type
+  const allRowActions: RowAction[] = [reviewAction]
+  if (entityName === 'LienWaiverCycle') {
+    allRowActions.push(startCycleAction, exportWaiversAction)
+  }
+
   return (
     <>
       {/* GH#1693: Compliance summary banner for COI entity type */}
@@ -202,10 +231,49 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
-        rowActions={[reviewAction]}
+        rowActions={allRowActions}
         onRowAction={(actionId, rowIds, rowsData) => {
           if (actionId === 'review-selected') {
             onOpenReview(rowIds, rowsData)
+          }
+          // GH#1926: Lien waiver cycle actions trigger workflows
+          if (actionId === 'start-cycle' && rowIds.length > 0) {
+            // Trigger lien-waiver-start-cycle workflow via status change to in_progress
+            const record = rowsData[0]?.data ?? rowsData[0]
+            const recordId = record?.id ?? rowIds[0]
+            if (recordId) {
+              orpcClient.dataforge.data
+                .update({
+                  entityName: 'LienWaiverCycle',
+                  recordId,
+                  data: { status: 'in_progress' },
+                })
+                .then(() => {
+                  toast.success('Cycle started — waiver requests are being created')
+                })
+                .catch((err: Error) => {
+                  toast.error(`Failed to start cycle: ${err.message}`)
+                })
+            }
+          }
+          if (actionId === 'export-waivers' && rowIds.length > 0) {
+            // Trigger export by changing status to closed (fires lien-waiver-export workflow)
+            const record = rowsData[0]?.data ?? rowsData[0]
+            const recordId = record?.id ?? rowIds[0]
+            if (recordId) {
+              orpcClient.dataforge.data
+                .update({
+                  entityName: 'LienWaiverCycle',
+                  recordId,
+                  data: { status: 'closed' },
+                })
+                .then(() => {
+                  toast.success('Export started — document will be available shortly')
+                })
+                .catch((err: Error) => {
+                  toast.error(`Failed to export waivers: ${err.message}`)
+                })
+            }
           }
         }}
       />
