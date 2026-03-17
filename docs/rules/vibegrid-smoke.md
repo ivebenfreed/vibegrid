@@ -27,7 +27,7 @@ phases:
 
           3. Discover entity types and find one with diverse field types:
           ```bash
-          pnpm bpd 'auth ceo | orpc /dataforge/schemas/list'
+          pnpm bpd 'auth ceo | orpc /dataforge/schema/getAll'
           ```
 
           Pick the entity type with the most diverse field coverage (text, number,
