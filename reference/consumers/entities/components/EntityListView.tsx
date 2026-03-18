@@ -516,7 +516,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           <TopNav links={[]} />
         </Header>
         <Main>
-          <EntityBreadcrumbs entityName={schema.entityName} />
+          <EntityBreadcrumbs entityName={schema.entityName} displayName={schema.displayName} />
           <EntityEmptyState
             entityName={schema.entityName}
             creationModes={creationModes}
@@ -562,7 +562,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       {/* Main Content */}
       <Main fluid className="flex flex-col gap-4 sm:gap-6">
         {/* Breadcrumbs */}
-        <EntityBreadcrumbs entityName={schema.entityName} />
+        <EntityBreadcrumbs entityName={schema.entityName} displayName={schema.displayName} />
 
         {/* Review queue banner — GH#1534: reviewCount uses backend count when loaded, upload store count while loading */}
         {reviewCount > 0 && (
