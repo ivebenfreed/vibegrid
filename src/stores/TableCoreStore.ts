@@ -167,6 +167,47 @@ function sortableValue(val: any): any {
   return val
 }
 
+/** Check if a value is empty (null, undefined, or empty string) */
+function isEmpty(val: any): boolean {
+  return val == null || val === ''
+}
+
+/** Natural string collator: case-insensitive, numeric-aware */
+const naturalCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base',
+})
+
+/**
+ * Compare two sortable values with natural ordering:
+ * - Nulls/empty always sort last (regardless of direction)
+ * - Strings use locale-aware, case-insensitive, numeric-aware comparison
+ * - Numbers use numeric comparison
+ */
+function compareValues(aVal: any, bVal: any): number {
+  const aEmpty = isEmpty(aVal)
+  const bEmpty = isEmpty(bVal)
+
+  // Both empty — equal
+  if (aEmpty && bEmpty) return 0
+  // Nulls always sort last (caller handles direction inversion)
+  if (aEmpty) return 1
+  if (bEmpty) return -1
+
+  // String comparison: locale-aware, numeric, case-insensitive
+  if (typeof aVal === 'string' && typeof bVal === 'string') {
+    return naturalCollator.compare(aVal, bVal)
+  }
+
+  // Numeric comparison
+  if (typeof aVal === 'number' && typeof bVal === 'number') {
+    return aVal - bVal
+  }
+
+  // Mixed types: coerce to string for comparison
+  return naturalCollator.compare(String(aVal), String(bVal))
+}
+
 function applySorting(rows: any[], sortBy: SortConfig[]): any[] {
   if (!sortBy || sortBy.length === 0) return rows
 
@@ -175,9 +216,14 @@ function applySorting(rows: any[], sortBy: SortConfig[]): any[] {
       const aVal = sortableValue(a.data ? a.data[sort.field] : a[sort.field])
       const bVal = sortableValue(b.data ? b.data[sort.field] : b[sort.field])
 
-      if (aVal === bVal) continue
+      const comparison = compareValues(aVal, bVal)
+      if (comparison === 0) continue
 
-      const comparison = aVal < bVal ? -1 : 1
+      // Nulls always last: don't invert null-vs-value comparisons
+      const aEmpty = isEmpty(aVal)
+      const bEmpty = isEmpty(bVal)
+      if (aEmpty || bEmpty) return comparison
+
       return sort.direction === 'asc' ? comparison : -comparison
     }
     return 0
