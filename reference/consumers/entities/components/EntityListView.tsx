@@ -67,7 +67,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onInlineCreate,
   onEscalate,
   onOpenReview,
-  hasUploadMode,
+  hasReviewMode,
 }: {
   entityName: string
   orgId: string
@@ -76,7 +76,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onInlineCreate: (defaults: Record<string, unknown>) => Promise<string>
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
   onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
-  hasUploadMode: boolean
+  hasReviewMode: boolean
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -177,7 +177,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     id: 'review-selected',
     label: 'Review',
     icon: ClipboardCheck,
-    hidden: () => !hasUploadMode,
+    hidden: () => !hasReviewMode,
   }
 
   // GH#1926 Phase 4: LienWaiverCycle-specific entity actions
@@ -349,6 +349,8 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   const creationModes = creationConfigQuery.data?.creationModes ?? ['form']
   const hasUploadMode = creationModes.includes('upload')
+  // Review mode: enabled by 'upload' (entities created from files) or 'review' (entities with review queue but form-created)
+  const hasReviewMode = hasUploadMode || (creationModes as string[]).includes('review')
   const primaryFileConfig = creationConfigQuery.data?.primaryFile
 
   // Upload orchestration hook (conditionally enabled based on schema config)
@@ -371,7 +373,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const [reviewQueue, setReviewQueue] = useState<EntityRecord[]>([])
   // reviewSessionId forces EntityReviewSheet remount on each open, preventing stale queue
   const [reviewSessionId, setReviewSessionId] = useState(0)
-  const reviewQueueResult = useReviewQueue(resolvedName, hasUploadMode ? orgId || null : null)
+  const reviewQueueResult = useReviewQueue(resolvedName, hasReviewMode ? orgId || null : null)
   // Use backend count when loaded; fall back to upload store count while loading
   const reviewCount = reviewQueueResult.isLoading
     ? uploadStore.reviewRequiredCount
@@ -620,7 +622,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
-              hasUploadMode={hasUploadMode}
+              hasReviewMode={hasReviewMode}
               onCellClick={(rowId, _columnId, event) => {
                 // GH#1843: Check if click originated from a relationship badge — open drawer for referenced entity
                 if (event) {
