@@ -299,6 +299,11 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     return getBasicColumns<T>()
   }
 
+  // Read primaryField from schema businessMetadata (e.g., 'subject' for GCRFIDraft)
+  // When set, the matching column gets isPrimaryField: true → entity-name renderer with nav affordance
+  const primaryFieldName: string | undefined =
+    entitySchema.businessMetadata?.primaryField ?? entitySchema.primaryField
+
   // GH#1699: Read only from unified 'fields' key
   let schemaFields = entitySchema.fields || []
 
@@ -464,6 +469,11 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         statusSet: safeFieldDef.statusSet || undefined,
 
         fieldId: safeFieldDef.id || fieldName, // For reactive options lookup
+      }
+
+      // Mark the primary field so entity-name renderer activates (nav affordance + pencil icon)
+      if (primaryFieldName && fieldName === primaryFieldName) {
+        ;(column as any).isPrimaryField = true
       }
 
       if (relationshipMetadata) {
