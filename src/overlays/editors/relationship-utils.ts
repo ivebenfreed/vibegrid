@@ -9,35 +9,14 @@
  * has archetype='relationship'.
  */
 
+import { rootStore } from '@/app/stores'
 import { orpcClient } from '@/shared/data/orpc/client'
 
-// ====================================
-// RELATIONSHIP ARCHETYPE SCHEMA CACHE
-// ====================================
-
 /**
- * Cached schema metadata for relationship archetype detection.
- * Stores the archetype and relationship businessMetadata per entity type name.
- * Populated lazily on first access per entity type, persists for the page session.
+ * Look up schema metadata for an entity type from the SchemaRegistryStore.
+ * Returns archetype and relationship metadata if available.
  */
-const schemaCache = new Map<
-  string,
-  {
-    archetype: string
-    relationship?: {
-      sourceEntity: string
-      targetEntity: string
-      semantic: string
-      cardinality: string
-    }
-  } | null
->()
-
-/**
- * Fetch and cache schema metadata for an entity type.
- * Returns cached result on subsequent calls.
- */
-async function getRelationshipSchemaMetadata(entityTypeName: string): Promise<{
+function getRelationshipSchemaMetadata(entityTypeName: string): {
   archetype: string
   relationship?: {
     sourceEntity: string
@@ -45,32 +24,23 @@ async function getRelationshipSchemaMetadata(entityTypeName: string): Promise<{
     semantic: string
     cardinality: string
   }
-} | null> {
-  if (schemaCache.has(entityTypeName)) {
-    return schemaCache.get(entityTypeName) ?? null
-  }
+} | null {
+  const schemas = rootStore.experience.schemaRegistry.schemas
+  if (!schemas) return null
 
-  try {
-    const result = (await orpcClient.dataforge.schema.getEntity({
-      entityName: entityTypeName,
-    })) as any
-    const schema = result?.entity ?? result?.schema ?? null
-    if (schema) {
-      const meta = {
-        archetype: schema.archetype || 'record',
-        relationship:
-          schema.businessMetadata?.relationship ??
-          schema.business_metadata?.relationship ??
-          undefined,
-      }
-      schemaCache.set(entityTypeName, meta)
-      return meta
-    }
-    schemaCache.set(entityTypeName, null)
-    return null
-  } catch {
-    schemaCache.set(entityTypeName, null)
-    return null
+  const schema = schemas.byName[entityTypeName]
+  if (!schema) return null
+
+  return {
+    archetype: schema.archetype || 'record',
+    relationship: schema.businessMetadata?.relationship as
+      | {
+          sourceEntity: string
+          targetEntity: string
+          semantic: string
+          cardinality: string
+        }
+      | undefined,
   }
 }
 
@@ -83,7 +53,7 @@ export async function createRelationshipEntityRecord(
   sourceEntityId: string,
   targetEntityId: string,
 ): Promise<any> {
-  const meta = await getRelationshipSchemaMetadata(relationshipEntityName)
+  const meta = getRelationshipSchemaMetadata(relationshipEntityName)
   if (!meta?.relationship) {
     throw new Error(`Schema metadata not found for relationship entity: ${relationshipEntityName}`)
   }
