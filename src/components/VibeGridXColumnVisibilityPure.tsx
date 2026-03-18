@@ -327,6 +327,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             placeholder="Search columns..."
             value={searchValue}
             onChange={handleSearchChange}
+            onKeyDown={(e) => e.stopPropagation()}
             className="h-8 text-xs"
           />
         </div>
