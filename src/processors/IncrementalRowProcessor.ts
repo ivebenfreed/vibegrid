@@ -14,6 +14,7 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import type { VirtualRow, Column, SortConfig, FilterConfig, GroupConfig } from '../types'
+import { compareValues, isEmpty } from '../utils/sort-compare'
 
 const log = getLogger(['vibegrid', 'processors', 'IncrementalRowProcessor'])
 
@@ -157,12 +158,20 @@ export class IncrementalRowProcessor {
       return currentVersion
     }
 
-    // For large datasets, process incrementally
-    // Step 1: Process first batch (viewport) synchronously for instant render
-    const viewportBatchSize = Math.min(this.config.VIEWPORT_BATCH, rawRows.length)
-    let viewportRows = rawRows.slice(0, viewportBatchSize)
+    // For large datasets: sort ALL rows upfront (O(n log n) is <5ms for ~3k rows),
+    // then slice sorted results into batches. This ensures every batch is globally
+    // sorted so appending maintains correct order while scrolling.
+    let sortedRows = rawRows
+    if (pipelineConfig.sortBy && pipelineConfig.sortBy.length > 0) {
+      sortedRows = this.applySorting(rawRows, pipelineConfig.sortBy)
+    }
+    this.rawRows = sortedRows
 
-    // Apply pipeline to viewport batch
+    // Step 1: Process first batch (viewport) synchronously for instant render
+    const viewportBatchSize = Math.min(this.config.VIEWPORT_BATCH, sortedRows.length)
+    let viewportRows = sortedRows.slice(0, viewportBatchSize)
+
+    // Apply search/filter to viewport batch
     if (pipelineConfig.searchText?.trim()) {
       viewportRows = this.applyTextSearch(
         viewportRows,
@@ -174,9 +183,6 @@ export class IncrementalRowProcessor {
     if (pipelineConfig.filters && pipelineConfig.filters.length > 0) {
       viewportRows = this.applyFilters(viewportRows, pipelineConfig.filters)
     }
-    if (pipelineConfig.sortBy && pipelineConfig.sortBy.length > 0) {
-      viewportRows = this.applySorting(viewportRows, pipelineConfig.sortBy)
-    }
 
     this.processedRows = this.wrapInVirtualRows(viewportRows)
     this.currentBatchIndex = viewportBatchSize
@@ -184,12 +190,12 @@ export class IncrementalRowProcessor {
     log.info('Viewport rows ready', {
       version: currentVersion,
       viewportRowCount: this.processedRows.length,
-      remainingRows: rawRows.length - viewportBatchSize,
+      remainingRows: sortedRows.length - viewportBatchSize,
     })
 
     this.callbacks.onViewportReady(this.processedRows)
 
-    // Step 2: Queue remaining rows for background processing
+    // Step 2: Queue remaining rows for background processing (filter/search only, already sorted)
     this.scheduleBackgroundProcessing(currentVersion)
 
     return currentVersion
@@ -339,9 +345,8 @@ export class IncrementalRowProcessor {
         batchRows = this.applyFilters(batchRows, this.pipelineConfig.filters)
       }
 
-      // Note: Sorting needs to be done on the full dataset, not per-batch
-      // For incremental sorting, we'll need a different approach (merge sort)
-      // For now, we sort the accumulated result
+      // Sorting was already applied to the full dataset before batching,
+      // so batches arrive in sorted order — just filter and append.
 
       // Wrap in VirtualRow structure
       const virtualRows = this.wrapInVirtualRows(batchRows, this.processedRows.length)
@@ -368,13 +373,12 @@ export class IncrementalRowProcessor {
 
     // Check if complete
     if (this.currentBatchIndex >= this.rawRows.length) {
-      // Apply final sorting if needed (sorting across all accumulated rows)
-      if (this.pipelineConfig.sortBy && this.pipelineConfig.sortBy.length > 0) {
-        this.processedRows = this.applySortingToVirtualRows(
-          this.processedRows,
-          this.pipelineConfig.sortBy,
-        )
-      }
+      // Re-index all rows to ensure contiguous indices after filter may have removed some
+      this.processedRows = this.processedRows.map((row, index) => ({
+        ...row,
+        index,
+        dataIndex: index,
+      }))
 
       log.info('Incremental processing complete', {
         version,
@@ -496,40 +500,18 @@ export class IncrementalRowProcessor {
         const aVal = dataA[sort.field]
         const bVal = dataB[sort.field]
 
-        if (aVal === bVal) continue
+        const comparison = compareValues(aVal, bVal)
+        if (comparison === 0) continue
 
-        const comparison = aVal < bVal ? -1 : 1
+        // Nulls always last: don't invert null-vs-value comparisons
+        const aEmpty = isEmpty(aVal)
+        const bEmpty = isEmpty(bVal)
+        if (aEmpty || bEmpty) return comparison
+
         return sort.direction === 'asc' ? comparison : -comparison
       }
       return 0
     })
-  }
-
-  private applySortingToVirtualRows(rows: VirtualRow[], sortBy: SortConfig[]): VirtualRow[] {
-    if (!sortBy || sortBy.length === 0) return rows
-
-    const sorted = [...rows].sort((a, b) => {
-      const dataA = (a.data as any)?.data || a.data || {}
-      const dataB = (b.data as any)?.data || b.data || {}
-
-      for (const sort of sortBy) {
-        const aVal = dataA[sort.field]
-        const bVal = dataB[sort.field]
-
-        if (aVal === bVal) continue
-
-        const comparison = aVal < bVal ? -1 : 1
-        return sort.direction === 'asc' ? comparison : -comparison
-      }
-      return 0
-    })
-
-    // Re-index after sorting
-    return sorted.map((row, index) => ({
-      ...row,
-      index,
-      dataIndex: index,
-    }))
   }
 
   private wrapInVirtualRows(rows: any[], startIndex: number = 0): VirtualRow[] {

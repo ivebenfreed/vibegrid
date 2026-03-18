@@ -1,32 +1,5 @@
 import { describe, expect, it } from 'vitest'
-
-// Import the sorting internals by re-implementing the extracted functions
-// (they're module-private, so we test via the public API shape)
-
-/** Check if a value is empty (null, undefined, or empty string) */
-function isEmpty(val: any): boolean {
-  return val == null || val === ''
-}
-
-const naturalCollator = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: 'base',
-})
-
-function compareValues(aVal: any, bVal: any): number {
-  const aEmpty = isEmpty(aVal)
-  const bEmpty = isEmpty(bVal)
-  if (aEmpty && bEmpty) return 0
-  if (aEmpty) return 1
-  if (bEmpty) return -1
-  if (typeof aVal === 'string' && typeof bVal === 'string') {
-    return naturalCollator.compare(aVal, bVal)
-  }
-  if (typeof aVal === 'number' && typeof bVal === 'number') {
-    return aVal - bVal
-  }
-  return naturalCollator.compare(String(aVal), String(bVal))
-}
+import { compareValues, isEmpty } from '../../utils/sort-compare'
 
 type SortConfig = { field: string; direction: 'asc' | 'desc' }
 
