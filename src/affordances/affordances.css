@@ -38,13 +38,8 @@
   cursor: default;
 }
 
-/* Content-click cells: container uses default cursor (padding = select only),
- * child content element uses pointer cursor (content = edit).
- * The editable-content group identifies these cells. */
-[data-affordance-group="editable-content"] {
-  cursor: default;
-}
-
+/* Content with edit affordance uses pointer cursor
+ * Indicates the content is clickable to enter edit mode */
 [data-affordance-role="content"][data-affordance="edit"] {
   cursor: pointer;
 }
@@ -73,9 +68,11 @@
 }
 
 /* Content background highlight (editable-content group)
- * Shows a subtle background to indicate editability
- * Uses semi-transparent gray that works in both light and dark modes */
-[data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+ * Shows a subtle background to indicate editability.
+ * Two selectors: descendant (child has affordance) and same-element (text cells
+ * where container itself has both group + affordance). */
+[data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
+[data-affordance-group="editable-content"][data-affordance="edit"]:hover {
   background-color: oklch(0.5 0 0 / 0.15);
   border-radius: 4px;
   padding: 2px 4px;
@@ -151,7 +148,8 @@ body.vibegridx-dragging-active * {
  * Dark mode typically needs inverted brightness changes.
  * ==================================== */
 
-.dark [data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+.dark [data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
+.dark [data-affordance-group="editable-content"][data-affordance="edit"]:hover {
   background-color: oklch(0.6 0 0 / 0.2);
 }
 
@@ -180,7 +178,8 @@ body.vibegridx-dragging-active * {
 }
 
 @media (prefers-contrast: high) {
-  [data-affordance-group="editable-content"] [data-affordance="edit"]:hover {
+  [data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
+  [data-affordance-group="editable-content"][data-affordance="edit"]:hover {
     outline: 2px solid currentColor;
     outline-offset: 2px;
     background-color: transparent;
