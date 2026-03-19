@@ -26,7 +26,8 @@ const logger = getLogger(['vibegrid', 'slots', 'slot-initialization'])
 function renderEmpty(element: HTMLElement, isEditable: boolean): void {
   element.className = 'vibegridx-cell-empty'
   if (isEditable) {
-    element.innerHTML = '<span style="opacity: 0.6;">Edit \u270F\uFE0F</span>'
+    element.innerHTML =
+      '<span data-action="edit" data-affordance-role="content" style="opacity: 0.6;">Edit \u270F\uFE0F</span>'
   } else {
     element.textContent = ''
   }
@@ -329,7 +330,7 @@ class DateCellRenderer implements CellRenderer {
     const affordance = isEditable ? 'edit' : 'none'
 
     el.innerHTML = `
-      <div data-affordance="${affordance}" data-affordance-role="badge" style="
+      <div data-action="${affordance}" data-affordance-role="badge" style="
         display: inline-flex;
         align-items: center;
         padding: 4px 8px;
@@ -480,7 +481,7 @@ class BooleanCellRenderer implements CellRenderer {
 
     const affordance = isEditable ? 'toggle' : 'none'
     el.innerHTML = `
-      <div data-affordance="${affordance}" data-affordance-role="control" style="
+      <div data-action="${affordance}" data-affordance-role="control" style="
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -633,7 +634,7 @@ class SelectCellRenderer implements CellRenderer {
     if (option) {
       const badge = document.createElement('span')
       badge.className = 'vibegridx-enum-badge'
-      badge.dataset.affordance = isEditable ? 'edit' : 'none'
+      badge.dataset.action = isEditable ? 'edit' : 'none'
       badge.dataset.affordanceRole = 'badge'
       badge.textContent = option.label
       badge.style.cssText = `
@@ -684,7 +685,7 @@ class SelectCellRenderer implements CellRenderer {
       const option = this.findOption(val, column)
       const badge = document.createElement('span')
       badge.className = 'vibegridx-select-badge'
-      badge.dataset.affordance = isEditable ? 'edit' : 'none'
+      badge.dataset.action = isEditable ? 'edit' : 'none'
       badge.dataset.affordanceRole = 'badge'
 
       const opt = option || { value: String(val), label: String(val) }
@@ -827,6 +828,8 @@ class EmailCellRenderer implements CellRenderer {
     groupable: true,
   }
 
+  affordanceGroup = { group: 'editable-content', whenNotEditable: 'readonly-display' }
+
   interactionPolicy = {
     defaultAction: 'edit' as const,
     editTrigger: 'content-click' as const,
@@ -865,7 +868,7 @@ class UrlCellRenderer implements CellRenderer {
       'display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; color: #2563eb; text-decoration: underline;'
     textEl.textContent = urlValue
     textEl.title = urlValue
-    textEl.dataset.affordance = 'navigate'
+    textEl.dataset.action = 'navigate'
     textEl.dataset.affordanceRole = 'link'
 
     try {
@@ -883,7 +886,7 @@ class UrlCellRenderer implements CellRenderer {
       pencilIcon.innerHTML = '\u270F\uFE0F'
       pencilIcon.style.cssText =
         'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
-      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.action = 'edit'
       pencilIcon.dataset.affordanceRole = 'icon'
       container.appendChild(pencilIcon)
     }
@@ -1009,6 +1012,8 @@ class PhoneCellRenderer implements CellRenderer {
     reorderable: true,
     groupable: true,
   }
+
+  affordanceGroup = { group: 'editable-content', whenNotEditable: 'readonly-display' }
 
   interactionPolicy = {
     defaultAction: 'edit' as const,
@@ -1188,6 +1193,8 @@ class CurrencyCellRenderer implements CellRenderer {
     reorderable: true,
     groupable: true,
   }
+
+  affordanceGroup = { group: 'editable-content', whenNotEditable: 'readonly-display' }
 
   interactionPolicy = {
     defaultAction: 'edit' as const,
@@ -1510,15 +1517,20 @@ class MarkdownCellRenderer implements CellRenderer {
     el.className = 'vibegridx-cell-markdown'
 
     if (!value) {
-      el.innerHTML = '<span style="opacity: 0.6; font-size: 12px;">No content</span>'
+      renderEmpty(el, isEditable)
       applyAffordanceAttrs(el, this, isEditable)
       return el
     }
 
     const text = String(value)
-    el.innerHTML = this.createMarkdownPreview(text)
-    el.style.cssText =
+    // Wrap markdown HTML in a content span with data-action for click routing
+    const content = document.createElement('span')
+    content.dataset.action = isEditable ? 'edit' : 'none'
+    content.dataset.affordanceRole = 'content'
+    content.innerHTML = this.createMarkdownPreview(text)
+    content.style.cssText =
       'font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;'
+    el.appendChild(content)
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
@@ -1546,6 +1558,8 @@ class MarkdownCellRenderer implements CellRenderer {
     reorderable: true,
     groupable: false,
   }
+
+  affordanceGroup = { group: 'editable-content', whenNotEditable: 'readonly-display' }
 
   interactionPolicy = {
     defaultAction: 'edit' as const,
@@ -1578,7 +1592,7 @@ class EntityNameCellRenderer implements CellRenderer {
     textEl.className = 'vibegridx-entity-name-text'
     textEl.style.cssText =
       'display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; color: var(--primary); text-decoration: none; transition: text-decoration 0.2s;'
-    textEl.dataset.affordance = 'navigate'
+    textEl.dataset.action = 'navigate'
     textEl.dataset.affordanceRole = 'link'
     textEl.dataset.fieldType = 'entity-name'
 
@@ -1597,7 +1611,7 @@ class EntityNameCellRenderer implements CellRenderer {
     pencilIcon.style.cssText =
       'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
     pencilIcon.title = 'Click to edit inline'
-    pencilIcon.dataset.affordance = isEditable ? 'edit' : 'none'
+    pencilIcon.dataset.action = isEditable ? 'edit' : 'none'
     pencilIcon.dataset.affordanceRole = 'icon'
 
     container.appendChild(textEl)
@@ -2403,7 +2417,7 @@ class EntityReferenceCellRenderer implements CellRenderer {
       pencilIcon.textContent = '✏️'
       pencilIcon.style.cssText =
         'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0; cursor: pointer;'
-      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.action = 'edit'
       pencilIcon.dataset.affordanceRole = 'icon'
       pencilIcon.title = 'Edit link'
       container.appendChild(pencilIcon)
@@ -2569,7 +2583,7 @@ class EntityReferenceCellRenderer implements CellRenderer {
     const entityTypeAttr = targetEntity ? ` data-entity-type="${targetEntity}"` : ''
     const entityIdAttr = entityId ? ` data-entity-id="${entityId}"` : ''
 
-    return `<div class="vibegridx-entity-badge" data-affordance="navigate"${entityTypeAttr}${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--entity-badge-bg, #f0f9ff);color:var(--entity-badge-text, #0369a1);border:1px solid var(--entity-badge-border, #bae6fd);max-width:100%;min-width:0;"><div class="vibegridx-entity-icon" style="width:14px;height:14px;border-radius:3px;background-color:var(--entity-badge-icon-bg, #0ea5e9);color:white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;flex-shrink:0;">${iconLetter}</div><span class="vibegridx-entity-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-entity-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
+    return `<div class="vibegridx-entity-badge" data-affordance="navigate" data-action="navigate"${entityTypeAttr}${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--entity-badge-bg, #f0f9ff);color:var(--entity-badge-text, #0369a1);border:1px solid var(--entity-badge-border, #bae6fd);max-width:100%;min-width:0;"><div class="vibegridx-entity-icon" style="width:14px;height:14px;border-radius:3px;background-color:var(--entity-badge-icon-bg, #0ea5e9);color:white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;flex-shrink:0;">${iconLetter}</div><span class="vibegridx-entity-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-entity-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
   }
 
   affordances = {
@@ -2689,7 +2703,7 @@ class UserReferenceCellRenderer implements CellRenderer {
   private createUserBadgeFromName(displayName: string, userId?: string): string {
     const initials = this.getInitials(displayName)
     const entityIdAttr = userId ? ` data-entity-id="${userId}"` : ''
-    return `<div class="vibegridx-user-badge" data-affordance="navigate" data-entity-type="User"${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--user-badge-bg, #f3f4f6);color:var(--user-badge-text, #374151);border:1px solid var(--user-badge-border, #d1d5db);max-width:100%;min-width:0;"><div class="vibegridx-user-avatar" style="width:18px;height:18px;border-radius:50%;background-color:var(--user-badge-avatar-bg, #6366f1);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div><span class="vibegridx-user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-user-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
+    return `<div class="vibegridx-user-badge" data-affordance="navigate" data-action="navigate" data-entity-type="User"${entityIdAttr} title="${displayName}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:6px;font-size:0.75rem;font-weight:500;white-space:nowrap;cursor:pointer;background-color:var(--user-badge-bg, #f3f4f6);color:var(--user-badge-text, #374151);border:1px solid var(--user-badge-border, #d1d5db);max-width:100%;min-width:0;"><div class="vibegridx-user-avatar" style="width:18px;height:18px;border-radius:50%;background-color:var(--user-badge-avatar-bg, #6366f1);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;">${initials}</div><span class="vibegridx-user-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1;">${displayName}</span><span class="vibegridx-user-badge-arrow" style="opacity:0.5;font-size:10px;flex-shrink:0;line-height:1;">↗</span></div>`
   }
 
   private getInitials(name: string): string {
@@ -2715,7 +2729,7 @@ class UserReferenceCellRenderer implements CellRenderer {
       pencilIcon.textContent = '✏️'
       pencilIcon.style.cssText =
         'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0; cursor: pointer;'
-      pencilIcon.dataset.affordance = 'edit'
+      pencilIcon.dataset.action = 'edit'
       pencilIcon.dataset.affordanceRole = 'icon'
       pencilIcon.title = 'Edit link'
       container.appendChild(pencilIcon)
@@ -2850,7 +2864,7 @@ class BadgeListCellRenderer implements CellRenderer {
   private badge(label: string): HTMLElement {
     const el = document.createElement('span')
     el.textContent = label
-    el.dataset.affordance = 'edit'
+    el.dataset.action = 'edit'
     el.dataset.affordanceRole = 'badge'
     el.style.cssText = `
       display:inline-flex;align-items:center;

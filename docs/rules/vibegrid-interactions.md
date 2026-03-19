@@ -79,9 +79,43 @@ features/{domain}/
 | Gantt | `docs/primitives/vibegrid/gantt.md` | Timeline, zoom, task bars, dependencies |
 | Export | `docs/primitives/vibegrid/export-services.md` | CSV, PDF, ZIP export |
 
+## Cell Renderer DOM Contract
+
+Two-attribute system for cell interaction:
+
+| Attribute | Purpose | Placement | Read By |
+|-----------|---------|-----------|---------|
+| `data-affordance` | CSS cursor (pointer/default) | Container element | `affordances.css` cursor rules |
+| `data-action` | Click routing + CSS hover effects | Interactive child elements | `CellActionRouter` + `affordances.css` hover selectors |
+
+**Rules for new renderers:**
+
+1. **Container** gets `data-affordance` via `applyAffordanceAttrs()` — never set `data-action` on containers
+2. **Interactive children** (text spans, badges, icons) get `data-action="edit"`, `data-action="navigate"`, or `data-action="toggle"`
+3. **Content-click renderers** (`editTrigger: 'content-click'`) MUST have at least one descendant with `data-action` when editable — dev-mode warning fires otherwise
+4. `applyAffordanceAttrs()` auto-wraps bare textContent in a `<span data-action="edit">` for content-click renderers
+5. `renderEmpty()` produces `<span data-action="edit" data-affordance-role="content">Edit ✏️</span>`
+
+**Example DOM (content-click Text cell):**
+```html
+<td data-affordance="edit" data-affordance-group="editable-content" data-editable="true">
+  <span data-action="edit" data-affordance-role="content">Cell value</span>
+</td>
+```
+
+**Example DOM (EntityName with navigate + edit):**
+```html
+<div data-affordance="navigate" data-affordance-group="link-with-edit-icon" data-editable="true">
+  <span data-action="navigate" data-affordance-role="link">Project Name</span>
+  <span data-action="edit" data-affordance-role="icon">✏️</span>
+</div>
+```
+
 ## Anti-Patterns
 
 - Inline rendering logic in column definitions → register via SlotRegistry
 - Registering renderers in multiple places → all through SlotRegistry
 - Global slot overrides without contextFilter → scope by entityType or schemaId
 - Using FieldTypeRegistry, ModularCellBridge, or CellFactory → these are removed
+- Using `data-affordance` on child elements for routing → use `data-action` (GH#2008)
+- Setting `data-action` on container elements → `data-action` is for children only

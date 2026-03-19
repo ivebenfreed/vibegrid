@@ -130,7 +130,7 @@ describe('Relationship Field Navigation (GH#1843)', () => {
       expect(arrow!.textContent).toBe('↗')
     })
 
-    it('should render pencil edit icon with data-affordance="edit" when editable', async () => {
+    it('should render pencil edit icon with data-action="edit" when editable', async () => {
       const ctx = createContext({
         rowData: { entity_reference_name: 'Acme Corp' },
       } as any)
@@ -148,7 +148,7 @@ describe('Relationship Field Navigation (GH#1843)', () => {
       // Pencil icon should be present with edit affordance
       const pencilIcon = el.querySelector('.vibegridx-entity-reference-edit-icon')
       expect(pencilIcon).toBeTruthy()
-      expect(pencilIcon!.getAttribute('data-affordance')).toBe('edit')
+      expect(pencilIcon!.getAttribute('data-action')).toBe('edit')
       expect(pencilIcon!.getAttribute('data-affordance-role')).toBe('icon')
     })
 
@@ -240,7 +240,7 @@ describe('Relationship Field Navigation (GH#1843)', () => {
 
       const pencilIcon = el.querySelector('.vibegridx-user-reference-edit-icon')
       expect(pencilIcon).toBeTruthy()
-      expect(pencilIcon!.getAttribute('data-affordance')).toBe('edit')
+      expect(pencilIcon!.getAttribute('data-action')).toBe('edit')
     })
 
     it('should NOT set data-affordance on container', async () => {

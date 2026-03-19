@@ -54,6 +54,15 @@ export interface CellRendererContext {
 /**
  * CellRenderer: Interface for cell rendering.
  * Preserves ALL capabilities from FieldTypeRegistry's VibeGridFieldType.
+ *
+ * **DOM Contract for content-click renderers:**
+ * If `interactionPolicy.editTrigger === 'content-click'`, the rendered element MUST contain
+ * at least one descendant with `data-action="edit"` when editable. `applyAffordanceAttrs()`
+ * auto-wraps bare textContent, but renderers with custom child elements must set
+ * `data-action` explicitly. A dev-mode console warning fires for violations.
+ *
+ * Use `data-action` on child elements for routing (edit/navigate/toggle).
+ * Use `data-affordance` on containers for CSS cursor only (set by `applyAffordanceAttrs`).
  */
 export interface CellRenderer {
   /** Render cell content (read-only mode) */

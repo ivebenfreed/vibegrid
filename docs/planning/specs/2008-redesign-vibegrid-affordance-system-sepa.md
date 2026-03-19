@@ -10,6 +10,41 @@ github_issue: 2008
 github_milestone: null
 created: 2026-03-19
 updated: 2026-03-19
+phases:
+  - id: p1
+    name: "renderEmpty + applyAffordanceAttrs core changes"
+    tasks:
+      - "Fix renderEmpty to produce data-action on inner span"
+      - "Update applyAffordanceAttrs auto-wrap to use data-action"
+      - "Add dev-mode DOM contract enforcement"
+  - id: p2
+    name: "CellActionRouter — remove spatial check, switch to data-action"
+    tasks:
+      - "Replace content-click branch with data-action lookup"
+      - "Add backward compat data-action + data-affordance in non-editable return"
+  - id: p3
+    name: "Migrate renderer children from data-affordance to data-action"
+    tasks:
+      - "Migrate Date, Boolean, Select, URL, EntityName renderers"
+      - "Add affordanceGroup to Email, Phone, Currency, Markdown"
+      - "Fix Markdown empty to use renderEmpty"
+      - "Migrate EntityRef, UserRef, BadgeList + domain renderers"
+  - id: p4
+    name: "CSS hover selector migration"
+    tasks:
+      - "Migrate affordances.css hover selectors to data-action"
+      - "Update dark mode and high-contrast counterparts"
+  - id: p5
+    name: "Documentation + contract enforcement finalization"
+    tasks:
+      - "Document data-action contract in vibegrid-interactions.md"
+      - "Add JSDoc to CellRenderer interface"
+  - id: p6
+    name: "Testing + verification evidence"
+    tasks:
+      - "CellActionRouter unit test matrix"
+      - "applyAffordanceAttrs + renderEmpty unit tests"
+      - "Browser smoke test all hover states"
 ---
 
 # GH#2008: Redesign VIbeGrid Affordance System — Separate CSS from Routing

@@ -4,6 +4,10 @@
  * Single source of truth for cell interaction visuals.
  * All cursor and hover behaviors are controlled through data attributes.
  *
+ * Two-attribute system:
+ * - data-affordance: Container-level CSS cursor (pointer/default). Set by applyAffordanceAttrs.
+ * - data-action: Child-level click routing + hover effects. Set by renderers on interactive elements.
+ *
  * @see DESIGN.md in planning/04-improvements/vibegrid-cell-interaction/
  * ==================================== */
 
@@ -12,6 +16,7 @@
  *
  * Each data-affordance value maps to a cursor type.
  * These are the foundational rules that all cells use.
+ * Container-level only — stays on data-affordance.
  * ==================================== */
 
 [data-affordance="select"] {
@@ -38,9 +43,9 @@
   cursor: default;
 }
 
-/* Content with edit affordance uses pointer cursor
+/* Content with edit action uses pointer cursor
  * Indicates the content is clickable to enter edit mode */
-[data-affordance-role="content"][data-affordance="edit"] {
+[data-affordance-role="content"][data-action="edit"] {
   cursor: pointer;
 }
 
@@ -48,18 +53,18 @@
  * AFFORDANCE HOVER EFFECTS
  *
  * Group-specific hover behaviors.
- * Each affordance group can have custom hover effects.
+ * Hover selectors target data-action on child elements.
  * ==================================== */
 
 /* Link underline (link-with-edit-icon, link-only groups) */
-[data-affordance-group="link-with-edit-icon"] [data-affordance="navigate"]:hover,
-[data-affordance-group="link-only"] [data-affordance="navigate"]:hover {
+[data-affordance-group="link-with-edit-icon"] [data-action="navigate"]:hover,
+[data-affordance-group="link-only"] [data-action="navigate"]:hover {
   text-decoration: underline;
 }
 
 /* Badge scale + darken (editable-badge group)
  * Makes badge feel "pressable" */
-[data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+[data-affordance-group="editable-badge"] [data-action="edit"]:hover {
   transform: scale(1.02);
   filter: brightness(0.95);
   transition:
@@ -69,10 +74,8 @@
 
 /* Content background highlight (editable-content group)
  * Shows a subtle background to indicate editability.
- * Two selectors: descendant (child has affordance) and same-element (text cells
- * where container itself has both group + affordance). */
-[data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
-[data-affordance-group="editable-content"][data-affordance="edit"]:hover {
+ * Single selector: child element with data-action="edit". */
+[data-affordance-group="editable-content"] [data-action="edit"]:hover {
   background-color: oklch(0.5 0 0 / 0.15);
   border-radius: 4px;
   padding: 2px 4px;
@@ -81,7 +84,8 @@
 }
 
 /* Readonly badge subtle feedback (readonly-badge group)
- * Just enough feedback to show it's hoverable but not actionable */
+ * Just enough feedback to show it's hoverable but not actionable.
+ * Readonly badges keep data-affordance (no data-action). */
 [data-affordance-group="readonly-badge"] [data-affordance="none"]:hover {
   filter: brightness(0.98);
 }
@@ -91,6 +95,7 @@
  *
  * For link-with-edit-icon group, the edit icon
  * is hidden by default and shown on container hover.
+ * Uses data-affordance-role (unchanged — role attribute, not action).
  * ==================================== */
 
 [data-affordance-group="link-with-edit-icon"] [data-affordance-role="icon"] {
@@ -113,11 +118,11 @@
  * The control should have clear interactive feedback.
  * ==================================== */
 
-[data-affordance-group="toggle-control"] [data-affordance="toggle"] {
+[data-affordance-group="toggle-control"] [data-action="toggle"] {
   cursor: pointer;
 }
 
-[data-affordance-group="toggle-control"] [data-affordance="toggle"]:hover {
+[data-affordance-group="toggle-control"] [data-action="toggle"]:hover {
   filter: brightness(1.1);
 }
 
@@ -148,12 +153,11 @@ body.vibegridx-dragging-active * {
  * Dark mode typically needs inverted brightness changes.
  * ==================================== */
 
-.dark [data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
-.dark [data-affordance-group="editable-content"][data-affordance="edit"]:hover {
+.dark [data-affordance-group="editable-content"] [data-action="edit"]:hover {
   background-color: oklch(0.6 0 0 / 0.2);
 }
 
-.dark [data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+.dark [data-affordance-group="editable-badge"] [data-action="edit"]:hover {
   filter: brightness(1.05);
 }
 
@@ -161,7 +165,7 @@ body.vibegridx-dragging-active * {
   filter: brightness(1.02);
 }
 
-.dark [data-affordance-group="toggle-control"] [data-affordance="toggle"]:hover {
+.dark [data-affordance-group="toggle-control"] [data-action="toggle"]:hover {
   filter: brightness(1.15);
 }
 
@@ -178,14 +182,13 @@ body.vibegridx-dragging-active * {
 }
 
 @media (prefers-contrast: high) {
-  [data-affordance-group="editable-content"] [data-affordance="edit"]:hover,
-  [data-affordance-group="editable-content"][data-affordance="edit"]:hover {
+  [data-affordance-group="editable-content"] [data-action="edit"]:hover {
     outline: 2px solid currentColor;
     outline-offset: 2px;
     background-color: transparent;
   }
 
-  [data-affordance-group="editable-badge"] [data-affordance="edit"]:hover {
+  [data-affordance-group="editable-badge"] [data-action="edit"]:hover {
     outline: 2px solid currentColor;
     outline-offset: 2px;
     filter: none;

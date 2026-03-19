@@ -617,7 +617,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                 // GH#1843: Check if click originated from a relationship badge — open drawer for referenced entity
                 if (event) {
                   const badge = (event.target as HTMLElement).closest<HTMLElement>(
-                    '[data-affordance="navigate"][data-entity-type][data-entity-id]',
+                    '[data-action="navigate"][data-entity-type][data-entity-id], [data-affordance="navigate"][data-entity-type][data-entity-id]',
                   )
                   if (badge) {
                     const targetEntityType = badge.dataset.entityType
