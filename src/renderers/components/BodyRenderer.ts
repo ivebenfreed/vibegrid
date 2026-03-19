@@ -18,7 +18,6 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
 import type { SlotRegistry, CellRendererContext } from '../../slots/SlotRegistry'
-import { applyAffordanceAttrs } from '../../slots/applyAffordanceAttrs'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
@@ -802,8 +801,9 @@ export class BodyRenderer {
         let cellElement: HTMLElement
         if (renderer) {
           cellElement = renderer.render(value, column, context)
-          // Apply affordance attributes
-          applyAffordanceAttrs(cellElement, renderer, column.editable !== false)
+          // Affordance attributes are applied by each renderer in its render() method.
+          // Do NOT call applyAffordanceAttrs here — it would overwrite renderer-specific
+          // overrides (e.g., empty relationship cells override navigate → edit).
         } else {
           // No renderer found - create basic text cell
           cellElement = document.createElement('div')
@@ -1612,7 +1612,7 @@ export class BodyRenderer {
             const renderer = this.slotRegistry.resolve(column, context)
             if (renderer) {
               const cellContent = renderer.render(value, column, context)
-              applyAffordanceAttrs(cellContent, renderer, column.editable !== false)
+              // Affordance attributes applied by renderer internally — do not re-apply here.
               cell.dataset.field = column.field || column.id
               cell.setAttribute('data-testid', `cell-${newRow.id}-${column.id}`)
               if (column.cellType) {
