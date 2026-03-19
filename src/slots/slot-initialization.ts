@@ -1523,9 +1523,14 @@ class MarkdownCellRenderer implements CellRenderer {
     }
 
     const text = String(value)
-    el.innerHTML = this.createMarkdownPreview(text)
-    el.style.cssText =
+    // Wrap markdown HTML in a content span with data-action for click routing
+    const content = document.createElement('span')
+    content.dataset.action = isEditable ? 'edit' : 'none'
+    content.dataset.affordanceRole = 'content'
+    content.innerHTML = this.createMarkdownPreview(text)
+    content.style.cssText =
       'font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;'
+    el.appendChild(content)
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
