@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, Columns3, Eye, EyeOff, GripVertical, Save } from 'lucide-react'
+import { Columns3, Eye, EyeOff, GripVertical, Save } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { toast } from 'sonner'
@@ -292,18 +292,16 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" className={`h-8 px-2 ${className}`} />}
+        render={
+          <Button variant="outline" size="sm" className={`h-8 px-2 ${className}`} title="Columns" />
+        }
       >
-        <Columns3 className="h-4 w-4 mr-1" />
-        <span className="text-xs">
-          Columns
-          {hiddenColumnCount > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-muted rounded text-muted-foreground">
-              {hiddenColumnCount} hidden
-            </span>
-          )}
-        </span>
-        <ChevronDown className="h-3 w-3 ml-1" />
+        <Columns3 className="h-4 w-4" />
+        {hiddenColumnCount > 0 && (
+          <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
+            {hiddenColumnCount}
+          </span>
+        )}
       </DropdownMenuTrigger>
 
       <DropdownMenuContent

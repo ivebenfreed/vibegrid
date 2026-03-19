@@ -131,11 +131,11 @@ export const FilterBuilder = observer(function FilterBuilder({
             size="sm"
             data-testid="vibegrid-filter-btn"
             className={className}
+            title="Filters"
           />
         }
       >
-        <Filter className="h-4 w-4 mr-2" />
-        Filters
+        <Filter className="h-4 w-4" />
         {activeFilterCount > 0 && (
           <span className="ml-1 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
             {activeFilterCount}

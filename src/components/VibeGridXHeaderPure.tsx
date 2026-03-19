@@ -181,12 +181,6 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
             Hierarchy
           </Button>
         )}
-
-        {hiddenColumnCount > 0 && (
-          <span className="text-xs text-muted-foreground">
-            ({hiddenColumnCount} columns hidden)
-          </span>
-        )}
       </div>
 
       <div className="flex items-center gap-2">

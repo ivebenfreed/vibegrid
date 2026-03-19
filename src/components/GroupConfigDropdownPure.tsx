@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ChevronDown, GripVertical, Settings2, X } from 'lucide-react'
+import { GripVertical, Settings2, X } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { Badge } from '@/shared/components/ui/badge'
@@ -264,17 +264,16 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
             variant={hasActiveGrouping ? 'default' : 'outline'}
             size="sm"
             className={`h-8 ${className}`}
+            title="Group By"
           />
         }
       >
-        <Settings2 size={14} className="mr-1" />
-        Group By
+        <Settings2 size={14} />
         {hasActiveGrouping && (
           <Badge variant="secondary" className="ml-1 text-xs px-1 py-0">
             {activeGroupCount}
           </Badge>
         )}
-        <ChevronDown size={14} className="ml-1" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         {/* Current Grouping Fields */}

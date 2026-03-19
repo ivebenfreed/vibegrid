@@ -564,7 +564,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       </Header>
 
       {/* Main Content — compact layout: title merged into grid toolbar */}
-      <Main fluid className="flex flex-col p-0">
+      <Main fluid className="flex flex-col gap-0 px-4 py-3">
         {/* Review queue banner — GH#1534 */}
         {reviewCount > 0 && (
           <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-sm dark:border-amber-800 dark:bg-amber-950/30">
