@@ -27,13 +27,23 @@ export function applyAffordanceAttrs(
   // Set default affordance based on interaction policy
   const policy = renderer.interactionPolicy
   if (policy) {
+    // For content-click fields, do NOT stamp data-affordance on the container.
+    // CellActionRouter needs to fall through to the content-click spatial check
+    // which distinguishes content clicks (→ edit) from padding clicks (→ select only).
+    // Child elements (badges) set their own data-affordance as needed.
+    const skipContainerAffordance = policy.editTrigger === 'content-click'
+
     switch (policy.defaultAction) {
       case 'edit':
-        element.setAttribute('data-affordance', 'edit')
+        if (!skipContainerAffordance) {
+          element.setAttribute('data-affordance', 'edit')
+        }
         element.setAttribute('aria-roledescription', 'editable cell')
         break
       case 'navigate':
-        element.setAttribute('data-affordance', 'navigate')
+        if (!skipContainerAffordance) {
+          element.setAttribute('data-affordance', 'navigate')
+        }
         element.setAttribute('aria-roledescription', 'link')
         break
       case 'none':

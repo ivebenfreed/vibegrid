@@ -21,10 +21,10 @@ Cell and row selection with keyboard range extension, visual overlays, and multi
 
 ### B1: Single click selects cell
 - **ID:** select-single-cell
-- **Trigger:** User clicks on a cell content area
-- **Expected:** Cell is selected (added to `selectedCells` Set). Cell gets `vibegridx-selected` CSS class. Selection overlay appears with blue highlight + border. Previous selection is cleared (unless Ctrl held).
-- **Verify:** Cell has blue highlight, `selectedCells` contains `{rowId}:{columnId}`
-- **Source:** `stores/InteractionStore.ts`, `overlays/SelectionOverlayDOM.ts`
+- **Trigger:** User clicks anywhere on a cell (content or padding)
+- **Expected:** Cell is always selected on mousedown (added to `selectedCells` Set, gets `vibegridx-selected` CSS class, selection overlay with blue highlight + border). Previous selection is cleared (unless Ctrl held). Clicking **content** also triggers the cell's edit action (for editable cells). Clicking **padding** (outside content) selects only — no edit or navigate.
+- **Verify:** Cell has blue highlight, `selectedCells` contains `{rowId}:{columnId}`. Content click on editable cell also opens editor.
+- **Source:** `stores/InteractionStore.ts`, `overlays/SelectionOverlayDOM.ts`, `routing/CellActionRouter.ts` (`content-click` spatial check)
 
 ### B2: Ctrl+click toggles cell in selection
 - **ID:** select-ctrl-click
