@@ -2940,6 +2940,7 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
 
   // --- 11. File ---
   registry.register({ id: 'file', priority: 0, renderer: () => fileCellRenderer })
+  registry.register({ id: 'file_upload', priority: 0, renderer: () => fileCellRenderer })
 
   // --- 12. Image ---
   registry.register({ id: 'image', priority: 0, renderer: () => imageCellRenderer })
