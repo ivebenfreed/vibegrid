@@ -21,8 +21,6 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { Alert, AlertDescription } from '@/shared/components/ui/alert'
-import { Progress } from '@/shared/components/ui/progress'
 import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
@@ -68,6 +66,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate,
   onOpenReview,
   hasReviewMode,
+  toolbarLeading,
+  toolbarTrailing,
 }: {
   entityName: string
   orgId: string
@@ -77,6 +77,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
   onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
   hasReviewMode: boolean
+  toolbarLeading?: React.ReactNode
+  toolbarTrailing?: React.ReactNode
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -231,6 +233,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         onCellClick={onCellClick}
         onCopyLink={copyLink}
         viewPickerProps={viewPickerProps}
+        toolbarLeading={toolbarLeading}
+        toolbarTrailing={toolbarTrailing}
         rowActions={allRowActions}
         onRowAction={(actionId, rowIds, rowsData) => {
           if (actionId === 'review-selected') {
@@ -559,58 +563,18 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         <div className="ms-auto flex shrink-0 items-center space-x-2 sm:space-x-4"></div>
       </Header>
 
-      {/* Main Content */}
-      <Main fluid className="flex flex-col gap-4 sm:gap-6">
-        {/* Breadcrumbs */}
-        <EntityBreadcrumbs entityName={schema.entityName} displayName={schema.displayName} />
-
-        {/* Review queue banner — GH#1534: reviewCount uses backend count when loaded, upload store count while loading */}
+      {/* Main Content — compact layout: title merged into grid toolbar */}
+      <Main fluid className="flex flex-col p-0">
+        {/* Review queue banner — GH#1534 */}
         {reviewCount > 0 && (
-          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertDescription>
+          <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <span>
               {reviewCount} {reviewCount === 1 ? 'record' : 'records'} need review — select them in
               the grid below and click Review
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Page Header with Actions */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{entityTitle}</h1>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">
-                {listResult.pagination.total}{' '}
-                {listResult.pagination.total === 1 ? 'record' : 'records'}
-              </p>
-              {listResult.isStreaming && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Loading more...</span>
-                </div>
-              )}
-            </div>
-            {/* Streaming progress bar */}
-            {listResult.isStreaming && listResult.streamProgress.batches > 0 && (
-              <div className="mt-2 w-48">
-                <Progress value={null} className="h-1" />
-              </div>
-            )}
+            </span>
           </div>
-          <CreationModeButton
-            entityName={schema.entityName}
-            displayName={entityTitle}
-            creationModes={creationModes}
-            onCreateForm={() =>
-              startTransition(() => {
-                setCreateDialogOpen(true)
-              })
-            }
-            onCreateUpload={() => uploadDialogRef.current?.open()}
-            disabled={isTransitionPending}
-          />
-        </div>
+        )}
 
         {/* Vibegrid Container — position:relative anchors QuickCreatePanel */}
         <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -623,6 +587,32 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
               hasReviewMode={hasReviewMode}
+              toolbarLeading={
+                <div className="flex items-center gap-2 border-r border-border pr-3 mr-1">
+                  <h1 className="text-sm font-semibold whitespace-nowrap">{entityTitle}</h1>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {listResult.pagination.total}
+                    {listResult.isStreaming && (
+                      <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />
+                    )}
+                  </span>
+                </div>
+              }
+              toolbarTrailing={
+                <CreationModeButton
+                  entityName={schema.entityName}
+                  displayName={entityTitle}
+                  creationModes={creationModes}
+                  onCreateForm={() =>
+                    startTransition(() => {
+                      setCreateDialogOpen(true)
+                    })
+                  }
+                  onCreateUpload={() => uploadDialogRef.current?.open()}
+                  disabled={isTransitionPending}
+                  size="sm"
+                />
+              }
               onCellClick={(rowId, _columnId, event) => {
                 // GH#1843: Check if click originated from a relationship badge — open drawer for referenced entity
                 if (event) {

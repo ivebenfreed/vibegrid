@@ -189,6 +189,11 @@ interface VibeGridProps<_T = any> {
    * If not provided, escalation is silently ignored (ghost row does nothing).
    */
   onEscalate?: (groupId: string, inheritedFields: Record<string, unknown>) => void
+
+  /** Leading content for the toolbar (e.g., page title + record count) */
+  toolbarLeading?: React.ReactNode
+  /** Trailing content for the toolbar (e.g., creation button) */
+  toolbarTrailing?: React.ReactNode
 }
 
 // ====================================
@@ -250,6 +255,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableInlineCreation = false,
     onInlineCreate,
     onEscalate,
+    // Toolbar slots
+    toolbarLeading,
+    toolbarTrailing,
   } = props
 
   // ====================================
@@ -1019,6 +1027,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
           onExportAll={handleExportAll}
           onCopyLink={onCopyLink}
           viewPickerProps={viewPickerProps}
+          toolbarLeading={toolbarLeading}
+          toolbarTrailing={toolbarTrailing}
         />
       )}
 

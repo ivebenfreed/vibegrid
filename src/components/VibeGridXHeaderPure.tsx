@@ -51,6 +51,10 @@ interface VibeGridXHeaderPureProps {
   onCopyLink?: () => void
   /** View picker props for saved views (GH#1570 P2.3) — when provided, replaces ButtonGroup */
   viewPickerProps?: Omit<ViewPickerProps, 'currentViewMode'>
+  /** Leading content rendered before view picker (e.g., page title + record count) */
+  toolbarLeading?: React.ReactNode
+  /** Trailing content rendered after export button (e.g., creation button) */
+  toolbarTrailing?: React.ReactNode
 }
 
 export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
@@ -67,6 +71,8 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   onExportAll,
   onCopyLink,
   viewPickerProps,
+  toolbarLeading,
+  toolbarTrailing,
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore, hierarchyStore, tableCoreStore } = stores
 
@@ -108,6 +114,9 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
       }}
     >
       <div className="flex items-center gap-2">
+        {/* Leading content (e.g., page title + record count) */}
+        {toolbarLeading}
+
         {/* View Mode Toggle / View Picker (GH#1570) */}
         {viewPickerProps ? (
           <ViewPicker {...viewPickerProps} currentViewMode={viewMode} />
@@ -221,6 +230,9 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
             <Download className="size-4" />
           </Button>
         )}
+
+        {/* Trailing content (e.g., creation button) */}
+        {toolbarTrailing}
       </div>
     </div>
   )
