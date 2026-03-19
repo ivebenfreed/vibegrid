@@ -37,6 +37,21 @@ function isEmpty(value: unknown): boolean {
 }
 
 /**
+ * Wrap text in a child span with affordance attributes.
+ * Enables CSS descendant selectors for hover/cursor on content vs padding.
+ */
+function wrapTextContent(container: HTMLElement, text: string, isEditable: boolean): void {
+  const content = document.createElement('span')
+  content.textContent = text
+  content.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+  if (isEditable) {
+    content.dataset.affordance = 'edit'
+    content.dataset.affordanceRole = 'content'
+  }
+  container.appendChild(content)
+}
+
+/**
  * Get backend-resolved display name for an entity reference field.
  * Returns the `{column.id}_name` value ONLY if it's a synthetic resolved field
  * (injected by UnifiedResolver), not a real schema field that happens to match.
@@ -71,8 +86,9 @@ class TextFallbackCellRenderer implements CellRenderer {
   render(value: unknown, column: Column, _context: CellRendererContext): HTMLElement {
     const element = document.createElement('span')
     element.className = 'vg-cell-text'
-    element.textContent = value != null ? String(value) : ''
-    applyAffordanceAttrs(element, this, column.editable !== false)
+    const isEditable = column.editable !== false
+    wrapTextContent(element, value != null ? String(value) : '', isEditable)
+    applyAffordanceAttrs(element, this, isEditable)
     return element
   }
 
@@ -129,14 +145,11 @@ class TextCellRenderer implements CellRenderer {
 
     const fieldType = column.cellType || 'text'
     el.className = `vibegridx-cell-${fieldType}`
+    el.style.maxWidth = '100%'
 
     const displayValue = String(value)
-    el.textContent = displayValue
+    wrapTextContent(el, displayValue, isEditable)
     el.title = displayValue
-
-    // Overflow handling — don't set display:block, it overrides the
-    // flex centering applied by .vibegridx-cell (added by BodyRenderer)
-    el.style.maxWidth = '100%'
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
@@ -200,9 +213,9 @@ class NumberCellRenderer implements CellRenderer {
     }
 
     el.className = 'vibegridx-cell-number'
-    el.textContent = this.formatNumber(value, column)
     el.style.textAlign = 'right'
     el.style.fontVariantNumeric = 'tabular-nums'
+    wrapTextContent(el, this.formatNumber(value, column), isEditable)
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
@@ -790,11 +803,11 @@ class EmailCellRenderer implements CellRenderer {
 
     const emailValue = String(value).toLowerCase().trim()
     el.className = 'vibegridx-cell-email'
-    el.textContent = emailValue
     el.style.fontFamily = 'monospace'
     el.style.fontSize = '12px'
     el.style.color = '#2563eb'
     el.dataset.emailHref = `mailto:${emailValue}`
+    wrapTextContent(el, emailValue, isEditable)
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
@@ -958,9 +971,9 @@ class PhoneCellRenderer implements CellRenderer {
     }
 
     el.className = 'vibegridx-cell-phone'
-    el.textContent = this.formatPhone(value)
     el.style.fontFamily = 'monospace'
     el.style.fontVariantNumeric = 'tabular-nums'
+    wrapTextContent(el, this.formatPhone(value), isEditable)
 
     const cleaned = String(value).replace(/\D/g, '')
     if (cleaned) {
@@ -1135,9 +1148,9 @@ class CurrencyCellRenderer implements CellRenderer {
     }
 
     el.className = 'vibegridx-cell-currency'
-    el.textContent = this.formatCurrency(value, column)
     el.style.textAlign = 'right'
     el.style.fontVariantNumeric = 'tabular-nums'
+    wrapTextContent(el, this.formatCurrency(value, column), isEditable)
 
     applyAffordanceAttrs(el, this, isEditable)
     return el

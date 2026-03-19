@@ -38,8 +38,13 @@
   cursor: default;
 }
 
-/* Content with edit affordance uses pointer cursor
- * Indicates the content is clickable to enter edit mode */
+/* Content-click cells: container uses default cursor (padding = select only),
+ * child content element uses pointer cursor (content = edit).
+ * The editable-content group identifies these cells. */
+[data-affordance-group="editable-content"] {
+  cursor: default;
+}
+
 [data-affordance-role="content"][data-affordance="edit"] {
   cursor: pointer;
 }
