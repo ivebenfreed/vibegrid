@@ -192,14 +192,23 @@ export class CellActionRouter {
       }
 
       // Spatial check: is the click on content or padding?
+      // Check child elements first, then fall back to text nodes.
       const contentElement = cellContainer?.firstElementChild
       if (
         contentElement &&
         (target === contentElement || contentElement.contains(target as Node))
       ) {
-        fileLog.debug('Content-click: content area clicked - edit', {
+        fileLog.debug('Content-click: content element clicked - edit', {
           targetTag: (target as HTMLElement).tagName,
         })
+        return 'edit'
+      }
+
+      // No child elements but cell has text content (e.g., textContent-only cells).
+      // The text fills the cell, so clicking anywhere on it is a content click.
+      // Only return 'none' if the cell truly has no content (empty, handled above).
+      if (!contentElement && cellContainer?.textContent?.trim()) {
+        fileLog.debug('Content-click: text-only cell clicked - edit')
         return 'edit'
       }
 
