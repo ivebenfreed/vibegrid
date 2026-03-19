@@ -204,14 +204,6 @@ export class CellActionRouter {
         return 'edit'
       }
 
-      // No child elements but cell has text content (e.g., textContent-only cells).
-      // The text fills the cell, so clicking anywhere on it is a content click.
-      // Only return 'none' if the cell truly has no content (empty, handled above).
-      if (!contentElement && cellContainer?.textContent?.trim()) {
-        fileLog.debug('Content-click: text-only cell clicked - edit')
-        return 'edit'
-      }
-
       // Padding click - select only
       fileLog.debug('Content-click: padding clicked - select only')
       return 'none'

@@ -40,5 +40,23 @@ export function applyAffordanceAttrs(
         element.setAttribute('data-affordance', 'none')
         break
     }
+
+    // For content-click fields, CellActionRouter uses firstElementChild to
+    // distinguish content clicks (edit) from padding clicks (select only).
+    // When the renderer used textContent (no child elements), auto-wrap the
+    // text in a content span so the spatial check works. Renderers stay simple.
+    if (policy.editTrigger === 'content-click' && isEditable && !element.firstElementChild) {
+      const text = element.textContent
+      if (text) {
+        element.textContent = ''
+        const content = document.createElement('span')
+        content.textContent = text
+        content.dataset.affordance = 'edit'
+        content.dataset.affordanceRole = 'content'
+        content.style.cssText =
+          'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;'
+        element.appendChild(content)
+      }
+    }
   }
 }
