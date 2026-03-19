@@ -156,7 +156,11 @@ export class CellActionRouter {
     // FIRST: Check if column is editable - non-editable columns can only navigate or do nothing
     if (column.editable === false) {
       fileLog.debug('Column not editable, skipping edit actions', { columnId: column.id })
-      // Check for navigate affordance on non-editable columns (e.g., entity name link)
+      // Check data-action first (new system), then data-affordance (backward compat)
+      const actionElement = (target as HTMLElement).closest('[data-action="navigate"]')
+      if (actionElement) {
+        return 'navigate'
+      }
       const navigateElement = (target as HTMLElement).closest('[data-affordance="navigate"]')
       if (navigateElement) {
         fileLog.debug('Navigate affordance found on non-editable column', {
@@ -164,47 +168,25 @@ export class CellActionRouter {
         })
         return 'navigate'
       }
-      // Legacy fallback for data-action="navigate"
-      const actionElement = (target as HTMLElement).closest('[data-action="navigate"]')
-      if (actionElement) {
-        return 'navigate'
-      }
       return 'none'
     }
 
     // ========================================
-    // Content-click spatial check (before affordance lookup)
+    // Content-click: data-action lookup (replaces spatial check)
     // ========================================
-    // For content-click fields, distinguish content clicks (edit) from padding clicks (select only).
-    // This must run BEFORE the data-affordance lookup because the container has data-affordance="edit"
-    // which would make padding clicks incorrectly trigger edit.
+    // For content-click fields, use [data-action] on child elements to determine action.
+    // Clicks on padding (no [data-action] ancestor within cell) fall through to 'none'.
     if (fieldPolicy?.editTrigger === 'content-click') {
-      // First check if a child element has its own data-affordance (e.g., select badge)
-      const childAffordance = (target as HTMLElement).closest('[data-affordance]')
       const cellContainer = (target as HTMLElement).closest('[data-row-id][data-column-id]')
-      if (childAffordance && childAffordance !== cellContainer) {
-        // Click is on a child with explicit affordance (badge, icon, etc.)
-        const affordance = childAffordance.getAttribute('data-affordance')
-        fileLog.debug('Content-click: child affordance found', { affordance })
-        if (affordance === 'edit' || affordance === 'toggle') return 'edit'
-        if (affordance === 'navigate') return 'navigate'
-        if (affordance === 'none') return 'none'
+      const actionElement = (target as HTMLElement).closest('[data-action]')
+      if (actionElement && cellContainer?.contains(actionElement)) {
+        const action = actionElement.getAttribute('data-action')
+        fileLog.debug('Content-click: data-action found', { action })
+        if (action === 'edit') return 'edit'
+        if (action === 'navigate') return 'navigate'
+        if (action === 'none') return 'none'
       }
-
-      // Spatial check: is the click on content or padding?
-      // Check child elements first, then fall back to text nodes.
-      const contentElement = cellContainer?.firstElementChild
-      if (
-        contentElement &&
-        (target === contentElement || contentElement.contains(target as Node))
-      ) {
-        fileLog.debug('Content-click: content element clicked - edit', {
-          targetTag: (target as HTMLElement).tagName,
-        })
-        return 'edit'
-      }
-
-      // Padding click - select only
+      // Padding click — select only
       fileLog.debug('Content-click: padding clicked - select only')
       return 'none'
     }

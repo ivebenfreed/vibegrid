@@ -79,4 +79,56 @@ describe('applyAffordanceAttrs', () => {
     expect(element.getAttribute('data-affordance')).toBeNull()
     expect(element.getAttribute('aria-roledescription')).toBeNull()
   })
+
+  it('auto-wraps bare text in span with data-action="edit" for content-click renderers', () => {
+    const renderer = createMockRenderer({
+      interactionPolicy: {
+        defaultAction: 'edit',
+        editTrigger: 'content-click',
+        blurPolicy: 'commit',
+      } as any,
+    })
+    element.textContent = 'Hello world'
+    applyAffordanceAttrs(element, renderer, true)
+
+    const span = element.querySelector('span')
+    expect(span).not.toBeNull()
+    expect(span!.textContent).toBe('Hello world')
+    expect(span!.dataset.action).toBe('edit')
+    expect(span!.dataset.affordanceRole).toBe('content')
+  })
+
+  it('does not auto-wrap when element already has a child element', () => {
+    const renderer = createMockRenderer({
+      interactionPolicy: {
+        defaultAction: 'edit',
+        editTrigger: 'content-click',
+        blurPolicy: 'commit',
+      } as any,
+    })
+    const existingChild = document.createElement('span')
+    existingChild.textContent = 'Existing'
+    element.appendChild(existingChild)
+    applyAffordanceAttrs(element, renderer, true)
+
+    // Should not double-wrap
+    expect(element.querySelectorAll('span').length).toBe(1)
+    expect(element.firstElementChild).toBe(existingChild)
+  })
+
+  it('does not auto-wrap for non-editable content-click renderers', () => {
+    const renderer = createMockRenderer({
+      interactionPolicy: {
+        defaultAction: 'edit',
+        editTrigger: 'content-click',
+        blurPolicy: 'commit',
+      } as any,
+    })
+    element.textContent = 'Hello'
+    applyAffordanceAttrs(element, renderer, false)
+
+    // Should not wrap since not editable
+    expect(element.querySelector('span')).toBeNull()
+    expect(element.textContent).toBe('Hello')
+  })
 })
