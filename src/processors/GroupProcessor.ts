@@ -22,9 +22,10 @@ const fileLog = getLogger(['GroupProcessor'])
 // CONSTANTS
 // ====================================
 
-const DATA_ROW_HEIGHT = 40
-const GROUP_ROW_HEIGHT = 44
-const _SUMMARY_ROW_HEIGHT = 36
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
+const DATA_ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
+const GROUP_ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT + 4 // Slightly taller for group headers
+const _SUMMARY_ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT - 4
 
 // ====================================
 // GROUP TREE STRUCTURE

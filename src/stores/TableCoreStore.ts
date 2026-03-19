@@ -46,6 +46,7 @@ import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/chang
 import { createRowSnapshot, METADATA_COLUMNS, type RowSnapshot } from '../utils/hashing'
 import { generateColumnsFromEntitySchema } from './column-generation'
 import type { VisualStateStore } from './VisualStateStore'
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 
 const logger = getLogger(['vibegrid', 'stores', 'TableCoreStore'])
 
@@ -1136,7 +1137,7 @@ export class TableCoreStore implements IStore {
         id: row.id,
         index,
         dataIndex: index, // For data-only rows, dataIndex === index (no expanded-content rows yet)
-        height: row.height || 40, // Preserve variable row heights, default to 40
+        height: row.height || GRID_DIMENSIONS.ROW_HEIGHT, // Preserve variable row heights, default to 40
         data: row,
       }))
     }
@@ -1262,7 +1263,7 @@ export class TableCoreStore implements IStore {
 
     for (let i = 0; i < rows.length; i++) {
       const prevOffset = offsets[i]
-      const rowHeight = rows[i]?.height || 40
+      const rowHeight = rows[i]?.height || GRID_DIMENSIONS.ROW_HEIGHT
       offsets.push(prevOffset + rowHeight)
     }
 

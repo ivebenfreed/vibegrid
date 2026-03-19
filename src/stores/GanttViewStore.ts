@@ -170,7 +170,7 @@ const ZOOM_PIXELS_PER_DAY: Record<ZoomLevel, number> = {
   quarter: 2,
 }
 
-const DEFAULT_ROW_HEIGHT = 40 // Must match GRID_DIMENSIONS.ROW_HEIGHT and GanttTimeline ROW_HEIGHT
+const DEFAULT_ROW_HEIGHT = 34 // Match GRID_DIMENSIONS.ROW_HEIGHT — keep in sync with grid-dimensions.ts
 
 // ====================================
 // STORE

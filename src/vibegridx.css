@@ -7,7 +7,7 @@
 /* CSS Variables for dynamic configuration */
 :root {
   --vibegridx-header-height: 40px;
-  --vibegridx-cell-height: 40px;
+  --vibegridx-cell-height: 34px;
   --vibegridx-cell-width: 120px;
 }
 
@@ -505,7 +505,7 @@ body.vibegridx-dragging-active * {
   position: absolute;
   left: 0;
   top: 0; /* Base position - actual Y via transform */
-  height: 40px; /* ROW_HEIGHT */
+  height: var(--vibegridx-cell-height); /* ROW_HEIGHT */
   display: flex;
   align-items: center;
   background: hsl(var(--background));
@@ -517,7 +517,7 @@ body.vibegridx-dragging-active * {
 /* Drag column - fixed width */
 .vibegridx-drag-column {
   width: 30px; /* DRAG_COLUMN_WIDTH */
-  height: 40px; /* ROW_HEIGHT */
+  height: var(--vibegridx-cell-height); /* ROW_HEIGHT */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -543,7 +543,7 @@ body.vibegridx-dragging-active * {
 /* Row header - fixed width */
 .vibegridx-row-header-cell {
   width: 40px; /* ROW_HEADER_WIDTH */
-  height: 40px; /* ROW_HEIGHT */
+  height: var(--vibegridx-cell-height); /* ROW_HEIGHT */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -700,7 +700,7 @@ body.vibegridx-dragging-active * {
 .vibegridx-group-row {
   position: absolute;
   left: 0;
-  height: 40px; /* ROW_HEIGHT */
+  height: var(--vibegridx-cell-height); /* ROW_HEIGHT */
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -1349,7 +1349,7 @@ body.vibegridx-dragging-active * {
 
 /* Ghost Row - Inline Creation (GH#1658) */
 .vibegridx-ghost-row {
-  height: 40px;
+  height: var(--vibegridx-cell-height);
   display: flex;
   align-items: center;
   padding: 0 8px;

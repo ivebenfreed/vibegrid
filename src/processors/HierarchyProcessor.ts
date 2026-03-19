@@ -14,8 +14,9 @@ const fileLog = getLogger(['HierarchyProcessor'])
 // CONSTANTS
 // ====================================
 
-const _DATA_ROW_HEIGHT = 40
-const HIERARCHY_ROW_HEIGHT = 40 // Same as data rows, indentation shows hierarchy
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
+const _DATA_ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
+const HIERARCHY_ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
 // ====================================
 // TYPES
@@ -71,6 +72,7 @@ export interface HierarchyTree {
 // HIERARCHY PROCESSOR CLASS
 // ====================================
 
+// biome-ignore lint/complexity/noStaticOnlyClass: processor pattern used across vibegrid
 export class HierarchyProcessor {
   // ====================================
   // MAIN TREE BUILDING METHOD

@@ -23,8 +23,8 @@ const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 // CONSTANTS
 // ====================================
 
-const HEADER_HEIGHT = 48 // Match table column header height (GRID_DIMENSIONS.HEADER_HEIGHT)
-const ROW_HEIGHT = 40 // Match table row height (GRID_DIMENSIONS.ROW_HEIGHT)
+const HEADER_HEIGHT = 48 // Match GRID_DIMENSIONS.HEADER_HEIGHT
+const ROW_HEIGHT = 34 // Match GRID_DIMENSIONS.ROW_HEIGHT — keep in sync with grid-dimensions.ts
 
 // ====================================
 // TIME SCALE HEADER
@@ -102,6 +102,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
       style={{ height: HEADER_HEIGHT, width }}
     >
       {markers.map((marker, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: stable marker order from date range
         <div key={i} className="absolute flex flex-col items-start" style={{ left: marker.left }}>
           <div className="h-2 w-px bg-border" />
           <span className="text-xs text-muted-foreground whitespace-nowrap px-1">
@@ -178,6 +179,7 @@ function DependencyDragLine({
   const color = hasTarget ? '#22c55e' : '#6b7280' // green when valid target, gray otherwise
 
   return (
+    // biome-ignore lint/a11y/noSvgWithoutTitle: decorative drag indicator
     <svg className="absolute inset-0 pointer-events-none z-40" style={{ overflow: 'visible' }}>
       {/* Simple line - no arrowhead */}
       <line
@@ -403,6 +405,7 @@ export const GanttTimeline = observer(function GanttTimeline({
         <div className="absolute inset-0 pointer-events-none">
           {Array.from({ length: rowCount }, (_, index) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: positional zebra stripes never reorder
               key={`row-bg-${index}`}
               className={index % 2 === 0 ? 'bg-background' : 'bg-muted'}
               style={{
