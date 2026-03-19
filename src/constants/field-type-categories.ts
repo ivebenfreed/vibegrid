@@ -10,7 +10,7 @@ export type FieldTypeCategory = 'text' | 'number' | 'dropdown' | 'modal-text' | 
 //   computed_expression, computed_formula, computed_decision_table
 // - Display-only: file, image, currency, color, rating, slider, percentage,
 //   currency-abbreviated, additional-insured, expiration-date, badge-list
-// - Special renderers: row-expand, entity-name, relationship_link, status,
+// - Special renderers: row-expand, entity-name, status,
 //   discussion_type_option
 // - Unmapped types fall through to 'text' positioning (inline overlay on cell)
 

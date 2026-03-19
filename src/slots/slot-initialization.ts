@@ -36,7 +36,6 @@ function isEmpty(value: unknown): boolean {
   return value == null || value === ''
 }
 
-
 /**
  * Get backend-resolved display name for an entity reference field.
  * Returns the `{column.id}_name` value ONLY if it's a synthetic resolved field

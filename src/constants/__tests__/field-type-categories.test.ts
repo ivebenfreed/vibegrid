@@ -93,7 +93,6 @@ describe('FIELD_TYPE_CATEGORIES', () => {
       'badge-list',
       'row-expand',
       'entity-name',
-      'relationship_link',
       'status',
       'discussion_type_option',
       'rollup_count',
