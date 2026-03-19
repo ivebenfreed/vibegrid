@@ -516,12 +516,44 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     })
     .filter((col): col is Column<T> => col !== null) // Remove any null entries from skipped fields
 
+  // Inject created_at / updated_at system columns when not already present.
+  // These exist on every entity_records row but aren't declared in schema fields.
+  const existingIds = new Set(allColumns.map((c) => c.id))
+  const systemTimestampColumns: Column<T>[] = []
+
+  if (!existingIds.has('created_at')) {
+    systemTimestampColumns.push({
+      id: 'created_at',
+      field: 'created_at' as keyof T & string,
+      name: 'Created',
+      cellType: 'datetime' as any,
+      type: 'datetime-local',
+      width: 200,
+      editable: false,
+    } as Column<T>)
+  }
+
+  if (!existingIds.has('updated_at')) {
+    systemTimestampColumns.push({
+      id: 'updated_at',
+      field: 'updated_at' as keyof T & string,
+      name: 'Updated',
+      cellType: 'datetime' as any,
+      type: 'datetime-local',
+      width: 200,
+      editable: false,
+    } as Column<T>)
+  }
+
+  const finalColumns = [...allColumns, ...systemTimestampColumns]
+
   fileLog.debug('✅ Generated columns from schema', {
     entityType,
-    totalColumns: allColumns.length,
+    totalColumns: finalColumns.length,
+    injectedTimestamps: systemTimestampColumns.length,
   })
 
-  return allColumns
+  return finalColumns
 }
 
 /**
