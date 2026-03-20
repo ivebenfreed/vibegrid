@@ -209,6 +209,11 @@ export class OverlayManager {
         if (this.isCancelling) {
           return
         }
+        // Session already ended (e.g., keyboard handler committed/cancelled via capture phase,
+        // then container.focus() caused the editor to blur and fire this callback)
+        if (!this.editingStore.isEditing) {
+          return
+        }
 
         this.isCommitting = true
         try {
@@ -225,6 +230,11 @@ export class OverlayManager {
           return
         }
         if (this.isCommitting) {
+          return
+        }
+        // Session already ended (e.g., keyboard handler committed/cancelled via capture phase,
+        // then container.focus() caused the editor to blur and fire this callback)
+        if (!this.editingStore.isEditing) {
           return
         }
 
