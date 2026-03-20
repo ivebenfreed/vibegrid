@@ -5,47 +5,53 @@
  * All cursor and hover behaviors are controlled through data attributes.
  *
  * Two-attribute system:
- * - data-affordance: Container-level CSS cursor (pointer/default). Set by applyAffordanceAttrs.
- * - data-action: Child-level click routing + hover effects. Set by renderers on interactive elements.
+ * - data-affordance: Container-level CSS-only (no action routing). Default cursor for cell.
+ * - data-action: Child-level click routing + cursor + hover effects. Set on interactive elements.
  *
- * @see DESIGN.md in planning/04-improvements/vibegrid-cell-interaction/
+ * Cursor priority: data-action on children overrides container data-affordance.
+ * Padding (no data-action) inherits container cursor (default).
  * ==================================== */
 
 /* ====================================
- * BASE AFFORDANCE CURSORS
+ * DATA-ACTION CURSORS (on interactive children)
  *
- * Each data-affordance value maps to a cursor type.
- * These are the foundational rules that all cells use.
- * Container-level only — stays on data-affordance.
+ * These are the primary cursor rules. Each data-action value
+ * gets an appropriate cursor on the specific interactive element.
  * ==================================== */
 
-[data-affordance="select"] {
+[data-action="navigate"] {
+  cursor: pointer;
+}
+
+[data-action="edit"] {
+  cursor: pointer;
+}
+
+[data-action="toggle"] {
+  cursor: pointer;
+}
+
+[data-action="none"] {
   cursor: default;
 }
 
-[data-affordance="navigate"] {
-  cursor: pointer;
-}
+/* ====================================
+ * CONTAINER CURSORS (data-affordance — CSS-only, no routing)
+ *
+ * Default cursor for the cell container. Applies to padding areas.
+ * For cells where the entire surface is one action (e.g., simple editable text),
+ * the container cursor matches the child action.
+ * ==================================== */
 
-[data-affordance="edit"] {
-  cursor: pointer;
-}
-
-[data-affordance="toggle"] {
-  cursor: pointer;
-}
-
-[data-affordance="open-menu"] {
-  cursor: pointer;
-}
-
+[data-affordance="select"],
+[data-affordance="navigate"],
 [data-affordance="none"] {
   cursor: default;
 }
 
-/* Content with edit action uses pointer cursor
- * Indicates the content is clickable to enter edit mode */
-[data-affordance-role="content"][data-action="edit"] {
+[data-affordance="edit"],
+[data-affordance="toggle"],
+[data-affordance="open-menu"] {
   cursor: pointer;
 }
 

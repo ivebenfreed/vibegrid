@@ -143,12 +143,13 @@ export class CellActionRouter {
    * Determine what action to take based on context
    *
    * Priority:
-   * 0. Check if column is editable (skip edit actions for non-editable columns)
-   * 1. **NEW: Check data-affordance attribute (Affordance Group system)**
-   * 2. Explicit edit trigger (data-edit-trigger="true") [legacy]
-   * 3. Check if click is on content element (for content-click trigger) [legacy]
-   * 4. Field interaction policy [legacy]
-   * 5. Default to 'none' (selection only)
+   * 1. Non-editable column guard (can only navigate or none)
+   * 2. Content-click fields: data-action lookup within cell
+   * 3. All fields: data-action on clicked element (sole routing signal)
+   * 4. Field policy fallback: editTrigger='click' → edit
+   * 5. Default to 'none' (selection only — padding clicks always select)
+   *
+   * data-affordance on containers is CSS-only (cursor styling), never used for routing.
    */
   private determineAction(context: CellActionContext): CellAction {
     const { target, fieldPolicy, column } = context
@@ -192,11 +193,11 @@ export class CellActionRouter {
     }
 
     // ========================================
-    // data-action on clicked element (most specific signal)
+    // data-action on clicked element
     // ========================================
-    // Check data-action on the clicked element BEFORE data-affordance on containers.
-    // data-action is set on interactive children (text, icons) and is more specific
-    // than data-affordance which is set on the cell container as a default.
+    // data-action is set on interactive children (text, icons) and is the sole
+    // routing signal. data-affordance on containers is CSS-only (cursor styling).
+    // Clicking padding (no data-action ancestor within cell) always selects.
     {
       const cellContainer = (target as HTMLElement).closest('[data-row-id][data-column-id]')
       const actionElement = (target as HTMLElement).closest('[data-action]')
@@ -211,105 +212,17 @@ export class CellActionRouter {
     }
 
     // ========================================
-    // Affordance Group System
+    // Field interaction policy fallback
     // ========================================
-    // Check for data-affordance attribute on clicked element or ancestors
-    // This is the container-level default action (less specific than data-action)
-    const affordanceElement = (target as HTMLElement).closest('[data-affordance]')
-    if (affordanceElement) {
-      const affordance = affordanceElement.getAttribute('data-affordance')
-      const affordanceRole = affordanceElement.getAttribute('data-affordance-role')
-
-      fileLog.debug('Affordance attribute found', {
-        affordance,
-        affordanceRole,
-        element: (affordanceElement as HTMLElement).tagName,
-      })
-
-      // Map affordance values to actions
-      switch (affordance) {
-        case 'edit':
-          return 'edit'
-
-        case 'toggle':
-          // Toggle controls (booleans) edit on click
-          return 'edit'
-
-        case 'navigate':
-          return 'navigate'
-
-        case 'none':
-          return 'none'
-
-        default:
-          fileLog.debug('Unknown affordance value, falling through to legacy', { affordance })
-        // Fall through to legacy checks
-      }
-    }
-
-    // ========================================
-    // Legacy System (Backward Compatibility)
-    // ========================================
-
-    // Check for explicit edit trigger (e.g., pencil icon with data-edit-trigger="true")
-    const editTrigger = (target as HTMLElement).closest('[data-edit-trigger="true"]')
-    if (editTrigger) {
-      fileLog.debug('Explicit edit trigger found', {
-        element: (editTrigger as HTMLElement).tagName,
-      })
+    if (fieldPolicy?.editTrigger === 'click') {
+      // 'click' trigger: any click anywhere in the cell edits
       return 'edit'
     }
 
-    // Check for explicit data-action attribute (e.g., text element with data-action="navigate")
-    const actionElement = (target as HTMLElement).closest('[data-action]')
-    if (actionElement) {
-      const explicitAction = actionElement.getAttribute('data-action') as CellAction
-      if (explicitAction && ['navigate', 'edit', 'custom', 'none'].includes(explicitAction)) {
-        fileLog.debug('Explicit action from data-action attribute', {
-          action: explicitAction,
-          element: (actionElement as HTMLElement).tagName,
-        })
-        return explicitAction
-      }
-    }
-
-    // Check for data-cell-action attribute (legacy)
-    const cellElement = (target as HTMLElement).closest('[data-cell-action]')
-    if (cellElement) {
-      const explicitAction = cellElement.getAttribute('data-cell-action') as CellAction
-      if (explicitAction && ['navigate', 'edit', 'custom', 'none'].includes(explicitAction)) {
-        fileLog.debug('Explicit action from data-cell-action attribute', {
-          action: explicitAction,
-        })
-        return explicitAction
-      }
-    }
-
-    // Use field interaction policy
-    if (fieldPolicy) {
-      // content-click is handled above (before affordance lookup)
-
-      // For 'click' trigger: Always edit on any click
-      if (fieldPolicy.editTrigger === 'click') {
-        return 'edit'
-      }
-
-      // For other triggers (f2, icon, none):
-      // - If defaultAction='navigate', needs explicit data-action="navigate" (set on text element)
-      // - If defaultAction='edit', needs explicit trigger (content-click, click, etc.)
-      // Without explicit trigger, default to 'none' (selection only)
-
-      // For fields with special triggers (icon, f2), clicking padding = selection only
-      fileLog.debug('No explicit trigger - defaulting to selection only', {
-        editTrigger: fieldPolicy.editTrigger,
-        defaultAction: fieldPolicy.defaultAction,
-      })
-      return 'none'
-    }
-
-    // No policy - default to 'none' (selection only)
-    fileLog.debug('No field policy - defaulting to none', {
+    // Padding click or no data-action found — selection only
+    fileLog.debug('No data-action on target - selecting only', {
       cellType: column.cellType,
+      editTrigger: fieldPolicy?.editTrigger,
     })
     return 'none'
   }
