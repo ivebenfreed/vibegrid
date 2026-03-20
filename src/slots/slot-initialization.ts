@@ -2975,11 +2975,12 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
 
   // --- 16. Entity Name ---
   // Priority 50 so it wins over the default text renderer (priority 0) for name columns.
-  // canHandle matches by column id ('name') or explicit isPrimaryField flag.
+  // canHandle matches by column id ('name'/'title') or explicit isPrimaryField flag.
   registry.register({
     id: 'entity-name',
     priority: 50,
-    canHandle: (column) => column.id === 'name' || (column as any).isPrimaryField === true,
+    canHandle: (column) =>
+      column.id === 'name' || column.id === 'title' || (column as any).isPrimaryField === true,
     renderer: () => entityNameCellRenderer,
   })
 

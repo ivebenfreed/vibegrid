@@ -21,7 +21,13 @@ export function PickerEnumEditor({
 
   // Build field definition from column for EnumPicker
   const field = React.useMemo(() => {
-    const rawOptions = column.enumOptions || column.options || []
+    // Check all three option sources, matching SelectCellRenderer.getOptions logic
+    const rawOptions =
+      column.enumOptions ||
+      column.options ||
+      (column.validation?.enum as any[]) ||
+      column.editor?.options ||
+      []
     const options = rawOptions.map((opt: any) =>
       typeof opt === 'string'
         ? { value: opt, label: opt }
@@ -34,7 +40,7 @@ export function PickerEnumEditor({
           },
     )
     return { editor: { options }, enumValues: undefined }
-  }, [column.enumOptions, column.options])
+  }, [column.enumOptions, column.options, column.validation?.enum, column.editor?.options])
 
   const handleValueChange = React.useCallback(
     (value: string | null) => {

@@ -325,7 +325,17 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             placeholder="Search columns..."
             value={searchValue}
             onChange={handleSearchChange}
-            onKeyDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                if (searchValue) {
+                  interactionStore.setColumnVisibilitySearch('')
+                  e.stopPropagation()
+                }
+                // If search is empty, let Escape propagate to close the dropdown
+              } else {
+                e.stopPropagation()
+              }
+            }}
             className="h-8 text-xs"
           />
         </div>

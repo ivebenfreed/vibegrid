@@ -111,7 +111,7 @@
 .vibegridx-header-cell.vibegridx-narrow-indicator {
   min-width: auto;
   max-width: none;
-  overflow: visible;
+  overflow: hidden;
   padding: 0 4px;
 }
 
