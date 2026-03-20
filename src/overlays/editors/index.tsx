@@ -119,6 +119,7 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'integer':
     case 'float':
     case 'decimal':
+    case 'currency':
       return <NumberEditor {...props} />
 
     case 'select':

@@ -8,7 +8,7 @@ export type FieldTypeCategory = 'text' | 'number' | 'dropdown' | 'modal-text' | 
 // Types intentionally excluded from the map (non-editable or display-only):
 // - Read-only computed/rollup: rollup_count, rollup_sum, rollup_average, rollup_concat,
 //   computed_expression, computed_formula, computed_decision_table
-// - Display-only: file, image, currency, color, rating, slider, percentage,
+// - Display-only: file, image, color, rating, slider, percentage,
 //   currency-abbreviated, additional-insured, expiration-date, badge-list
 // - Special renderers: row-expand, entity-name, status,
 //   discussion_type_option
@@ -34,6 +34,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldTypeCategory> = {
   integer: 'number',
   float: 'number',
   decimal: 'number',
+  currency: 'number',
 
   // Modal text (opens in modal, keeps multiline keyboard handling)
   textarea: 'modal-text',
