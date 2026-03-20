@@ -6,9 +6,11 @@
 import { getLogger } from '@/shared/lib/logging'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 
+import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
+
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'GroupRenderer.ts'])
 
-const ROW_HEIGHT = 40
+const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
 export interface GroupRendererOptions {
   domFactory: DOMElementFactory

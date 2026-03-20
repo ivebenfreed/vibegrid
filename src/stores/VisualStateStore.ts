@@ -93,7 +93,7 @@ export class VisualStateStore implements IStore {
   // ====================================
 
   @observable rowCount: number = 0
-  @observable rowHeight: number = 40
+  @observable rowHeight: number = GRID_DIMENSIONS.ROW_HEIGHT
   @observable groupBy: any = null // Legacy grouping configuration
 
   // ====================================
@@ -303,7 +303,7 @@ export class VisualStateStore implements IStore {
     this.columnOrder = []
     // Viewport state reset is handled by ViewportStore.reset()
     this.rowCount = 0
-    this.rowHeight = 40
+    this.rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
     this.sortBy = []
     this.filters = []
     this.filterGroup = null
@@ -560,7 +560,7 @@ export class VisualStateStore implements IStore {
     this.columnOrder = defaultOrder
     // Viewport state initialization is handled by ViewportStore
     this.rowCount = 0
-    this.rowHeight = 40
+    this.rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
     this.groupConfig = null
     this.sortBy = []
     this.filters = []

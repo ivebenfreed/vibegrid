@@ -19,8 +19,10 @@ import type { SelectionController } from '../modules/SelectionController'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'HeaderRenderer.ts'])
 
-const _ROW_HEIGHT = 40
-const HEADER_HEIGHT = 48
+import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
+
+const _ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
+const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT
 
 export interface HeaderRendererOptions {
   headerContainer: HTMLElement

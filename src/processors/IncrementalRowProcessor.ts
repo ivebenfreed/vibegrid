@@ -13,6 +13,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { VirtualRow, Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { compareValues, isEmpty } from '../utils/sort-compare'
 
@@ -520,7 +521,7 @@ export class IncrementalRowProcessor {
       id: row.id,
       index: startIndex + index,
       dataIndex: startIndex + index,
-      height: row.height || 40,
+      height: row.height || GRID_DIMENSIONS.ROW_HEIGHT,
       data: row,
     }))
   }

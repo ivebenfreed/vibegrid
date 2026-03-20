@@ -10,7 +10,9 @@ type UnifiedTableRow = {
   [key: string]: any
 }
 
-export const ROW_HEIGHT = 40
+import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
+
+export const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 export const GROUP_ROW_HEIGHT = 44
 export const SUMMARY_ROW_HEIGHT = 36
 

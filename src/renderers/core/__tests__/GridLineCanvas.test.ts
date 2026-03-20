@@ -12,6 +12,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ColumnLayout, VisualStateStore } from '../../../stores/VisualStateStore'
 import type { ViewportStore } from '../../../stores/ViewportStore'
 import { GridLineCanvas } from '../GridLineCanvas'
+import { GRID_DIMENSIONS } from '../../../constants/grid-dimensions'
+
+const RH = GRID_DIMENSIONS.ROW_HEIGHT
 
 // --- Mock Canvas Context ---
 
@@ -216,6 +219,7 @@ describe('GridLineCanvas', () => {
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
+        totalRows: 100, // Enough rows so content exceeds viewport
       })
       const visualStore = createMockVisualStateStore()
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
@@ -230,6 +234,7 @@ describe('GridLineCanvas', () => {
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
+        totalRows: 100, // Enough rows so content exceeds viewport
       })
       const visualStore = createMockVisualStateStore()
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
@@ -241,10 +246,11 @@ describe('GridLineCanvas', () => {
     })
 
     it('clamps canvas height to content height when rows are fewer than viewport', () => {
+      const contentH = 3 * RH
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
-        totalRows: 3, // 3 * 40 = 120px content
+        totalRows: 3,
         visibleRowRange: { start: 0, end: 3 },
       })
       const visualStore = createMockVisualStateStore()
@@ -252,9 +258,8 @@ describe('GridLineCanvas', () => {
 
       gridLines.updateCanvasSize()
 
-      // Canvas should be clamped to 120px (3 rows * 40px), not 600px
-      expect(gridLines.canvas.style.height).toBe('120px')
-      expect(gridLines.canvas.height).toBe(120) // DPR = 1
+      expect(gridLines.canvas.style.height).toBe(`${contentH}px`)
+      expect(gridLines.canvas.height).toBe(contentH) // DPR = 1
     })
 
     it('applies DPR scale to context', () => {
@@ -360,12 +365,13 @@ describe('GridLineCanvas', () => {
       // Should call moveTo/lineTo for each column border
       // col1 right edge: 70 + 150 - 0 = 220 -> 220.5
       // col2 right edge: 220 + 200 - 0 = 420 -> 420.5
-      // Vertical lines clamped to content height: 5 rows * 40px = 200
+      // Vertical lines clamped to content height: 5 rows * RH
+      const contentH = 5 * RH
       expect(mockCtx.beginPath).toHaveBeenCalled()
       expect(mockCtx.moveTo).toHaveBeenCalledWith(220.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 200)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, contentH)
       expect(mockCtx.moveTo).toHaveBeenCalledWith(420.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(420.5, 200)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(420.5, contentH)
       expect(mockCtx.stroke).toHaveBeenCalled()
     })
 
@@ -389,9 +395,9 @@ describe('GridLineCanvas', () => {
       gridLines.draw()
 
       // col1 right edge: 70 + 150 - 50 = 170 -> 170.5
-      // Vertical lines clamped to content height: 5 rows * 40px = 200
+      // Vertical lines clamped to content height: 5 rows * RH
       expect(mockCtx.moveTo).toHaveBeenCalledWith(170.5, 0)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(170.5, 200)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(170.5, 5 * RH)
     })
 
     it('clamps vertical lines to content height when rows do not fill viewport', () => {
@@ -404,7 +410,6 @@ describe('GridLineCanvas', () => {
         scrollLeft: 0,
         scrollTop: 0,
       })
-      // 3 rows at 40px = 120px content, viewport is 600px
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
@@ -415,9 +420,9 @@ describe('GridLineCanvas', () => {
 
       gridLines.draw()
 
-      // Vertical lines should stop at 120px (3 * 40), NOT extend to 600px
+      // Vertical lines should stop at 3 * RH, NOT extend to 600px
       // col1 right edge: 70 + 150 = 220 -> 220.5
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 120)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220.5, 3 * RH)
       // Verify it was NOT called with the full viewport height
       expect(mockCtx.lineTo).not.toHaveBeenCalledWith(220.5, 600)
     })
@@ -432,7 +437,7 @@ describe('GridLineCanvas', () => {
         scrollLeft: 0,
         scrollTop: 0,
       })
-      // 20 rows at 40px = 800px content, viewport is 600px
+      // 20 rows at RH px each, content exceeds viewport
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
@@ -493,16 +498,15 @@ describe('GridLineCanvas', () => {
 
       gridLines.draw()
 
-      // ROW_HEIGHT = 40
-      // Row 0: (0+1)*40 - 0 = 40 -> 40.5
-      // Row 1: (1+1)*40 - 0 = 80 -> 80.5
-      // Row 2: (2+1)*40 - 0 = 120 -> 120.5
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 40.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 40.5)
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 80.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 80.5)
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 120.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 120.5)
+      // Row 0 bottom: (0+1)*RH - 0 → RH + 0.5
+      // Row 1 bottom: (1+1)*RH - 0 → 2*RH + 0.5
+      // Row 2 bottom: (2+1)*RH - 0 → 3*RH + 0.5
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 1 * RH + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 1 * RH + 0.5)
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 2 * RH + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 2 * RH + 0.5)
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 3 * RH + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 3 * RH + 0.5)
     })
 
     it('adjusts horizontal line positions for scrollTop', () => {
@@ -522,13 +526,12 @@ describe('GridLineCanvas', () => {
 
       gridLines.draw()
 
-      // ROW_HEIGHT = 40
-      // Row 0: (0+1)*40 - 20 = 20 -> 20.5
-      // Row 1: (1+1)*40 - 20 = 60 -> 60.5
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 20.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 20.5)
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 60.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 60.5)
+      // Row 0 bottom: (0+1)*RH - 20 → RH - 20 + 0.5
+      // Row 1 bottom: (1+1)*RH - 20 → 2*RH - 20 + 0.5
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 1 * RH - 20 + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 1 * RH - 20 + 0.5)
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 2 * RH - 20 + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 2 * RH - 20 + 0.5)
     })
 
     it('draws horizontal lines for variable-height rows using rowOffsets', () => {
@@ -582,7 +585,8 @@ describe('GridLineCanvas', () => {
           (args) => Number.isFinite(args[0] as number) && Number.isFinite(args[1] as number),
         ),
       ).toBe(true)
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 120.5)
+      // Sparse fallback: row 2 bottom at offset 60 + RH
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 60 + RH + 0.5)
 
       const fillRectCalls = (mockCtx.fillRect as ReturnType<typeof vi.fn>).mock.calls
       expect(
@@ -607,23 +611,27 @@ describe('GridLineCanvas', () => {
         scrollLeft: 0,
         scrollTop: 0,
       })
+      // Need enough rows so content at scrollTop=200 still exceeds 600px viewport
+      // (totalRows * RH - scrollTop) > viewportHeight → totalRows > (600 + 200) / RH
+      const totalRows = Math.ceil(900 / RH)
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
-        visibleRowRange: { start: 0, end: 20 },
-        totalRows: 20,
+        visibleRowRange: { start: 0, end: totalRows },
+        totalRows,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
       // Native scroll listener reports latest values before MobX catches up.
       gridLines.drawFromScroll(100, 200)
 
-      // Vertical line: (70 + 150 - 100) = 120 -> 120.5
+      // Vertical line: (70 + 150 - 100) = 120 -> 120.5, extends to viewport height
       expect(mockCtx.moveTo).toHaveBeenCalledWith(120.5, 0)
       expect(mockCtx.lineTo).toHaveBeenCalledWith(120.5, 600)
-      // First visible horizontal line at scrollTop=200 is row 5 bottom: 240 - 200 = 40 -> 40.5
-      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 40.5)
-      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 40.5)
+      // First visible horizontal line at scrollTop=200: first row bottom past scroll
+      const firstRowBottom = Math.ceil(200 / RH) * RH - 200
+      expect(mockCtx.moveTo).toHaveBeenCalledWith(0, firstRowBottom + 0.5)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(800, firstRowBottom + 0.5)
     })
   })
 

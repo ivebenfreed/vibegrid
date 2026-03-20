@@ -26,6 +26,9 @@ vi.mock('@/shared/lib/logging', () => ({
 }))
 
 import { ViewportStore } from '../ViewportStore'
+import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
+
+const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
 // MobX strict mode (matches project config)
 configure({ enforceActions: 'always' })
@@ -133,9 +136,9 @@ describe('ViewportStore', () => {
     })
 
     it('should compute totalRows from content height when no offsets', () => {
+      const contentHeight = ROW_HEIGHT * 50
       runInAction(() => {
-        // ROW_HEIGHT = 40, so 2000/40 = 50 rows
-        store.updateContentSize(800, 2000)
+        store.updateContentSize(800, contentHeight)
       })
       expect(store.totalRows).toBe(50)
     })
@@ -160,17 +163,18 @@ describe('ViewportStore', () => {
     })
 
     it('should offset visible range when scrolled', () => {
+      const scrollTop = ROW_HEIGHT * 15 // Scroll past 15 rows
       runInAction(() => {
-        store.updateViewportSize(1000, 400) // 400px = 10 rows
-        store.updateContentSize(1000, 4000) // 100 rows
-        store.updateScroll(400, 0) // Scrolled past 10 rows
+        store.updateViewportSize(1000, 400)
+        store.updateContentSize(1000, ROW_HEIGHT * 100) // 100 rows
+        store.updateScroll(scrollTop, 0)
       })
 
       const range = store.visibleRowRange
-      // At scrollTop=400, row 10 is at top. With buffer of 10: start = 0
-      expect(range.start).toBe(0)
-      // visible rows: 10-20 (10 rows) + buffer
-      expect(range.end).toBeGreaterThan(10)
+      // At scrollTop = 15*RH, row 15 is at top. With buffer of 10: start = 5
+      expect(range.start).toBe(5)
+      // visible rows + buffer extends past row 15
+      expect(range.end).toBeGreaterThan(15)
     })
 
     it('should use binary search with rowOffsets', () => {

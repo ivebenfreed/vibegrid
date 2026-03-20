@@ -24,7 +24,7 @@ import type { SelectionController } from '../modules/SelectionController'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'components', 'BodyRenderer.ts'])
 
-const ROW_HEIGHT = 40
+const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 
 // ====================================
 // INTERFACES
