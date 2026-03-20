@@ -192,9 +192,29 @@ export class CellActionRouter {
     }
 
     // ========================================
+    // data-action on clicked element (most specific signal)
+    // ========================================
+    // Check data-action on the clicked element BEFORE data-affordance on containers.
+    // data-action is set on interactive children (text, icons) and is more specific
+    // than data-affordance which is set on the cell container as a default.
+    {
+      const cellContainer = (target as HTMLElement).closest('[data-row-id][data-column-id]')
+      const actionElement = (target as HTMLElement).closest('[data-action]')
+      if (actionElement && cellContainer?.contains(actionElement)) {
+        const action = actionElement.getAttribute('data-action')
+        fileLog.debug('data-action found on clicked element', { action })
+        if (action === 'edit') return 'edit'
+        if (action === 'navigate') return 'navigate'
+        if (action === 'toggle') return 'edit'
+        if (action === 'none') return 'none'
+      }
+    }
+
+    // ========================================
     // Affordance Group System
     // ========================================
     // Check for data-affordance attribute on clicked element or ancestors
+    // This is the container-level default action (less specific than data-action)
     const affordanceElement = (target as HTMLElement).closest('[data-affordance]')
     if (affordanceElement) {
       const affordance = affordanceElement.getAttribute('data-affordance')
