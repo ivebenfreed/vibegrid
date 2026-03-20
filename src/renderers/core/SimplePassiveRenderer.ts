@@ -1073,12 +1073,12 @@ export class SimplePassiveRenderer {
     // VIRTUAL SCROLL OBSERVER: Incremental updates with buffer-aware triggering
     // Uses BUFFER_ROWS to prevent unnecessary renders during small scrolls
     this.virtualScrollObserverDisposer = reaction(
-      () => this.visualStateStore.scrollTop,
+      () => this.stores.viewportStore.scrollTop,
       () => {
         if (!this.observersEnabled) return
 
-        const scrollTop = this.visualStateStore.scrollTop
-        const viewportHeight = this.visualStateStore.viewportHeight
+        const scrollTop = this.stores.viewportStore.scrollTop
+        const viewportHeight = this.stores.viewportStore.viewportHeight
         const rowCount = this.visualStateStore.rowCount
         const buffer = GRID_DIMENSIONS.BUFFER_ROWS
 
@@ -1142,7 +1142,7 @@ export class SimplePassiveRenderer {
     // MobX computed values must be read inside reactive context, so capture them in the reaction
     this.horizontalScrollObserverDisposer = reaction(
       () => ({
-        scrollLeft: this.visualStateStore.scrollLeft,
+        scrollLeft: this.stores.viewportStore.scrollLeft,
         columnRange: this.visualStateStore.visibleColumnRange,
       }),
       ({ columnRange: currentColumnRange }) => {
@@ -1388,8 +1388,7 @@ export class SimplePassiveRenderer {
         onScroll: (scrollLeft: number, scrollTop: number) => {
           // Update scroll position in VisualStateStore
           runInAction(() => {
-            this.visualStateStore.scrollLeft = scrollLeft
-            this.visualStateStore.scrollTop = scrollTop
+            this.stores.viewportStore.updateScroll(scrollTop, scrollLeft)
           })
           // Note: Detailed scroll debugging removed for performance
           // Re-enable via verbose logging if needed
@@ -1801,8 +1800,8 @@ export class SimplePassiveRenderer {
 
       // Update all debug metrics for initial render
       // Calculate truly visible rows from scroll position (not by subtracting buffer)
-      const scrollTop = this.visualStateStore.scrollTop
-      const viewportHeight = this.visualStateStore.viewportHeight
+      const scrollTop = this.stores.viewportStore.scrollTop
+      const viewportHeight = this.stores.viewportStore.viewportHeight
       const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
       const visibleStart = Math.floor(scrollTop / rowHeight)
       const visibleEnd = Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / rowHeight))
@@ -2184,8 +2183,8 @@ export class SimplePassiveRenderer {
     const endIdx = Math.min(rows.length, renderRange.end)
 
     // Compute viewport-only range (no buffer) — what the user actually sees
-    const scrollTop = this.visualStateStore.scrollTop
-    const viewportHeight = this.visualStateStore.viewportHeight
+    const scrollTop = this.stores.viewportStore.scrollTop
+    const viewportHeight = this.stores.viewportStore.viewportHeight
     const vpStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
     const vpEnd = Math.min(
       rows.length,
@@ -2645,11 +2644,10 @@ export class SimplePassiveRenderer {
     // Update debug metrics for initial render
     // Calculate truly visible rows (without buffer) for accurate debug display
     const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
-    const trulyVisibleStart = Math.floor(visualState.scrollTop / rowHeight)
-    const trulyVisibleEnd = Math.min(
-      rows.length,
-      Math.ceil((visualState.scrollTop + visualState.viewportHeight) / rowHeight),
-    )
+    const vpScrollTop = this.stores.viewportStore.scrollTop
+    const vpHeight = this.stores.viewportStore.viewportHeight
+    const trulyVisibleStart = Math.floor(vpScrollTop / rowHeight)
+    const trulyVisibleEnd = Math.min(rows.length, Math.ceil((vpScrollTop + vpHeight) / rowHeight))
 
     // GH#1437: Queue pre-render buffer for rows beyond initial render
     this.preRenderBuffer.queueAhead({ start: startIndex, end: endIndex }, 'down', rows.length)
@@ -2661,8 +2659,8 @@ export class SimplePassiveRenderer {
       renderedRowEnd: endIndex,
       totalRowsInDOM: this.activeRows.size,
       totalRowsInData: rows.length,
-      scrollTop: visualState.scrollTop,
-      viewportHeight: visualState.viewportHeight,
+      scrollTop: vpScrollTop,
+      viewportHeight: vpHeight,
     })
 
     // Initialize lastVisibleRows/Columns for scroll observers

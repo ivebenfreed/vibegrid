@@ -53,8 +53,6 @@ function createMockVisualStateStore(
   return {
     visibleColumns: columns,
     visibleColumnRange: overrides.visibleColumnRange ?? { start: 0, end: columns.length },
-    scrollLeft: overrides.scrollLeft ?? 0,
-    scrollTop: overrides.scrollTop ?? 0,
   } as unknown as VisualStateStore
 }
 
@@ -65,6 +63,8 @@ function createMockViewportStore(
     visibleRowRange: { start: number; end: number }
     rowOffsets: number[] | null
     totalRows: number
+    scrollLeft: number
+    scrollTop: number
   }> = {},
 ): ViewportStore {
   const visibleRowRange = overrides.visibleRowRange ?? { start: 0, end: 15 }
@@ -74,6 +74,8 @@ function createMockViewportStore(
     visibleRowRange,
     rowOffsets: overrides.rowOffsets ?? null,
     totalRows: overrides.totalRows ?? visibleRowRange.end,
+    scrollLeft: overrides.scrollLeft ?? 0,
+    scrollTop: overrides.scrollTop ?? 0,
   } as unknown as ViewportStore
 }
 
@@ -350,13 +352,13 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 2 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 5 },
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -382,13 +384,13 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
-        scrollLeft: 50,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 5 },
+        scrollLeft: 50,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -407,14 +409,14 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 3 },
         totalRows: 3,
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -434,8 +436,6 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       // 20 rows at RH px each, content exceeds viewport
       const viewportStore = createMockViewportStore({
@@ -443,6 +443,8 @@ describe('GridLineCanvas', () => {
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 20 },
         totalRows: 20,
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -456,13 +458,13 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 0 },
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -485,14 +487,14 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 3 },
         rowOffsets: null,
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -513,14 +515,14 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 0,
-        scrollTop: 20,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 2 },
         rowOffsets: null,
+        scrollLeft: 0,
+        scrollTop: 20,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -538,14 +540,14 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: 2 },
         rowOffsets: [0, 50, 120], // Variable heights
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -564,8 +566,6 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
@@ -573,6 +573,8 @@ describe('GridLineCanvas', () => {
         visibleRowRange: { start: 0, end: 4 },
         rowOffsets: [0, 60], // Partial offsets can appear during synchronization
         totalRows: 4,
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -608,8 +610,6 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
         visibleColumnRange: { start: 0, end: 1 },
-        scrollLeft: 0,
-        scrollTop: 0,
       })
       // Need enough rows so content at scrollTop=200 still exceeds 600px viewport
       // (totalRows * RH - scrollTop) > viewportHeight → totalRows > (600 + 200) / RH
@@ -619,6 +619,8 @@ describe('GridLineCanvas', () => {
         viewportHeight: 600,
         visibleRowRange: { start: 0, end: totalRows },
         totalRows,
+        scrollLeft: 0,
+        scrollTop: 0,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 
@@ -642,13 +644,13 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
-        scrollLeft: 100,
-        scrollTop: 200,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
         viewportHeight: 600,
         visibleRowRange: { start: 5, end: 10 },
+        scrollLeft: 100,
+        scrollTop: 200,
       })
       const gridLines = new GridLineCanvas(visualStore, viewportStore)
 

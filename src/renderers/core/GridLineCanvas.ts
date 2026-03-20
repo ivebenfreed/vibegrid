@@ -172,7 +172,7 @@ export class GridLineCanvas {
    */
   draw(): void {
     this.updateBorderColor()
-    const { scrollLeft, scrollTop } = this.visualStateStore
+    const { scrollLeft, scrollTop } = this.viewportStore
     this.drawInternal(scrollLeft, scrollTop)
   }
 

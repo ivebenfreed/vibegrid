@@ -106,23 +106,6 @@ export const GridCalculations = {
   },
 
   /**
-   * Calculate visible row range for virtualization
-   */
-  getVisibleRowRange(
-    scrollTop: number,
-    viewportHeight: number,
-    totalRows: number,
-  ): { start: number; end: number } {
-    const buffer = GRID_DIMENSIONS.BUFFER_ROWS
-    const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
-
-    const start = Math.max(0, Math.floor(scrollTop / rowHeight) - buffer)
-    const end = Math.min(totalRows, Math.ceil((scrollTop + viewportHeight) / rowHeight) + buffer)
-
-    return { start, end }
-  },
-
-  /**
    * Calculate visible column range for virtualization
    */
   getVisibleColumnRange(

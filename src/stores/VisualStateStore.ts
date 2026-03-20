@@ -158,46 +158,28 @@ export class VisualStateStore implements IStore {
   }
 
   // ====================================
-  // VIEWPORT DELEGATE ACCESSORS
+  // VIEWPORT READ HELPERS (internal use only)
   // ====================================
-  // These properties delegate to ViewportStore so that existing consumers
-  // (SimplePassiveRenderer, VibeGrid.tsx, etc.) continue to work without
-  // needing to change their call sites.
+  // All external consumers should read from ViewportStore directly.
 
-  get viewportWidth(): number {
-    return this._viewportStore?.viewportWidth ?? 0
-  }
-  set viewportWidth(value: number) {
-    if (this._viewportStore) {
-      this._viewportStore.updateViewportSize(value, this._viewportStore.viewportHeight)
-    }
-  }
-
-  get viewportHeight(): number {
-    return this._viewportStore?.viewportHeight ?? 0
-  }
-  set viewportHeight(value: number) {
-    if (this._viewportStore) {
-      this._viewportStore.updateViewportSize(this._viewportStore.viewportWidth, value)
-    }
-  }
-
-  get scrollLeft(): number {
-    return this._viewportStore?.scrollLeft ?? 0
-  }
-  set scrollLeft(value: number) {
-    if (this._viewportStore) {
-      this._viewportStore.updateScroll(this._viewportStore.scrollTop, value)
-    }
-  }
-
-  get scrollTop(): number {
+  /** @internal Read scrollTop from ViewportStore */
+  private get scrollTop(): number {
     return this._viewportStore?.scrollTop ?? 0
   }
-  set scrollTop(value: number) {
-    if (this._viewportStore) {
-      this._viewportStore.updateScroll(value, this._viewportStore.scrollLeft)
-    }
+
+  /** @internal Read scrollLeft from ViewportStore */
+  private get scrollLeft(): number {
+    return this._viewportStore?.scrollLeft ?? 0
+  }
+
+  /** @internal Read viewportWidth from ViewportStore */
+  private get viewportWidth(): number {
+    return this._viewportStore?.viewportWidth ?? 0
+  }
+
+  /** @internal Read viewportHeight from ViewportStore */
+  private get viewportHeight(): number {
+    return this._viewportStore?.viewportHeight ?? 0
   }
 
   /**
@@ -943,9 +925,9 @@ export class VisualStateStore implements IStore {
    */
   @action
   setViewportSize(width: number, height: number): void {
-    this.viewportWidth = width
-    this.viewportHeight = height
-
+    if (this._viewportStore) {
+      this._viewportStore.updateViewportSize(width, height)
+    }
     logger.debug('Viewport size updated', { width, height })
   }
 
@@ -962,9 +944,9 @@ export class VisualStateStore implements IStore {
    */
   @action
   setScrollPosition(scrollLeft: number, scrollTop: number): void {
-    this.scrollLeft = scrollLeft
-    this.scrollTop = scrollTop
-
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(scrollTop, scrollLeft)
+    }
     logger.debug('Scroll position updated', { scrollLeft, scrollTop })
   }
 
@@ -987,8 +969,9 @@ export class VisualStateStore implements IStore {
       return
     }
 
-    this.scrollLeft = scrollLeft
-    this.scrollTop = scrollTop
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(scrollTop, scrollLeft)
+    }
 
     logger.debug('Viewport scrolled', { scrollLeft, scrollTop, source, changed: true })
   }
@@ -1041,7 +1024,9 @@ export class VisualStateStore implements IStore {
       newScrollLeft = column.xOffset + column.width - this.viewportWidth
     }
 
-    this.scrollLeft = newScrollLeft
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(this.scrollTop, newScrollLeft)
+    }
     logger.debug('Scrolled to column', { columnId, newScrollLeft })
   }
 
@@ -1068,7 +1053,9 @@ export class VisualStateStore implements IStore {
       newScrollTop = rowBottom - this.viewportHeight
     }
 
-    this.scrollTop = newScrollTop
+    if (this._viewportStore) {
+      this._viewportStore.updateScroll(newScrollTop, this.scrollLeft)
+    }
     logger.debug('Scrolled to row', { rowIndex, newScrollTop })
   }
 

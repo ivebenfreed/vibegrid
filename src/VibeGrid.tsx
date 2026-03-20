@@ -891,7 +891,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
     // Table → Gantt: When table scrolls vertically, sync to Gantt
     const disposeTableToGantt = reaction(
-      () => visualStateStore.scrollTop,
+      () => stores.viewportStore.scrollTop,
       (tableScrollTop) => {
         if (scrollSource === 'gantt') {
           scrollSource = null
@@ -928,7 +928,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       disposeTableToGantt()
       disposeGanttToTable()
     }
-  }, [viewMode, visualStateStore, ganttViewStore])
+  }, [viewMode, ganttViewStore, stores.viewportStore.scrollTop])
 
   // ====================================
   // DERIVED STATE
