@@ -37,11 +37,11 @@ export const FilterBuilder = observer(function FilterBuilder({
   stores,
   className,
 }: FilterBuilderProps) {
-  const { interactionStore, visualStateStore, tableCoreStore } = stores
-  const { filterBuilderState } = interactionStore
+  const { filterBuilderStore, visualStateStore, tableCoreStore } = stores
+  const { filterBuilderState } = filterBuilderStore
   const { activeFilterCount, filterGroup } = visualStateStore
   const { draftFilterGroup } = filterBuilderState
-  const { hasValidationErrors, showComplexityWarning } = interactionStore
+  const { hasValidationErrors, showComplexityWarning } = filterBuilderStore
 
   // Get columns from tableCoreStore for FilterGroup
   const columns = tableCoreStore.columns
@@ -50,33 +50,33 @@ export const FilterBuilder = observer(function FilterBuilder({
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent) => {
       if (event.key === 'Escape') {
-        interactionStore.closeFilterBuilder()
+        filterBuilderStore.closeFilterBuilder()
       }
     },
-    [interactionStore],
+    [filterBuilderStore],
   )
 
   // Handle open/close state changes
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
       if (open) {
-        interactionStore.openFilterBuilder()
+        filterBuilderStore.openFilterBuilder()
       } else {
-        interactionStore.closeFilterBuilder()
+        filterBuilderStore.closeFilterBuilder()
       }
     },
-    [interactionStore],
+    [filterBuilderStore],
   )
 
   // Handle draft filter group changes from FilterGroup component
   const handleDraftFilterGroupChange = React.useCallback(
     (updatedGroup: FilterGroupType) => {
-      interactionStore.setDraftFilter(updatedGroup)
+      filterBuilderStore.setDraftFilter(updatedGroup)
       logger.debug('Draft filter group updated', {
         conditionCount: updatedGroup.conditions.length,
       })
     },
-    [interactionStore],
+    [filterBuilderStore],
   )
 
   // Handle add first condition (creates initial draft group if needed)
@@ -94,19 +94,19 @@ export const FilterBuilder = observer(function FilterBuilder({
           },
         ],
       }
-      interactionStore.setDraftFilter(newGroup)
+      filterBuilderStore.setDraftFilter(newGroup)
       logger.info('Created initial draft filter group')
     }
     // If draft already exists, the FilterGroup component handles adding conditions
-  }, [interactionStore, draftFilterGroup])
+  }, [filterBuilderStore, draftFilterGroup])
 
   // Handle clear button click
   const handleClear = React.useCallback(() => {
-    interactionStore.setDraftFilter(null)
+    filterBuilderStore.setDraftFilter(null)
     visualStateStore.clearFilterGroup()
-    interactionStore.closeFilterBuilder()
+    filterBuilderStore.closeFilterBuilder()
     logger.info('Filters cleared')
-  }, [interactionStore, visualStateStore])
+  }, [filterBuilderStore, visualStateStore])
 
   // Handle apply button click
   const handleApply = React.useCallback(() => {
@@ -116,8 +116,8 @@ export const FilterBuilder = observer(function FilterBuilder({
         conditionCount: draftFilterGroup.conditions.length,
       })
     }
-    interactionStore.closeFilterBuilder()
-  }, [interactionStore, visualStateStore, draftFilterGroup])
+    filterBuilderStore.closeFilterBuilder()
+  }, [filterBuilderStore, visualStateStore, draftFilterGroup])
 
   // Determine which filter group to display (draft takes precedence)
   const displayFilterGroup = draftFilterGroup ?? filterGroup

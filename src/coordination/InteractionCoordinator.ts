@@ -14,6 +14,7 @@
 
 import { untracked } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
+import type { OverlayManager } from '../renderers/modules/OverlayManager'
 import type { SlotRegistry, CellRendererContext } from '../slots/SlotRegistry'
 import type { KeyboardNavigationController } from '../renderers/modules/KeyboardNavigationController'
 import type { CellActionRouter } from '../routing/CellActionRouter'
@@ -71,7 +72,7 @@ interface CellData {
  * InteractionCoordinator - Central coordination point for all grid interactions
  */
 export class InteractionCoordinator {
-  private overlayManager?: any // Optional reference for fill handle delegation
+  private overlayManager?: OverlayManager // Optional reference for fill handle delegation
   private slotRegistry: SlotRegistry | null = null
 
   constructor(
@@ -90,7 +91,7 @@ export class InteractionCoordinator {
   /**
    * Set overlay manager reference for fill handle delegation
    */
-  setOverlayManager(overlayManager: any): void {
+  setOverlayManager(overlayManager: OverlayManager): void {
     this.overlayManager = overlayManager
   }
 

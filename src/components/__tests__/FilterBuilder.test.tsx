@@ -169,7 +169,7 @@ describe('FilterBuilder Dropdown Menu', () => {
     expect(sourceCode).toContain('data-testid="vibegrid-filter-dropdown"')
   })
 
-  it('should control open state via interactionStore.filterBuilderState.isOpen', () => {
+  it('should control open state via filterBuilderStore.filterBuilderState.isOpen', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
@@ -327,11 +327,11 @@ describe('FilterBuilder Store Integration', () => {
     sourceCode = getFilterBuilderSource()
   })
 
-  it('should destructure interactionStore from stores', () => {
+  it('should destructure filterBuilderStore from stores', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
-    expect(sourceCode).toMatch(/interactionStore/)
+    expect(sourceCode).toMatch(/filterBuilderStore/)
   })
 
   it('should destructure visualStateStore from stores', () => {
@@ -341,7 +341,7 @@ describe('FilterBuilder Store Integration', () => {
     expect(sourceCode).toMatch(/visualStateStore/)
   })
 
-  it('should access filterBuilderState from interactionStore', () => {
+  it('should access filterBuilderState from filterBuilderStore', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }

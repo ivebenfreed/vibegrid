@@ -27,6 +27,7 @@ import type {
   CoordinatePosition,
   ViewportAwarePosition,
 } from '../coordinates/VibeGridXCoordinateManager'
+import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'ViewportStore'])
 
@@ -72,7 +73,7 @@ export class ViewportStore implements IStore {
   // ====================================
 
   private coordinateManager: ObservableCoordinateManager | null = null
-  private tableCoreStore: any = null // TableCoreStore reference for offset calculations
+  private tableCoreStore: TableCoreStore | null = null // TableCoreStore reference for offset calculations
 
   // ====================================
   // LIFECYCLE
@@ -108,7 +109,7 @@ export class ViewportStore implements IStore {
    * Set table core store (dependency injection for variable-height virtual scrolling)
    */
   @action
-  setTableCoreStore(store: any): void {
+  setTableCoreStore(store: TableCoreStore): void {
     this.tableCoreStore = store
     logger.info('TableCoreStore set on ViewportStore')
   }

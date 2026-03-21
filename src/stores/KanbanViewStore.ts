@@ -9,6 +9,7 @@
  */
 
 import { action, computed, makeObservable, observable } from 'mobx'
+import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
@@ -64,7 +65,7 @@ export interface CardDragState {
 export class KanbanViewStore implements IStore {
   // Dependencies
   private tableCoreStore: TableCoreStore | null = null
-  private collection: any = null // TanStack DB collection for entity updates
+  private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity updates
 
   // ====================================
   // OBSERVABLE STATE
@@ -107,7 +108,7 @@ export class KanbanViewStore implements IStore {
   /**
    * Set TanStack DB collection for entity updates during drag
    */
-  setCollection(collection: any): void {
+  setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     logger.info('Collection set on KanbanViewStore')
   }

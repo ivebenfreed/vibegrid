@@ -39,7 +39,16 @@ import {
 } from '../processors/IncrementalRowProcessor'
 import { processExpandedRows } from '../processors/RowExpansionProcessor'
 import type { RowExpansionConfig } from '../types/row-expansion'
-import type { Column, FilterConfig, GroupConfig, SortConfig, VirtualRow } from '../types'
+import type { Collection } from '@tanstack/db'
+import type {
+  Column,
+  EntityRow,
+  FilterConfig,
+  GroupConfig,
+  SchemaRegistryLike,
+  SortConfig,
+  VirtualRow,
+} from '../types'
 import type { HierarchyStore } from './HierarchyStore'
 import { applyNestedFilters, applyTextSearch } from '../utils/filter-utils'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
@@ -127,9 +136,9 @@ function applyFilters(rows: any[], filters: FilterConfig[]): any[] {
         case 'is_not_empty':
           return value !== null && value !== undefined && value !== ''
         case 'in':
-          return Array.isArray(filter.value) && filter.value.includes(value)
+          return Array.isArray(filter.value) && (filter.value as unknown[]).includes(value)
         case 'not_in':
-          return Array.isArray(filter.value) && !filter.value.includes(value)
+          return Array.isArray(filter.value) && !(filter.value as unknown[]).includes(value)
         case 'regex':
           try {
             const regex = new RegExp(String(filter.value))
@@ -268,7 +277,7 @@ export class TableCoreStore implements IStore {
   @observable pendingReorder: PendingReorderOperation | null = null
 
   // Raw entity data (from TanStack DB)
-  @observable private rawRows: any[] = []
+  @observable private rawRows: EntityRow[] = []
   @observable private hasLoadedRows: boolean = false
 
   // Members data for UserReference fields (from TanStack DB membersCollection)
@@ -340,10 +349,8 @@ export class TableCoreStore implements IStore {
   private visualStateStore: VisualStateStore | null = null
   private hierarchyStore: HierarchyStore | null = null
   private entityDataProvider: EntityDataProvider | null = null
-  private collection: any = null // TanStack DB collection for entity mutations
-  private schemaRegistry:
-    | import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore
-    | null = null
+  private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity mutations
+  private schemaRegistry: SchemaRegistryLike | null = null
   private coordinateManager: ObservableCoordinateManager | null = null
   private interactionStore: import('./InteractionStore').InteractionStore | null = null
 
@@ -463,7 +470,7 @@ export class TableCoreStore implements IStore {
    * Called by parent component after store creation
    */
   @action
-  setCollection(collection: any): void {
+  setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     logger.info('TanStack DB collection set on TableCoreStore', {
       hasCollection: !!collection,
@@ -475,9 +482,7 @@ export class TableCoreStore implements IStore {
    * Called by parent component after store creation
    */
   @action
-  setSchemaRegistry(
-    registry: import('@/app/stores/domain/SchemaRegistryStore').SchemaRegistryStore,
-  ): void {
+  setSchemaRegistry(registry: SchemaRegistryLike): void {
     this.schemaRegistry = registry
   }
 
@@ -534,7 +539,7 @@ export class TableCoreStore implements IStore {
    * TODO (Day 10): Migrate to full entity data provider pattern
    */
   @action
-  setRows(rows: any[]): void {
+  setRows<T extends EntityRow>(rows: T[]): void {
     // Step 1: Detect changes with loop-back protection
     const changedCells = this.detectChangedCells(rows)
 
@@ -642,7 +647,9 @@ export class TableCoreStore implements IStore {
    * Called from React hook with useLiveQuery results
    */
   @action
-  setMembersData(members: any[]): void {
+  setMembersData(
+    members: Array<{ user_id?: string; user?: Record<string, unknown>; [key: string]: unknown }>,
+  ): void {
     this.membersData.clear()
     members.forEach((member) => {
       if (member.user_id && member.user) {
@@ -821,7 +828,11 @@ export class TableCoreStore implements IStore {
   }
 
   @action
-  setEntityReferenceRecord(targetEntity: string, entityId: string, data: any): void {
+  setEntityReferenceRecord(
+    targetEntity: string,
+    entityId: string,
+    data: Record<string, unknown>,
+  ): void {
     const map = this.getOrCreateEntityReferenceMap(targetEntity)
     map.set(entityId, data)
   }

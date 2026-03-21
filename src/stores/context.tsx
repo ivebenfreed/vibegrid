@@ -13,12 +13,14 @@ import { ObservableCoordinateManager } from '../coordinates/ObservableCoordinate
 import { domPositionStore } from './dom-position-state'
 import { DebugStore } from './DebugStore'
 import { EditingStore } from './EditingStore'
+import { FilterBuilderStore } from './FilterBuilderStore'
 import { InlineCreationStore } from './InlineCreationStore'
 import { GanttViewStore } from './GanttViewStore'
 import { HierarchyStore } from './HierarchyStore'
 import { InitStore } from './InitStore'
 import { InteractionStore } from './InteractionStore'
 import { KanbanViewStore } from './KanbanViewStore'
+import { MenuStateStore } from './MenuStateStore'
 import { PersistenceStore } from './PersistenceStore'
 import { TableCoreStore } from './TableCoreStore'
 import { ViewModeStore } from './ViewModeStore'
@@ -46,20 +48,13 @@ export interface VibeGridStores {
   coordinateManager: ObservableCoordinateManager
   debugStore: DebugStore
   inlineCreationStore: InlineCreationStore
+  filterBuilderStore: FilterBuilderStore
+  menuStateStore: MenuStateStore
 }
 
-/**
- * Minimal interface for mock schema registry support
- * Matches the subset of SchemaRegistryStore used by VibeGrid stores
- */
-export interface SchemaRegistryLike {
-  schemas: import('@/shared/types/dataforge').NormalizedEntitySchemas | null
-  isBootstrapping: boolean
-  isReady: boolean
-  getEntityArtifacts?(
-    entityName: string,
-  ): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
-}
+// SchemaRegistryLike imported from types and re-exported for backward compatibility
+import type { SchemaRegistryLike } from '../types'
+export type { SchemaRegistryLike }
 
 export interface VibeGridStoreProviderProps {
   children: React.ReactNode
@@ -151,6 +146,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     const hierarchyStore = new HierarchyStore()
     const debugStore = new DebugStore()
     const inlineCreationStore = new InlineCreationStore()
+    const filterBuilderStore = new FilterBuilderStore()
+    const menuStateStore = new MenuStateStore()
 
     // Set up dependency injection between stores
     // VisualStateStore needs CoordinateManager for layout tracking
@@ -181,8 +178,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     tableCoreStore.setHierarchyStore(hierarchyStore)
 
     // TableCoreStore needs SchemaRegistry for column generation
-    // Cast to any to allow mock schema registry (SchemaRegistryLike) to pass type check
-    tableCoreStore.setSchemaRegistry(schemaRegistry as any)
+    tableCoreStore.setSchemaRegistry(schemaRegistry)
 
     // GH#1861: Set appendColumns before init() so they're merged during column generation
     if (appendColumns?.length) {
@@ -225,8 +221,7 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     ganttViewStore.setTableCoreStore(tableCoreStore)
 
     // GanttViewStore needs SchemaRegistry for loading dependencies
-    // Cast to any to allow mock schema registry (SchemaRegistryLike) to pass type check
-    ganttViewStore.setSchemaRegistry(schemaRegistry as any, entityType)
+    ganttViewStore.setSchemaRegistry(schemaRegistry, entityType)
 
     // ViewModeStore needs GanttViewStore for auto-sort on Gantt activation
     viewModeStore.setGanttViewStore(ganttViewStore)
@@ -265,6 +260,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       coordinateManager,
       debugStore,
       inlineCreationStore,
+      filterBuilderStore,
+      menuStateStore,
     }
   }, [entityType, orgId, tableId, schemaRegistry, appendColumns])
 
@@ -290,6 +287,8 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
       stores.hierarchyStore.dispose()
       stores.debugStore.dispose()
       stores.inlineCreationStore.dispose()
+      stores.filterBuilderStore.dispose()
+      stores.menuStateStore.dispose()
       // GH#1429 ML1: Dispose coordinateManager to clear listener subscriptions
       stores.coordinateManager.dispose()
     }
@@ -298,12 +297,14 @@ export const VibeGridStoreProvider: React.FC<VibeGridStoreProviderProps> = ({
     stores.coordinateManager.dispose, // GH#1429 ML1
     stores.debugStore.dispose,
     stores.editingStore.dispose,
+    stores.filterBuilderStore.dispose,
     stores.ganttViewStore.dispose,
     stores.hierarchyStore.dispose,
     stores.initStore.dispose,
     stores.inlineCreationStore.dispose,
     stores.interactionStore.dispose,
     stores.kanbanViewStore.dispose,
+    stores.menuStateStore.dispose,
     stores.persistenceStore.dispose, // Dispose ALL stores to clear timeouts and prevent memory leaks
     stores.tableCoreStore.dispose,
     stores.viewportStore.dispose,
@@ -410,6 +411,14 @@ export function useHierarchyStore(): HierarchyStore {
 
 export function useInlineCreationStore(): InlineCreationStore {
   return useVibeGridStores().inlineCreationStore
+}
+
+export function useFilterBuilderStore(): FilterBuilderStore {
+  return useVibeGridStores().filterBuilderStore
+}
+
+export function useMenuStateStore(): MenuStateStore {
+  return useVibeGridStores().menuStateStore
 }
 
 /**

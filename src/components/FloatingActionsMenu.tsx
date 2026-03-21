@@ -48,17 +48,27 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
     getRowData,
   } = props
 
-  const { interactionStore } = useVibeGridStores()
-  const { rowActionMenuState } = interactionStore
+  const { menuStateStore } = useVibeGridStores()
+  const { rowActionMenuState } = menuStateStore
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ rowId: string; rowData: any } | null>(null)
+
+  const deleteMessage = React.useMemo(() => {
+    if (!pendingDelete) return 'Are you sure you want to delete this item?'
+    if (deleteConfirmation) {
+      const msg = deleteConfirmation(pendingDelete.rowData)
+      if (typeof msg === 'string') return msg
+      return msg
+    }
+    return 'Are you sure you want to delete this item? This action cannot be undone.'
+  }, [pendingDelete, deleteConfirmation])
 
   // Close menu when ESC is pressed
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && rowActionMenuState.isOpen) {
-        interactionStore.closeRowActionMenu()
+        menuStateStore.closeRowActionMenu()
       }
     }
 
@@ -66,7 +76,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
       document.addEventListener('keydown', handleKeyDown)
       return () => document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [rowActionMenuState.isOpen, interactionStore])
+  }, [rowActionMenuState.isOpen, menuStateStore])
 
   if (!rowActionMenuState.isOpen || !rowActionMenuState.rowId) {
     return null
@@ -83,7 +93,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
   })
 
   const handleActionClick = async (action: RowAction) => {
-    interactionStore.closeRowActionMenu()
+    menuStateStore.closeRowActionMenu()
 
     if (action.destructive) {
       // Show confirmation dialog for destructive actions
@@ -103,7 +113,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
   const handleDeleteClick = () => {
     setPendingDelete({ rowId: rowActionMenuState.rowId!, rowData })
     setDeleteDialogOpen(true)
-    interactionStore.closeRowActionMenu()
+    menuStateStore.closeRowActionMenu()
   }
 
   const handleConfirmDelete = async () => {
@@ -119,23 +129,13 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
     setPendingDelete(null)
   }
 
-  const deleteMessage = React.useMemo(() => {
-    if (!pendingDelete) return 'Are you sure you want to delete this item?'
-    if (deleteConfirmation) {
-      const msg = deleteConfirmation(pendingDelete.rowData)
-      if (typeof msg === 'string') return msg
-      return msg
-    }
-    return 'Are you sure you want to delete this item? This action cannot be undone.'
-  }, [pendingDelete, deleteConfirmation])
-
   return (
     <>
       <DropdownMenu
         open={rowActionMenuState.isOpen}
         onOpenChange={(open) => {
           if (!open) {
-            interactionStore.closeRowActionMenu()
+            menuStateStore.closeRowActionMenu()
           }
         }}
       >

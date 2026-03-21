@@ -114,10 +114,10 @@ function applyFilterToQuery(
       })
 
     case 'greater_than':
-      return query.where((refs: any) => refs[collectionAlias][field] > value)
+      return query.where((refs: any) => value != null && refs[collectionAlias][field] > value)
 
     case 'less_than':
-      return query.where((refs: any) => refs[collectionAlias][field] < value)
+      return query.where((refs: any) => value != null && refs[collectionAlias][field] < value)
 
     case 'is_empty':
       return query.where((refs: any) => {
@@ -134,13 +134,13 @@ function applyFilterToQuery(
     case 'in':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return Array.isArray(value) && value.includes(fieldValue)
+        return Array.isArray(value) && (value as unknown[]).includes(fieldValue)
       })
 
     case 'not_in':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return !Array.isArray(value) || !value.includes(fieldValue)
+        return !Array.isArray(value) || !(value as unknown[]).includes(fieldValue)
       })
 
     case 'regex':

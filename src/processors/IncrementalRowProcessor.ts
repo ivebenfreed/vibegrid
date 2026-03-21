@@ -473,9 +473,9 @@ export class IncrementalRowProcessor {
           case 'is_not_empty':
             return value !== null && value !== undefined && value !== ''
           case 'in':
-            return Array.isArray(filter.value) && filter.value.includes(value)
+            return Array.isArray(filter.value) && (filter.value as unknown[]).includes(value)
           case 'not_in':
-            return Array.isArray(filter.value) && !filter.value.includes(value)
+            return Array.isArray(filter.value) && !(filter.value as unknown[]).includes(value)
           case 'regex':
             try {
               const regex = new RegExp(String(filter.value))

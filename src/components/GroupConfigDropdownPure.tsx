@@ -96,12 +96,12 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
   stores,
   className = '',
 }: GroupConfigDropdownPureProps) {
-  const { tableCoreStore, interactionStore, visualStateStore } = stores
+  const { tableCoreStore, menuStateStore, visualStateStore } = stores
 
   // Get reactive data from MobX stores
   const columns = tableCoreStore.columns
   const groupConfig = visualStateStore.groupConfig
-  const isOpen = interactionStore.groupConfigMenuState.isOpen
+  const isOpen = menuStateStore.groupConfigMenuState.isOpen
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -115,12 +115,12 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
   const handleOpenChange = React.useCallback(
     (open: boolean) => {
       if (open) {
-        interactionStore.openGroupConfigMenu()
+        menuStateStore.openGroupConfigMenu()
       } else {
-        interactionStore.closeGroupConfigMenu()
+        menuStateStore.closeGroupConfigMenu()
       }
     },
-    [interactionStore],
+    [menuStateStore],
   )
 
   const handleDragEnd = React.useCallback(
@@ -212,9 +212,9 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
       }
 
       visualStateStore.setGroupConfig(newConfig)
-      interactionStore.closeGroupConfigMenu()
+      menuStateStore.closeGroupConfigMenu()
     },
-    [availableColumns, groupConfig, visualStateStore, interactionStore],
+    [availableColumns, groupConfig, visualStateStore, menuStateStore],
   )
 
   const handleRemoveGroupField = React.useCallback(
@@ -243,8 +243,8 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
 
   const handleClearGrouping = React.useCallback(() => {
     visualStateStore.setGroupConfig(null)
-    interactionStore.closeGroupConfigMenu()
-  }, [visualStateStore, interactionStore])
+    menuStateStore.closeGroupConfigMenu()
+  }, [visualStateStore, menuStateStore])
 
   // Get available columns that aren't already used for grouping
   const availableForGrouping = React.useMemo(() => {

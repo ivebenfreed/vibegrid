@@ -20,7 +20,8 @@ import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import type { SlotRegistry, CellRendererContext } from '../slots/SlotRegistry'
-import type { Column, FilterConfig, GroupConfig, SortConfig } from '../types'
+import type { Column, FilterConfig, FilterValue, GroupConfig, SortConfig } from '../types'
+import type { TableCoreStore } from './TableCoreStore'
 import type { FilterGroup } from '../types/filter-types'
 import { assertInvariant } from '../utils/invariants'
 import type { ViewportStore } from './ViewportStore'
@@ -133,7 +134,7 @@ export class VisualStateStore implements IStore {
   // ====================================
 
   private disposers = new DisposerManager()
-  private tableCoreStore: any = null // TableCoreStore reference for offset calculations
+  private tableCoreStore: TableCoreStore | null = null // TableCoreStore reference for offset calculations
 
   constructor() {
     makeObservable(this)
@@ -143,7 +144,7 @@ export class VisualStateStore implements IStore {
    * Set table core store (dependency injection for variable-height virtual scrolling)
    */
   @action
-  setTableCoreStore(store: any): void {
+  setTableCoreStore(store: TableCoreStore): void {
     this.tableCoreStore = store
     logger.info('TableCoreStore set on VisualStateStore')
   }
@@ -1165,7 +1166,11 @@ export class VisualStateStore implements IStore {
    * Set filter for a field
    */
   @action
-  setFilter(field: string, value: any, operator: FilterConfig['operator'] = 'equals'): void {
+  setFilter(
+    field: string,
+    value: FilterValue,
+    operator: FilterConfig['operator'] = 'equals',
+  ): void {
     const existingIndex = this.filters.findIndex((f) => f.field === field)
     const newFilter: FilterConfig = { field, value, operator }
 

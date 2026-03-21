@@ -17,8 +17,8 @@ interface RowActionButtonProps {
 }
 
 export const RowActionButton = observer((props: RowActionButtonProps) => {
-  const { rowId, rowData, className = '' } = props
-  const { interactionStore } = useVibeGridStores()
+  const { rowId, className = '' } = props
+  const { menuStateStore } = useVibeGridStores()
 
   const handleClick = (event: React.MouseEvent) => {
     event.stopPropagation() // Prevent row click from firing
@@ -32,7 +32,7 @@ export const RowActionButton = observer((props: RowActionButtonProps) => {
     }
 
     // Open row action menu via store
-    interactionStore.openRowActionMenu(rowId, position)
+    menuStateStore.openRowActionMenu(rowId, position)
   }
 
   return (

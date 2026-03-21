@@ -10,30 +10,22 @@
  * - Hover state
  * - Drag and drop (cell drag, drag-to-select)
  * - Column resize
- * - Menu states (header menus, context menus, visibility menu, group menu)
  * - Clipboard operations
+ * - Row expansion
+ *
+ * Menu states extracted to MenuStateStore (GH#2034 P1)
+ * Filter builder state extracted to FilterBuilderStore (GH#2034 P1)
  *
  * This is the most complex interaction layer with sophisticated selection logic.
  */
 
 import { action, computed, makeObservable, observable } from 'mobx'
+import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
-import type {
-  FilterBuilderState,
-  FilterGroup,
-  FilterPreset,
-  ValidationError,
-} from '../types/filter-types'
-import { createPreset } from '../utils/filter-storage'
-import {
-  validateFilterGroup,
-  countConditions,
-  COMPLEXITY_WARNING_THRESHOLD,
-} from '../utils/filter-utils'
 
 const logger = getLogger(['vibegrid', 'stores', 'InteractionStore'])
 
@@ -58,34 +50,6 @@ function assertStorePresent<T>(store: T | null, name: string): asserts store is 
 export interface SelectAllCheckboxState {
   checked: boolean
   indeterminate: boolean
-}
-
-export interface HeaderMenuState {
-  openMenu: string | null // columnId of open menu
-  position: { x: number; y: number }
-  menuType: 'filter' | 'sort' | 'settings' | null
-}
-
-export interface ContextMenuState {
-  isOpen: boolean
-  position: { x: number; y: number }
-  context: 'cell' | 'row' | 'column' | 'header' | null
-  targetId: string | null // cellId, rowId, or columnId
-}
-
-export interface ColumnVisibilityMenuState {
-  isOpen: boolean
-  searchValue: string
-}
-
-export interface GroupConfigMenuState {
-  isOpen: boolean
-}
-
-export interface RowActionMenuState {
-  isOpen: boolean
-  position: { x: number; y: number }
-  rowId: string | null
 }
 
 export interface ClipboardState {
@@ -129,13 +93,12 @@ export interface EditValidation {
  *
  * Handles:
  * - Cell and row selection (single, multi, range)
- * - Cell editing with validation
  * - Keyboard navigation and focus
  * - Hover state tracking
  * - Drag and drop operations
  * - Column resizing
- * - Menu state management
  * - Clipboard operations
+ * - Row expansion
  */
 export class InteractionStore implements IStore {
   // ====================================
@@ -216,51 +179,6 @@ export class InteractionStore implements IStore {
   @observable lastResizeEndTime: number = 0
 
   // ====================================
-  // MENU STATES
-  // ====================================
-
-  @observable headerMenuState: HeaderMenuState = {
-    openMenu: null,
-    position: { x: 0, y: 0 },
-    menuType: null,
-  }
-
-  @observable contextMenuState: ContextMenuState = {
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    context: null,
-    targetId: null,
-  }
-
-  @observable columnVisibilityMenuState: ColumnVisibilityMenuState = {
-    isOpen: false,
-    searchValue: '',
-  }
-
-  @observable groupConfigMenuState: GroupConfigMenuState = {
-    isOpen: false,
-  }
-
-  @observable rowActionMenuState: RowActionMenuState = {
-    isOpen: false,
-    position: { x: 0, y: 0 },
-    rowId: null,
-  }
-
-  // ====================================
-  // FILTER BUILDER STATE
-  // ====================================
-
-  @observable filterBuilderState: FilterBuilderState = {
-    isOpen: false,
-    searchValue: '',
-    draftFilterGroup: null,
-    presets: [],
-    validationErrors: [],
-    showComplexityWarning: false,
-  }
-
-  // ====================================
   // CLIPBOARD STATE
   // ====================================
 
@@ -305,7 +223,7 @@ export class InteractionStore implements IStore {
   private tableCoreStore: TableCoreStore | null = null
   private visualStateStore: VisualStateStore | null = null
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Assigned via setCollection()
-  private collection: any = null // TanStack DB collection for entity mutations
+  private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity mutations
   private disposers = new DisposerManager()
 
   constructor(tableCore$?: any) {
@@ -330,7 +248,7 @@ export class InteractionStore implements IStore {
   /**
    * Set TanStack DB collection for entity mutations
    */
-  setCollection(collection: any): void {
+  setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     logger.info('TanStack DB collection set', {
       hasCollection: !!collection,
@@ -384,24 +302,6 @@ export class InteractionStore implements IStore {
     this.resizeStartX = 0
     this.resizeStartWidth = 0
     this.columnResize = null
-    this.headerMenuState = { openMenu: null, position: { x: 0, y: 0 }, menuType: null }
-    this.contextMenuState = {
-      isOpen: false,
-      position: { x: 0, y: 0 },
-      context: null,
-      targetId: null,
-    }
-    this.columnVisibilityMenuState = { isOpen: false, searchValue: '' }
-    this.groupConfigMenuState = { isOpen: false }
-    this.rowActionMenuState = { isOpen: false, position: { x: 0, y: 0 }, rowId: null }
-    this.filterBuilderState = {
-      isOpen: false,
-      searchValue: '',
-      draftFilterGroup: null,
-      presets: [],
-      validationErrors: [],
-      showComplexityWarning: false,
-    }
     this.clipboard = null
     // Reset expansion state (GH#1240)
     this.expandedRowIds = new Set()
@@ -446,30 +346,6 @@ export class InteractionStore implements IStore {
     }
 
     return null
-  }
-
-  /**
-   * Validation errors for the draft filter group
-   * Returns an array of errors for incomplete or invalid conditions
-   */
-  @computed get validationErrors(): ValidationError[] {
-    if (!this.filterBuilderState.draftFilterGroup) return []
-    return validateFilterGroup(this.filterBuilderState.draftFilterGroup)
-  }
-
-  /**
-   * Whether there are any validation errors in the draft filter
-   */
-  @computed get hasValidationErrors(): boolean {
-    return this.validationErrors.length > 0
-  }
-
-  /**
-   * Whether to show the complexity warning (10+ conditions)
-   */
-  @computed get showComplexityWarning(): boolean {
-    if (!this.filterBuilderState.draftFilterGroup) return false
-    return countConditions(this.filterBuilderState.draftFilterGroup) >= COMPLEXITY_WARNING_THRESHOLD
   }
 
   // ====================================
@@ -1240,220 +1116,6 @@ export class InteractionStore implements IStore {
     logger.info('Column resize ended', { columnId: resizingColumn, newWidth })
 
     return { columnId: resizingColumn, newWidth }
-  }
-
-  // ====================================
-  // MENU ACTIONS
-  // ====================================
-
-  @action
-  openHeaderMenu(
-    columnId: string,
-    position: { x: number; y: number },
-    menuType: 'filter' | 'sort' | 'settings',
-  ): void {
-    // Close other menus first
-    this.contextMenuState.isOpen = false
-    this.columnVisibilityMenuState.isOpen = false
-    this.groupConfigMenuState.isOpen = false
-
-    // Open header menu
-    this.headerMenuState = {
-      openMenu: columnId,
-      position,
-      menuType,
-    }
-
-    logger.info('Header menu opened', { columnId, position, menuType })
-  }
-
-  @action
-  closeHeaderMenu(): void {
-    this.headerMenuState = {
-      openMenu: null,
-      position: { x: 0, y: 0 },
-      menuType: null,
-    }
-
-    logger.info('Header menu closed')
-  }
-
-  @action
-  openContextMenu(
-    position: { x: number; y: number },
-    context: 'cell' | 'row' | 'column' | 'header',
-    targetId: string,
-  ): void {
-    // Close other menus first
-    this.headerMenuState.openMenu = null
-    this.columnVisibilityMenuState.isOpen = false
-    this.groupConfigMenuState.isOpen = false
-
-    // Open context menu
-    this.contextMenuState = {
-      isOpen: true,
-      position,
-      context,
-      targetId,
-    }
-
-    logger.info('Context menu opened', { position, context, targetId })
-  }
-
-  @action
-  closeContextMenu(): void {
-    this.contextMenuState = {
-      isOpen: false,
-      position: { x: 0, y: 0 },
-      context: null,
-      targetId: null,
-    }
-
-    logger.info('Context menu closed')
-  }
-
-  @action
-  openColumnVisibilityMenu(): void {
-    // Close other menus first
-    this.headerMenuState.openMenu = null
-    this.contextMenuState.isOpen = false
-    this.groupConfigMenuState.isOpen = false
-
-    // Open column visibility menu
-    this.columnVisibilityMenuState = {
-      isOpen: true,
-      searchValue: '',
-    }
-
-    logger.info('Column visibility menu opened')
-  }
-
-  @action
-  closeColumnVisibilityMenu(): void {
-    this.columnVisibilityMenuState = {
-      isOpen: false,
-      searchValue: '',
-    }
-
-    logger.info('Column visibility menu closed')
-  }
-
-  @action
-  setColumnVisibilitySearch(searchValue: string): void {
-    this.columnVisibilityMenuState = {
-      ...this.columnVisibilityMenuState,
-      searchValue,
-    }
-  }
-
-  @action
-  openGroupConfigMenu(): void {
-    // Close other menus first
-    this.headerMenuState.openMenu = null
-    this.contextMenuState.isOpen = false
-    this.columnVisibilityMenuState.isOpen = false
-
-    // Open group config menu
-    this.groupConfigMenuState = {
-      isOpen: true,
-    }
-
-    logger.info('Group config menu opened')
-  }
-
-  @action
-  closeGroupConfigMenu(): void {
-    this.groupConfigMenuState = {
-      isOpen: false,
-    }
-
-    logger.info('Group config menu closed')
-  }
-
-  @action
-  openRowActionMenu(rowId: string, position: { x: number; y: number }): void {
-    // Close other menus first
-    this.headerMenuState.openMenu = null
-    this.contextMenuState.isOpen = false
-    this.columnVisibilityMenuState.isOpen = false
-    this.groupConfigMenuState.isOpen = false
-
-    // Open row action menu
-    this.rowActionMenuState = {
-      isOpen: true,
-      position,
-      rowId,
-    }
-
-    logger.info('Row action menu opened', { rowId, position })
-  }
-
-  @action
-  closeRowActionMenu(): void {
-    this.rowActionMenuState = {
-      isOpen: false,
-      position: { x: 0, y: 0 },
-      rowId: null,
-    }
-
-    logger.info('Row action menu closed')
-  }
-
-  // ====================================
-  // FILTER BUILDER ACTIONS
-  // ====================================
-
-  @action
-  openFilterBuilder(): void {
-    this.filterBuilderState.isOpen = true
-    // Load presets from localStorage if needed
-    logger.info('Filter builder opened')
-  }
-
-  @action
-  closeFilterBuilder(): void {
-    this.filterBuilderState.isOpen = false
-    this.filterBuilderState.draftFilterGroup = null
-    this.filterBuilderState.searchValue = ''
-    this.filterBuilderState.validationErrors = []
-    logger.info('Filter builder closed')
-  }
-
-  @action
-  setDraftFilter(group: FilterGroup | null): void {
-    this.filterBuilderState.draftFilterGroup = group
-    logger.info('Draft filter set', { hasGroup: !!group })
-  }
-
-  @action
-  loadPresets(presets: FilterPreset[]): void {
-    this.filterBuilderState.presets = presets
-    logger.info('Presets loaded', { count: presets.length })
-  }
-
-  @action
-  savePreset(name: string): void {
-    if (!this.filterBuilderState.draftFilterGroup) {
-      logger.warn('Cannot save preset - no draft filter group')
-      return
-    }
-    const preset = createPreset(name, this.filterBuilderState.draftFilterGroup)
-    this.filterBuilderState.presets.push(preset)
-    logger.info('Preset saved', { name, id: preset.id })
-  }
-
-  @action
-  loadPreset(preset: FilterPreset): void {
-    this.filterBuilderState.draftFilterGroup = preset.filterGroup
-    logger.info('Preset loaded into draft', { name: preset.name, id: preset.id })
-  }
-
-  @action
-  deletePreset(presetId: string): void {
-    this.filterBuilderState.presets = this.filterBuilderState.presets.filter(
-      (p) => p.id !== presetId,
-    )
-    logger.info('Preset deleted', { id: presetId })
   }
 
   // ====================================

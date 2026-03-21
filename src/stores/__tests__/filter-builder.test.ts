@@ -14,7 +14,7 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { InteractionStore } from '../InteractionStore'
+import { FilterBuilderStore } from '../FilterBuilderStore'
 import { VisualStateStore } from '../VisualStateStore'
 // Import types that will be created in Phase 1 implementation
 // These imports will fail initially (expected - TDD)
@@ -169,11 +169,11 @@ describe('FilterPreset Type Structure', () => {
 // INTERACTION STORE TESTS
 // ====================================
 
-describe('InteractionStore filterBuilderState', () => {
-  let store: InteractionStore
+describe('FilterBuilderStore filterBuilderState', () => {
+  let store: FilterBuilderStore
 
   beforeEach(() => {
-    store = new InteractionStore()
+    store = new FilterBuilderStore()
   })
 
   it('should have filterBuilderState observable', () => {
@@ -220,11 +220,11 @@ describe('InteractionStore filterBuilderState', () => {
   })
 })
 
-describe('InteractionStore openFilterBuilder action', () => {
-  let store: InteractionStore
+describe('FilterBuilderStore openFilterBuilder action', () => {
+  let store: FilterBuilderStore
 
   beforeEach(() => {
-    store = new InteractionStore()
+    store = new FilterBuilderStore()
   })
 
   it('should have openFilterBuilder action', () => {
@@ -241,11 +241,11 @@ describe('InteractionStore openFilterBuilder action', () => {
   })
 })
 
-describe('InteractionStore closeFilterBuilder action', () => {
-  let store: InteractionStore
+describe('FilterBuilderStore closeFilterBuilder action', () => {
+  let store: FilterBuilderStore
 
   beforeEach(() => {
-    store = new InteractionStore()
+    store = new FilterBuilderStore()
   })
 
   it('should have closeFilterBuilder action', () => {
@@ -272,11 +272,11 @@ describe('InteractionStore closeFilterBuilder action', () => {
   })
 })
 
-describe('InteractionStore setDraftFilter action', () => {
-  let store: InteractionStore
+describe('FilterBuilderStore setDraftFilter action', () => {
+  let store: FilterBuilderStore
 
   beforeEach(() => {
-    store = new InteractionStore()
+    store = new FilterBuilderStore()
   })
 
   it('should have setDraftFilter action', () => {

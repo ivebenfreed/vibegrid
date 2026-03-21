@@ -195,7 +195,9 @@ describe('ViewportStore', () => {
         findRowAtScrollPosition: vi.fn((scrollTop: number) => Math.floor(scrollTop / 40)),
       }
 
-      store.setTableCoreStore(mockTableCoreStore)
+      store.setTableCoreStore(
+        mockTableCoreStore as unknown as import('../TableCoreStore').TableCoreStore,
+      )
 
       runInAction(() => {
         store.updateViewportSize(1000, 400)

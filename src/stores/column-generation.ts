@@ -8,8 +8,7 @@
 import { getLogger } from '@/shared/lib/logging'
 import { COLUMN_DEFAULTS } from '../column-defaults'
 import type { CellType } from '../column-types'
-import type { Column } from '../types'
-import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
+import type { Column, SchemaRegistryLike } from '../types'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'stores', 'column-generation'])
 
@@ -152,7 +151,7 @@ interface EntityField {
  */
 export async function generateColumnsFromEntitySchema<T = any>(
   entityType: string,
-  schemaRegistry: SchemaRegistryStore,
+  schemaRegistry: SchemaRegistryLike,
 ): Promise<Column<T>[]> {
   fileLog.debug('🎯 Generating columns from entity schema', { entityType })
 

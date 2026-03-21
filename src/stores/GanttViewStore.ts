@@ -9,7 +9,6 @@
 
 import { action, computed, makeObservable, observable, reaction, runInAction } from 'mobx'
 import type { Collection } from '@tanstack/db'
-import type { SchemaRegistryStore } from '@/app/stores/domain/SchemaRegistryStore'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
 import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
@@ -17,6 +16,7 @@ import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
 import { calculateCriticalPath } from '../utils/critical-path'
 import { wouldCreateCycle } from '../utils/dependency-validator'
+import type { SchemaRegistryLike } from '../types'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -179,10 +179,10 @@ const DEFAULT_ROW_HEIGHT = 34 // Match GRID_DIMENSIONS.ROW_HEIGHT — keep in sy
 export class GanttViewStore implements IStore {
   // Dependencies
   private tableCoreStore: TableCoreStore | null = null
-  private schemaRegistry: SchemaRegistryStore | null = null
+  private schemaRegistry: SchemaRegistryLike | null = null
   private entityType: string = ''
   private disposeSchemaReaction?: () => void
-  private collection: any = null // TanStack DB collection for entity updates
+  private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity updates
   private dependencyCollection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for dependencies
 
   // ====================================
@@ -287,7 +287,7 @@ export class GanttViewStore implements IStore {
    * Sets up a reaction to automatically load dependencies when schema is ready
    */
   @action
-  setSchemaRegistry(registry: SchemaRegistryStore, entityType: string): void {
+  setSchemaRegistry(registry: SchemaRegistryLike, entityType: string): void {
     this.schemaRegistry = registry
     this.entityType = entityType
 
@@ -921,7 +921,7 @@ export class GanttViewStore implements IStore {
   /**
    * Set TanStack DB collection for entity updates during drag
    */
-  setCollection(collection: any): void {
+  setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     logger.info('Collection set on GanttViewStore')
   }
@@ -1102,8 +1102,9 @@ export class GanttViewStore implements IStore {
         })
 
         // Apply cascade updates in parallel
+        const col = this.collection
         const cascadePromises = cascadeUpdates.map((update) => {
-          const cascadeTx = this.collection.update(update.entityId, (draft: any) => {
+          const cascadeTx = col.update(update.entityId, (draft: any) => {
             draft[this.fieldMapping.startField] = update.newStartDate.toISOString()
             draft[this.fieldMapping.endField] = update.newEndDate.toISOString()
             draft.updated_at = new Date().toISOString()

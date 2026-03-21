@@ -20,6 +20,7 @@
  */
 
 import { action, computed, makeObservable, observable, runInAction, untracked } from 'mobx'
+import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
@@ -179,7 +180,7 @@ export class EditingStore implements IStore {
   private tableCoreStore: TableCoreStore
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Used by Phase 2+ CellRenderer context
   private visualStateStore: VisualStateStore
-  private collection: any = null // TanStack DB collection for mutations
+  private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for mutations
   private commandBus: CommandBus | null = null // CommandBus for history/undo tracking
   private disposers = new DisposerManager()
 
@@ -235,7 +236,7 @@ export class EditingStore implements IStore {
    * Set TanStack DB collection for mutations
    * Must be called before editing
    */
-  setCollection(collection: any): void {
+  setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     fileLog.debug('Collection set', { hasCollection: !!collection })
   }

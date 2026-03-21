@@ -6,6 +6,18 @@ export type SortConfig = {
   direction: 'asc' | 'desc'
 }
 
+/**
+ * Union of possible filter values across all filter operators.
+ * Covers string, number, boolean, date, array (for 'in'/'not_in'), and null.
+ */
+export type FilterValue = string | number | boolean | Date | string[] | number[] | null
+
+/**
+ * Minimal row record constraint for entity data flowing through VibeGrid.
+ * Any object with an optional string `id` satisfies this type.
+ */
+export type EntityRow = { id?: string }
+
 export type FilterConfig = {
   field: string
   operator:
@@ -22,9 +34,23 @@ export type FilterConfig = {
     | 'in'
     | 'not_in'
     | 'regex'
-  value: any
+  value: FilterValue
   caseSensitive?: boolean
   negate?: boolean
+}
+
+/**
+ * Minimal interface for schema registry support in VibeGrid stores.
+ * Matches the subset of SchemaRegistryStore used by VibeGrid.
+ * Allows mock schema registries (e.g., for testing) without depending on the full store type.
+ */
+export interface SchemaRegistryLike {
+  schemas: import('@/shared/types/dataforge').NormalizedEntitySchemas | null
+  isBootstrapping: boolean
+  isReady: boolean
+  getEntityArtifacts?(
+    entityName: string,
+  ): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
 }
 
 // Import our local column types

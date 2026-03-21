@@ -124,14 +124,14 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   stores,
   className = '',
 }: VibeGridXColumnVisibilityPureProps) {
-  const { interactionStore, visualStateStore } = stores
+  const { menuStateStore, visualStateStore } = stores
 
   // Get reactive data from MobX stores
   const columns = visualStateStore.columns
   const columnVisibility = visualStateStore.columnVisibility
   const columnOrder = visualStateStore.columnOrder
-  const isOpen = interactionStore.columnVisibilityMenuState.isOpen
-  const searchValue = interactionStore.columnVisibilityMenuState.searchValue
+  const isOpen = menuStateStore.columnVisibilityMenuState.isOpen
+  const searchValue = menuStateStore.columnVisibilityMenuState.searchValue
   const entityType = visualStateStore.entityType
 
   // DnD state
@@ -157,12 +157,12 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
     (open: boolean) => {
       fileLog.debug('ColumnVisibility dropdown state change', { isOpen: open })
       if (open) {
-        interactionStore.openColumnVisibilityMenu()
+        menuStateStore.openColumnVisibilityMenu()
       } else {
-        interactionStore.closeColumnVisibilityMenu()
+        menuStateStore.closeColumnVisibilityMenu()
       }
     },
-    [interactionStore],
+    [menuStateStore],
   )
 
   const handleToggleColumn = React.useCallback(
@@ -174,19 +174,19 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
 
   const handleShowAll = React.useCallback(() => {
     visualStateStore.showAllColumns()
-    interactionStore.setColumnVisibilitySearch('')
-  }, [visualStateStore, interactionStore])
+    menuStateStore.setColumnVisibilitySearch('')
+  }, [visualStateStore, menuStateStore])
 
   const handleHideAll = React.useCallback(() => {
     visualStateStore.hideAllColumns()
-    interactionStore.setColumnVisibilitySearch('')
-  }, [visualStateStore, interactionStore])
+    menuStateStore.setColumnVisibilitySearch('')
+  }, [visualStateStore, menuStateStore])
 
   const handleSearchChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      interactionStore.setColumnVisibilitySearch(e.target.value)
+      menuStateStore.setColumnVisibilitySearch(e.target.value)
     },
-    [interactionStore],
+    [menuStateStore],
   )
 
   // DnD handlers
@@ -328,7 +328,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 if (searchValue) {
-                  interactionStore.setColumnVisibilitySearch('')
+                  menuStateStore.setColumnVisibilitySearch('')
                   e.stopPropagation()
                 }
                 // If search is empty, let Escape propagate to close the dropdown
