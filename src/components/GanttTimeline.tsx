@@ -23,7 +23,7 @@ const logger = getLogger(['vibegrid', 'components', 'GanttTimeline'])
 // CONSTANTS
 // ====================================
 
-const HEADER_HEIGHT = 48 // Match GRID_DIMENSIONS.HEADER_HEIGHT
+const HEADER_HEIGHT = 36 // Match GRID_DIMENSIONS.HEADER_HEIGHT
 const ROW_HEIGHT = 34 // Match GRID_DIMENSIONS.ROW_HEIGHT — keep in sync with grid-dimensions.ts
 
 // ====================================

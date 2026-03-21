@@ -6,7 +6,7 @@
 
 /* CSS Variables for dynamic configuration */
 :root {
-  --vibegridx-header-height: 48px;
+  --vibegridx-header-height: 36px;
   --vibegridx-cell-height: 34px;
   --vibegridx-cell-width: 120px;
 }
@@ -85,7 +85,7 @@
 }
 
 .vibegridx-header-cell {
-  padding: 8px 12px;
+  padding: 4px 12px;
   border: 1px solid var(--border);
   border-left: none;
   /* Width now set dynamically via inline styles */

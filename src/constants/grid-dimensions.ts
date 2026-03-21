@@ -8,7 +8,7 @@
 export const GRID_DIMENSIONS = {
   // Core row dimensions
   ROW_HEIGHT: 34,
-  HEADER_HEIGHT: 48,
+  HEADER_HEIGHT: 36,
 
   // Column dimensions
   DEFAULT_COLUMN_WIDTH: 150,

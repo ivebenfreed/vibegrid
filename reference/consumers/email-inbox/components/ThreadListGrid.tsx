@@ -45,6 +45,8 @@ interface ThreadListGridProps {
   onMarkRead: (threadId: string, unread: boolean) => void
   onAssign: (threadId: string) => void
   onStar: (threadId: string, starred: boolean) => void
+  toolbarLeading?: React.ReactNode
+  toolbarTrailing?: React.ReactNode
 }
 
 // ====================================
@@ -62,6 +64,8 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
   onMarkRead,
   onAssign,
   onStar,
+  toolbarLeading,
+  toolbarTrailing,
 }: ThreadListGridProps) {
   const store = useEmailInbox()
   const navigate = useNavigate()
@@ -260,6 +264,8 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         onSelectionChange={handleSelectionChange}
         rowActions={rowActions}
         onRowAction={handleRowAction}
+        toolbarLeading={toolbarLeading}
+        toolbarTrailing={toolbarTrailing}
       />
     </div>
   )
