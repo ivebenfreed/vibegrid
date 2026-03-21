@@ -1041,20 +1041,68 @@ function VibeGridInnerBase(props: VibeGridProps) {
         {/* Table container - ALWAYS rendered to maintain renderer attachment */}
         {/* Hidden when in Kanban mode, but kept in DOM to preserve renderer state */}
         <div
-          ref={containerRef}
-          className="vibegrid-pure-renderer h-full overflow-auto"
-          data-testid={`vibegrid-pure-renderer-${tableId}`}
-          data-vibegrid-container="true"
           style={{
-            width: viewMode === 'kanban' ? 0 : viewMode === 'gantt' ? cutoffWidth : '100%',
-            flexShrink: 0,
             position: 'relative',
-            zIndex: 0, // Creates stacking context so renderer's internal z-indexes (header z-10) don't escape above the loading overlay (z-10)
-            outline: 'none',
-            overflow: viewMode === 'kanban' ? 'hidden' : 'auto',
-            visibility: viewMode === 'kanban' ? 'hidden' : 'visible',
+            flex:
+              viewMode === 'kanban'
+                ? '0 0 0px'
+                : viewMode === 'gantt'
+                  ? `0 0 ${cutoffWidth}px`
+                  : '1 1 auto',
+            overflow: 'hidden',
           }}
-        />
+        >
+          <div
+            ref={containerRef}
+            className="vibegrid-pure-renderer h-full overflow-auto"
+            data-testid={`vibegrid-pure-renderer-${tableId}`}
+            data-vibegrid-container="true"
+            style={{
+              width: '100%',
+              height: '100%',
+              position: 'relative',
+              zIndex: 0,
+              outline: 'none',
+              overflow: viewMode === 'kanban' ? 'hidden' : 'auto',
+              visibility: viewMode === 'kanban' ? 'hidden' : 'visible',
+            }}
+          />
+          {/* GH#2041: Empty state when search/filter returns zero results */}
+          {viewMode !== 'kanban' &&
+            !tableCoreStore.isIncrementalProcessing &&
+            tableCoreStore.processedRows.length === 0 &&
+            (visualStateStore.globalSearchText || visualStateStore.filterGroup) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 48,
+                  left: 0,
+                  right: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '48px 16px',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                }}
+              >
+                <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>No results found</p>
+                {visualStateStore.globalSearchText && (
+                  <p
+                    style={{
+                      color: 'var(--muted-foreground)',
+                      fontSize: 12,
+                      marginTop: 4,
+                      opacity: 0.7,
+                    }}
+                  >
+                    Try a different search term
+                  </p>
+                )}
+              </div>
+            )}
+        </div>
 
         {/* Non-table view modes — rendered by activeModule via ViewModeRegistry */}
         {activeModule &&
