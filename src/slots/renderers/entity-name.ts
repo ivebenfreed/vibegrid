@@ -37,18 +37,20 @@ class EntityNameCellRenderer implements CellRenderer {
       textEl.textContent = String(value)
     }
 
-    // Pencil icon (shown on hover via CSS)
-    const pencilIcon = document.createElement('span')
-    pencilIcon.className = 'vibegridx-entity-name-edit-icon'
-    pencilIcon.innerHTML = '\u270F\uFE0F'
-    pencilIcon.style.cssText =
-      'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
-    pencilIcon.title = 'Click to edit inline'
-    pencilIcon.dataset.action = isEditable ? 'edit' : 'none'
-    pencilIcon.dataset.affordanceRole = 'icon'
-
     container.appendChild(textEl)
-    container.appendChild(pencilIcon)
+
+    // Pencil icon (shown on hover via CSS) — only when column is editable
+    if (isEditable) {
+      const pencilIcon = document.createElement('span')
+      pencilIcon.className = 'vibegridx-entity-name-edit-icon'
+      pencilIcon.innerHTML = '\u270F\uFE0F'
+      pencilIcon.style.cssText =
+        'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
+      pencilIcon.title = 'Click to edit inline'
+      pencilIcon.dataset.action = 'edit'
+      pencilIcon.dataset.affordanceRole = 'icon'
+      container.appendChild(pencilIcon)
+    }
 
     applyAffordanceAttrs(container, this, isEditable)
     return container
