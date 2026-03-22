@@ -79,14 +79,13 @@ describe('FIELD_TYPE_CATEGORIES', () => {
   })
 
   it('does not include display-only types', () => {
+    // Note: currency and percentage ARE in FIELD_TYPE_CATEGORIES as 'number' — tested separately
     const displayOnly = [
       'file',
       'image',
-      'currency',
       'color',
       'rating',
       'slider',
-      'percentage',
       'currency-abbreviated',
       'additional-insured',
       'expiration-date',
@@ -106,6 +105,12 @@ describe('FIELD_TYPE_CATEGORIES', () => {
     for (const type of displayOnly) {
       expect(FIELD_TYPE_CATEGORIES[type]).toBeUndefined()
     }
+  })
+
+  it('maps currency and percentage to number category', () => {
+    // currency and percentage are editable number types, not display-only
+    expect(FIELD_TYPE_CATEGORIES['currency']).toBe('number')
+    expect(FIELD_TYPE_CATEGORIES['percentage']).toBe('number')
   })
 })
 

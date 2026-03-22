@@ -9,7 +9,7 @@
 
 import type { ValidationError, FilterGroup, FilterCondition } from '../types/filter-types'
 import type { Column } from '../types'
-import { isTextType } from '../column-types'
+import { isSearchableType } from '../constants/field-type-categories'
 
 /**
  * Threshold for showing complexity warning
@@ -242,11 +242,44 @@ export function applyNestedFilters(rows: any[], filterGroup: FilterGroup | null)
 // ====================================
 
 /**
+ * Resolve a select/option column value to its display label.
+ * Returns the label if found, otherwise the raw value as string.
+ */
+function resolveOptionLabel(value: unknown, column: Column): string {
+  if (value == null) return ''
+  const strValue = String(value)
+  if (!column.options || column.options.length === 0) return strValue
+  for (const opt of column.options) {
+    if (typeof opt === 'string') {
+      if (opt === strValue) return opt
+    } else if (opt.value === strValue) {
+      return opt.label ?? strValue
+    }
+  }
+  return strValue
+}
+
+/** Select/option types that should search by label */
+const SELECT_SEARCH_TYPES = new Set([
+  'select',
+  'single-select',
+  'multi-select',
+  'select-multi',
+  'status',
+  'status_option',
+  'priority_option',
+  'category_option',
+  'task_type_option',
+  'custom_select',
+  'custom_option_reference',
+])
+
+/**
  * Apply text search across specified columns.
  * Returns rows where any searchable column contains the search text (case-insensitive).
  *
- * Uses existing isTextType() to determine default searchable columns:
- * - text, longtext, rich-text, email, url, phone
+ * Searches text types directly and select/option types by resolved label.
+ * Excludes boolean, date, file, computed, and other non-textual types.
  *
  * @param rows - Array of rows to search
  * @param searchText - The search text to find
@@ -264,10 +297,11 @@ export function applyTextSearch(
   if (!trimmed) return rows
 
   // Determine which columns to search
-  // Uses existing isTextType() from column-types.ts for consistency
+  // When searchableColumnIds is provided, use those exactly (backward compat)
+  // Otherwise, use expanded isSearchableType which includes text + number + select types
   const columnsToSearch = searchableColumnIds
     ? columns.filter((c) => searchableColumnIds.includes(c.id))
-    : columns.filter((c) => isTextType(c.cellType || ''))
+    : columns.filter((c) => isSearchableType(c.cellType || ''))
 
   if (columnsToSearch.length === 0) return rows
 
@@ -278,7 +312,14 @@ export function applyTextSearch(
       const field = col.field || col.id
       const value = row[field] ?? row.data?.[field]
       if (value == null) return false
-      return String(value).toLowerCase().includes(trimmed)
+
+      // For select/option types, resolve to label before matching
+      const cellType = col.cellType || ''
+      const searchValue = SELECT_SEARCH_TYPES.has(cellType)
+        ? resolveOptionLabel(value, col)
+        : String(value)
+
+      return searchValue.toLowerCase().includes(trimmed)
     })
   })
 }

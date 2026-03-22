@@ -785,27 +785,55 @@ describe('applyTextSearch', () => {
   })
 
   describe('column type filtering', () => {
-    it('should ignore non-text columns by default', () => {
-      // 'active' is in status (select type) - should NOT match
+    it('should search select columns by raw value (no options array)', () => {
+      // 'active' is in status (select type) - matches raw value when no options defined
+      // 'active' is substring of 'inactive', so all 3 match
       const result = applyTextSearch(mockRows, 'active', mockColumns)
-      expect(result).toHaveLength(0)
+      expect(result).toHaveLength(3) // John='active', Jane='inactive' (contains 'active'), Bob='active'
     })
 
-    it('should ignore number columns by default', () => {
-      // '10' is in count (number type) - should NOT match
+    it('should search select columns by option label when options defined', () => {
+      const columnsWithOptions: Column[] = [
+        {
+          id: 'priority',
+          field: 'status',
+          name: 'Priority',
+          cellType: 'select',
+          options: [
+            { value: 'active', label: 'High Priority' },
+            { value: 'inactive', label: 'Low Priority' },
+          ],
+        },
+      ]
+      // Searches label not raw value: 'High' matches 'High Priority' (active), not 'Low Priority' (inactive)
+      const result = applyTextSearch(mockRows, 'High', columnsWithOptions)
+      expect(result).toHaveLength(2) // John and Bob (status 'active' → label 'High Priority')
+    })
+
+    it('should search number columns by default', () => {
+      // '10' is in count (number type) - now searchable
       const result = applyTextSearch(mockRows, '10', mockColumns)
-      expect(result).toHaveLength(0)
+      expect(result).toHaveLength(1)
+      expect(result[0].name).toBe('John Doe')
+    })
+
+    it('should not include boolean columns as searchable', () => {
+      const boolColumns: Column[] = [
+        { id: 'isActive', field: 'isActive', name: 'Active', cellType: 'boolean' },
+      ]
+      // Boolean-only columns are not searchable — no searchable columns means all rows returned
+      const result = applyTextSearch(mockRows, 'true', boolColumns)
+      expect(result).toHaveLength(3) // All rows returned (no searchable columns = no filtering)
     })
 
     it('should return all rows when no searchable columns exist', () => {
-      const nonTextColumns: Column[] = [
-        { id: 'status', field: 'status', name: 'Status', cellType: 'select' },
-        { id: 'count', field: 'count', name: 'Count', cellType: 'number' },
+      const nonSearchableColumns: Column[] = [
         { id: 'isActive', field: 'isActive', name: 'Active', cellType: 'boolean' },
+        { id: 'created', field: 'created', name: 'Created', cellType: 'date' },
+        { id: 'file', field: 'file', name: 'File', cellType: 'file' },
       ]
-      // When there are no text columns to search, applyTextSearch returns all rows
-      // because no filtering can be applied
-      const result = applyTextSearch(mockRows, 'anything', nonTextColumns)
+      // When there are no searchable columns, returns all rows (no filtering applied)
+      const result = applyTextSearch(mockRows, 'anything', nonSearchableColumns)
       expect(result).toHaveLength(3)
     })
   })

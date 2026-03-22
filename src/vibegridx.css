@@ -983,6 +983,14 @@ body.vibegridx-dragging-active * {
   border-left: 1px solid var(--border);
 }
 
+/* Search highlight */
+.vg-search-highlight {
+  background-color: hsl(48 96% 70% / 0.6);
+  border-radius: 1px;
+  color: inherit;
+  padding: 0 1px;
+}
+
 /* Selection States */
 .vibegridx-selected {
   background-color: hsl(var(--primary) / 0.15) !important;

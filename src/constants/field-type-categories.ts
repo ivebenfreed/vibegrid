@@ -105,3 +105,51 @@ export function isModalTextType(cellType: string): boolean {
 export function isDateType(cellType: string): boolean {
   return ['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'].includes(cellType)
 }
+
+/**
+ * Smart search: types that should be included in global text search.
+ *
+ * Includes text, number, and select/option types.
+ * Excludes: boolean, date, file, image, computed, rollup, and display-only types.
+ *
+ * Select types search by resolved option label (not raw ID).
+ * Number types search by stringified raw value.
+ */
+const SEARCHABLE_TYPES = new Set([
+  // Text types (original TEXT_CELL_TYPES)
+  'text',
+  'string',
+  'longtext',
+  'rich-text',
+  'rich_text',
+  'email',
+  'url',
+  'phone',
+  'textarea',
+  'markdown',
+  // Number types
+  'number',
+  'integer',
+  'decimal',
+  'currency',
+  'percentage',
+  // Select/option types (searched by label)
+  'select',
+  'single-select',
+  'multi-select',
+  'select-multi',
+  'status',
+  'status_option',
+  'priority_option',
+  'category_option',
+  'task_type_option',
+  'custom_select',
+  'custom_option_reference',
+  // Entity name
+  'entity-name',
+])
+
+/** Check if a field type should be included in smart search */
+export function isSearchableType(cellType: string): boolean {
+  return SEARCHABLE_TYPES.has(cellType)
+}

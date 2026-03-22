@@ -14,6 +14,7 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
+import { isSearchableType } from '../constants/field-type-categories'
 import type { VirtualRow, Column, SortConfig, FilterConfig, GroupConfig } from '../types'
 import { compareValues, isEmpty } from '../utils/sort-compare'
 
@@ -398,6 +399,21 @@ export class IncrementalRowProcessor {
   // PIPELINE FUNCTIONS
   // ====================================
 
+  /** Select/option types that should search by resolved label */
+  private static SELECT_SEARCH_TYPES = new Set([
+    'select',
+    'single-select',
+    'multi-select',
+    'select-multi',
+    'status',
+    'status_option',
+    'priority_option',
+    'category_option',
+    'task_type_option',
+    'custom_select',
+    'custom_option_reference',
+  ])
+
   private applyTextSearch(
     rows: any[],
     searchText: string,
@@ -407,40 +423,44 @@ export class IncrementalRowProcessor {
     const normalizedSearch = searchText.toLowerCase().trim()
     if (!normalizedSearch) return rows
 
-    // Determine which columns to search
+    // Determine which columns to search — uses shared isSearchableType
     const columnsToSearch = searchableColumns
       ? columns.filter((col) => searchableColumns.includes(col.id))
-      : columns.filter((col) => this.isTextType(col))
+      : columns.filter((col) => isSearchableType((col.cellType || col.type || '') as string))
 
     return rows.filter((row) => {
       const data = row.data || row
       for (const col of columnsToSearch) {
         const value = data[col.id] ?? data[col.field ?? col.id]
         if (value !== null && value !== undefined) {
-          if (String(value).toLowerCase().includes(normalizedSearch)) {
+          // For select/option types, resolve to label before matching
+          const cellType = (col.cellType || col.type || '') as string
+          let searchValue: string
+          if (IncrementalRowProcessor.SELECT_SEARCH_TYPES.has(cellType) && col.options?.length) {
+            const strValue = String(value)
+            let resolved = strValue
+            for (const opt of col.options) {
+              if (typeof opt === 'string') {
+                if (opt === strValue) {
+                  resolved = opt
+                  break
+                }
+              } else if ((opt as any).value === strValue) {
+                resolved = (opt as any).label ?? strValue
+                break
+              }
+            }
+            searchValue = resolved
+          } else {
+            searchValue = String(value)
+          }
+          if (searchValue.toLowerCase().includes(normalizedSearch)) {
             return true
           }
         }
       }
       return false
     })
-  }
-
-  private isTextType(column: Column): boolean {
-    const textTypes = [
-      'text',
-      'string',
-      'varchar',
-      'rich-text',
-      'longtext',
-      'entity-name',
-      'email',
-      'phone',
-      'url',
-    ]
-    return (
-      textTypes.includes(column.cellType as string) || textTypes.includes(column.type as string)
-    )
   }
 
   private applyFilters(rows: any[], filters: FilterConfig[]): any[] {

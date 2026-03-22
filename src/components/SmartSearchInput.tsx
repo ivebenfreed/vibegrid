@@ -69,28 +69,44 @@ export const SmartSearchInput = observer(function SmartSearchInput({
     visualStateStore.setGlobalSearchText('')
   }
 
+  // Result count: count data rows in processedRows when search is active
+  const { tableCoreStore } = stores
+  const dataRowCount = visualStateStore.hasActiveSearch
+    ? tableCoreStore.processedRows.filter((r: any) => r.type === 'data').length
+    : null
+
   return (
-    <search className={cn('relative', className)}>
-      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={localValue}
-        onChange={handleChange}
-        placeholder={placeholder}
-        className="h-8 w-[200px] pl-8 pr-8"
-        data-testid="vibegrid-smart-search"
-        aria-label="Search grid"
-      />
-      {localValue && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 p-0"
-          onClick={handleClear}
-          data-testid="vibegrid-smart-search-clear"
-          aria-label="Clear search"
+    <search className={cn('relative flex items-center gap-1.5', className)}>
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={localValue}
+          onChange={handleChange}
+          placeholder={placeholder}
+          className="h-8 w-[200px] pl-8 pr-8"
+          data-testid="vibegrid-smart-search"
+          aria-label="Search grid"
+        />
+        {localValue && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 p-0"
+            onClick={handleClear}
+            data-testid="vibegrid-smart-search-clear"
+            aria-label="Clear search"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+      {dataRowCount !== null && (
+        <span
+          className="text-xs text-muted-foreground whitespace-nowrap"
+          data-testid="vibegrid-smart-search-count"
         >
-          <X className="h-3 w-3" />
-        </Button>
+          {dataRowCount} {dataRowCount === 1 ? 'result' : 'results'}
+        </span>
       )}
     </search>
   )

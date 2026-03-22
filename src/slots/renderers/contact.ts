@@ -6,6 +6,7 @@ import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 import { isEmpty, renderEmpty } from './helpers'
+import { highlightMatch } from '../../utils/highlight-text'
 
 // ============================================================
 // EMAIL
@@ -24,11 +25,19 @@ class EmailCellRenderer implements CellRenderer {
 
     const emailValue = String(value).toLowerCase().trim()
     el.className = 'vibegridx-cell-email'
-    el.textContent = emailValue
     el.style.fontFamily = 'monospace'
     el.style.fontSize = '12px'
     el.style.color = '#2563eb'
     el.dataset.emailHref = `mailto:${emailValue}`
+
+    // GH#1391: Highlight matching search text
+    const searchText = _context.searchText as string | undefined
+    const highlighted = searchText ? highlightMatch(emailValue, searchText) : null
+    if (highlighted) {
+      el.innerHTML = highlighted
+    } else {
+      el.textContent = emailValue
+    }
 
     applyAffordanceAttrs(el, this, isEditable)
     return el
@@ -194,9 +203,18 @@ class PhoneCellRenderer implements CellRenderer {
     }
 
     el.className = 'vibegridx-cell-phone'
-    el.textContent = this.formatPhone(value)
     el.style.fontFamily = 'monospace'
     el.style.fontVariantNumeric = 'tabular-nums'
+
+    // GH#1391: Highlight matching search text
+    const formatted = this.formatPhone(value)
+    const searchText = _context.searchText as string | undefined
+    const highlighted = searchText ? highlightMatch(formatted, searchText) : null
+    if (highlighted) {
+      el.innerHTML = highlighted
+    } else {
+      el.textContent = formatted
+    }
 
     const cleaned = String(value).replace(/\D/g, '')
     if (cleaned) {

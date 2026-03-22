@@ -794,6 +794,7 @@ export class BodyRenderer {
           entityType: this.tableCoreStore?.entityType,
           rowData,
           tableCoreStore: this.tableCoreStore,
+          searchText: this.visualStateStore?.globalSearchText || '',
         }
 
         const renderer = this.slotRegistry.resolve(column, context)
@@ -1286,6 +1287,7 @@ export class BodyRenderer {
           entityType: this.tableCoreStore?.entityType,
           rowData,
           tableCoreStore: this.tableCoreStore,
+          searchText: this.visualStateStore?.globalSearchText || '',
         }
         const renderer = this.slotRegistry.resolve(column, context)
         if (renderer) {

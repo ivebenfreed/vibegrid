@@ -6,6 +6,7 @@ import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 import { isEmpty, renderEmpty } from './helpers'
+import { highlightMatch } from '../../utils/highlight-text'
 
 // ============================================================
 // FALLBACK RENDERER (priority -1, catch-all)
@@ -59,7 +60,7 @@ class TextFallbackCellRenderer implements CellRenderer {
 // ============================================================
 
 class TextCellRenderer implements CellRenderer {
-  render(value: unknown, column: Column, _context: CellRendererContext): HTMLElement {
+  render(value: unknown, column: Column, context: CellRendererContext): HTMLElement {
     const el = document.createElement('span')
     const isEditable = column.editable !== false
 
@@ -73,8 +74,16 @@ class TextCellRenderer implements CellRenderer {
     el.className = `vibegridx-cell-${fieldType}`
 
     const displayValue = String(value)
-    el.textContent = displayValue
     el.title = displayValue
+
+    // GH#1391: Highlight matching search text
+    const searchText = context.searchText as string | undefined
+    const highlighted = searchText ? highlightMatch(displayValue, searchText) : null
+    if (highlighted) {
+      el.innerHTML = highlighted
+    } else {
+      el.textContent = displayValue
+    }
 
     // Overflow handling — don't set display:block, it overrides the
     // flex centering applied by .vibegridx-cell (added by BodyRenderer)
