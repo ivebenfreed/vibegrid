@@ -1735,10 +1735,6 @@ export class SimplePassiveRenderer {
     const columns = this.tableCoreStore.columns
     const columnVisibility = this.visualStateStore.columnVisibility
 
-    // TEMP DEBUG: console.trace so call stack is visible in browser DevTools
-    // biome-ignore lint/suspicious/noConsole: temporary diagnostic
-    console.trace('🎨 renderBody() called', { rowCount: rows.length, columnCount: columns.length })
-
     // PERFORMANCE FIX: Use DocumentFragment for batched DOM operations instead of innerHTML clearing
     const fragment = document.createDocumentFragment()
 
