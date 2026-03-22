@@ -6,9 +6,10 @@ import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 import { isEmpty } from './helpers'
+import { highlightMatch } from '../../utils/highlight-text'
 
 class EntityNameCellRenderer implements CellRenderer {
-  render(value: unknown, column: Column, _context: CellRendererContext): HTMLElement {
+  render(value: unknown, column: Column, context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     const isEditable = column.editable !== false
 
@@ -34,7 +35,15 @@ class EntityNameCellRenderer implements CellRenderer {
       textEl.style.opacity = '0.5'
       textEl.style.fontStyle = 'italic'
     } else {
-      textEl.textContent = String(value)
+      const displayValue = String(value)
+      // GH#1391: Highlight matching search text
+      const searchText = context.searchText as string | undefined
+      const highlighted = searchText ? highlightMatch(displayValue, searchText) : null
+      if (highlighted) {
+        textEl.innerHTML = highlighted
+      } else {
+        textEl.textContent = displayValue
+      }
     }
 
     container.appendChild(textEl)

@@ -76,37 +76,37 @@ export const SmartSearchInput = observer(function SmartSearchInput({
     : null
 
   return (
-    <search className={cn('relative flex items-center gap-1.5', className)}>
-      <div className="relative">
-        <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={localValue}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className="h-8 w-[200px] pl-8 pr-8"
-          data-testid="vibegrid-smart-search"
-          aria-label="Search grid"
-        />
-        {localValue && (
+    <search className={cn('relative', className)}>
+      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={localValue}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className={cn('h-8 w-[200px] pl-8', localValue ? 'pr-14' : 'pr-8')}
+        data-testid="vibegrid-smart-search"
+        aria-label="Search grid"
+      />
+      {localValue && (
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+          {dataRowCount !== null && (
+            <span
+              className="text-[10px] tabular-nums text-muted-foreground"
+              data-testid="vibegrid-smart-search-count"
+            >
+              {dataRowCount}
+            </span>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 p-0"
+            className="h-5 w-5 p-0"
             onClick={handleClear}
             data-testid="vibegrid-smart-search-clear"
             aria-label="Clear search"
           >
             <X className="h-3 w-3" />
           </Button>
-        )}
-      </div>
-      {dataRowCount !== null && (
-        <span
-          className="text-xs text-muted-foreground whitespace-nowrap"
-          data-testid="vibegrid-smart-search-count"
-        >
-          {dataRowCount} {dataRowCount === 1 ? 'result' : 'results'}
-        </span>
+        </div>
       )}
     </search>
   )
