@@ -55,10 +55,10 @@ export function registerBuiltInModules(): void {
     {
       displayName: 'Kanban Board',
       icon: 'kanban',
-      canHandle: (_props: GridModuleRenderProps) => {
-        // Kanban needs columns with a status-like field for grouping
-        // For now, always return true - the module will auto-detect
-        return true
+      canHandle: (props: GridModuleRenderProps) => {
+        if (!props.schemaFields?.length) return true // graceful fallback
+        const GROUPABLE = ['status_set', 'single-select', 'multi-select', 'priority']
+        return props.schemaFields.some((f) => GROUPABLE.includes(f.fieldType) || f.fieldType === 'entity_reference')
       },
       isEnabled: () => true, // Always enabled for built-in modules
     },
@@ -98,5 +98,5 @@ registerBuiltInModules()
 // Export registry and types
 export { viewModeRegistry } from './ViewModeRegistry'
 export type { ModuleMetadata } from './ViewModeRegistry'
-export type { GridModule, GridModuleFactory, GridModuleRenderProps } from './GridModule'
+export type { GridModule, GridModuleFactory, GridModuleRenderProps, SchemaFieldDescriptor } from './GridModule'
 export { validateGridModule } from './GridModule'

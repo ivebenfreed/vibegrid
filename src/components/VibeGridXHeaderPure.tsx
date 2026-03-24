@@ -7,10 +7,13 @@
 
 import { Download, GanttChart, Kanban, LayoutList, Link2, Network } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { ButtonGroup } from '@/shared/components/ui/button-group'
 import { getLogger } from '@/shared/lib/logging'
+import type { SchemaFieldDescriptor } from '../modules/GridModule'
+import type { GridModuleRenderProps } from '../modules/GridModule'
+import { viewModeRegistry } from '../modules'
 import type { VibeGridStores } from '../stores/context'
 import type { ViewMode } from '../stores/ViewModeStore'
 import { FilterBuilder } from './FilterBuilder'
@@ -37,7 +40,8 @@ interface VibeGridXHeaderPureProps {
   enableGrouping?: boolean
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
-  enableKanban?: boolean
+  /** Schema field descriptors for registry-driven view gating (GH#2139) */
+  schemaFields?: SchemaFieldDescriptor[]
   enableHierarchy?: boolean
   enableRowExpansion?: boolean // GH#1240 - Show expand all / collapse all buttons
   className?: string
@@ -62,7 +66,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   enableGrouping = false,
   viewMode = 'table',
   onViewModeChange,
-  enableKanban = false,
+  schemaFields,
   enableHierarchy = false,
   enableRowExpansion: _enableRowExpansion = false,
   className = '',
@@ -75,6 +79,16 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
   toolbarTrailing,
 }: VibeGridXHeaderPureProps) {
   const { visualStateStore, hierarchyStore, tableCoreStore } = stores
+
+  // Registry-driven view mode gating (GH#2139)
+  const availableModules = useMemo(() => {
+    const renderProps: GridModuleRenderProps = {
+      tableId: '',
+      entityType: '',
+      schemaFields,
+    }
+    return viewModeRegistry.getAvailableModules(renderProps, stores)
+  }, [schemaFields, stores])
 
   // Calculate hidden column count
   const hiddenColumnCount = visualStateStore.columns.filter(
@@ -117,10 +131,11 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         {/* Leading content (e.g., page title + record count) */}
         {toolbarLeading}
 
-        {/* View Mode Toggle / View Picker (GH#1570) */}
-        {viewPickerProps ? (
-          <ViewPicker {...viewPickerProps} currentViewMode={viewMode} />
-        ) : onViewModeChange ? (
+        {/* View Picker (saved views) — GH#1570 */}
+        {viewPickerProps && <ViewPicker {...viewPickerProps} currentViewMode={viewMode} />}
+
+        {/* View Mode Toggle — GH#2139 */}
+        {onViewModeChange ? (
           <ButtonGroup>
             <Button
               variant={viewMode === 'table' ? 'default' : 'outline'}
@@ -132,17 +147,19 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               <LayoutList className="size-4" />
               Table
             </Button>
-            <Button
-              variant={viewMode === 'gantt' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => onViewModeChange('gantt')}
-              aria-pressed={viewMode === 'gantt'}
-              data-testid="view-mode-gantt"
-            >
-              <GanttChart className="size-4" />
-              Gantt
-            </Button>
-            {enableKanban && (
+            {availableModules.includes('gantt') && (
+              <Button
+                variant={viewMode === 'gantt' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => onViewModeChange('gantt')}
+                aria-pressed={viewMode === 'gantt'}
+                data-testid="view-mode-gantt"
+              >
+                <GanttChart className="size-4" />
+                Gantt
+              </Button>
+            )}
+            {availableModules.includes('kanban') && (
               <Button
                 variant={viewMode === 'kanban' ? 'default' : 'outline'}
                 size="sm"
@@ -155,9 +172,9 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               </Button>
             )}
           </ButtonGroup>
-        ) : (
+        ) : !viewPickerProps ? (
           <span className="text-sm font-medium">Table View</span>
-        )}
+        ) : null}
 
         {/* Hierarchy Toggle */}
         {enableHierarchy && (
@@ -172,9 +189,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               }
             }}
             aria-pressed={hierarchyStore.isHierarchyActive}
-            title={
-              hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'
-            }
+            title={hierarchyStore.isHierarchyActive ? 'Disable hierarchy view' : 'Enable hierarchy view'}
             data-testid="toggle-hierarchy"
           >
             <Network className="size-4 mr-1" />

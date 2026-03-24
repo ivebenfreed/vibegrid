@@ -11,20 +11,16 @@
 import type { GridModule, GridModuleRenderProps } from '../GridModule'
 import type { VibeGridStores } from '../../stores/context'
 import { KanbanBoard } from '../../components/kanban'
+import { GroupByDropdown } from './GroupByDropdown'
 import { getLogger } from '@/shared/lib/logging'
 
 const logger = getLogger(['vibegrid', 'modules', 'KanbanModule'])
 
 /**
  * KanbanModuleContent - Wrapper for KanbanBoard with module props
+ * Includes GroupBy picker toolbar (GH#2139)
  */
-function KanbanModuleContent({
-  props,
-  stores,
-}: {
-  props: GridModuleRenderProps
-  stores: VibeGridStores
-}) {
+function KanbanModuleContent({ props, stores }: { props: GridModuleRenderProps; stores: VibeGridStores }) {
   const { enableDragAndDrop = true, className = '' } = props
 
   logger.debug('KanbanModule render', {
@@ -33,14 +29,19 @@ function KanbanModuleContent({
   })
 
   return (
-    <KanbanBoard
-      className={className}
-      enableDragAndDrop={enableDragAndDrop}
-      onCardClick={(cardId) => {
-        logger.info('Kanban card clicked', { cardId })
-        // Card click could trigger detail view or selection
-      }}
-    />
+    <div className="flex flex-col h-full">
+      {/* Kanban toolbar with GroupBy picker (GH#2139) */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30">
+        <GroupByDropdown />
+      </div>
+      <KanbanBoard
+        className={className}
+        enableDragAndDrop={enableDragAndDrop}
+        onCardClick={(cardId) => {
+          logger.info('Kanban card clicked', { cardId })
+        }}
+      />
+    </div>
   )
 }
 

@@ -2,11 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { observer } from 'mobx-react-lite'
 import { VibeGrid } from '@/systems/vibegrid'
-import {
-  VibeGridStoreProvider,
-  useTableCoreStore,
-  useInitStore,
-} from '@/systems/vibegrid/stores/context'
+import { VibeGridStoreProvider, useTableCoreStore, useInitStore } from '@/systems/vibegrid/stores/context'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { MOCK_TASK_SCHEMA, createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
@@ -87,9 +83,7 @@ function DebugVibeGridPage() {
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">VibeGrid Testing</h2>
             <p className="text-muted-foreground">
-              {useMockData
-                ? 'Mock data mode - no database connection required'
-                : `Live data mode - ${entityType}`}
+              {useMockData ? 'Mock data mode - no database connection required' : `Live data mode - ${entityType}`}
             </p>
           </div>
 
@@ -127,7 +121,7 @@ function DebugVibeGridPage() {
                     enableGrouping={true}
                     enableFiltering={true}
                     enableSorting={true}
-                    enableKanban={true}
+                    schemaFields={[{ fieldId: 'status', fieldType: 'status_set', label: 'Status', slug: 'status' }]}
                     skipDataFetching={true}
                   />
                 </MockDataInjector>

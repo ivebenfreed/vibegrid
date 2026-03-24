@@ -8,24 +8,37 @@
  * @see Issue #1416 for architecture overview
  */
 
-import { useCallback } from 'react'
-import type { GridModule, GridModuleRenderProps } from '../GridModule'
+import { useMemo, useCallback } from 'react'
+import type { GridModule, GridModuleRenderProps, SchemaFieldDescriptor } from '../GridModule'
 import type { VibeGridStores } from '../../stores/context'
 import { CutoffResizer } from '../../components/CutoffResizer'
 import { GanttTimeline } from '../../components/GanttTimeline'
+import { GanttEmptyState } from './GanttEmptyState'
 import { getLogger } from '@/shared/lib/logging'
 import type { SlotRegistry } from '../../slots/SlotRegistry'
 
 const logger = getLogger(['vibegrid', 'modules', 'GanttModule'])
+
+const DATE_TYPES = ['date', 'datetime', 'datetime-local']
+
+/** Check if schema has any date fields */
+function hasDateFields(schemaFields?: SchemaFieldDescriptor[]): boolean {
+  if (!schemaFields?.length) return true // graceful fallback: assume dates exist
+  return schemaFields.some((f) => DATE_TYPES.includes(f.fieldType))
+}
 
 /**
  * GanttModuleContent - Self-contained split-pane: CutoffResizer + GanttTimeline
  *
  * The table pane (left) is always rendered by VibeGrid.tsx's containerRef.
  * This module renders the resizer handle and timeline pane (right).
+ * Shows an empty state nudge when entity has no date fields (GH#2139).
  */
-function GanttModuleContent({ stores }: { props: GridModuleRenderProps; stores: VibeGridStores }) {
+function GanttModuleContent({ props, stores }: { props: GridModuleRenderProps; stores: VibeGridStores }) {
   const { interactionStore, viewModeStore } = stores
+  const schemaFields = props.schemaFields as SchemaFieldDescriptor[] | undefined
+
+  const showEmptyState = useMemo(() => !hasDateFields(schemaFields), [schemaFields])
 
   const handleCutoffResize = useCallback(
     (newWidth: number) => {
@@ -44,7 +57,17 @@ function GanttModuleContent({ stores }: { props: GridModuleRenderProps; stores: 
 
   logger.debug('GanttModule render', {
     hasGanttStore: !!stores.ganttViewStore,
+    showEmptyState,
   })
+
+  // GH#2139: Show empty state when no date fields
+  if (showEmptyState) {
+    return (
+      <div className="flex-1 h-full min-w-0">
+        <GanttEmptyState entityType={props.entityType} />
+      </div>
+    )
+  }
 
   return (
     <>
@@ -197,8 +220,7 @@ export const GanttModule: GridModule = {
         ): HTMLElement {
           const container = document.createElement('div')
           container.className = 'vibegridx-cell-gantt-date'
-          container.style.cssText =
-            'display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280;'
+          container.style.cssText = 'display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280;'
 
           if (!value) {
             container.textContent = '—'
@@ -246,20 +268,12 @@ export const GanttModule: GridModule = {
     })
 
     // Override for date aliases in gantt view
-    for (const alias of [
-      'date',
-      'datetime',
-      'datetime-local',
-      'time',
-      'timestamp',
-      'timestamptz',
-    ]) {
+    for (const alias of ['date', 'datetime', 'datetime-local', 'time', 'timestamp', 'timestamptz']) {
       slotRegistry.register({
         id: `gantt-${alias}`,
         priority: 100,
         contextFilter: (ctx) => ctx.viewMode === 'gantt',
-        renderer: () =>
-          slotRegistry.resolve({ cellType: 'gantt-date-summary' } as any, { viewMode: 'gantt' })!,
+        renderer: () => slotRegistry.resolve({ cellType: 'gantt-date-summary' } as any, { viewMode: 'gantt' })!,
       })
     }
 
@@ -329,8 +343,7 @@ export const GanttModule: GridModule = {
       id: 'gantt-status',
       priority: 100,
       contextFilter: (ctx) => ctx.viewMode === 'gantt',
-      renderer: () =>
-        slotRegistry.resolve({ cellType: 'gantt-status-chip' } as any, { viewMode: 'gantt' })!,
+      renderer: () => slotRegistry.resolve({ cellType: 'gantt-status-chip' } as any, { viewMode: 'gantt' })!,
     })
   },
 }

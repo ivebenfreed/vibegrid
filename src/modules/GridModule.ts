@@ -12,6 +12,15 @@ import type React from 'react'
 import type { VibeGridStores } from '../stores/context'
 import type { SlotRegistry } from '../slots/SlotRegistry'
 
+/** Schema field descriptor for canHandle() predicates (GH#2139) */
+export interface SchemaFieldDescriptor {
+  fieldId: string
+  fieldType: string // 'status_set' | 'select' | 'date' | 'datetime' | 'user_reference' | etc.
+  label: string
+  slug: string
+  cardinality?: 'one-to-one' | 'many-to-one' | 'one-to-many' | 'many-to-many'
+}
+
 /**
  * Props passed to view mode render functions
  */
@@ -42,6 +51,8 @@ export interface GridModuleRenderProps {
   onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
   /** Entity update handler */
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
+  /** Schema field descriptors for smart gating (GH#2139) */
+  schemaFields?: SchemaFieldDescriptor[]
   /** Any additional props */
   [key: string]: unknown
 }

@@ -12,7 +12,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useOrganization } from '@/app/stores'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
@@ -25,7 +25,9 @@ import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
+import type { SchemaFieldDescriptor } from '@/systems/vibegrid/modules/GridModule'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
+import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
 import type { ChildEntityConfig } from '../hooks/useChildEntityData'
 import { useChildEntityData } from '../hooks/useChildEntityData'
 import { useLinkedFieldEnrichment } from '../hooks/useLinkedFieldEnrichment'
@@ -55,12 +57,11 @@ export function ChildEntitySection({
   const organizationStore = useOrganization()
   const orgId = organizationStore.activeOrganizationId || ''
 
-  const { childRecords, childSchema, isLoading, error, retry, derivedDirection } =
-    useChildEntityData({
-      parentEntityType,
-      parentRecordId,
-      childEntityConfig,
-    })
+  const { childRecords, childSchema, isLoading, error, retry, derivedDirection } = useChildEntityData({
+    parentEntityType,
+    parentRecordId,
+    childEntityConfig,
+  })
 
   const displayName = EntityNameUtils.toDisplayFormat(childEntityType)
 
@@ -100,8 +101,7 @@ export function ChildEntitySection({
 
   // Resolve relationship config: use explicit config values or derive from schema
   const resolvedRelationshipType =
-    childEntityConfig.relationshipType ??
-    (childSchema?.archetype === 'relationship' ? 'entity' : undefined)
+    childEntityConfig.relationshipType ?? (childSchema?.archetype === 'relationship' ? 'entity' : undefined)
 
   // Parent context for auto-linking uploaded entities
   const parentContext = useMemo(
@@ -130,6 +130,22 @@ export function ChildEntitySection({
   const [editRecord, setEditRecord] = useState<EntityRecord | null>(null)
   const [deleteRecord, setDeleteRecord] = useState<EntityRecord | null>(null)
 
+  // GH#2139: View mode switching in child entity tabs
+  const [childViewMode, setChildViewMode] = useState<ViewMode>('table')
+  const handleViewModeChange = useCallback((mode: ViewMode) => setChildViewMode(mode), [])
+
+  // GH#2139: Derive schemaFields from child schema for smart gating
+  const childSchemaFields: SchemaFieldDescriptor[] | undefined = useMemo(
+    () =>
+      childSchema?.fields.map((f) => ({
+        fieldId: f.name,
+        fieldType: f.type,
+        label: f.label ?? f.name,
+        slug: f.name,
+      })),
+    [childSchema],
+  )
+
   // GH#1741: Detect all-pending compliance (indicates computation error)
   useEffect(() => {
     if (childEntityType !== 'SubcontractorAssignment') return
@@ -137,9 +153,7 @@ export function ChildEntitySection({
 
     const allPending = childRecords.every((record) => {
       const data = record.data as Record<string, unknown>
-      const certCompliance = data?.cert_compliance as
-        | { status?: string; score?: number }
-        | undefined
+      const certCompliance = data?.cert_compliance as { status?: string; score?: number } | undefined
       return certCompliance?.status === 'pending' && certCompliance?.score === 0
     })
 
@@ -301,9 +315,11 @@ export function ChildEntitySection({
                   enableGrouping={false}
                   enableFiltering={false}
                   enableSorting={true}
-                  enableDragAndDrop={false}
-                  showToolbar={false}
-                  showHeader={false}
+                  enableDragAndDrop={childViewMode === 'kanban'}
+                  viewMode={childViewMode}
+                  onViewModeChange={handleViewModeChange}
+                  schemaFields={childSchemaFields}
+                  showHeader={true}
                   showPagination={false}
                   disableSearch={true}
                   skipDataFetching={true}
@@ -339,8 +355,7 @@ export function ChildEntitySection({
 
       {/* Create Dialog - relationship archetypes get a specialized picker dialog */}
       {childSchema &&
-        (childSchema.archetype === 'relationship' &&
-        childSchema.businessMetadata?.relationship?.targetEntity ? (
+        (childSchema.archetype === 'relationship' && childSchema.businessMetadata?.relationship?.targetEntity ? (
           <CreateRelationshipDialog
             schema={childSchema}
             parentEntityType={parentEntityType}

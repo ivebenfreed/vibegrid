@@ -17,10 +17,7 @@ import { observer } from 'mobx-react-lite'
 import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCommandBus, useUndoRouter } from '@/app/stores'
-import {
-  useDependencyCollection,
-  useMembersCollection,
-} from '@/shared/data/db/hooks/useEntityCollection'
+import { useDependencyCollection, useMembersCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import { ActionsBar } from './components/ActionsBar'
 import { DebugOverlay } from './components/DebugOverlay'
@@ -42,11 +39,7 @@ import type { GridModule } from './modules'
 import { SimplePassiveRenderer } from './renderers/core/SimplePassiveRenderer'
 import { useVibeGridStores, useCollectionOverride } from './stores/context'
 import type { ViewMode } from './stores/ViewModeStore'
-import type {
-  RowExpansionConfig,
-  RowExpansionChangeEvent,
-  ExpandedDataLoadEvent,
-} from './types/row-expansion'
+import type { RowExpansionConfig, RowExpansionChangeEvent, ExpandedDataLoadEvent } from './types/row-expansion'
 import type { Column, TableRow } from './types'
 import { downloadCSV, getExportableColumns, getExportFilename, rowsToCSV } from './utils/csv-export'
 
@@ -94,9 +87,7 @@ interface VibeGridProps<_T = any> {
   onEditingChange?: (editingCell: { rowId: string; columnId: string } | null) => void
   onPerformanceUpdate?: (metrics: any) => void
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
-  onBatchEntityUpdate?: (
-    updates: Array<{ id: string; updates: Record<string, any> }>,
-  ) => Promise<void> | void
+  onBatchEntityUpdate?: (updates: Array<{ id: string; updates: Record<string, any> }>) => Promise<void> | void
 
   // Row actions (optional)
   rowActions?: RowAction[]
@@ -122,7 +113,8 @@ interface VibeGridProps<_T = any> {
   // View mode (props-based, no MobX toggle)
   viewMode?: ViewMode
   onViewModeChange?: (mode: ViewMode) => void
-  enableKanban?: boolean
+  /** Schema field descriptors for registry-driven view gating (GH#2139) */
+  schemaFields?: import('./modules/GridModule').SchemaFieldDescriptor[]
 
   // Testing mode - skip TanStack DB data fetching (use with MockDataInjector)
   skipDataFetching?: boolean
@@ -231,7 +223,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     enableHierarchy = false,
     viewMode = 'table',
     onViewModeChange,
-    enableKanban = false,
+    schemaFields,
     skipDataFetching = false,
     collectionOverride: _collectionOverride, // Used by context provider, not directly here
     showToolbar: _showToolbar = true,
@@ -284,6 +276,19 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   const cutoffWidth = viewModeStore.cutoffWidth
 
+  // GH#2139: Validate requested viewMode against available modules.
+  // If the requested mode is not available (e.g., kanban on schema with no groupable fields),
+  // silently fall back to table.
+  const effectiveViewMode = useMemo(() => {
+    if (viewMode === 'table') return 'table'
+    const renderProps = { tableId, entityType, schemaFields }
+    const available = viewModeRegistry.getAvailableModules(renderProps, stores)
+    if (available.includes(viewMode)) return viewMode
+    // Stale URL param on incompatible schema — fall back to table
+    if (onViewModeChange) onViewModeChange('table')
+    return 'table' as ViewMode
+  }, [viewMode, tableId, entityType, schemaFields, stores, onViewModeChange])
+
   // ViewModeRegistry: load + activate module on viewMode change
   const [activeModule, setActiveModule] = useState<GridModule | null>(null)
   const moduleCleanupRef = useRef<(() => void) | null>(null)
@@ -293,7 +298,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     moduleCleanupRef.current?.()
     moduleCleanupRef.current = null
 
-    viewModeRegistry.get(viewMode).then((module) => {
+    viewModeRegistry.get(effectiveViewMode).then((module) => {
       if (cancelled) return
       const cleanup = module.init?.(stores)
       moduleCleanupRef.current = cleanup ?? null
@@ -306,7 +311,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       cancelled = true
       moduleCleanupRef.current?.()
     }
-  }, [viewMode, stores])
+  }, [effectiveViewMode, stores])
 
   // ====================================
   // TANSTACK DB INTEGRATION
@@ -407,7 +412,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   )
 
   // Get dependency collection for Gantt (only when in gantt mode)
-  const dependencyCollection = useDependencyCollection(viewMode === 'gantt' ? entityType : '')
+  const dependencyCollection = useDependencyCollection(effectiveViewMode === 'gantt' ? entityType : '')
 
   // Fetch dependencies reactively using TanStack DB live query
   const { data: rawDependencies = [] } = useLiveQuery(
@@ -420,7 +425,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Sync dependencies to GanttViewStore for arrow rendering
   useEffect(() => {
-    if (!ganttViewStore || viewMode !== 'gantt') return
+    if (!ganttViewStore || effectiveViewMode !== 'gantt') return
 
     // Convert raw dependencies to GanttDependency format
     const ganttDeps = rawDependencies.map((dep: any) => ({
@@ -435,7 +440,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       count: ganttDeps.length,
       entityType,
     })
-  }, [rawDependencies, ganttViewStore, viewMode, entityType])
+  }, [rawDependencies, ganttViewStore, effectiveViewMode, entityType])
 
   // Log members query status
   useEffect(() => {
@@ -602,14 +607,14 @@ function VibeGridInnerBase(props: VibeGridProps) {
     logger.info('Setting TanStack DB dependency collection on GanttViewStore', {
       hasDependencyCollection: !!dependencyCollection,
       entityType,
-      isGanttMode: viewMode === 'gantt',
+      isGanttMode: effectiveViewMode === 'gantt',
     })
     ganttViewStore.setDependencyCollection(dependencyCollection)
-  }, [dependencyCollection, ganttViewStore, entityType, viewMode])
+  }, [dependencyCollection, ganttViewStore, entityType, effectiveViewMode])
 
   // Auto-detect status and progress fields for Gantt bar coloring
   useEffect(() => {
-    if (!ganttViewStore || viewMode !== 'gantt' || !tableCoreStore) return
+    if (!ganttViewStore || effectiveViewMode !== 'gantt' || !tableCoreStore) return
 
     const columns = tableCoreStore.columns
     if (!columns || columns.length === 0) return
@@ -665,11 +670,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
       logger.info('Auto-detected Gantt field mappings', updates)
       ganttViewStore.setFieldMapping(updates)
     }
-  }, [ganttViewStore, viewMode, tableCoreStore, tableCoreStore?.columns])
+  }, [ganttViewStore, effectiveViewMode, tableCoreStore, tableCoreStore?.columns])
 
   // Auto-detect status field and colors for Kanban view
   useEffect(() => {
-    if (!kanbanViewStore || viewMode !== 'kanban' || !tableCoreStore) return
+    if (!kanbanViewStore || effectiveViewMode !== 'kanban' || !tableCoreStore) return
 
     const columns = tableCoreStore.columns
     if (!columns || columns.length === 0) return
@@ -703,7 +708,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         }
       }
     }
-  }, [kanbanViewStore, viewMode, tableCoreStore, tableCoreStore?.columns])
+  }, [kanbanViewStore, effectiveViewMode, tableCoreStore, tableCoreStore?.columns])
 
   // ====================================
   // INITIALIZATION (P4 - Deterministic via InitStore)
@@ -748,8 +753,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         entityType,
         enableSelectionColumn,
         bufferSize,
-        onEntityUpdate: (rowId, updates) =>
-          (onEntityUpdateRef.current || updateEntityRef.current)?.(rowId, updates),
+        onEntityUpdate: (rowId, updates) => (onEntityUpdateRef.current || updateEntityRef.current)?.(rowId, updates),
         onBatchEntityUpdate: (updates) => onBatchEntityUpdateRef.current?.(updates),
         onCellClick: (rowId, columnId, event) => onCellClickRef.current?.(rowId, columnId, event),
       })
@@ -884,7 +888,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // Sync vertical scroll between table (VisualStateStore) and Gantt (GanttViewStore)
   // This ensures both panes scroll together vertically
   useEffect(() => {
-    if (viewMode !== 'gantt') return
+    if (effectiveViewMode !== 'gantt') return
 
     // Track which store initiated the scroll to avoid infinite loops
     let scrollSource: 'table' | 'gantt' | null = null
@@ -928,7 +932,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       disposeTableToGantt()
       disposeGanttToTable()
     }
-  }, [viewMode, ganttViewStore, stores.viewportStore.scrollTop])
+  }, [effectiveViewMode, ganttViewStore, stores.viewportStore.scrollTop])
 
   // ====================================
   // DERIVED STATE
@@ -971,14 +975,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       isDataLoading,
       hasStores: !!stores,
     })
-  }, [
-    shouldShowHeader,
-    isReady,
-    isRendered,
-    visualStateStore.columns.length,
-    isDataLoading,
-    stores,
-  ])
+  }, [shouldShowHeader, isReady, isRendered, visualStateStore.columns.length, isDataLoading, stores])
 
   // ====================================
   // RENDER
@@ -1017,9 +1014,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
         <VibeGridXHeaderPure
           stores={stores}
           enableGrouping={enableGrouping}
-          viewMode={viewMode}
+          viewMode={effectiveViewMode}
           onViewModeChange={onViewModeChange}
-          enableKanban={enableKanban}
+          schemaFields={schemaFields}
           enableHierarchy={enableHierarchy}
           enableRowExpansion={rowExpansionConfig?.enabled}
           searchConfig={searchConfig}
@@ -1033,7 +1030,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       )}
 
       {/* Gantt toolbar - spans full width above split pane */}
-      {viewMode === 'gantt' && <GanttToolbar />}
+      {effectiveViewMode === 'gantt' && <GanttToolbar />}
 
       {/* Main content area - Table, Split Pane (Gantt), or Kanban */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
@@ -1044,9 +1041,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
           style={{
             position: 'relative',
             flex:
-              viewMode === 'kanban'
+              effectiveViewMode === 'kanban'
                 ? '0 0 0px'
-                : viewMode === 'gantt'
+                : effectiveViewMode === 'gantt'
                   ? `0 0 ${cutoffWidth}px`
                   : '1 1 auto',
             overflow: 'hidden',
@@ -1063,12 +1060,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
               position: 'relative',
               zIndex: 0,
               outline: 'none',
-              overflow: viewMode === 'kanban' ? 'hidden' : 'auto',
-              visibility: viewMode === 'kanban' ? 'hidden' : 'visible',
+              overflow: effectiveViewMode === 'kanban' ? 'hidden' : 'auto',
+              visibility: effectiveViewMode === 'kanban' ? 'hidden' : 'visible',
             }}
           />
           {/* GH#2041: Empty state when search/filter returns zero results */}
-          {viewMode !== 'kanban' &&
+          {effectiveViewMode !== 'kanban' &&
             !tableCoreStore.isIncrementalProcessing &&
             tableCoreStore.processedRows.length === 0 &&
             (visualStateStore.globalSearchText || visualStateStore.filterGroup) && (
@@ -1120,43 +1117,34 @@ function VibeGridInnerBase(props: VibeGridProps) {
               enableHierarchy,
               onCellClick,
               onEntityUpdate: onEntityUpdate || updateEntity,
+              schemaFields,
             },
             stores,
           )}
 
         {/* Actions bar - appears when rows are selected (not in Kanban mode) */}
-        {viewMode !== 'kanban' &&
-          enableSelectionColumn &&
-          (rowActions || enableDelete || enableExport) && (
-            <ActionsBar
-              rowActions={enableExport ? effectiveRowActions : rowActions}
-              onRowAction={enableExport ? handleRowAction : onRowAction}
-              enableDelete={enableDelete}
-              onDelete={effectiveOnDelete}
-              deleteConfirmation={deleteConfirmation}
-              getRowData={getRowData}
-              isExportDisabled={enableExport ? tableCoreStore.isIncrementalProcessing : undefined}
-            />
-          )}
+        {effectiveViewMode !== 'kanban' && enableSelectionColumn && (rowActions || enableDelete || enableExport) && (
+          <ActionsBar
+            rowActions={enableExport ? effectiveRowActions : rowActions}
+            onRowAction={enableExport ? handleRowAction : onRowAction}
+            enableDelete={enableDelete}
+            onDelete={effectiveOnDelete}
+            deleteConfirmation={deleteConfirmation}
+            getRowData={getRowData}
+            isExportDisabled={enableExport ? tableCoreStore.isIncrementalProcessing : undefined}
+          />
+        )}
 
         {/* Floating row action menu (3-dots) - renders via portal when triggered */}
         {(rowActions || enableDelete) && (
           <FloatingActionsMenu
             rowActions={rowActions}
             onRowAction={
-              onRowAction
-                ? (actionId, rowData) => onRowAction(actionId, [rowData.id], [rowData])
-                : undefined
+              onRowAction ? (actionId, rowData) => onRowAction(actionId, [rowData.id], [rowData]) : undefined
             }
             enableDelete={enableDelete}
-            onDelete={
-              effectiveOnDelete
-                ? (rowId, rowData) => effectiveOnDelete([rowId], [rowData])
-                : undefined
-            }
-            deleteConfirmation={
-              deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined
-            }
+            onDelete={effectiveOnDelete ? (rowId, rowData) => effectiveOnDelete([rowId], [rowData]) : undefined}
+            deleteConfirmation={deleteConfirmation ? (rowData) => deleteConfirmation([rowData]) : undefined}
             getRowData={getRowData}
           />
         )}

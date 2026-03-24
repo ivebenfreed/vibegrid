@@ -37,6 +37,13 @@ export interface KanbanColumn {
   cardIds: string[]
 }
 
+/** Smart fields auto-detected from entity data (GH#2139) */
+export interface KanbanCardSmartFields {
+  assignee?: { userId: string; displayName: string; avatarUrl?: string }
+  dueDate?: string // ISO date string
+  priority?: { value: string; label: string; color?: string }
+}
+
 /** Card data for rendering */
 export interface KanbanCard {
   id: string
@@ -44,6 +51,7 @@ export interface KanbanCard {
   status: string | null
   columnId: string
   data: Record<string, unknown>
+  smartFields?: KanbanCardSmartFields
 }
 
 /** Drag state for card interactions */
@@ -270,6 +278,74 @@ export class KanbanViewStore implements IStore {
   }
 
   /**
+   * Detect smart fields from row data for Kanban card enrichment (GH#2139).
+   * Extracts assignee, due date, and priority when matching fields exist.
+   */
+  private detectSmartFields(data: Record<string, unknown>): KanbanCardSmartFields | undefined {
+    const columns = this.tableCoreStore?.columns
+    if (!columns?.length) return undefined
+
+    const smart: KanbanCardSmartFields = {}
+    let hasAny = false
+
+    for (const col of columns) {
+      const colType = (col.type || col.cellType || '').toLowerCase()
+      const colId = col.id?.toLowerCase() || ''
+      const value = data[col.id]
+      if (value == null) continue
+
+      // Assignee: first user_reference field with a value
+      if (!smart.assignee && colType === 'user_reference') {
+        const ref = value as Record<string, unknown>
+        const displayName = (ref.display_name as string) || (ref.name as string) || (ref.full_name as string)
+        if (displayName) {
+          smart.assignee = {
+            userId: String(ref.id ?? ''),
+            displayName,
+            avatarUrl: (ref.avatar_url as string) || undefined,
+          }
+          hasAny = true
+        }
+      }
+
+      // Due date: date/datetime field with slug matching common patterns
+      if (
+        !smart.dueDate &&
+        (colType === 'date' || colType === 'datetime' || colType === 'datetime-local') &&
+        ['due_date', 'end_date', 'deadline', 'due', 'target_date'].includes(colId)
+      ) {
+        smart.dueDate = String(value)
+        hasAny = true
+      }
+
+      // Priority: select/status_set field with slug matching priority patterns
+      if (
+        !smart.priority &&
+        (colType === 'status_set' ||
+          colType === 'single-select' ||
+          colType === 'multi-select' ||
+          colType === 'priority') &&
+        ['priority', 'priority_level', 'urgency'].includes(colId)
+      ) {
+        const strVal = String(value)
+        // Try to get color from status color map or column metadata
+        const colMeta = (col as any).metadata as
+          | { options?: Array<{ value: string; label?: string; color?: string }> }
+          | undefined
+        const colorOpt = colMeta?.options?.find((opt) => String(opt.value).toLowerCase() === strVal.toLowerCase())
+        smart.priority = {
+          value: strVal,
+          label: colorOpt?.label ?? strVal,
+          color: colorOpt?.color ?? undefined,
+        }
+        hasAny = true
+      }
+    }
+
+    return hasAny ? smart : undefined
+  }
+
+  /**
    * Compute all cards for rendering
    */
   @computed
@@ -288,6 +364,7 @@ export class KanbanViewStore implements IStore {
         status: normalizedStatus,
         columnId: normalizedStatus || '__no_status__',
         data: rowData,
+        smartFields: this.detectSmartFields(rowData),
       }
     })
   }
@@ -391,8 +468,7 @@ export class KanbanViewStore implements IStore {
       // Use the original value from the schema if available. If this is a
       // data-discovered column, resolve the original casing from row data to
       // avoid persisting the normalized/lowercased column id.
-      newStatus =
-        colorOption?.value ?? this.resolveOriginalGroupValue(targetColumnId) ?? targetColumnId
+      newStatus = colorOption?.value ?? this.resolveOriginalGroupValue(targetColumnId) ?? targetColumnId
     }
 
     logger.info('Moving card to new column', {

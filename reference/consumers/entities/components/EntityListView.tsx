@@ -32,6 +32,8 @@ import { EntityReviewSheet } from '@/features/entity-review/components/EntityRev
 import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
 import type { EntityRecord } from '@/shared/types/dataforge'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
+import type { SchemaFieldDescriptor } from '@/systems/vibegrid/modules/GridModule'
+import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
@@ -66,6 +68,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate,
   onOpenReview,
   hasReviewMode,
+  schemaFields,
   toolbarLeading,
   toolbarTrailing,
 }: {
@@ -77,6 +80,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
   onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
   hasReviewMode: boolean
+  schemaFields?: SchemaFieldDescriptor[]
   toolbarLeading?: React.ReactNode
   toolbarTrailing?: React.ReactNode
 }) {
@@ -88,6 +92,11 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     orgId,
     stores,
   })
+
+  // GH#2139: Wire viewModeStore to VibeGrid props for view switching
+  const { viewModeStore } = stores
+  const currentViewMode: ViewMode = viewModeStore.mode
+  const handleViewModeChange = useCallback((mode: ViewMode) => viewModeStore.setMode(mode), [viewModeStore])
 
   // SaveViewDialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -219,7 +228,10 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       <VibeGrid
         tableId={`entity-list-${entityName}`}
         entityType={entityName}
+        schemaFields={schemaFields}
         height="100%"
+        viewMode={currentViewMode}
+        onViewModeChange={handleViewModeChange}
         enableSelectionColumn={true}
         enableGrouping={true}
         enableFiltering={true}
@@ -379,9 +391,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const [reviewSessionId, setReviewSessionId] = useState(0)
   const reviewQueueResult = useReviewQueue(resolvedName, hasReviewMode ? orgId || null : null)
   // Use backend count when loaded; fall back to upload store count while loading
-  const reviewCount = reviewQueueResult.isLoading
-    ? uploadStore.reviewRequiredCount
-    : reviewQueueResult.total
+  const reviewCount = reviewQueueResult.isLoading ? uploadStore.reviewRequiredCount : reviewQueueResult.total
 
   const handleOpenReview = useCallback((_rowIds: string[], rowsData: any[]) => {
     // VibeGrid processedRows wrap entities in VirtualRow: { type, id, index, height, data: entityRecord }
@@ -398,8 +408,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // Fail-secure: if session/org not yet loaded, treat as viewer (no write access)
   const userOrgRole = authStore.session?.organization?.role ?? 'viewer'
   const hasWriteAccess = userOrgRole !== 'viewer'
-  const isInlineCreationEnabled =
-    featureFlags.isEnabled('vibegrid.inline_creation') && hasWriteAccess
+  const isInlineCreationEnabled = featureFlags.isEnabled('vibegrid.inline_creation') && hasWriteAccess
 
   const handleInlineCreate = useCallback(
     async (defaults: Record<string, unknown>): Promise<string> => {
@@ -414,17 +423,12 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   // GH#1658: QuickCreatePanel state for escalation from ghost rows
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
-  const [quickCreateInheritedFields, setQuickCreateInheritedFields] = useState<
-    Record<string, unknown>
-  >({})
+  const [quickCreateInheritedFields, setQuickCreateInheritedFields] = useState<Record<string, unknown>>({})
 
-  const handleEscalate = useCallback(
-    (_groupId: string, inheritedFields: Record<string, unknown>) => {
-      setQuickCreateInheritedFields(inheritedFields)
-      setQuickCreateOpen(true)
-    },
-    [],
-  )
+  const handleEscalate = useCallback((_groupId: string, inheritedFields: Record<string, unknown>) => {
+    setQuickCreateInheritedFields(inheritedFields)
+    setQuickCreateOpen(true)
+  }, [])
 
   // Page-level drag detection for upload overlay
   useEffect(() => {
@@ -508,6 +512,14 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const rows = listResult.rows
   const entityTitle = schema.displayName || EntityNameUtils.toDisplayFormat(schema.entityName)
 
+  // Derive schema field descriptors for smart view gating (GH#2139)
+  const schemaFields: SchemaFieldDescriptor[] | undefined = schema?.fields.map((f) => ({
+    fieldId: f.name,
+    fieldType: f.type,
+    label: f.label ?? f.name,
+    slug: f.name,
+  }))
+
   if (import.meta.env.DEV && rows.length) {
     logger.debug('Sample row loaded', { row: rows[0] })
   }
@@ -534,11 +546,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         </Main>
 
         {/* Create Record Dialog */}
-        <CreateRecordDialog
-          schema={schema}
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-        />
+        <CreateRecordDialog schema={schema} open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
         {/* Upload Files Dialog */}
         {hasUploadMode && (
@@ -570,8 +578,8 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-sm dark:border-amber-800 dark:bg-amber-950/30">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
             <span>
-              {reviewCount} {reviewCount === 1 ? 'record' : 'records'} need review — select them in
-              the grid below and click Review
+              {reviewCount} {reviewCount === 1 ? 'record' : 'records'} need review — select them in the grid below and
+              click Review
             </span>
           </div>
         )}
@@ -587,14 +595,13 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
               hasReviewMode={hasReviewMode}
+              schemaFields={schemaFields}
               toolbarLeading={
                 <div className="flex items-center gap-2 border-r border-border pr-3 mr-1">
                   <h1 className="text-sm font-semibold whitespace-nowrap">{entityTitle}</h1>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {listResult.pagination.total}
-                    {listResult.isStreaming && (
-                      <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />
-                    )}
+                    {listResult.isStreaming && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}
                   </span>
                 </div>
               }
@@ -667,11 +674,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       </Main>
 
       {/* Create Record Dialog */}
-      <CreateRecordDialog
-        schema={schema}
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-      />
+      <CreateRecordDialog schema={schema} open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
       {/* Upload Files Dialog — owns its own open state via ref to avoid VibeGrid re-render */}
       {hasUploadMode && (
