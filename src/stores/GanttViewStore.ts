@@ -716,9 +716,7 @@ export class GanttViewStore implements IStore {
       }
       case 'has_dependencies':
         // Row has at least one dependency
-        return this.dependencies.some(
-          (d) => d.sourceEntityId === row.id || d.targetEntityId === row.id,
-        )
+        return this.dependencies.some((d) => d.sourceEntityId === row.id || d.targetEntityId === row.id)
       default:
         return true
     }
@@ -1068,16 +1066,10 @@ export class GanttViewStore implements IStore {
     const newEndDate = previewBar.endDate
 
     // Calculate cascade updates BEFORE clearing drag state (needs current bar positions)
-    const cascadeUpdates = calculateCascadeUpdates(
-      barId!,
-      newStartDate,
-      newEndDate,
-      this.dependencies,
-      (id) => {
-        const bar = this.barPositions.find((b) => b.rowId === id)
-        return bar ? { id: bar.rowId, startDate: bar.startDate, endDate: bar.endDate } : undefined
-      },
-    )
+    const cascadeUpdates = calculateCascadeUpdates(barId!, newStartDate, newEndDate, this.dependencies, (id) => {
+      const bar = this.barPositions.find((b) => b.rowId === id)
+      return bar ? { id: bar.rowId, startDate: bar.startDate, endDate: bar.endDate } : undefined
+    })
 
     // CRITICAL: Clear drag state BEFORE the update to prevent stale preview
     // The optimistic update from collection.update() may trigger re-sorting
@@ -1260,12 +1252,7 @@ export class GanttViewStore implements IStore {
    * Update dependency drag position and detect target
    */
   @action
-  updateDependencyDrag(
-    x: number,
-    y: number,
-    targetBarId?: string,
-    targetEdge?: DependencyEdge,
-  ): void {
+  updateDependencyDrag(x: number, y: number, targetBarId?: string, targetEdge?: DependencyEdge): void {
     if (!this.dependencyDragState.isDragging) return
 
     this.dependencyDragState.currentX = x
@@ -1480,9 +1467,7 @@ export class GanttViewStore implements IStore {
 
     // Optimistic update
     this.dependencies = this.dependencies.map((d) =>
-      d.id === dependencyId
-        ? { ...d, sourceEntityId: newSourceEntityId, targetEntityId: newTargetEntityId }
-        : d,
+      d.id === dependencyId ? { ...d, sourceEntityId: newSourceEntityId, targetEntityId: newTargetEntityId } : d,
     )
 
     // Clear drag state
