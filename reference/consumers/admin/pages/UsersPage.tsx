@@ -26,13 +26,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { Badge } from '@/shared/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 
 const logger = getLogger(['features', 'admin', 'UsersPage'])
 
@@ -322,18 +316,14 @@ export const UsersPage = observer(function UsersPage() {
       await loadUserOrganizations(manageOrgsUser.id)
     } catch (error) {
       logger.error('Failed to remove user from organization', { error })
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to remove user from organization',
-      )
+      toast.error(error instanceof Error ? error.message : 'Failed to remove user from organization')
     } finally {
       setIsRemovingOrg(null)
     }
   }
 
   // Filter out orgs the user is already a member of
-  const availableOrgs = adminStore.organizations.filter(
-    (org) => !userOrgs.some((uo) => uo.id === org.id),
-  )
+  const availableOrgs = adminStore.organizations.filter((org) => !userOrgs.some((uo) => uo.id === org.id))
 
   // Define row actions for bulk operations
   const rowActions: RowAction[] = [
@@ -448,11 +438,7 @@ export const UsersPage = observer(function UsersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSetPasswordDialogOpen(false)}
-              disabled={isSettingPassword}
-            >
+            <Button variant="outline" onClick={() => setSetPasswordDialogOpen(false)} disabled={isSettingPassword}>
               Cancel
             </Button>
             <Button onClick={handleSetPasswordConfirm} disabled={isSettingPassword}>
@@ -469,9 +455,7 @@ export const UsersPage = observer(function UsersPage() {
             <DialogTitle>Manage Organizations</DialogTitle>
             <DialogDescription>
               Manage organization memberships for{' '}
-              <span className="text-foreground font-medium">
-                {manageOrgsUser?.name || manageOrgsUser?.email}
-              </span>
+              <span className="text-foreground font-medium">{manageOrgsUser?.name || manageOrgsUser?.email}</span>
             </DialogDescription>
           </DialogHeader>
 
@@ -485,17 +469,11 @@ export const UsersPage = observer(function UsersPage() {
                   Loading organizations...
                 </div>
               ) : userOrgs.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">
-                  Not a member of any organization
-                </p>
+                <p className="text-sm text-muted-foreground py-2">Not a member of any organization</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {userOrgs.map((org) => (
-                    <Badge
-                      key={org.id}
-                      variant="secondary"
-                      className="flex items-center gap-1.5 py-1 px-2.5"
-                    >
+                    <Badge key={org.id} variant="secondary" className="flex items-center gap-1.5 py-1 px-2.5">
                       <span>{org.name}</span>
                       <span className="text-muted-foreground">({org.role})</span>
                       <button
@@ -572,11 +550,7 @@ export const UsersPage = observer(function UsersPage() {
                   </Select>
                 </div>
                 <Button size="sm" onClick={handleAddToOrg} disabled={isAddingOrg || !selectedOrgId}>
-                  {isAddingOrg ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
+                  {isAddingOrg ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
             </div>

@@ -33,22 +33,11 @@ import { getOrCreateEntityCollection } from '@/shared/data/db/collections/regist
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
-import {
-  IncrementalRowProcessor,
-  DEFAULT_CONFIG as INCREMENTAL_CONFIG,
-} from '../processors/IncrementalRowProcessor'
+import { IncrementalRowProcessor, DEFAULT_CONFIG as INCREMENTAL_CONFIG } from '../processors/IncrementalRowProcessor'
 import { processExpandedRows } from '../processors/RowExpansionProcessor'
 import type { RowExpansionConfig } from '../types/row-expansion'
 import type { Collection } from '@tanstack/db'
-import type {
-  Column,
-  EntityRow,
-  FilterConfig,
-  GroupConfig,
-  SchemaRegistryLike,
-  SortConfig,
-  VirtualRow,
-} from '../types'
+import type { Column, EntityRow, FilterConfig, GroupConfig, SchemaRegistryLike, SortConfig, VirtualRow } from '../types'
 import type { HierarchyStore } from './HierarchyStore'
 import { applyNestedFilters, applyTextSearch } from '../utils/filter-utils'
 import { type ChangeMetadata, ChangeType, classifyChanges } from '../utils/change-classification'
@@ -284,8 +273,10 @@ export class TableCoreStore implements IStore {
   @observable membersData: ObservableMap<string, any> = observable.map<string, any>()
 
   // Cached entity reference data keyed by target entity → entity id
-  @observable entityReferenceData: ObservableMap<string, ObservableMap<string, any>> =
-    observable.map<string, ObservableMap<string, any>>()
+  @observable entityReferenceData: ObservableMap<string, ObservableMap<string, any>> = observable.map<
+    string,
+    ObservableMap<string, any>
+  >()
 
   // Track in-flight entity reference loads to avoid duplicate network calls
   private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
@@ -547,9 +538,7 @@ export class TableCoreStore implements IStore {
     const newRowCount = rows.length
     const prevRowCount = this.rawRows.length
     const countChanged = newRowCount !== prevRowCount
-    const firstMismatchIdx = countChanged
-      ? -1
-      : rows.findIndex((r, i) => r.id !== this.rawRows[i]?.id)
+    const firstMismatchIdx = countChanged ? -1 : rows.findIndex((r, i) => r.id !== this.rawRows[i]?.id)
     const structuralChange = countChanged || firstMismatchIdx !== -1
 
     // Step 3: Check sorting sensitivity
@@ -621,9 +610,7 @@ export class TableCoreStore implements IStore {
    * Called from React hook with useLiveQuery results
    */
   @action
-  setMembersData(
-    members: Array<{ user_id?: string; user?: Record<string, unknown>; [key: string]: unknown }>,
-  ): void {
+  setMembersData(members: Array<{ user_id?: string; user?: Record<string, unknown>; [key: string]: unknown }>): void {
     this.membersData.clear()
     members.forEach((member) => {
       if (member.user_id && member.user) {
@@ -652,11 +639,7 @@ export class TableCoreStore implements IStore {
       previousSnapshotSize: this.previousRowsSnapshot.size,
     })
 
-    if (
-      this.columns.length > 0 &&
-      this.rawRows.length > 0 &&
-      this.previousRowsSnapshot.size === 0
-    ) {
+    if (this.columns.length > 0 && this.rawRows.length > 0 && this.previousRowsSnapshot.size === 0) {
       // Force baseline creation by calling setRows with current data
       // This will trigger detectChangedCells which will create the baseline
       const currentRows = this.rawRows.slice()
@@ -704,9 +687,7 @@ export class TableCoreStore implements IStore {
     }
 
     // Build new snapshot with per-column hashing
-    const newSnapshot = new Map(
-      newRows.map((row) => [row.id, createRowSnapshot(row, this.columns)]),
-    )
+    const newSnapshot = new Map(newRows.map((row) => [row.id, createRowSnapshot(row, this.columns)]))
 
     // Initialize baseline snapshot if empty (columns loaded but no previous snapshot)
     if (this.previousRowsSnapshot.size === 0 && newSnapshot.size > 0) {
@@ -776,10 +757,7 @@ export class TableCoreStore implements IStore {
     })
 
     // Store stats for optimization checks
-    const totalCellsChanged = Array.from(changedCells.values()).reduce(
-      (sum, cols) => sum + cols.size,
-      0,
-    )
+    const totalCellsChanged = Array.from(changedCells.values()).reduce((sum, cols) => sum + cols.size, 0)
 
     this.lastChangeStats = {
       rowsChanged: changedCells.size,
@@ -802,20 +780,12 @@ export class TableCoreStore implements IStore {
   }
 
   @action
-  setEntityReferenceRecord(
-    targetEntity: string,
-    entityId: string,
-    data: Record<string, unknown>,
-  ): void {
+  setEntityReferenceRecord(targetEntity: string, entityId: string, data: Record<string, unknown>): void {
     const map = this.getOrCreateEntityReferenceMap(targetEntity)
     map.set(entityId, data)
   }
 
-  async ensureEntityReferenceRecord(
-    targetEntity: string,
-    entityId: string,
-    loader?: () => Promise<any>,
-  ): Promise<any> {
+  async ensureEntityReferenceRecord(targetEntity: string, entityId: string, loader?: () => Promise<any>): Promise<any> {
     const map = this.getOrCreateEntityReferenceMap(targetEntity)
     if (map.has(entityId)) {
       return map.get(entityId)
@@ -897,10 +867,7 @@ export class TableCoreStore implements IStore {
     }
   }
 
-  private async loadFromEntityCollection(
-    targetEntity: string,
-    entityId: string,
-  ): Promise<any | null> {
+  private async loadFromEntityCollection(targetEntity: string, entityId: string): Promise<any | null> {
     try {
       const orgId = this.visualStateStore?.orgId || getActiveOrganizationId()
       if (!orgId) {
@@ -920,11 +887,7 @@ export class TableCoreStore implements IStore {
 
       const normalizedEntity = targetEntity
 
-      const collection = getOrCreateEntityCollection(
-        normalizedEntity,
-        orgId,
-        createEntityCollection,
-      )
+      const collection = getOrCreateEntityCollection(normalizedEntity, orgId, createEntityCollection)
 
       await collection.preload()
       const record = collection.get(entityId)
@@ -1050,12 +1013,7 @@ export class TableCoreStore implements IStore {
 
     // Apply grouping if configured
     if (groupConfig && groupConfig.fields && groupConfig.fields.length > 0) {
-      const groupResult = GroupProcessor.processData(
-        this.sortedRows,
-        this.columns,
-        groupConfig,
-        this.groupRowOrders,
-      )
+      const groupResult = GroupProcessor.processData(this.sortedRows, this.columns, groupConfig, this.groupRowOrders)
       return groupResult.virtualRows
     }
 
@@ -1093,8 +1051,7 @@ export class TableCoreStore implements IStore {
     // When incremental processing is active, return the cached rows
     // (which may be partial during processing)
     const rawRowCount = this.rawRows.length
-    const useIncremental =
-      rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD && !this.hasGrouping && !this.hasHierarchy
+    const useIncremental = rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD && !this.hasGrouping && !this.hasHierarchy
 
     if (useIncremental && this.isIncrementalProcessing) {
       // Return incremental cache while processing is in progress
@@ -1173,12 +1130,7 @@ export class TableCoreStore implements IStore {
         expandedCount: expandedRowIds.size,
         rowCount: virtualRows.length,
       })
-      virtualRows = processExpandedRows(
-        virtualRows,
-        expandedRowIds,
-        expandedRowStates,
-        expansionConfig,
-      )
+      virtualRows = processExpandedRows(virtualRows, expandedRowIds, expandedRowStates, expansionConfig)
     }
 
     return virtualRows
@@ -1403,10 +1355,7 @@ export class TableCoreStore implements IStore {
       }
 
       const groupRows = processedRows.filter(
-        (row) =>
-          row &&
-          row.type === 'data' &&
-          (row.groupId === sourceGroupId || row.parentGroupId === sourceGroupId),
+        (row) => row && row.type === 'data' && (row.groupId === sourceGroupId || row.parentGroupId === sourceGroupId),
       )
       const initialOrder = groupRows.map((row) => row?.id).filter(Boolean)
 
@@ -1546,8 +1495,7 @@ export class TableCoreStore implements IStore {
     }
 
     const { baseId, parentGroupId } = this.splitGroupId(groupId)
-    const groupFields =
-      this.visualStateStore?.groupConfig?.fields?.map((field) => field.field).filter(Boolean) ?? []
+    const groupFields = this.visualStateStore?.groupConfig?.fields?.map((field) => field.field).filter(Boolean) ?? []
     const orderedFields = groupFields.sort((a, b) => b.length - a.length)
 
     for (const fieldName of orderedFields) {
@@ -1759,12 +1707,7 @@ export class TableCoreStore implements IStore {
   @action
   private executeReorder(fromIndex: number, toIndex: number): boolean {
     const processedRows = this.processedRows
-    if (
-      fromIndex < 0 ||
-      fromIndex >= processedRows.length ||
-      toIndex < 0 ||
-      toIndex >= processedRows.length
-    ) {
+    if (fromIndex < 0 || fromIndex >= processedRows.length || toIndex < 0 || toIndex >= processedRows.length) {
       return false
     }
 
@@ -1883,10 +1826,7 @@ export class TableCoreStore implements IStore {
       }
 
       // Load schema and generate columns (with fallback)
-      const generatedColumns = await generateColumnsFromEntitySchema(
-        this.entityType,
-        this.schemaRegistry,
-      )
+      const generatedColumns = await generateColumnsFromEntitySchema(this.entityType, this.schemaRegistry)
 
       if (generatedColumns.length === 0) {
         throw new Error(`No columns generated for entity: ${this.entityType}`)
@@ -1929,9 +1869,7 @@ export class TableCoreStore implements IStore {
       logger.info('✅ Schema loaded successfully', {
         entityType: this.entityType,
         columnCount: generatedColumns.length,
-        hasCustomOptionReference: generatedColumns.some(
-          (col) => col.type === 'custom_option_reference',
-        ),
+        hasCustomOptionReference: generatedColumns.some((col) => col.type === 'custom_option_reference'),
       })
 
       // Phase 3: Removed manual keepAlive autoruns
@@ -2171,11 +2109,7 @@ export class TableCoreStore implements IStore {
       data: row.data || row,
     }))
 
-    this.coordinateManager.updateRows(
-      rows as any,
-      this.visualStateStore?.sortBy || [],
-      this.rowOffsets,
-    )
+    this.coordinateManager.updateRows(rows as any, this.visualStateStore?.sortBy || [], this.rowOffsets)
 
     logger.info('🔄 Coordinator updated with row order (selection cleared)', {
       rowCount: rows.length,

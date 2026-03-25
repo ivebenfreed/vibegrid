@@ -69,12 +69,7 @@ export interface CellRenderer {
   render(value: unknown, column: Column, context: CellRendererContext): HTMLElement
 
   /** Optional: Update cell value (inline editing) */
-  update?(
-    value: unknown,
-    newValue: unknown,
-    column: Column,
-    context: CellRendererContext,
-  ): Promise<void>
+  update?(value: unknown, newValue: unknown, column: Column, context: CellRendererContext): Promise<void>
 
   /** Optional: Validate input before saving */
   validate?(value: unknown, column: Column, context: CellRendererContext): string | null | undefined
@@ -216,9 +211,7 @@ export class SlotRegistry {
     )
 
     if (isDuplicate) {
-      logger.debug(
-        `Skipping duplicate slot registration: "${slot.id}" (priority ${slot.priority ?? 0})`,
-      )
+      logger.debug(`Skipping duplicate slot registration: "${slot.id}" (priority ${slot.priority ?? 0})`)
       return
     }
 
@@ -336,11 +329,7 @@ export class SlotRegistry {
    * 3. Sort by priority descending (higher wins)
    * 4. Return highest priority match, or fallback to 'text' renderer
    */
-  private async resolveAsync(
-    column: Column,
-    context: CellRendererContext,
-    cacheKey: string,
-  ): Promise<void> {
+  private async resolveAsync(column: Column, context: CellRendererContext, cacheKey: string): Promise<void> {
     // Find matching slots (iterate all slots, may match multiple)
     const candidates: Slot[] = []
 
@@ -372,15 +361,10 @@ export class SlotRegistry {
     if (candidates.length > 0) {
       const slot = candidates[0]
       try {
-        const renderer =
-          typeof slot.renderer === 'function'
-            ? await Promise.resolve(slot.renderer())
-            : slot.renderer
+        const renderer = typeof slot.renderer === 'function' ? await Promise.resolve(slot.renderer()) : slot.renderer
 
         this.resolvedCache.set(cacheKey, renderer)
-        logger.debug(
-          `Resolved slot for "${column.cellType}": ${slot.id} (priority ${slot.priority ?? 0})`,
-        )
+        logger.debug(`Resolved slot for "${column.cellType}": ${slot.id} (priority ${slot.priority ?? 0})`)
         return
       } catch (error) {
         logger.error(`Failed to load renderer for slot "${slot.id}"`, { error })
@@ -401,9 +385,7 @@ export class SlotRegistry {
 
         try {
           const renderer =
-            typeof textSlot.renderer === 'function'
-              ? await Promise.resolve(textSlot.renderer())
-              : textSlot.renderer
+            typeof textSlot.renderer === 'function' ? await Promise.resolve(textSlot.renderer()) : textSlot.renderer
 
           this.resolvedCache.set(cacheKey, renderer)
           return
@@ -414,9 +396,7 @@ export class SlotRegistry {
     }
 
     // No renderer found and no fallback available
-    logger.warn(
-      `No renderer found for cellType="${column.cellType}" and no text fallback available`,
-    )
+    logger.warn(`No renderer found for cellType="${column.cellType}" and no text fallback available`)
   }
 
   /**
@@ -478,11 +458,7 @@ export class SlotRegistry {
    * Tries the same matching algorithm as resolveAsync but synchronously.
    * Only works for renderers whose factory returns a CellRenderer (not a Promise).
    */
-  private resolveSynchronous(
-    column: Column,
-    context: CellRendererContext,
-    cacheKey: string,
-  ): CellRenderer | null {
+  private resolveSynchronous(column: Column, context: CellRendererContext, cacheKey: string): CellRenderer | null {
     const candidates: Slot[] = []
 
     for (const slot of this.slots) {

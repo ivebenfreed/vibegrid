@@ -117,9 +117,7 @@ describe('VibeGrid Rating Field Type', () => {
     await loadFixtures()
 
     // Look for a rating cell that shows 3/5
-    const ratingCells = await page.$$(
-      '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
-    )
+    const ratingCells = await page.$$('.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating')
 
     let found3Star = false
     for (const cell of ratingCells) {
@@ -157,9 +155,7 @@ describe('VibeGrid Rating Field Type', () => {
     await loadFixtures()
 
     // Look for a rating cell that shows 5/5
-    const ratingCells = await page.$$(
-      '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
-    )
+    const ratingCells = await page.$$('.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating')
 
     let found5Star = false
     for (const cell of ratingCells) {
@@ -192,9 +188,7 @@ describe('VibeGrid Rating Field Type', () => {
     await loadFixtures()
 
     // Look for a rating cell that has 0 rating (all empty stars)
-    const ratingCells = await page.$$(
-      '.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating',
-    )
+    const ratingCells = await page.$$('.vibegridx-cell[data-column-id="rating"] .vibegridx-cell-rating')
 
     let found0Star = false
     for (const cell of ratingCells) {
@@ -219,17 +213,13 @@ describe('VibeGrid Rating Field Type', () => {
 
   it('4.5 Click on rating cell enters interactive mode', async () => {
     // Rating field uses toggle affordance - stars are directly clickable inline
-    const ratingElements = await page.$$(
-      '.vibegridx-cell[data-column-id="rating"] [data-affordance="toggle"]',
-    )
+    const ratingElements = await page.$$('.vibegridx-cell[data-column-id="rating"] [data-affordance="toggle"]')
 
     if (ratingElements.length === 0 || !(await isElementVisible(ratingElements[0]))) {
       // Try finding by class
       const ratingCell = await page.$('.vibegridx-cell-rating')
       if (!(await isElementVisible(ratingCell))) {
-        throw new Error(
-          'TEST FAILURE: No rating element visible. Check test fixtures and VibeGrid rendering.',
-        )
+        throw new Error('TEST FAILURE: No rating element visible. Check test fixtures and VibeGrid rendering.')
       }
 
       // Verify rating cell has stars and is interactive (toggle affordance)
@@ -270,9 +260,7 @@ describe('VibeGrid Rating Field Type', () => {
     console.log('First, try to enter edit mode')
     const ratingCell = await page.$('.vibegridx-cell-rating')
     if (!(await isElementVisible(ratingCell))) {
-      throw new Error(
-        'TEST FAILURE: No rating cell visible. Check test fixtures and VibeGrid rendering.',
-      )
+      throw new Error('TEST FAILURE: No rating cell visible. Check test fixtures and VibeGrid rendering.')
     }
 
     // Click to enter edit mode
@@ -296,9 +284,7 @@ describe('VibeGrid Rating Field Type', () => {
         const updatedText = await ratingCell!.evaluate((el) => el.textContent)
         expect(updatedText).toBeDefined()
       } else {
-        throw new Error(
-          'TEST FAILURE: Rating editor stars not available. Check rating editor implementation.',
-        )
+        throw new Error('TEST FAILURE: Rating editor stars not available. Check rating editor implementation.')
       }
     } else {
       // Click the 4th star in the editor
@@ -312,8 +298,7 @@ describe('VibeGrid Rating Field Type', () => {
         const updatedText = await updatedCell.evaluate((el) => el.textContent)
 
         // Should now show 4 filled stars or 4/5
-        const has4Rating =
-          updatedText?.includes('4/5') || (updatedText?.match(/\u2605/g) || []).length === 4
+        const has4Rating = updatedText?.includes('4/5') || (updatedText?.match(/\u2605/g) || []).length === 4
 
         expect(has4Rating).toBe(true)
       }
@@ -324,18 +309,14 @@ describe('VibeGrid Rating Field Type', () => {
     // Rating uses inline toggle - stars are directly in the cell
     const ratingCell = await page.$('.vibegridx-cell-rating')
     if (!(await isElementVisible(ratingCell))) {
-      throw new Error(
-        'TEST FAILURE: No rating cell visible. Check test fixtures and VibeGrid rendering.',
-      )
+      throw new Error('TEST FAILURE: No rating cell visible. Check test fixtures and VibeGrid rendering.')
     }
 
     // Rating stars are inline, not in separate editor
     const inlineStars = await ratingCell!.$$('span')
 
     if (inlineStars.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No rating stars found in cell. Check rating field implementation.',
-      )
+      throw new Error('TEST FAILURE: No rating stars found in cell. Check rating field implementation.')
     }
 
     // Hover over a star (test hover functionality)
@@ -366,9 +347,7 @@ describe('VibeGrid Rating Field Type', () => {
         // Check for yellow color
         const style = await span.evaluate((el) => el.getAttribute('style'))
         const hasYellowColor =
-          style?.includes('#fbbf24') ||
-          style?.includes('rgb(251, 191, 36)') ||
-          style?.includes('yellow')
+          style?.includes('#fbbf24') || style?.includes('rgb(251, 191, 36)') || style?.includes('yellow')
 
         expect(hasYellowColor).toBe(true)
         break
@@ -376,9 +355,7 @@ describe('VibeGrid Rating Field Type', () => {
     }
 
     if (!foundFilledStar) {
-      throw new Error(
-        'TEST FAILURE: No filled stars visible. Check test fixtures include entities with star ratings.',
-      )
+      throw new Error('TEST FAILURE: No filled stars visible. Check test fixtures include entities with star ratings.')
     }
   })
 })

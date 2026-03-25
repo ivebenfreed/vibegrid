@@ -91,9 +91,7 @@ describe('VibeGrid Slider Field Type', () => {
     const sliderCells = await findSliderCells()
 
     if (sliderCells.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No slider cells found - progress field not in schema. Check test fixtures.',
-      )
+      throw new Error('TEST FAILURE: No slider cells found - progress field not in schema. Check test fixtures.')
     }
 
     // Find a slider cell with progress bar
@@ -217,9 +215,7 @@ describe('VibeGrid Slider Field Type', () => {
 
   it('5.5 Click opens slider editor', async () => {
     // Slider uses toggle affordance - may be inline editable or open portal
-    const sliderElements = await page.$$(
-      '.vibegridx-cell[data-column-id="progress"] [data-affordance="toggle"]',
-    )
+    const sliderElements = await page.$$('.vibegridx-cell[data-column-id="progress"] [data-affordance="toggle"]')
 
     if (sliderElements.length === 0 || !(await isElementVisible(sliderElements[0]))) {
       const sliderCell = await page.$('.vibegridx-cell-slider')
@@ -376,15 +372,12 @@ describe('VibeGrid Slider Field Type', () => {
     // Find the fill bar element
     const fillBar = await page.$('.vibegridx-cell-slider div div')
     if (!(await isElementVisible(fillBar))) {
-      throw new Error(
-        'TEST FAILURE: No fill bar visible. Check slider component renders fill bar correctly.',
-      )
+      throw new Error('TEST FAILURE: No fill bar visible. Check slider component renders fill bar correctly.')
     }
 
     // Check for blue color
     const style = await fillBar!.evaluate((el) => el.getAttribute('style'))
-    const hasBlueColor =
-      style?.includes('#3b82f6') || style?.includes('rgb(59, 130, 246)') || style?.includes('blue')
+    const hasBlueColor = style?.includes('#3b82f6') || style?.includes('rgb(59, 130, 246)') || style?.includes('blue')
 
     expect(hasBlueColor).toBe(true)
   })

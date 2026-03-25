@@ -273,9 +273,7 @@ export class OverlayManager {
     // Link to existing interactions observable instead of setting up separate observer
     this.linkToInteractionsObservable()
 
-    fileLog.info(
-      '✅ Overlay system initialized (CanvasOverlay handles fill handle & resize preview)',
-    ) // Keep: lifecycle
+    fileLog.info('✅ Overlay system initialized (CanvasOverlay handles fill handle & resize preview)') // Keep: lifecycle
   }
 
   /**
@@ -498,9 +496,7 @@ export class OverlayManager {
       ),
     )
 
-    fileLog.debug(
-      '✅ Consolidated reactive observer established - eliminated multiple observer chain',
-    )
+    fileLog.debug('✅ Consolidated reactive observer established - eliminated multiple observer chain')
   }
 
   /**
@@ -514,8 +510,7 @@ export class OverlayManager {
 
     // Use viewport container (the scrolling container) for the overlay
     // This ensures the overlay scrolls with the content
-    const targetContainer =
-      (this.container.querySelector('.vibegridx-viewport') as HTMLElement) || this.container
+    const targetContainer = (this.container.querySelector('.vibegridx-viewport') as HTMLElement) || this.container
 
     if (!targetContainer) {
       fileLog.error('❌ No target container found for overlay initialization')
@@ -766,9 +761,7 @@ export class OverlayManager {
     // DIRECT SOLUTION: Calculate position directly from DOM
     fileLog.debug('DOM position not cached, calculating directly', { cellKey })
 
-    const cell = this.container.querySelector(
-      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
-    ) as HTMLElement
+    const cell = this.container.querySelector(`[data-row-id="${rowId}"][data-column-id="${columnId}"]`) as HTMLElement
     if (cell) {
       // Find the actual scrollable container that contains this cell
       let viewportContainer = cell.closest('.vibegridx-viewport') as HTMLElement
@@ -855,9 +848,7 @@ export class OverlayManager {
     // Fallback to DOM reads if ViewportStore is not populated yet (should be rare)
     fileLog.debug('ViewportStore not populated, reading from DOM')
     const scrollContainer =
-      this.bodyContainer ||
-      (this.container.querySelector('.vibegridx-body-container') as HTMLElement) ||
-      this.container
+      this.bodyContainer || (this.container.querySelector('.vibegridx-body-container') as HTMLElement) || this.container
 
     let scrollTop = 0
     let scrollLeft = 0

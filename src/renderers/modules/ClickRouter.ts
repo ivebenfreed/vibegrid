@@ -169,11 +169,7 @@ export class ClickRouter {
   /**
    * Handle row header clicks - toggle/range row selection.
    */
-  private handleRowHeaderClick(
-    e: MouseEvent,
-    rowHeaderElement: Element,
-    _target: HTMLElement,
-  ): boolean {
+  private handleRowHeaderClick(e: MouseEvent, rowHeaderElement: Element, _target: HTMLElement): boolean {
     if (!this.enableSelectionColumn) {
       return false
     }
@@ -204,11 +200,7 @@ export class ClickRouter {
    * Handle clicks that are not on cells or row headers.
    * Checks for group headers, column headers, and fallback cases.
    */
-  private handleNonCellClick(
-    e: MouseEvent,
-    target: HTMLElement,
-    cellElement: Element | null,
-  ): boolean {
+  private handleNonCellClick(e: MouseEvent, target: HTMLElement, cellElement: Element | null): boolean {
     // Check for group header row clicks
     const groupRowElement = target.closest('.vibegridx-group-header')
     if (groupRowElement) {
@@ -267,11 +259,7 @@ export class ClickRouter {
   /**
    * Handle column header clicks - sort toggle, row-expand toggle.
    */
-  private handleColumnHeaderClick(
-    e: MouseEvent,
-    columnHeaderElement: Element,
-    target: HTMLElement,
-  ): boolean {
+  private handleColumnHeaderClick(e: MouseEvent, columnHeaderElement: Element, target: HTMLElement): boolean {
     // Don't sort if clicking on resize handle
     if (target.classList.contains('vibegridx-resize-handle')) {
       return false

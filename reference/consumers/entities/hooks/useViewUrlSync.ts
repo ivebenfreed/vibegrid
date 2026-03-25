@@ -57,9 +57,7 @@ export interface UseViewUrlSyncResult {
 /**
  * Serialize sort config to URL param: "field:direction"
  */
-export function serializeSort(
-  sortBy: Array<{ field: string; direction: 'asc' | 'desc' }>,
-): string | undefined {
+export function serializeSort(sortBy: Array<{ field: string; direction: 'asc' | 'desc' }>): string | undefined {
   if (!sortBy || sortBy.length === 0) return undefined
   // Only serialize first sort for URL (multi-sort not supported in URL yet)
   const first = sortBy[0]
@@ -69,9 +67,7 @@ export function serializeSort(
 /**
  * Deserialize sort URL param to SortConfig[]
  */
-export function deserializeSort(
-  sort: string | undefined,
-): Array<{ field: string; direction: 'asc' | 'desc' }> | null {
+export function deserializeSort(sort: string | undefined): Array<{ field: string; direction: 'asc' | 'desc' }> | null {
   if (!sort) return null
   const parts = sort.split(':')
   if (parts.length !== 2) return null
@@ -109,9 +105,7 @@ export function deserializeFilters(filter: string | undefined): FilterConfig[] |
 /**
  * Serialize group config to URL param (field name of first group field)
  */
-export function serializeGroup(
-  groupConfig: { fields: Array<{ field: string }> } | null,
-): string | undefined {
+export function serializeGroup(groupConfig: { fields: Array<{ field: string }> } | null): string | undefined {
   if (!groupConfig?.fields || groupConfig.fields.length === 0) return undefined
   return groupConfig.fields[0].field
 }
@@ -306,11 +300,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       }
 
       // Apply view mode from URL
-      if (
-        initialSearch.mode === 'table' ||
-        initialSearch.mode === 'gantt' ||
-        initialSearch.mode === 'kanban'
-      ) {
+      if (initialSearch.mode === 'table' || initialSearch.mode === 'gantt' || initialSearch.mode === 'kanban') {
         viewModeStore.setMode(initialSearch.mode)
       }
 

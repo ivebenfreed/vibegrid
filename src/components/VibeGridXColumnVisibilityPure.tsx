@@ -292,15 +292,11 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DropdownMenuTrigger
-        render={
-          <Button variant="outline" size="sm" className={`h-8 px-2 ${className}`} title="Columns" />
-        }
+        render={<Button variant="outline" size="sm" className={`h-8 px-2 ${className}`} title="Columns" />}
       >
         <Columns3 className="h-4 w-4" />
         {hiddenColumnCount > 0 && (
-          <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
-            {hiddenColumnCount}
-          </span>
+          <span className="ml-1 rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{hiddenColumnCount}</span>
         )}
       </DropdownMenuTrigger>
 
@@ -344,12 +340,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
 
         {/* Show/Hide All Controls */}
         <div className="flex gap-1 px-2 pb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs flex-1"
-            onClick={handleShowAll}
-          >
+          <Button variant="outline" size="sm" className="h-7 text-xs flex-1" onClick={handleShowAll}>
             <Eye className="h-3 w-3 mr-1" />
             Show All
           </Button>
@@ -375,10 +366,7 @@ export const VibeGridXColumnVisibilityPure = observer(function VibeGridXColumnVi
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext
-              items={sortedColumns.map((c) => c.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={sortedColumns.map((c) => c.id)} strategy={verticalListSortingStrategy}>
               {sortedColumns.map((column) => (
                 <SortableColumnItem
                   key={column.id}

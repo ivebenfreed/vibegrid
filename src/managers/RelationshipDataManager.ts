@@ -98,11 +98,7 @@ export class RelationshipDataManager {
   /**
    * Get search suggestions for relationship fields
    */
-  async getSearchSuggestions(
-    query: string,
-    column: EnhancedColumn,
-    limit: number = 10,
-  ): Promise<RelationshipOption[]> {
+  async getSearchSuggestions(query: string, column: EnhancedColumn, limit: number = 10): Promise<RelationshipOption[]> {
     if (!column.relationshipConfig) {
       return []
     }

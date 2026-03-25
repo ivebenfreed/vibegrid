@@ -12,12 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import {
-  evaluateCondition,
-  evaluateFilterGroup,
-  applyNestedFilters,
-  applyTextSearch,
-} from '../filter-utils'
+import { evaluateCondition, evaluateFilterGroup, applyNestedFilters, applyTextSearch } from '../filter-utils'
 import type { FilterCondition, FilterGroup } from '../../types/filter-types'
 import type { Column } from '../../types'
 
@@ -818,9 +813,7 @@ describe('applyTextSearch', () => {
     })
 
     it('should not include boolean columns as searchable', () => {
-      const boolColumns: Column[] = [
-        { id: 'isActive', field: 'isActive', name: 'Active', cellType: 'boolean' },
-      ]
+      const boolColumns: Column[] = [{ id: 'isActive', field: 'isActive', name: 'Active', cellType: 'boolean' }]
       // Boolean-only columns are not searchable — no searchable columns means all rows returned
       const result = applyTextSearch(mockRows, 'true', boolColumns)
       expect(result).toHaveLength(3) // All rows returned (no searchable columns = no filtering)
@@ -894,9 +887,7 @@ describe('applyTextSearch', () => {
     })
 
     it('should prefer flat row fields over nested data', () => {
-      const mixedRows = [
-        { name: 'Direct Name', email: 'direct@email.com', data: { name: 'Nested Name' } },
-      ]
+      const mixedRows = [{ name: 'Direct Name', email: 'direct@email.com', data: { name: 'Nested Name' } }]
       const result = applyTextSearch(mixedRows, 'Direct', mockColumns)
       expect(result).toHaveLength(1)
     })

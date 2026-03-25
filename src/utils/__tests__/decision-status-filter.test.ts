@@ -223,10 +223,7 @@ describe('decision_status in filter groups', () => {
 
     const group: FilterGroup = {
       logic: 'OR',
-      conditions: [
-        makeCondition('compliance_check', 'pass'),
-        makeCondition('compliance_check', 'pending'),
-      ],
+      conditions: [makeCondition('compliance_check', 'pass'), makeCondition('compliance_check', 'pending')],
     }
 
     const result = applyNestedFilters(rows, group)
@@ -235,13 +232,7 @@ describe('decision_status in filter groups', () => {
   })
 
   it('should filter only failing records (saved view pattern)', () => {
-    const rows = [
-      makePassRecord(),
-      makeFailRecord(),
-      makePendingRecord(),
-      makeNullRecord(),
-      makeMissingFieldRecord(),
-    ]
+    const rows = [makePassRecord(), makeFailRecord(), makePendingRecord(), makeNullRecord(), makeMissingFieldRecord()]
 
     const group: FilterGroup = {
       logic: 'AND',

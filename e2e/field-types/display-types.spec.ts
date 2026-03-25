@@ -198,9 +198,7 @@ describe('VibeGrid Display Field Types', () => {
       await scrollToColumn(page, 'amount')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$(
-        '.vibegridx-cell[data-column-id="amount"] .vibegridx-cell-empty',
-      )
+      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="amount"] .vibegridx-cell-empty')
 
       if (emptyCells.length === 0) {
         const currencyCells = await findCurrencyCells()
@@ -290,9 +288,7 @@ describe('VibeGrid Display Field Types', () => {
             // Check for emoji icons or img element
             const text = el.textContent || ''
             const hasEmoji =
-              /[\u{1F4C4}\u{1F5BC}\u{1F3A5}\u{1F3B5}\u{1F4D5}\u{1F4D8}\u{1F4CA}\u{1F4D2}\u{1F4E6}]/u.test(
-                text,
-              )
+              /[\u{1F4C4}\u{1F5BC}\u{1F3A5}\u{1F3B5}\u{1F4D5}\u{1F4D8}\u{1F4CA}\u{1F4D2}\u{1F4E6}]/u.test(text)
             const hasImg = el.querySelector('img') !== null
             return hasEmoji || hasImg
           })
@@ -346,9 +342,7 @@ describe('VibeGrid Display Field Types', () => {
       await scrollToColumn(page, 'attachment')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$(
-        '.vibegridx-cell[data-column-id="attachment"] .vibegridx-cell-empty',
-      )
+      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="attachment"] .vibegridx-cell-empty')
 
       if (emptyCells.length === 0) {
         const fileCells = await findFileCells()

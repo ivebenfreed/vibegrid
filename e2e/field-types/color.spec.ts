@@ -156,9 +156,7 @@ describe('VibeGrid Color Field Type', () => {
       return
     }
     // Color field uses select affordance - clicking opens a ComboboxEditor
-    const colorElements = await page.$$(
-      '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]',
-    )
+    const colorElements = await page.$$('.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]')
 
     if (colorElements.length === 0 || !(await isElementVisible(colorElements[0]))) {
       // Try finding color cell directly
@@ -366,9 +364,7 @@ describe('VibeGrid Color Field Type', () => {
     }
 
     // Check for non-editable cells first
-    const nonEditableCells = await page.$$(
-      '.vibegridx-cell[data-column-id="priority_color"][data-editable="false"]',
-    )
+    const nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="priority_color"][data-editable="false"]')
 
     if (nonEditableCells.length > 0) {
       // Verify non-editable cells have 'none' affordance
@@ -382,14 +378,10 @@ describe('VibeGrid Color Field Type', () => {
     }
 
     // Verify editable cells have select affordance
-    const selectElements = await page.$$(
-      '.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]',
-    )
+    const selectElements = await page.$$('.vibegridx-cell[data-column-id="priority_color"] [data-affordance="select"]')
 
     if (selectElements.length > 0 && (await isElementVisible(selectElements[0]))) {
-      const affordance = await selectElements[0].evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const affordance = await selectElements[0].evaluate((el) => el.getAttribute('data-affordance'))
       expect(affordance).toBe('select')
     } else {
       // Verify cell is visible and editable

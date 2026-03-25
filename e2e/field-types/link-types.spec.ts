@@ -215,9 +215,7 @@ describe('VibeGrid Link Field Types', () => {
       await scrollToColumn(page, 'email')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$(
-        '.vibegridx-cell[data-column-id="email"] .vibegridx-cell-empty',
-      )
+      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="email"] .vibegridx-cell-empty')
 
       if (emptyCells.length === 0) {
         // All emails have values - verify cells exist
@@ -434,9 +432,7 @@ describe('VibeGrid Link Field Types', () => {
       await scrollToColumn(page, 'website')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$(
-        '.vibegridx-cell[data-column-id="website"] .vibegridx-cell-empty',
-      )
+      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="website"] .vibegridx-cell-empty')
 
       if (emptyCells.length === 0) {
         const urlCells = await findUrlCells()
@@ -644,9 +640,7 @@ describe('VibeGrid Link Field Types', () => {
       await scrollToColumn(page, 'phone')
       await new Promise((r) => setTimeout(r, WAIT.MEDIUM))
 
-      const emptyCells = await page.$$(
-        '.vibegridx-cell[data-column-id="phone"] .vibegridx-cell-empty',
-      )
+      const emptyCells = await page.$$('.vibegridx-cell[data-column-id="phone"] .vibegridx-cell-empty')
 
       if (emptyCells.length === 0) {
         const phoneCells = await findPhoneCells()

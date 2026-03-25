@@ -140,11 +140,5 @@ export const GridCalculations = {
 }
 
 // Export individual constants for convenience
-export const {
-  ROW_HEIGHT,
-  HEADER_HEIGHT,
-  DEFAULT_COLUMN_WIDTH,
-  CONTENT_OFFSET_X,
-  BUFFER_ROWS,
-  BUFFER_COLUMNS,
-} = GRID_DIMENSIONS
+export const { ROW_HEIGHT, HEADER_HEIGHT, DEFAULT_COLUMN_WIDTH, CONTENT_OFFSET_X, BUFFER_ROWS, BUFFER_COLUMNS } =
+  GRID_DIMENSIONS

@@ -19,27 +19,11 @@ import {
 } from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
-import {
-  MockDataControls,
-  SCENARIOS,
-  type ScenarioName,
-} from '@/systems/vibegrid/components/MockDataControls'
+import { MockDataControls, SCENARIOS, type ScenarioName } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Label } from '@/shared/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/grouping')({
   beforeLoad: async () => {
@@ -289,8 +273,7 @@ function MockVibeGridGrouping() {
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Grouping Test</h2>
             <p className="text-muted-foreground">
               Test VibeGrid grouping with mock data - {mockData.length} rows
-              {hasHierarchy &&
-                ` (${hierarchyStats.parents} parents, ${hierarchyStats.children} children)`}
+              {hasHierarchy && ` (${hierarchyStats.parents} parents, ${hierarchyStats.children} children)`}
             </p>
           </div>
 

@@ -60,10 +60,7 @@ export interface ObserverManagerDeps {
   renderHeader(): void
   updateColumnWidth(columnId: string, width: number): void
   handleIncrementalViewportReady(): void
-  updateVirtualRows(
-    previousRange: { start: number; end: number },
-    currentRange: { start: number; end: number },
-  ): void
+  updateVirtualRows(previousRange: { start: number; end: number }, currentRange: { start: number; end: number }): void
   updateVirtualColumns(
     previousRange: { start: number; end: number },
     currentRange: { start: number; end: number },
@@ -217,9 +214,7 @@ export class ObserverManager {
   private createDataObserver(): void {
     const { tableCoreStore, initStore } = this.deps
 
-    fileLog.info(
-      '🎯 Creating version-based data observer - tracking dataVersion/configVersion/structureVersion',
-    )
+    fileLog.info('🎯 Creating version-based data observer - tracking dataVersion/configVersion/structureVersion')
 
     this.dataObserverDisposer = reaction(
       () => {
@@ -294,18 +289,13 @@ export class ObserverManager {
         const changedCells = tableCoreStore.lastChangedCells
 
         if (!changedCells || changedCells.size === 0) {
-          fileLog.warn(
-            '⚠️ Granular update strategy but no changed cells found, falling back to full render',
-          )
+          fileLog.warn('⚠️ Granular update strategy but no changed cells found, falling back to full render')
           this.deps.renderBody()
           return
         }
 
         if (strategy === 'cell-level') {
-          const totalCells = Array.from(changedCells.values()).reduce(
-            (sum, cols) => sum + cols.size,
-            0,
-          )
+          const totalCells = Array.from(changedCells.values()).reduce((sum, cols) => sum + cols.size, 0)
 
           fileLog.info('🎯 Cell-level update (fast path)', {
             rowsAffected: changedCells.size,
@@ -376,9 +366,7 @@ export class ObserverManager {
           return
         }
 
-        const hiddenColumns = Object.entries(columnVisibility).filter(
-          ([_, visible]) => visible === false,
-        )
+        const hiddenColumns = Object.entries(columnVisibility).filter(([_, visible]) => visible === false)
 
         fileLog.debug('🎨 Column visibility changed - forcing layout re-render', {
           hiddenColumnsCount: hiddenColumns.length,
@@ -905,11 +893,7 @@ export class ObserverManager {
   /**
    * Find a cell element by rowId and columnId via DOM query.
    */
-  private findCellElement(
-    bodyContainer: HTMLElement | null,
-    rowId: string,
-    columnId: string,
-  ): HTMLElement | null {
+  private findCellElement(bodyContainer: HTMLElement | null, rowId: string, columnId: string): HTMLElement | null {
     const rowElement = bodyContainer?.querySelector(`[data-row-id="${rowId}"]`)
     if (!rowElement) return null
     return rowElement.querySelector(`[data-column-id="${columnId}"]`) as HTMLElement | null

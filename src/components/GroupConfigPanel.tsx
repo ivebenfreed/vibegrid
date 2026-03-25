@@ -7,11 +7,7 @@ const _fileLog = getLogger(['GroupConfigPanel'])
 
 import { Badge } from '@/shared/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/shared/components/ui/collapsible'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,13 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
 import { Label } from '@/shared/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import { Separator } from '@/shared/components/ui/separator'
 
 import type { AggregationConfig, Column, GroupConfig, GroupField } from '../types'
@@ -38,12 +28,7 @@ interface GroupConfigPanelProps {
   className?: string
 }
 
-export function GroupConfigPanel({
-  columns,
-  groupConfig,
-  onGroupConfigChange,
-  className = '',
-}: GroupConfigPanelProps) {
+export function GroupConfigPanel({ columns, groupConfig, onGroupConfigChange, className = '' }: GroupConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [showAggregations, setShowAggregations] = useState(false)
 
@@ -72,10 +57,7 @@ export function GroupConfigPanel({
   const aggregatableColumns = useMemo(() => {
     return availableColumns.filter((col) => {
       const fieldType = col.type || 'text'
-      return (
-        ['number', 'decimal', 'currency', 'percentage'].includes(fieldType) ||
-        fieldType === 'string'
-      ) // Text fields can be counted
+      return ['number', 'decimal', 'currency', 'percentage'].includes(fieldType) || fieldType === 'string' // Text fields can be counted
     })
   }, [availableColumns])
 
@@ -154,9 +136,7 @@ export function GroupConfigPanel({
     }
 
     // Remove existing aggregation for this field
-    const newAggregations = groupConfig.aggregations.filter(
-      (agg) => agg.field !== newAggregation.field,
-    )
+    const newAggregations = groupConfig.aggregations.filter((agg) => agg.field !== newAggregation.field)
     newAggregations.push(newAggregation)
 
     onGroupConfigChange({
@@ -205,9 +185,7 @@ export function GroupConfigPanel({
             Group By
           </CardTitle>
           <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-            <CollapsibleTrigger
-              render={<Button variant="ghost" size="sm" className="h-6 w-6 p-0" />}
-            >
+            <CollapsibleTrigger render={<Button variant="ghost" size="sm" className="h-6 w-6 p-0" />}>
               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </CollapsibleTrigger>
           </Collapsible>
@@ -290,10 +268,7 @@ export function GroupConfigPanel({
                 </SelectTrigger>
                 <SelectContent>
                   {availableColumns
-                    .filter(
-                      (col) =>
-                        !groupConfig?.fields.some((field) => field.field === (col.field || col.id)),
-                    )
+                    .filter((col) => !groupConfig?.fields.some((field) => field.field === (col.field || col.id)))
                     .map((column) => (
                       <SelectItem key={column.id} value={column.id}>
                         <div className="flex items-center gap-2">
@@ -313,16 +288,9 @@ export function GroupConfigPanel({
               <>
                 <Separator />
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    GROUP CONTROLS
-                  </Label>
+                  <Label className="text-xs font-medium text-muted-foreground">GROUP CONTROLS</Label>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExpandAllGroups}
-                      className="flex-1 h-7 text-xs"
-                    >
+                    <Button variant="outline" size="sm" onClick={handleExpandAllGroups} className="flex-1 h-7 text-xs">
                       Expand All
                     </Button>
                     <Button
@@ -344,9 +312,7 @@ export function GroupConfigPanel({
                 <Separator />
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      AGGREGATIONS
-                    </Label>
+                    <Label className="text-xs font-medium text-muted-foreground">AGGREGATIONS</Label>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -370,8 +336,7 @@ export function GroupConfigPanel({
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm truncate">{agg.label}</div>
                                 <div className="text-xs text-muted-foreground truncate">
-                                  {(agg.type || agg.function || 'unknown').toUpperCase()} •{' '}
-                                  {agg.field}
+                                  {(agg.type || agg.function || 'unknown').toUpperCase()} • {agg.field}
                                 </div>
                               </div>
                               <Button
@@ -390,9 +355,7 @@ export function GroupConfigPanel({
                       {/* Add Aggregation */}
                       <DropdownMenu>
                         <DropdownMenuTrigger
-                          render={
-                            <Button variant="outline" size="sm" className="w-full h-7 text-xs" />
-                          }
+                          render={<Button variant="outline" size="sm" className="w-full h-7 text-xs" />}
                         >
                           <Plus size={12} className="mr-1" />
                           Add aggregation...
@@ -400,10 +363,7 @@ export function GroupConfigPanel({
                         <DropdownMenuContent align="start" className="w-56">
                           {aggregatableColumns
                             .filter(
-                              (col) =>
-                                !groupConfig.aggregations.some(
-                                  (agg) => agg.field === (col.field || col.id),
-                                ),
+                              (col) => !groupConfig.aggregations.some((agg) => agg.field === (col.field || col.id)),
                             )
                             .map((column) => (
                               <div key={column.id}>
@@ -412,12 +372,9 @@ export function GroupConfigPanel({
                                 </DropdownMenuItem>
                                 {['count', 'sum', 'avg', 'min', 'max', 'unique']
                                   .filter((type) => {
-                                    const isNumeric = [
-                                      'number',
-                                      'decimal',
-                                      'currency',
-                                      'percentage',
-                                    ].includes(column.type || 'text')
+                                    const isNumeric = ['number', 'decimal', 'currency', 'percentage'].includes(
+                                      column.type || 'text',
+                                    )
                                     return type === 'count' || type === 'unique' || isNumeric
                                   })
                                   .map((type) => (
@@ -444,9 +401,7 @@ export function GroupConfigPanel({
             {(!groupConfig || groupConfig.fields.length === 0) && (
               <div className="text-center py-6">
                 <div className="text-muted-foreground text-sm mb-2">No grouping active</div>
-                <div className="text-xs text-muted-foreground">
-                  Select a field above to start grouping your data
-                </div>
+                <div className="text-xs text-muted-foreground">Select a field above to start grouping your data</div>
               </div>
             )}
           </CardContent>

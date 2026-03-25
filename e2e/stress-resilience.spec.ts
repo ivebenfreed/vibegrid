@@ -264,9 +264,7 @@ describe('VibeGrid Stress & Resilience', () => {
 
     // Get unique column count for first row
     const firstRowId = await cells[0].evaluate((el) => el.getAttribute('data-row-id'))
-    const firstRowCells = await page.$$(
-      `[data-row-id="${firstRowId}"].vibegridx-cell[data-column-id]`,
-    )
+    const firstRowCells = await page.$$(`[data-row-id="${firstRowId}"].vibegridx-cell[data-column-id]`)
     const columnCount = firstRowCells.length
 
     // Click first cell

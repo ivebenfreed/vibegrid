@@ -87,9 +87,7 @@ export class ColumnDragOverlayDOM {
     }
 
     // Get column info from coordinate mapping
-    const column = this.coordinateMapping.columns.find(
-      (col: any) => col.columnId === dragState.draggedColumnId,
-    )
+    const column = this.coordinateMapping.columns.find((col: any) => col.columnId === dragState.draggedColumnId)
     if (!column) {
       fileLog.warn('ColumnDragOverlayDOM: Column not found:', {
         draggedColumnId: dragState.draggedColumnId,

@@ -19,11 +19,7 @@ export interface ValidatableDependency {
  * @param existingDeps - Current dependency list
  * @returns true if adding this dependency would create a cycle
  */
-export function wouldCreateCycle(
-  newSource: string,
-  newTarget: string,
-  existingDeps: ValidatableDependency[],
-): boolean {
+export function wouldCreateCycle(newSource: string, newTarget: string, existingDeps: ValidatableDependency[]): boolean {
   // Self-dependency is always a cycle
   if (newSource === newTarget) return true
 

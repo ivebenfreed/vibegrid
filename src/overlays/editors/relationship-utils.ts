@@ -76,10 +76,7 @@ export async function createRelationshipEntityRecord(
  * Soft-delete a relationship entity record via the standard data.delete API.
  * Used when the target entity type has archetype='relationship'.
  */
-export async function deleteRelationshipEntityRecord(
-  relationshipEntityName: string,
-  recordId: string,
-): Promise<any> {
+export async function deleteRelationshipEntityRecord(relationshipEntityName: string, recordId: string): Promise<any> {
   const result = await orpcClient.dataforge.data.delete({
     entityName: relationshipEntityName,
     recordId,

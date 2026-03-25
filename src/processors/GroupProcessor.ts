@@ -6,15 +6,7 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
-import type {
-  Column,
-  GroupAggregation,
-  GroupConfig,
-  GroupNode,
-  TableRow,
-  VirtualRow,
-  VirtualRowType,
-} from '../types'
+import type { Column, GroupAggregation, GroupConfig, GroupNode, TableRow, VirtualRow, VirtualRowType } from '../types'
 
 const fileLog = getLogger(['GroupProcessor'])
 
@@ -266,11 +258,7 @@ export class GroupProcessor {
     config: GroupConfig,
     _groupRowOrders?: Record<string, GroupRowOrderConfig>,
   ): GroupNode[] {
-    const buildLevel = (
-      remainingRows: TableRow[],
-      fieldIndex: number,
-      parentId?: string,
-    ): GroupNode[] => {
+    const buildLevel = (remainingRows: TableRow[], fieldIndex: number, parentId?: string): GroupNode[] => {
       if (fieldIndex >= config.fields.length) {
         return []
       }
@@ -623,12 +611,7 @@ export class GroupProcessor {
     return column.relationshipEntityType || column.meta?.targetEntity || 'Entity'
   }
 
-  private static formatGroupValue(
-    value: any,
-    fieldName: string,
-    columns: Column[],
-    config?: GroupConfig,
-  ): string {
+  private static formatGroupValue(value: any, fieldName: string, columns: Column[], config?: GroupConfig): string {
     // Find column definition for formatting hints
     const column = columns.find((col) => col.field === fieldName || col.id === fieldName)
 
@@ -676,9 +659,7 @@ export class GroupProcessor {
     // Check for select/enum types that have options
     if (
       column?.cellType &&
-      ['select', 'single-select', 'select-multi', 'multi-select'].includes(
-        column.cellType as string,
-      ) &&
+      ['select', 'single-select', 'select-multi', 'multi-select'].includes(column.cellType as string) &&
       column?.enumOptions
     ) {
       const option = column?.enumOptions.find((opt) => opt.value === value)
@@ -767,10 +748,7 @@ export class GroupProcessor {
   /**
    * Apply custom row ordering from GroupRowOrderConfig
    */
-  private static applyCustomRowOrdering(
-    rows: TableRow[],
-    orderConfig: GroupRowOrderConfig,
-  ): TableRow[] {
+  private static applyCustomRowOrdering(rows: TableRow[], orderConfig: GroupRowOrderConfig): TableRow[] {
     if (!orderConfig.rowIds.length) {
       return rows
     }

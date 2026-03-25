@@ -53,8 +53,7 @@ class EntityNameCellRenderer implements CellRenderer {
       const pencilIcon = document.createElement('span')
       pencilIcon.className = 'vibegridx-entity-name-edit-icon'
       pencilIcon.innerHTML = '\u270F\uFE0F'
-      pencilIcon.style.cssText =
-        'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
+      pencilIcon.style.cssText = 'opacity: 0; transition: opacity 0.2s; font-size: 14px; flex-shrink: 0;'
       pencilIcon.title = 'Click to edit inline'
       pencilIcon.dataset.action = 'edit'
       pencilIcon.dataset.affordanceRole = 'icon'

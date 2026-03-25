@@ -76,9 +76,7 @@ async function startEdit(p: Page): Promise<boolean> {
 async function getCellText(p: Page, rowId: string, columnId: string): Promise<string | null> {
   return p.evaluate(
     ({ rowId, columnId }) => {
-      const cell = document.querySelector(
-        `.vibegridx-cell[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
-      )
+      const cell = document.querySelector(`.vibegridx-cell[data-row-id="${rowId}"][data-column-id="${columnId}"]`)
       return cell?.textContent?.trim() || null
     },
     { rowId, columnId },

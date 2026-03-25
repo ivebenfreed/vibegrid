@@ -66,9 +66,7 @@ describe('VibeGrid Clipboard', () => {
     await firstCell.click()
 
     // Verify cell has selected class
-    const hasSelectedClass = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const hasSelectedClass = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(hasSelectedClass).toBe(true)
 
     // Press Ctrl+C to copy
@@ -80,9 +78,7 @@ describe('VibeGrid Clipboard', () => {
     // Note: Playwright handles clipboard permissions automatically in most cases
     // We verify the copy operation by checking the grid didn't error
     // and the selection is still valid
-    const stillSelected = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const stillSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(stillSelected).toBe(true)
 
     // Verify the grid is still functional after copy operation
@@ -249,9 +245,7 @@ describe('VibeGrid Clipboard', () => {
 
     // Click first cell
     await firstCell.click()
-    const firstSelected = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const firstSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(firstSelected).toBe(true)
 
     // Ctrl+click second cell to add to selection
@@ -260,12 +254,8 @@ describe('VibeGrid Clipboard', () => {
     await page.keyboard.up('Control')
 
     // Both cells should be selected
-    const firstStillSelected = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
-    const secondSelected = await secondCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const firstStillSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const secondSelected = await secondCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(firstStillSelected).toBe(true)
     expect(secondSelected).toBe(true)
 
@@ -276,9 +266,7 @@ describe('VibeGrid Clipboard', () => {
 
     // Verify grid remains functional and selection is preserved
     const firstFinal = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
-    const secondFinal = await secondCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const secondFinal = await secondCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(firstFinal).toBe(true)
     expect(secondFinal).toBe(true)
 
@@ -311,9 +299,7 @@ describe('VibeGrid Clipboard', () => {
     // Grid should remain functional
     const containerAfterUndo = await page.$('[data-testid="vibegrid-container"]')
     expect(containerAfterUndo).not.toBeNull()
-    const stillSelectedAfterUndo = await firstCell.evaluate((el) =>
-      el.classList.contains('vibegridx-selected'),
-    )
+    const stillSelectedAfterUndo = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
     expect(stillSelectedAfterUndo).toBe(true)
 
     // Press Ctrl+Y when there's nothing to redo

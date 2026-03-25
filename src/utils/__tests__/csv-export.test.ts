@@ -1,12 +1,6 @@
 /* @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  downloadCSV,
-  formatCellValue,
-  getExportableColumns,
-  getExportFilename,
-  rowsToCSV,
-} from '../csv-export'
+import { downloadCSV, formatCellValue, getExportableColumns, getExportFilename, rowsToCSV } from '../csv-export'
 
 // =============================================
 // formatCellValue
@@ -48,9 +42,7 @@ describe('formatCellValue', () => {
   })
 
   it('rich-text — converts [link](url) to "link"', () => {
-    expect(formatCellValue('[click here](https://example.com)', { cellType: 'rich-text' })).toBe(
-      'click here',
-    )
+    expect(formatCellValue('[click here](https://example.com)', { cellType: 'rich-text' })).toBe('click here')
   })
 
   it('rich-text — strips inline code', () => {

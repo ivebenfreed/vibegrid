@@ -53,9 +53,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Ensure we have data - the mock route starts with 10 rows
-    const controlsText = await page
-      .$eval('[data-testid="mock-data-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const controlsText = await page.$eval('[data-testid="mock-data-controls"]', (el) => el.textContent).catch(() => '')
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
 
@@ -88,15 +86,9 @@ describe('VibeGrid Gantt', () => {
 
     if (!dragHandle) {
       // Fall back to dragging the bar itself
-      await page.mouse.move(
-        initialBox.x + initialBox.width / 2,
-        initialBox.y + initialBox.height / 2,
-      )
+      await page.mouse.move(initialBox.x + initialBox.width / 2, initialBox.y + initialBox.height / 2)
       await page.mouse.down()
-      await page.mouse.move(
-        initialBox.x + initialBox.width + 50,
-        initialBox.y + initialBox.height / 2,
-      )
+      await page.mouse.move(initialBox.x + initialBox.width + 50, initialBox.y + initialBox.height / 2)
       await page.mouse.up()
     } else {
       const handleBox = await dragHandle.boundingBox()
@@ -105,10 +97,7 @@ describe('VibeGrid Gantt', () => {
         await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
         await page.mouse.down()
         // Move 50px to the right
-        await page.mouse.move(
-          handleBox.x + handleBox.width / 2 + 50,
-          handleBox.y + handleBox.height / 2,
-        )
+        await page.mouse.move(handleBox.x + handleBox.width / 2 + 50, handleBox.y + handleBox.height / 2)
         await page.mouse.up()
       }
     }
@@ -134,9 +123,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Ensure we have data
-    const controlsText = await page
-      .$eval('[data-testid="mock-data-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const controlsText = await page.$eval('[data-testid="mock-data-controls"]', (el) => el.textContent).catch(() => '')
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
 
@@ -190,10 +177,7 @@ describe('VibeGrid Gantt', () => {
       if (handleBox) {
         await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2)
         await page.mouse.down()
-        await page.mouse.move(
-          handleBox.x + handleBox.width / 2 + 40,
-          handleBox.y + handleBox.height / 2,
-        )
+        await page.mouse.move(handleBox.x + handleBox.width / 2 + 40, handleBox.y + handleBox.height / 2)
         await page.mouse.up()
       }
     }
@@ -220,9 +204,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Ensure we have enough data - need at least 2 bars
-    const controlsText = await page
-      .$eval('[data-testid="mock-data-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const controlsText = await page.$eval('[data-testid="mock-data-controls"]', (el) => el.textContent).catch(() => '')
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
 
@@ -315,9 +297,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Ensure we have data
-    const controlsText = await page
-      .$eval('[data-testid="mock-data-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const controlsText = await page.$eval('[data-testid="mock-data-controls"]', (el) => el.textContent).catch(() => '')
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
 
@@ -334,9 +314,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Verify dependencies were created
-    const ganttText = await page
-      .$eval('[data-testid="gantt-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const ganttText = await page.$eval('[data-testid="gantt-controls"]', (el) => el.textContent).catch(() => '')
 
     // The text should show non-zero dependencies
     const hasNonZeroDeps = ganttText && !ganttText.includes('0 dependencies')
@@ -486,9 +464,7 @@ describe('VibeGrid Gantt', () => {
     }
 
     // Ensure we have data
-    const controlsText = await page
-      .$eval('[data-testid="mock-data-controls"]', (el) => el.textContent)
-      .catch(() => '')
+    const controlsText = await page.$eval('[data-testid="mock-data-controls"]', (el) => el.textContent).catch(() => '')
     const rowMatch = controlsText?.match(/(\d+) rows/)
     const rowCount = rowMatch ? parseInt(rowMatch[1]) : 0
 

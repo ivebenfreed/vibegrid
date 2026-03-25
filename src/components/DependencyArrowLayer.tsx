@@ -272,9 +272,7 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
 
     // Line is on critical path if both connected tasks are on critical path
     const isCritical =
-      showCriticalPath &&
-      criticalPathIds.has(dep.sourceEntityId) &&
-      criticalPathIds.has(dep.targetEntityId)
+      showCriticalPath && criticalPathIds.has(dep.sourceEntityId) && criticalPathIds.has(dep.targetEntityId)
 
     lines.push({
       id: dep.id,
@@ -298,10 +296,7 @@ export const DependencyArrowLayer = observer(function DependencyArrowLayer({
   }
 
   return (
-    <svg
-      className="absolute inset-0 overflow-visible pointer-events-none"
-      style={{ width, height, zIndex: 5 }}
-    >
+    <svg className="absolute inset-0 overflow-visible pointer-events-none" style={{ width, height, zIndex: 5 }}>
       <g className="dependency-lines">
         {lines.map((line) => {
           const isSelected = line.id === selectedDependencyId

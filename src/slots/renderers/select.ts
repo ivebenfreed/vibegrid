@@ -61,12 +61,7 @@ class SelectCellRenderer implements CellRenderer {
     return null
   }
 
-  private renderSingle(
-    container: HTMLElement,
-    value: unknown,
-    column: Column,
-    isEditable: boolean,
-  ): void {
+  private renderSingle(container: HTMLElement, value: unknown, column: Column, isEditable: boolean): void {
     const option = this.findOption(value, column)
     if (option) {
       const badge = document.createElement('span')
@@ -104,12 +99,7 @@ class SelectCellRenderer implements CellRenderer {
     }
   }
 
-  private renderMulti(
-    container: HTMLElement,
-    values: unknown[],
-    column: Column,
-    isEditable: boolean,
-  ): void {
+  private renderMulti(container: HTMLElement, values: unknown[], column: Column, isEditable: boolean): void {
     container.style.cssText = 'display: flex; flex-wrap: wrap; gap: 4px; align-items: center;'
 
     if (values.length === 0) {

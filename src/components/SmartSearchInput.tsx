@@ -38,10 +38,7 @@ export const SmartSearchInput = observer(function SmartSearchInput({
   const debouncedUpdateRef = useRef<ReturnType<typeof useDebouncedCallback> | null>(null)
 
   // Create debounced update (300ms per spec)
-  const debouncedUpdate = useDebouncedCallback(
-    (value: string) => visualStateStore.setGlobalSearchText(value),
-    300,
-  )
+  const debouncedUpdate = useDebouncedCallback((value: string) => visualStateStore.setGlobalSearchText(value), 300)
   debouncedUpdateRef.current = debouncedUpdate
 
   // CRITICAL: Sync local state when store changes externally
@@ -89,10 +86,7 @@ export const SmartSearchInput = observer(function SmartSearchInput({
       {localValue && (
         <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
           {dataRowCount !== null && (
-            <span
-              className="text-[10px] tabular-nums text-muted-foreground"
-              data-testid="vibegrid-smart-search-count"
-            >
+            <span className="text-[10px] tabular-nums text-muted-foreground" data-testid="vibegrid-smart-search-count">
               {dataRowCount}
             </span>
           )}

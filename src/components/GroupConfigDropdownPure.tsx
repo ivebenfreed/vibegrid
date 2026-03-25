@@ -129,12 +129,8 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
 
       if (active.id !== over?.id && groupConfig) {
         // Extract indices from the drag item ids
-        const activeIndex = groupConfig.fields.findIndex(
-          (field, index) => `${field.field}-${index}` === active.id,
-        )
-        const overIndex = groupConfig.fields.findIndex(
-          (field, index) => `${field.field}-${index}` === over?.id,
-        )
+        const activeIndex = groupConfig.fields.findIndex((field, index) => `${field.field}-${index}` === active.id)
+        const overIndex = groupConfig.fields.findIndex((field, index) => `${field.field}-${index}` === over?.id)
 
         if (activeIndex !== -1 && overIndex !== -1) {
           const reorderedFields = arrayMove(groupConfig.fields, activeIndex, overIndex)
@@ -184,8 +180,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
       const isSelectType = singleSelectTypes.includes(cellType as string)
 
       // Exclude multi-select types from grouping
-      const isMultiSelect =
-        (cellType as string) === 'select-multi' || (cellType as string) === 'multi-select'
+      const isMultiSelect = (cellType as string) === 'select-multi' || (cellType as string) === 'multi-select'
 
       // Include if it's a single-select type OR has options (but not multi-select)
       return (isSelectType || hasOptions) && !isMultiSelect
@@ -248,9 +243,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
 
   // Get available columns that aren't already used for grouping
   const availableForGrouping = React.useMemo(() => {
-    return availableColumns.filter(
-      (col) => !groupConfig?.fields.some((field) => field.field === (col.field || col.id)),
-    )
+    return availableColumns.filter((col) => !groupConfig?.fields.some((field) => field.field === (col.field || col.id)))
   }, [availableColumns, groupConfig])
 
   const hasActiveGrouping = groupConfig && groupConfig.fields.length > 0
@@ -283,11 +276,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
               <DropdownMenuLabel className="text-xs">Active Grouping</DropdownMenuLabel>
             </DropdownMenuGroup>
             <div className="px-1">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext
                   items={groupConfig.fields.map((field, index) => `${field.field}-${index}`)}
                   strategy={verticalListSortingStrategy}
@@ -324,18 +313,13 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
                 typeLabel = 'Relationship'
               } else if ((cellType as string) === 'priority_option') {
                 typeLabel = 'Priority'
-              } else if (
-                (cellType as string) === 'status_option' ||
-                (cellType as string) === 'status'
-              ) {
+              } else if ((cellType as string) === 'status_option' || (cellType as string) === 'status') {
                 typeLabel = 'Status'
               } else if ((cellType as string) === 'category_option') {
                 typeLabel = 'Category'
               } else if ((cellType as string) === 'task_type_option') {
                 typeLabel = 'Type'
-              } else if (
-                ['select', 'single-select', 'reference-select'].includes(cellType as string)
-              ) {
+              } else if (['select', 'single-select', 'reference-select'].includes(cellType as string)) {
                 typeLabel = 'Select'
               }
 
@@ -345,9 +329,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
                   onClick={() => handleAddGroupField(column.id)}
                   className="flex items-center justify-between"
                 >
-                  <span className="text-sm">
-                    {column.label || formatFieldName(column.field || column.id)}
-                  </span>
+                  <span className="text-sm">{column.label || formatFieldName(column.field || column.id)}</span>
                   <Badge variant="outline" className="text-xs">
                     {typeLabel}
                   </Badge>

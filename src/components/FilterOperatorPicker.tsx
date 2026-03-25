@@ -8,13 +8,7 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/shared/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import type { FilterOperator } from '../types'
 
 // ====================================
@@ -33,36 +27,15 @@ const TEXT_OPERATORS = [
   'regex',
 ] as const
 
-const NUMBER_OPERATORS = [
-  'equals',
-  'not_equals',
-  'greater_than',
-  'less_than',
-  'is_empty',
-  'is_not_empty',
-] as const
+const NUMBER_OPERATORS = ['equals', 'not_equals', 'greater_than', 'less_than', 'is_empty', 'is_not_empty'] as const
 
-const DATE_OPERATORS = [
-  'equals',
-  'not_equals',
-  'greater_than',
-  'less_than',
-  'is_empty',
-  'is_not_empty',
-] as const
+const DATE_OPERATORS = ['equals', 'not_equals', 'greater_than', 'less_than', 'is_empty', 'is_not_empty'] as const
 
 const BOOLEAN_OPERATORS = ['equals', 'is_empty', 'is_not_empty'] as const
 
 const ENUM_OPERATORS = ['equals', 'not_equals', 'in', 'not_in', 'is_empty', 'is_not_empty'] as const
 
-const RELATIONSHIP_OPERATORS = [
-  'equals',
-  'not_equals',
-  'in',
-  'not_in',
-  'is_empty',
-  'is_not_empty',
-] as const
+const RELATIONSHIP_OPERATORS = ['equals', 'not_equals', 'in', 'not_in', 'is_empty', 'is_not_empty'] as const
 
 const DECISION_TABLE_OPERATORS = ['decision_status', 'is_empty', 'is_not_empty'] as const
 

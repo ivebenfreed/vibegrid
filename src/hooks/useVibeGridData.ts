@@ -70,11 +70,7 @@ export interface VibeGridDataOptions {
 /**
  * Apply a single filter to a TanStack DB query
  */
-function applyFilterToQuery(
-  query: any,
-  filter: FilterConfig,
-  collectionAlias: string = 'entity',
-): any {
+function applyFilterToQuery(query: any, filter: FilterConfig, collectionAlias: string = 'entity'): any {
   const { field, operator, value } = filter
 
   switch (operator) {
@@ -94,17 +90,13 @@ function applyFilterToQuery(
     case 'not_contains':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return (
-          !fieldValue || !String(fieldValue).toLowerCase().includes(String(value).toLowerCase())
-        )
+        return !fieldValue || !String(fieldValue).toLowerCase().includes(String(value).toLowerCase())
       })
 
     case 'starts_with':
       return query.where((refs: any) => {
         const fieldValue = refs[collectionAlias][field]
-        return (
-          fieldValue && String(fieldValue).toLowerCase().startsWith(String(value).toLowerCase())
-        )
+        return fieldValue && String(fieldValue).toLowerCase().startsWith(String(value).toLowerCase())
       })
 
     case 'ends_with':
@@ -163,11 +155,7 @@ function applyFilterToQuery(
 /**
  * Apply all filters to a TanStack DB query
  */
-function applyAllFilters(
-  query: any,
-  filters: FilterConfig[],
-  collectionAlias: string = 'entity',
-): any {
+function applyAllFilters(query: any, filters: FilterConfig[], collectionAlias: string = 'entity'): any {
   let filteredQuery = query
 
   filters.forEach((filter) => {

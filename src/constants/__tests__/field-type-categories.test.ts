@@ -23,15 +23,7 @@ describe('FIELD_TYPE_CATEGORIES', () => {
   })
 
   it('maps all modal-text types correctly', () => {
-    const modalTextTypes = [
-      'textarea',
-      'longtext',
-      'richtext',
-      'rich-text',
-      'rich_text',
-      'html',
-      'markdown',
-    ]
+    const modalTextTypes = ['textarea', 'longtext', 'richtext', 'rich-text', 'rich_text', 'html', 'markdown']
     for (const type of modalTextTypes) {
       expect(FIELD_TYPE_CATEGORIES[type]).toBe('modal-text')
     }

@@ -38,11 +38,7 @@ const MIN_EXPANDED_CONTENT_HEIGHT = 100
 /**
  * Calculate height for expanded content row
  */
-export function calculateExpandedHeight(
-  rowId: string,
-  rowData: unknown,
-  config: RowExpansionConfig,
-): number {
+export function calculateExpandedHeight(rowId: string, rowData: unknown, config: RowExpansionConfig): number {
   const { expandedContentHeight = DEFAULT_EXPANDED_CONTENT_HEIGHT } = config
 
   if (typeof expandedContentHeight === 'function') {
@@ -202,10 +198,7 @@ export function getTotalExpandedHeight(
  * Filter expanded rows based on visibility
  * (used when rows are filtered/searched)
  */
-export function filterExpandedRows(
-  expandedRowIds: Set<string>,
-  visibleRowIds: Set<string>,
-): Set<string> {
+export function filterExpandedRows(expandedRowIds: Set<string>, visibleRowIds: Set<string>): Set<string> {
   const filteredExpanded = new Set<string>()
 
   for (const rowId of expandedRowIds) {
@@ -221,10 +214,7 @@ export function filterExpandedRows(
  * Get row indices that include expanded content
  * (for keyboard navigation)
  */
-export function getNavigableRowIndices(
-  virtualRows: VirtualRow[],
-  skipExpandedContent = false,
-): number[] {
+export function getNavigableRowIndices(virtualRows: VirtualRow[], skipExpandedContent = false): number[] {
   return virtualRows
     .map((row, index) => ({ row, index }))
     .filter(({ row }) => {

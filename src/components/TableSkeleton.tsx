@@ -33,10 +33,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
           style={{ height: GRID_DIMENSIONS.HEADER_HEIGHT }}
         >
           {/* Drag column placeholder - 30px */}
-          <div
-            className="flex-shrink-0 border-r border-border"
-            style={{ width: GRID_DIMENSIONS.DRAG_COLUMN_WIDTH }}
-          />
+          <div className="flex-shrink-0 border-r border-border" style={{ width: GRID_DIMENSIONS.DRAG_COLUMN_WIDTH }} />
 
           {/* Row header with select-all checkbox - 40px */}
           <div
@@ -61,11 +58,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
         {/* Body - rows with ROW_HEIGHT (40px) */}
         <div className="relative">
           {Array.from({ length: rows }).map((_, rowIndex) => (
-            <div
-              key={rowIndex}
-              className="flex border-b border-border"
-              style={{ height: GRID_DIMENSIONS.ROW_HEIGHT }}
-            >
+            <div key={rowIndex} className="flex border-b border-border" style={{ height: GRID_DIMENSIONS.ROW_HEIGHT }}>
               {/* Drag handle column - 30px */}
               <div
                 className="flex-shrink-0 flex items-center justify-center border-r border-border"
@@ -122,15 +115,9 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
  */
 export function TableRowSkeleton({ columns = 6 }: { columns?: number }) {
   return (
-    <div
-      className="vibegrid-row flex border-b border-border"
-      style={{ height: GRID_DIMENSIONS.ROW_HEIGHT }}
-    >
+    <div className="vibegrid-row flex border-b border-border" style={{ height: GRID_DIMENSIONS.ROW_HEIGHT }}>
       {/* Drag column */}
-      <div
-        className="flex-shrink-0 border-r border-border"
-        style={{ width: GRID_DIMENSIONS.DRAG_COLUMN_WIDTH }}
-      />
+      <div className="flex-shrink-0 border-r border-border" style={{ width: GRID_DIMENSIONS.DRAG_COLUMN_WIDTH }} />
 
       {/* Row header with checkbox */}
       <div

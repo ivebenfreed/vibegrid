@@ -107,10 +107,7 @@ export class IncrementalRowProcessor {
   private pipelineConfig: PipelineConfig | null = null
   private currentBatchIndex: number = 0
 
-  constructor(
-    callbacks: IncrementalProcessorCallbacks,
-    config: Partial<IncrementalProcessorConfig> = {},
-  ) {
+  constructor(callbacks: IncrementalProcessorCallbacks, config: Partial<IncrementalProcessorConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.callbacks = callbacks
   }
@@ -325,10 +322,7 @@ export class IncrementalRowProcessor {
       performance.now() - start < budget &&
       processed < this.config.BATCH_SIZE
     ) {
-      const batchEnd = Math.min(
-        this.currentBatchIndex + this.config.BATCH_SIZE - processed,
-        this.rawRows.length,
-      )
+      const batchEnd = Math.min(this.currentBatchIndex + this.config.BATCH_SIZE - processed, this.rawRows.length)
 
       // Get next batch
       let batchRows = this.rawRows.slice(this.currentBatchIndex, batchEnd)
@@ -414,12 +408,7 @@ export class IncrementalRowProcessor {
     'custom_option_reference',
   ])
 
-  private applyTextSearch(
-    rows: any[],
-    searchText: string,
-    columns: Column[],
-    searchableColumns?: string[],
-  ): any[] {
+  private applyTextSearch(rows: any[], searchText: string, columns: Column[], searchableColumns?: string[]): any[] {
     const normalizedSearch = searchText.toLowerCase().trim()
     if (!normalizedSearch) return rows
 

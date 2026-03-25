@@ -284,8 +284,7 @@ export class BodyRenderer {
     // This avoids repeated MobX computed property reads and array filtering for each row
     const columnLayouts = precomputed?.columnLayouts ?? this.visualStateStore.visibleColumns
     const visibleColumnsOnly =
-      precomputed?.visibleColumns ??
-      columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
+      precomputed?.visibleColumns ?? columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
     // PERF: Create layout lookup map ONCE per row instead of O(n) find() per column
     // This changes from O(columns * layouts) to O(columns + layouts)
@@ -351,9 +350,7 @@ export class BodyRenderer {
           if (!inRangeIds.has(column.id)) return
 
           // Skip if cell already exists (e.g., reconciliation already added it)
-          const existingCell = rowElement.querySelector(
-            `.vibegridx-cell[data-column-id="${column.id}"]`,
-          )
+          const existingCell = rowElement.querySelector(`.vibegridx-cell[data-column-id="${column.id}"]`)
           if (existingCell) return
 
           const colIndex = essentialColumnCount + relativeIndex
@@ -482,8 +479,7 @@ export class BodyRenderer {
 
     const selectedCells = this.interactionStore.selectedCells
     const isRowSelected =
-      allVisibleColumns.every((col) => selectedCells.has(`${row.id}:${col.id}`)) &&
-      allVisibleColumns.length > 0
+      allVisibleColumns.every((col) => selectedCells.has(`${row.id}:${col.id}`)) && allVisibleColumns.length > 0
 
     checkbox.checked = isRowSelected
 
@@ -551,11 +547,7 @@ export class BodyRenderer {
    * This creates a container for expanded content that will be rendered
    * by the React component via renderExpandedContent callback.
    */
-  createExpandedContentRowElement(
-    expandedRow: any,
-    rowIndex: number,
-    _parentRow: any,
-  ): HTMLElement {
+  createExpandedContentRowElement(expandedRow: any, rowIndex: number, _parentRow: any): HTMLElement {
     const rowElement = this.createElement('div', 'vibegridx-row vibegridx-expanded-content-row')
     rowElement.dataset.rowId = expandedRow.id
     rowElement.dataset.parentRowId = expandedRow.parentRowId
@@ -778,16 +770,14 @@ export class BodyRenderer {
 
     // GH#1240: Inject expansion state for row-expand column
     const isExpanded = this.interactionStore.expandedRowIds.has(row.id)
-    const rowData =
-      column.cellType === 'row-expand' ? { ...baseRowData, _isExpanded: isExpanded } : baseRowData
+    const rowData = column.cellType === 'row-expand' ? { ...baseRowData, _isExpanded: isExpanded } : baseRowData
 
     const value = rowData[column.id]
 
     // Use SlotRegistry for cell rendering (D2 pipeline)
     if (this.slotRegistry) {
       try {
-        const effectiveWidth =
-          widthOverride ?? this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
+        const effectiveWidth = widthOverride ?? this.visualStateStore.columnWidths[column.id] ?? column.width ?? 150
 
         const context: CellRendererContext = {
           viewMode: 'table',
@@ -854,12 +844,7 @@ export class BodyRenderer {
   /**
    * Add interaction handlers to cell elements
    */
-  private addCellInteractionHandlers(
-    cellElement: HTMLElement,
-    row: any,
-    column: any,
-    _value: any,
-  ): void {
+  private addCellInteractionHandlers(cellElement: HTMLElement, row: any, column: any, _value: any): void {
     // ✅ REMOVED: Old content click handler (now handled by CellActionRouter spatial detection)
     // CellActionRouter detects content vs padding clicks and routes accordingly:
     // - Content click → editSessionManager.start() (via CellActionRouter)
@@ -926,10 +911,7 @@ export class BodyRenderer {
     const processedRows = this.tableCoreStore.processedRows
 
     // Get reactive checkbox states from interaction state
-    const checkboxStates = this.interactionStore.getRowCheckboxStates(
-      processedRows,
-      allVisibleColumns,
-    )
+    const checkboxStates = this.interactionStore.getRowCheckboxStates(processedRows, allVisibleColumns)
 
     this.activeRows.forEach((rowElement, rowId) => {
       const checkbox = rowElement.querySelector('input[type="checkbox"]') as HTMLInputElement
@@ -1254,13 +1236,7 @@ export class BodyRenderer {
    * Update a single cell's value in the DOM
    * Preserves cell structure, only updates content
    */
-  updateCellValue(
-    rowId: string,
-    columnId: string,
-    newValue: any,
-    column: any,
-    rowData?: any,
-  ): boolean {
+  updateCellValue(rowId: string, columnId: string, newValue: any, column: any, rowData?: any): boolean {
     const cellElement = this.container.querySelector(
       `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
     ) as HTMLElement
@@ -1407,13 +1383,7 @@ export class BodyRenderer {
     const columnVisibility = this.visualStateStore.columnVisibility
     const baseOffset = 70
 
-    const newRowElement = this.createRowElement(
-      row,
-      rowIndex,
-      columns,
-      columnVisibility,
-      baseOffset,
-    )
+    const newRowElement = this.createRowElement(row, rowIndex, columns, columnVisibility, baseOffset)
 
     oldRowElement.replaceWith(newRowElement)
     this.activeRows.set(rowId, newRowElement)
@@ -1504,8 +1474,7 @@ export class BodyRenderer {
         // Update checkbox state based on selection
         const allVisibleColumns = this.visualStateStore.visibleColumns
         const isSelected =
-          this.interactionStore.getRowCheckboxStates([newRow], allVisibleColumns).get(newRow.id) ||
-          false
+          this.interactionStore.getRowCheckboxStates([newRow], allVisibleColumns).get(newRow.id) || false
         checkbox.checked = isSelected
         // Update row number span (shown when not hovering and not selected)
         const rowNumberSpan = rowHeader.querySelector('.vibegridx-row-number') as HTMLElement | null
@@ -1529,8 +1498,7 @@ export class BodyRenderer {
     // and/or different columns) if horizontal scroll changed since the row was pooled.
     const columnLayouts = precomputed?.columnLayouts ?? this.visualStateStore.visibleColumns
     const visibleColumnsOnly =
-      precomputed?.visibleColumns ??
-      columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
+      precomputed?.visibleColumns ?? columns.filter((col) => columnLayouts.some((l) => l.id === col.id))
 
     // Create layout lookup map for O(1) lookups
     const layoutMap = new Map<string, any>()
@@ -1627,19 +1595,13 @@ export class BodyRenderer {
               cell.innerHTML = ''
               cell.appendChild(cellContent)
             } else {
-              cell.textContent = column.formatter
-                ? column.formatter(value, rowData, column)
-                : String(value ?? '')
+              cell.textContent = column.formatter ? column.formatter(value, rowData, column) : String(value ?? '')
             }
           } else {
-            cell.textContent = column.formatter
-              ? column.formatter(value, rowData, column)
-              : String(value ?? '')
+            cell.textContent = column.formatter ? column.formatter(value, rowData, column) : String(value ?? '')
           }
         } catch (_error) {
-          cell.textContent = column.formatter
-            ? column.formatter(value, rowData, column)
-            : String(value ?? '')
+          cell.textContent = column.formatter ? column.formatter(value, rowData, column) : String(value ?? '')
         }
       }
     })
@@ -1847,9 +1809,7 @@ export class CellFormatter {
   updateDragSelectionOnMove(e: MouseEvent): void {
     // Find the cell element under the mouse
     const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY)
-    const cellUnderMouse = elementUnderMouse?.closest(
-      '[data-row-id][data-column-id]',
-    ) as HTMLElement
+    const cellUnderMouse = elementUnderMouse?.closest('[data-row-id][data-column-id]') as HTMLElement
 
     if (cellUnderMouse) {
       const rowId = cellUnderMouse.dataset.rowId

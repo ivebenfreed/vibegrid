@@ -56,8 +56,7 @@ describe('InteractionCoordinator', () => {
     editingStore.startEdit('row-1:title', withMockColumn())
 
     const portal = document.createElement('div')
-    portal.className =
-      'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
+    portal.className = 'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
     portal.setAttribute('data-cell-id', 'row-1:title')
     const button = document.createElement('button')
     portal.appendChild(button)

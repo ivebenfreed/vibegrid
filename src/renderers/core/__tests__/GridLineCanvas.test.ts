@@ -378,9 +378,7 @@ describe('GridLineCanvas', () => {
     })
 
     it('adjusts vertical line positions for scrollLeft', () => {
-      const columns: ColumnLayout[] = [
-        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
-      ]
+      const columns: ColumnLayout[] = [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }]
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
@@ -403,9 +401,7 @@ describe('GridLineCanvas', () => {
     })
 
     it('clamps vertical lines to content height when rows do not fill viewport', () => {
-      const columns: ColumnLayout[] = [
-        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
-      ]
+      const columns: ColumnLayout[] = [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }]
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
@@ -430,9 +426,7 @@ describe('GridLineCanvas', () => {
     })
 
     it('extends vertical lines to viewport height when rows fill viewport', () => {
-      const columns: ColumnLayout[] = [
-        { id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 },
-      ]
+      const columns: ColumnLayout[] = [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }]
       const visualStore = createMockVisualStateStore({
         visibleColumns: columns,
         visibleColumnRange: { start: 0, end: 1 },
@@ -583,9 +577,7 @@ describe('GridLineCanvas', () => {
       // Should still produce finite draw coordinates and include fallback rows
       const moveToCalls = (mockCtx.moveTo as ReturnType<typeof vi.fn>).mock.calls
       expect(
-        moveToCalls.every(
-          (args) => Number.isFinite(args[0] as number) && Number.isFinite(args[1] as number),
-        ),
+        moveToCalls.every((args) => Number.isFinite(args[0] as number) && Number.isFinite(args[1] as number)),
       ).toBe(true)
       // Sparse fallback: row 2 bottom at offset 60 + RH
       expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 60 + RH + 0.5)

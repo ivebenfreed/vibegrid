@@ -16,11 +16,7 @@ import { AlertTriangle, Filter, Plus } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { Button } from '@/shared/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/shared/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import type { FilterGroup as FilterGroupType } from '../types/filter-types'
@@ -33,10 +29,7 @@ export interface FilterBuilderProps {
   className?: string
 }
 
-export const FilterBuilder = observer(function FilterBuilder({
-  stores,
-  className,
-}: FilterBuilderProps) {
+export const FilterBuilder = observer(function FilterBuilder({ stores, className }: FilterBuilderProps) {
   const { filterBuilderStore, visualStateStore, tableCoreStore } = stores
   const { filterBuilderState } = filterBuilderStore
   const { activeFilterCount, filterGroup } = visualStateStore
@@ -126,13 +119,7 @@ export const FilterBuilder = observer(function FilterBuilder({
     <DropdownMenu open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid="vibegrid-filter-btn"
-            className={className}
-            title="Filters"
-          />
+          <Button variant="outline" size="sm" data-testid="vibegrid-filter-btn" className={className} title="Filters" />
         }
       >
         <Filter className="h-4 w-4" />
@@ -172,12 +159,7 @@ export const FilterBuilder = observer(function FilterBuilder({
         ) : (
           <div className="text-center text-muted-foreground py-4">
             <p className="mb-2">No filters applied</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid="vibegrid-filter-add-condition"
-              onClick={handleAddCondition}
-            >
+            <Button variant="ghost" size="sm" data-testid="vibegrid-filter-add-condition" onClick={handleAddCondition}>
               <Plus className="h-4 w-4 mr-2" />
               Add condition
             </Button>
@@ -186,20 +168,10 @@ export const FilterBuilder = observer(function FilterBuilder({
 
         {/* Footer with Apply/Clear */}
         <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid="vibegrid-filter-clear"
-            onClick={handleClear}
-          >
+          <Button variant="ghost" size="sm" data-testid="vibegrid-filter-clear" onClick={handleClear}>
             Clear
           </Button>
-          <Button
-            size="sm"
-            data-testid="vibegrid-filter-apply"
-            disabled={hasValidationErrors}
-            onClick={handleApply}
-          >
+          <Button size="sm" data-testid="vibegrid-filter-apply" disabled={hasValidationErrors} onClick={handleApply}>
             Apply
           </Button>
         </div>

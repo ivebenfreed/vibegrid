@@ -96,9 +96,7 @@ describe('VibeGrid Boolean Field Type', () => {
     }
 
     // Find all toggle affordance elements
-    const allBadges = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const allBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (allBadges.length === 0) {
       throw new Error(
@@ -129,9 +127,7 @@ describe('VibeGrid Boolean Field Type', () => {
     }
 
     if (!foundTrueBadge) {
-      throw new Error(
-        'TEST FAILURE: No true value badges found. Ensure test fixtures include is_active=true rows.',
-      )
+      throw new Error('TEST FAILURE: No true value badges found. Ensure test fixtures include is_active=true rows.')
     }
   })
 
@@ -140,9 +136,7 @@ describe('VibeGrid Boolean Field Type', () => {
     await loadFixtures()
 
     // Find a false value badge - look for No/Inactive text
-    const booleanBadges = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const booleanBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     let foundFalseValue = false
     for (const badge of booleanBadges) {
@@ -178,14 +172,10 @@ describe('VibeGrid Boolean Field Type', () => {
     }
 
     // Find toggle affordance element
-    const toggleElements = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const toggleElements = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (toggleElements.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No toggle affordance element visible. Verify boolean field renders toggle UI.',
-      )
+      throw new Error('TEST FAILURE: No toggle affordance element visible. Verify boolean field renders toggle UI.')
     }
 
     const toggleElement = toggleElements[0]
@@ -213,14 +203,10 @@ describe('VibeGrid Boolean Field Type', () => {
   })
 
   it('1.4 Select true option updates badge', async () => {
-    const toggleElements = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const toggleElements = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (toggleElements.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.',
-      )
+      throw new Error('TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.')
     }
 
     const toggleElement = toggleElements[0]
@@ -233,9 +219,7 @@ describe('VibeGrid Boolean Field Type', () => {
     const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
 
     if (cmdkItems.length === 0) {
-      throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
-      )
+      throw new Error('TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.')
     }
 
     // Find the "Yes" option and click it
@@ -252,35 +236,26 @@ describe('VibeGrid Boolean Field Type', () => {
     if (!foundYesOption) {
       throw new Error(
         'TEST FAILURE: Could not find "Yes" option in dropdown. Available options: ' +
-          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(
-            ', ',
-          ),
+          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(', '),
       )
     }
 
     await new Promise((r) => setTimeout(r, 500))
 
     // Verify the badge now shows true value
-    const updatedBadges = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const updatedBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
     if (updatedBadges.length > 0) {
       const badgeHtml = await updatedBadges[0].evaluate((el) => el.innerHTML)
-      const showsTrue =
-        badgeHtml.includes('Yes') || badgeHtml.includes('Active') || badgeHtml.includes('\u2713')
+      const showsTrue = badgeHtml.includes('Yes') || badgeHtml.includes('Active') || badgeHtml.includes('\u2713')
       expect(showsTrue).toBe(true)
     }
   })
 
   it('1.5 Select false option updates badge', async () => {
-    const toggleElements = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const toggleElements = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (toggleElements.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.',
-      )
+      throw new Error('TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.')
     }
 
     const toggleElement = toggleElements[0]
@@ -293,9 +268,7 @@ describe('VibeGrid Boolean Field Type', () => {
     const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
 
     if (cmdkItems.length === 0) {
-      throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
-      )
+      throw new Error('TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.')
     }
 
     // Find the "No" option and click it
@@ -312,35 +285,26 @@ describe('VibeGrid Boolean Field Type', () => {
     if (!foundNoOption) {
       throw new Error(
         'TEST FAILURE: Could not find "No" option in dropdown. Available options: ' +
-          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(
-            ', ',
-          ),
+          (await Promise.all(cmdkItems.map((item) => item.evaluate((el) => el.textContent)))).join(', '),
       )
     }
 
     await new Promise((r) => setTimeout(r, 500))
 
     // Verify the badge now shows false value
-    const updatedBadges = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const updatedBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
     if (updatedBadges.length > 0) {
       const badgeHtml = await updatedBadges[0].evaluate((el) => el.innerHTML)
-      const showsFalse =
-        badgeHtml.includes('No') || badgeHtml.includes('Inactive') || badgeHtml.includes('\u2717')
+      const showsFalse = badgeHtml.includes('No') || badgeHtml.includes('Inactive') || badgeHtml.includes('\u2717')
       expect(showsFalse).toBe(true)
     }
   })
 
   it('1.6 Escape cancels edit without changing value', async () => {
-    const toggleElements = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const toggleElements = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (toggleElements.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.',
-      )
+      throw new Error('TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.')
     }
 
     const toggleElement = toggleElements[0]
@@ -366,14 +330,10 @@ describe('VibeGrid Boolean Field Type', () => {
   })
 
   it('1.7 Click outside commits value (blur)', async () => {
-    const toggleElements = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const toggleElements = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (toggleElements.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.',
-      )
+      throw new Error('TEST FAILURE: No toggle element visible. Verify boolean field renders toggle UI.')
     }
 
     const toggleElement = toggleElements[0]
@@ -386,9 +346,7 @@ describe('VibeGrid Boolean Field Type', () => {
     const cmdkItems = await page.$$('.vibegridx-editing-portal [cmdk-item]')
 
     if (cmdkItems.length === 0) {
-      throw new Error(
-        'TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.',
-      )
+      throw new Error('TEST FAILURE: Boolean dropdown editor not available. Verify ComboboxEditor renders on click.')
     }
 
     // Select "Yes" option (this will commit and close dropdown)
@@ -408,15 +366,11 @@ describe('VibeGrid Boolean Field Type', () => {
 
   it('1.8 Read-only boolean shows no affordance', async () => {
     // Look for non-editable boolean cells
-    const nonEditableCells = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"][data-editable="false"]',
-    )
+    const nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="is_active"][data-editable="false"]')
 
     if (nonEditableCells.length === 0) {
       // If no non-editable cells, verify editable ones have toggle affordance
-      const editableBadges = await page.$$(
-        '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-      )
+      const editableBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
       if (editableBadges.length === 0) {
         throw new Error(
@@ -425,9 +379,7 @@ describe('VibeGrid Boolean Field Type', () => {
       }
 
       // Verify it has the toggle affordance (not 'none')
-      const affordance = await editableBadges[0].evaluate((el) =>
-        el.getAttribute('data-affordance'),
-      )
+      const affordance = await editableBadges[0].evaluate((el) => el.getAttribute('data-affordance'))
       expect(affordance).toBe('toggle')
     } else {
       // Verify non-editable cells have 'none' affordance
@@ -445,14 +397,10 @@ describe('VibeGrid Boolean Field Type', () => {
     await loadFixtures()
 
     // Check that custom labels are displayed (Active/Inactive instead of Yes/No)
-    const booleanBadges = await page.$$(
-      '.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]',
-    )
+    const booleanBadges = await page.$$('.vibegridx-cell[data-column-id="is_active"] [data-affordance="toggle"]')
 
     if (booleanBadges.length === 0) {
-      throw new Error(
-        'TEST FAILURE: No boolean badges found. Verify is_active column exists and fixtures are loaded.',
-      )
+      throw new Error('TEST FAILURE: No boolean badges found. Verify is_active column exists and fixtures are loaded.')
     }
 
     // Collect all badge texts
@@ -464,11 +412,7 @@ describe('VibeGrid Boolean Field Type', () => {
 
     // Should have at least one with recognizable text (Yes/No or Active/Inactive)
     const hasValidLabels = badgeTexts.some(
-      (text) =>
-        text.includes('Yes') ||
-        text.includes('No') ||
-        text.includes('Active') ||
-        text.includes('Inactive'),
+      (text) => text.includes('Yes') || text.includes('No') || text.includes('Active') || text.includes('Inactive'),
     )
     expect(hasValidLabels).toBe(true)
   })

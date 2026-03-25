@@ -13,11 +13,7 @@ import { toast } from 'sonner'
 import { getLogger } from '@/shared/lib/logging'
 import type { InteractionStore } from '../stores/InteractionStore'
 import type { TableCoreStore } from '../stores/TableCoreStore'
-import type {
-  ClipboardCell,
-  PasteValidationResult,
-  VibeGridClipboardData,
-} from '../types/clipboard-types'
+import type { ClipboardCell, PasteValidationResult, VibeGridClipboardData } from '../types/clipboard-types'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'managers', 'ClipboardManager.ts'])
 
@@ -384,8 +380,7 @@ export class ClipboardManager {
         const issueDetails = []
         if (result.errorCount > 0) issueDetails.push(`${result.errorCount} failed`)
         if (result.skippedCount > 0) issueDetails.push(`${result.skippedCount} skipped`)
-        if (result.blockedCount > 0)
-          issueDetails.push(`${result.blockedCount} blocked (incompatible types)`)
+        if (result.blockedCount > 0) issueDetails.push(`${result.blockedCount} blocked (incompatible types)`)
 
         fileLog.warn('📋 Paste completed with issues', {
           pastedCount: result.pastedCount,
@@ -416,8 +411,7 @@ export class ClipboardManager {
           })
 
           toast.error('Paste blocked - Incompatible types', {
-            description:
-              firstBlocked.errorReason || 'Cannot paste between incompatible column types',
+            description: firstBlocked.errorReason || 'Cannot paste between incompatible column types',
             duration: 5000,
           })
         } else {
@@ -466,11 +460,7 @@ export class ClipboardManager {
   /**
    * Check if source and target column types are compatible
    */
-  private checkTypeCompatibility(
-    sourceType: string,
-    targetType: string,
-    sourceValue: any,
-  ): TypeCompatibility {
+  private checkTypeCompatibility(sourceType: string, targetType: string, sourceValue: any): TypeCompatibility {
     // Normalize types
     const normalizeType = (type: string) => {
       switch (type) {
@@ -681,9 +671,7 @@ export class ClipboardManager {
         return column.options?.find((opt: any) => opt.value === value)?.label || String(value)
       case 'multi-select':
         if (Array.isArray(value)) {
-          return value
-            .map((v) => column.options?.find((opt: any) => opt.value === v)?.label || String(v))
-            .join(', ')
+          return value.map((v) => column.options?.find((opt: any) => opt.value === v)?.label || String(v)).join(', ')
         }
         return String(value)
       case 'date':
@@ -748,10 +736,7 @@ export class ClipboardManager {
 
       // Group updates by row to minimize rerenders
       const updatesByRow = new Map<string, Record<string, any>>()
-      const cellMetadata = new Map<
-        string,
-        { column: any; targetType: string; originalValue: any }
-      >()
+      const cellMetadata = new Map<string, { column: any; targetType: string; originalValue: any }>()
 
       // First pass: validate and prepare all updates
       for (const cellId of targetCells) {
@@ -772,11 +757,7 @@ export class ClipboardManager {
         const targetType = column.type || 'text'
 
         // Check type compatibility
-        const compatibility = this.checkTypeCompatibility(
-          singleCellSourceType,
-          targetType,
-          singleCellValue,
-        )
+        const compatibility = this.checkTypeCompatibility(singleCellSourceType, targetType, singleCellValue)
 
         if (!compatibility.compatible) {
           blockedCount++
@@ -977,11 +958,7 @@ export class ClipboardManager {
     })
 
     // Paste data row by row with column type awareness
-    for (
-      let dataRowIdx = 0;
-      dataRowIdx < data.length && dataRowIdx < sortedRows.length;
-      dataRowIdx++
-    ) {
+    for (let dataRowIdx = 0; dataRowIdx < data.length && dataRowIdx < sortedRows.length; dataRowIdx++) {
       const rowId = sortedRows[dataRowIdx]
       const columnsInRow = cellsByRow.get(rowId) || []
 
@@ -1193,8 +1170,7 @@ export class ClipboardManager {
     // Try case-insensitive match
     const caseInsensitiveMatch = options.find(
       (opt: any) =>
-        opt.label?.toLowerCase() === value.toLowerCase() ||
-        opt.value?.toLowerCase() === value.toLowerCase(),
+        opt.label?.toLowerCase() === value.toLowerCase() || opt.value?.toLowerCase() === value.toLowerCase(),
     )
     if (caseInsensitiveMatch) return caseInsensitiveMatch.value
 
@@ -1396,12 +1372,7 @@ export class ClipboardManager {
       const relativeRow = cell.rowIndex - bounds.startRow
       const relativeCol = cell.columnIndex - bounds.startCol
 
-      if (
-        relativeRow >= 0 &&
-        relativeRow < bounds.rowCount &&
-        relativeCol >= 0 &&
-        relativeCol < bounds.colCount
-      ) {
+      if (relativeRow >= 0 && relativeRow < bounds.rowCount && relativeCol >= 0 && relativeCol < bounds.colCount) {
         grid[relativeRow][relativeCol] = cell.displayValue || String(cell.value || '')
       }
     })
@@ -1412,10 +1383,7 @@ export class ClipboardManager {
   /**
    * Validate paste operation before execution
    */
-  validatePaste(
-    clipboardData: VibeGridClipboardData,
-    targetCells: Set<string>,
-  ): PasteValidationResult {
+  validatePaste(clipboardData: VibeGridClipboardData, targetCells: Set<string>): PasteValidationResult {
     const targetCellArray = Array.from(targetCells)
 
     if (targetCellArray.length === 0) {

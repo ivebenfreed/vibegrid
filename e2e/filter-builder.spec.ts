@@ -81,8 +81,7 @@ describe('VibeGrid Filter Builder', () => {
     }
 
     // Find filter button
-    const filterBtn =
-      (await page.$('[data-testid="filter-button"]')) || (await page.$('.vibegridx-filter-button'))
+    const filterBtn = (await page.$('[data-testid="filter-button"]')) || (await page.$('.vibegridx-filter-button'))
 
     if (!filterBtn) {
       // Look by text
@@ -173,9 +172,7 @@ describe('VibeGrid Filter Builder', () => {
     await new Promise((r) => setTimeout(r, 500))
 
     // A filter row should appear (field selector, operator, value)
-    const filterRows = await page.$$(
-      '.filter-condition, .filter-row, [data-testid*="filter-condition"]',
-    )
+    const filterRows = await page.$$('.filter-condition, .filter-row, [data-testid*="filter-condition"]')
     if (filterRows.length > 0) {
       expect(filterRows.length).toBeGreaterThan(0)
     }
