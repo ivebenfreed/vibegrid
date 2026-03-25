@@ -336,7 +336,11 @@ describe('SlotRegistry', () => {
         renderer: () => createMockRenderer('date'),
       })
 
-      const columns = [createMockColumn('text'), createMockColumn('number'), createMockColumn('date')]
+      const columns = [
+        createMockColumn('text'),
+        createMockColumn('number'),
+        createMockColumn('date'),
+      ]
       const context = createMockContext()
 
       await registry.preloadForColumns(columns, context)
@@ -457,13 +461,17 @@ describe('SlotRegistry', () => {
       const tableContext = createMockContext({ viewMode: 'table' })
       await registry.preloadForColumns([column], tableContext)
       const tableRenderer = registry.resolve(column, tableContext)!
-      expect(tableRenderer.render(null, column, tableContext).className).toBe('renderer-custom-default')
+      expect(tableRenderer.render(null, column, tableContext).className).toBe(
+        'renderer-custom-default',
+      )
 
       // Kanban view should get kanban-specific
       const kanbanContext = createMockContext({ viewMode: 'kanban' })
       await registry.preloadForColumns([column], kanbanContext)
       const kanbanRenderer = registry.resolve(column, kanbanContext)!
-      expect(kanbanRenderer.render(null, column, kanbanContext).className).toBe('renderer-custom-kanban')
+      expect(kanbanRenderer.render(null, column, kanbanContext).className).toBe(
+        'renderer-custom-kanban',
+      )
     })
 
     it('should filter slots by entityType', async () => {
@@ -491,7 +499,9 @@ describe('SlotRegistry', () => {
       const projectContext = createMockContext({ entityType: 'Project' })
       await registry.preloadForColumns([column], projectContext)
       const projectRenderer = registry.resolve(column, projectContext)!
-      expect(projectRenderer.render(null, column, projectContext).className).toBe('renderer-status-default')
+      expect(projectRenderer.render(null, column, projectContext).className).toBe(
+        'renderer-status-default',
+      )
     })
 
     it('should filter slots by schemaId', async () => {
@@ -513,13 +523,17 @@ describe('SlotRegistry', () => {
       const schemaContext = createMockContext({ schemaId: 'schema-123' })
       await registry.preloadForColumns([column], schemaContext)
       const schemaRenderer = registry.resolve(column, schemaContext)!
-      expect(schemaRenderer.render(null, column, schemaContext).className).toBe('renderer-custom-field-schema-123')
+      expect(schemaRenderer.render(null, column, schemaContext).className).toBe(
+        'renderer-custom-field-schema-123',
+      )
 
       // Default schema should get default
       const defaultContext = createMockContext({ schemaId: 'default' })
       await registry.preloadForColumns([column], defaultContext)
       const defaultRenderer = registry.resolve(column, defaultContext)!
-      expect(defaultRenderer.render(null, column, defaultContext).className).toBe('renderer-custom-field-default')
+      expect(defaultRenderer.render(null, column, defaultContext).className).toBe(
+        'renderer-custom-field-default',
+      )
     })
 
     it('should support complex contextFilter with multiple conditions', async () => {
@@ -549,7 +563,9 @@ describe('SlotRegistry', () => {
       const invoiceKanbanContext = createMockContext({ entityType: 'Invoice', viewMode: 'kanban' })
       await registry.preloadForColumns([column], invoiceKanbanContext)
       const invoiceKanbanRenderer = registry.resolve(column, invoiceKanbanContext)!
-      expect(invoiceKanbanRenderer.render(null, column, invoiceKanbanContext).className).toBe('renderer-amount-default')
+      expect(invoiceKanbanRenderer.render(null, column, invoiceKanbanContext).className).toBe(
+        'renderer-amount-default',
+      )
     })
   })
 
@@ -579,13 +595,17 @@ describe('SlotRegistry', () => {
       const titleColumn = createMockColumn('text', 'title')
       await registry.preloadForColumns([titleColumn], context)
       const titleRenderer = registry.resolve(titleColumn, context)!
-      expect(titleRenderer.render(null, titleColumn, context).className).toBe('renderer-text-default')
+      expect(titleRenderer.render(null, titleColumn, context).className).toBe(
+        'renderer-text-default',
+      )
 
       // column with isPrimaryField should use entity-name renderer regardless of id
       const primaryColumn = { ...createMockColumn('text', 'subject'), isPrimaryField: true } as any
       await registry.preloadForColumns([primaryColumn], context)
       const primaryRenderer = registry.resolve(primaryColumn, context)!
-      expect(primaryRenderer.render(null, primaryColumn, context).className).toBe('renderer-entity-name')
+      expect(primaryRenderer.render(null, primaryColumn, context).className).toBe(
+        'renderer-entity-name',
+      )
 
       // 'description' column should use default text renderer
       const descColumn = createMockColumn('text', 'description')
@@ -614,13 +634,17 @@ describe('SlotRegistry', () => {
       const projectContext = createMockContext({ entityType: 'Project' })
       await registry.preloadForColumns([nameColumn], projectContext)
       const projectRenderer = registry.resolve(nameColumn, projectContext)!
-      expect(projectRenderer.render(null, nameColumn, projectContext).className).toBe('renderer-project-name')
+      expect(projectRenderer.render(null, nameColumn, projectContext).className).toBe(
+        'renderer-project-name',
+      )
 
       // Task entity with name column should get default
       const taskContext = createMockContext({ entityType: 'Task' })
       await registry.preloadForColumns([nameColumn], taskContext)
       const taskRenderer = registry.resolve(nameColumn, taskContext)!
-      expect(taskRenderer.render(null, nameColumn, taskContext).className).toBe('renderer-text-default')
+      expect(taskRenderer.render(null, nameColumn, taskContext).className).toBe(
+        'renderer-text-default',
+      )
     })
   })
 
@@ -806,7 +830,9 @@ describe('SlotRegistry Edge Cases', () => {
     const context = createMockContext()
 
     // Should not throw during preload (errors are caught)
-    await expect(registry.preloadForColumns([errorColumn], context)).rejects.toThrow('Factory error')
+    await expect(registry.preloadForColumns([errorColumn], context)).rejects.toThrow(
+      'Factory error',
+    )
   })
 
   it('should handle async renderer that rejects', async () => {
@@ -820,7 +846,9 @@ describe('SlotRegistry Edge Cases', () => {
     const column = createMockColumn('async-error')
     const context = createMockContext()
 
-    await expect(registry.preloadForColumns([column], context)).rejects.toThrow('Async factory error')
+    await expect(registry.preloadForColumns([column], context)).rejects.toThrow(
+      'Async factory error',
+    )
   })
 
   it('should handle columns with undefined cellType', async () => {

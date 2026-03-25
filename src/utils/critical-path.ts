@@ -45,7 +45,10 @@ interface TaskTiming {
  * @param dependencies - Array of dependencies between tasks
  * @returns Array of row IDs on the critical path
  */
-export function calculateCriticalPath(bars: BarPosition[], dependencies: GanttDependency[]): string[] {
+export function calculateCriticalPath(
+  bars: BarPosition[],
+  dependencies: GanttDependency[],
+): string[] {
   // Handle edge cases
   if (bars.length === 0) return []
   if (bars.length === 1) return [bars[0].rowId]

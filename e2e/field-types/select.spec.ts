@@ -118,14 +118,20 @@ describe('VibeGrid Select Field Type', () => {
     const selectCells = await findSelectCells()
 
     if (selectCells.length === 0) {
-      throw new Error('TEST FAILURE: No select cells found - status field not in schema. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No select cells found - status field not in schema. Check test fixtures.',
+      )
     }
 
     // Find select cells with affordance
-    const selectBadges = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const selectBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (selectBadges.length === 0) {
-      throw new Error('TEST FAILURE: No select cells found. Check test fixtures and verify status column renders.')
+      throw new Error(
+        'TEST FAILURE: No select cells found. Check test fixtures and verify status column renders.',
+      )
     }
 
     const selectCell = selectBadges[0]
@@ -143,10 +149,14 @@ describe('VibeGrid Select Field Type', () => {
   })
 
   it('2.2 Click opens dropdown editor', async () => {
-    const selectCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const selectCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (selectCells.length === 0 || !(await isElementVisible(selectCells[0]))) {
-      throw new Error('TEST FAILURE: No select cell visible. Check test fixtures and verify grid rendered.')
+      throw new Error(
+        'TEST FAILURE: No select cell visible. Check test fixtures and verify grid rendered.',
+      )
     }
 
     const selectCell = selectCells[0]
@@ -165,10 +175,14 @@ describe('VibeGrid Select Field Type', () => {
   })
 
   it('2.3 Select option updates badge', async () => {
-    const selectCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const selectCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (selectCells.length === 0 || !(await isElementVisible(selectCells[0]))) {
-      throw new Error('TEST FAILURE: No select cell visible for option update test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No select cell visible for option update test. Check test fixtures.',
+      )
     }
 
     const selectCell = selectCells[0]
@@ -216,7 +230,9 @@ describe('VibeGrid Select Field Type', () => {
       await new Promise((r) => setTimeout(r, 500))
 
       // Verify cell text changed
-      const updatedCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+      const updatedCells = await page.$$(
+        '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+      )
       if (updatedCells.length > 0) {
         const updatedText = await updatedCells[0].evaluate((el) => el.textContent)
         expect(updatedText).not.toBe(originalText)
@@ -225,10 +241,14 @@ describe('VibeGrid Select Field Type', () => {
   })
 
   it('2.4 Escape cancels without change', async () => {
-    const selectCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const selectCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (selectCells.length === 0 || !(await isElementVisible(selectCells[0]))) {
-      throw new Error('TEST FAILURE: No select cell visible for escape cancel test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No select cell visible for escape cancel test. Check test fixtures.',
+      )
     }
 
     const selectCell = selectCells[0]
@@ -258,10 +278,14 @@ describe('VibeGrid Select Field Type', () => {
     await loadFixtures()
 
     // Find status cells with different values
-    const statusCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const statusCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (statusCells.length === 0) {
-      throw new Error('TEST FAILURE: No status cells found for color verification. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No status cells found for color verification. Check test fixtures.',
+      )
     }
 
     // Collect cell texts to verify different statuses
@@ -284,12 +308,16 @@ describe('VibeGrid Select Field Type', () => {
 
   it('2.6 Empty select shows edit placeholder', async () => {
     // Look for cells with empty state (Edit emoji hint)
-    const emptyCells = await page.$$('.vibegridx-cell[data-column-id="status"] .vibegridx-cell-empty')
+    const emptyCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"] .vibegridx-cell-empty',
+    )
 
     // If no empty cells exist in test data, verify that all cells have content
     if (emptyCells.length === 0) {
       // Verify all status cells have content (no empty values in this test data)
-      const statusCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+      const statusCells = await page.$$(
+        '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+      )
       expect(statusCells.length).toBeGreaterThan(0)
 
       // Verify at least one cell has text content
@@ -307,15 +335,21 @@ describe('VibeGrid Select Field Type', () => {
 
   it('2.7 Read-only select shows no edit affordance', async () => {
     // Look for non-editable select cells
-    const nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-editable="false"]')
+    const nonEditableCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-editable="false"]',
+    )
 
     if (nonEditableCells.length === 0) {
       // Verify editable cells have 'select' affordance on the cell container
       // (The affordance is 'select' on the cell, meaning clicking content opens dropdown)
-      const editableCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+      const editableCells = await page.$$(
+        '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+      )
 
       if (editableCells.length === 0 || !(await isElementVisible(editableCells[0]))) {
-        throw new Error('TEST FAILURE: No select cells found to test read-only affordance. Check test fixtures.')
+        throw new Error(
+          'TEST FAILURE: No select cells found to test read-only affordance. Check test fixtures.',
+        )
       }
       const affordance = await editableCells[0].evaluate((el) => el.getAttribute('data-affordance'))
       // Select cells have 'select' affordance (not 'edit')
@@ -329,10 +363,14 @@ describe('VibeGrid Select Field Type', () => {
   })
 
   it('2.8 Dropdown shows all options from schema', async () => {
-    const selectCells = await page.$$('.vibegridx-cell[data-column-id="status"][data-affordance="select"]')
+    const selectCells = await page.$$(
+      '.vibegridx-cell[data-column-id="status"][data-affordance="select"]',
+    )
 
     if (selectCells.length === 0 || !(await isElementVisible(selectCells[0]))) {
-      throw new Error('TEST FAILURE: No select cell visible for dropdown options test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No select cell visible for dropdown options test. Check test fixtures.',
+      )
     }
 
     const selectCell = selectCells[0]
@@ -370,7 +408,9 @@ describe('VibeGrid Select Field Type', () => {
 
     // If expected options are present, verify all of them
     if (hasExpectedOptions) {
-      const hasAllOptions = expectedOptions.every((expected) => optionLabels.some((label) => label.includes(expected)))
+      const hasAllOptions = expectedOptions.every((expected) =>
+        optionLabels.some((label) => label.includes(expected)),
+      )
       expect(hasAllOptions).toBe(true)
     }
 

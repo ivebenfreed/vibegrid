@@ -12,7 +12,9 @@ vi.mock('@/shared/lib/logging', () => ({
 }))
 
 // Import after mocks are in place
-const { generateColumnsFromEntitySchema, enrichColumnsWithFieldTypes } = await import('../column-generation')
+const { generateColumnsFromEntitySchema, enrichColumnsWithFieldTypes } = await import(
+  '../column-generation'
+)
 
 function makeSchemaRegistry(fields: object[]) {
   return {

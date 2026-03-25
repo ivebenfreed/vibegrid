@@ -132,7 +132,11 @@ export class MenuStateStore implements IStore {
   // ====================================
 
   @action
-  openHeaderMenu(columnId: string, position: { x: number; y: number }, menuType: 'filter' | 'sort' | 'settings'): void {
+  openHeaderMenu(
+    columnId: string,
+    position: { x: number; y: number },
+    menuType: 'filter' | 'sort' | 'settings',
+  ): void {
     // Close other menus first
     this.contextMenuState.isOpen = false
     this.columnVisibilityMenuState.isOpen = false

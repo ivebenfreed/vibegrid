@@ -315,7 +315,9 @@ export function applyTextSearch(
 
       // For select/option types, resolve to label before matching
       const cellType = col.cellType || ''
-      const searchValue = SELECT_SEARCH_TYPES.has(cellType) ? resolveOptionLabel(value, col) : String(value)
+      const searchValue = SELECT_SEARCH_TYPES.has(cellType)
+        ? resolveOptionLabel(value, col)
+        : String(value)
 
       return searchValue.toLowerCase().includes(trimmed)
     })

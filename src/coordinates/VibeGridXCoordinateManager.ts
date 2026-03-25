@@ -283,7 +283,10 @@ export class VibeGridXCoordinateManager {
   /**
    * Get cell position with x,y coordinates (absolute positioning)
    */
-  getCellPosition(rowId: string, columnId: string): { x: number; y: number; row: number; column: number } | null {
+  getCellPosition(
+    rowId: string,
+    columnId: string,
+  ): { x: number; y: number; row: number; column: number } | null {
     const cellRef = { rowId, columnId }
     const position = this.cellRefToPosition(cellRef)
 
@@ -316,7 +319,11 @@ export class VibeGridXCoordinateManager {
    * Get viewport-aware cell position
    * Returns both absolute and viewport-relative positions
    */
-  getCellPositionWithViewport(rowId: string, columnId: string, viewport: ViewportInfo): ViewportAwarePosition | null {
+  getCellPositionWithViewport(
+    rowId: string,
+    columnId: string,
+    viewport: ViewportInfo,
+  ): ViewportAwarePosition | null {
     const absolutePos = this.getCellPosition(rowId, columnId)
     if (!absolutePos) {
       return null
@@ -366,7 +373,10 @@ export class VibeGridXCoordinateManager {
   /**
    * Get all visible cells from a set of selected cells
    */
-  getVisibleCells(selectedCells: Set<string>, viewport: ViewportInfo): Map<string, ViewportAwarePosition> {
+  getVisibleCells(
+    selectedCells: Set<string>,
+    viewport: ViewportInfo,
+  ): Map<string, ViewportAwarePosition> {
     const visibleCells = new Map<string, ViewportAwarePosition>()
 
     for (const cellKey of selectedCells) {

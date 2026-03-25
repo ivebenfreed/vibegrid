@@ -123,7 +123,10 @@ export function createGroupHeaderContent(
 /**
  * Group data by field values
  */
-export function groupDataByField<T extends Record<string, any>>(data: T[], field: string): Map<string, T[]> {
+export function groupDataByField<T extends Record<string, any>>(
+  data: T[],
+  field: string,
+): Map<string, T[]> {
   const groups = new Map<string, T[]>()
 
   data.forEach((item) => {
@@ -157,7 +160,8 @@ export function calculateGroupAggregations(
         break
 
       case 'avg':
-        value = values.length > 0 ? values.reduce((sum, v) => sum + Number(v), 0) / values.length : 0
+        value =
+          values.length > 0 ? values.reduce((sum, v) => sum + Number(v), 0) / values.length : 0
         displayValue = value.toFixed(2)
         break
 

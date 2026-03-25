@@ -118,7 +118,8 @@ export const GhostRowPortal = observer(function GhostRowPortal({
       if (allDataRows.length > 0) {
         const lastRow = allDataRows[allDataRows.length - 1]
         const lastRowRect = lastRow.getBoundingClientRect()
-        bottomPosition = lastRowRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
+        bottomPosition =
+          lastRowRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
       } else {
         bottomPosition = 0
       }
@@ -144,11 +145,13 @@ export const GhostRowPortal = observer(function GhostRowPortal({
           const lastRow = groupDataRows[groupDataRows.length - 1]
           const lastRowRect = lastRow.getBoundingClientRect()
           const viewport = container.querySelector('.vibegridx-viewport') ?? container
-          bottomPosition = lastRowRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
+          bottomPosition =
+            lastRowRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
         } else {
           // No data rows, position right after the header
           const viewport = container.querySelector('.vibegridx-viewport') ?? container
-          bottomPosition = headerRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
+          bottomPosition =
+            headerRect.bottom - containerRect.top + (viewport as HTMLElement).scrollTop
         }
 
         groups.push({
@@ -194,12 +197,14 @@ export const GhostRowPortal = observer(function GhostRowPortal({
             Array.from(mutation.addedNodes).some(
               (node) =>
                 node instanceof HTMLElement &&
-                (node.classList.contains('vibegridx-group-header') || node.querySelector('.vibegridx-group-header')),
+                (node.classList.contains('vibegridx-group-header') ||
+                  node.querySelector('.vibegridx-group-header')),
             ) ||
             Array.from(mutation.removedNodes).some(
               (node) =>
                 node instanceof HTMLElement &&
-                (node.classList.contains('vibegridx-group-header') || node.querySelector('.vibegridx-group-header')),
+                (node.classList.contains('vibegridx-group-header') ||
+                  node.querySelector('.vibegridx-group-header')),
             )
           )
         }
@@ -261,7 +266,9 @@ export const GhostRowPortal = observer(function GhostRowPortal({
       const targetGroupId = trackedGroupsRef.current[0]?.groupId ?? '__root__'
       const currentMap = allGroupNodesByIdRef.current
       const targetGroupNode = currentMap.get(targetGroupId)
-      const targetInheritedFields = targetGroupNode ? extractGroupInheritedFields(targetGroupNode, currentMap) : {}
+      const targetInheritedFields = targetGroupNode
+        ? extractGroupInheritedFields(targetGroupNode, currentMap)
+        : {}
       inlineCreationStore.openGhost(targetGroupId, targetInheritedFields)
 
       logger.debug('Keyboard shortcut "n" triggered ghost row', { targetGroupId })
@@ -301,7 +308,9 @@ export const GhostRowPortal = observer(function GhostRowPortal({
       if (!state || state.status === 'ghost') {
         // Currently in ghost state -> check escalation first, then open editing
         const groupNode = allGroupNodesById.get(groupId)
-        const inheritedFields = groupNode ? extractGroupInheritedFields(groupNode, allGroupNodesById) : {}
+        const inheritedFields = groupNode
+          ? extractGroupInheritedFields(groupNode, allGroupNodesById)
+          : {}
 
         if (inlineCreationStore.needsEscalation(columns, Object.keys(inheritedFields))) {
           onEscalate?.(groupId, inheritedFields)
@@ -354,7 +363,10 @@ export const GhostRowPortal = observer(function GhostRowPortal({
         : (ghostState?.inheritedFields ?? {})
       const fieldValues = ghostState?.fieldValues ?? {}
       const validationErrors = ghostState?.validationErrors ?? {}
-      const inlineColumns = inlineCreationStore.computeInlineFields(columns, Object.keys(inheritedFields))
+      const inlineColumns = inlineCreationStore.computeInlineFields(
+        columns,
+        Object.keys(inheritedFields),
+      )
 
       return (
         <div

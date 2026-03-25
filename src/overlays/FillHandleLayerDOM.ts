@@ -109,7 +109,10 @@ export class FillHandleLayerDOM {
   /**
    * Render fill handle using pre-calculated visual positions
    */
-  renderFillHandleWithVisualPositions(visualCells: VisualCellPosition[], selectedRows?: Set<string>): void {
+  renderFillHandleWithVisualPositions(
+    visualCells: VisualCellPosition[],
+    selectedRows?: Set<string>,
+  ): void {
     // Invalidate cached bounds when selection changes
     this.cachedBounds = null
     if (visualCells.length === 0) {
@@ -411,15 +414,26 @@ export class FillHandleLayerDOM {
       const boundaryRowData = processedRows[boundaryRow]
 
       // Check if the boundary row is a data row with group information
-      if (boundaryRowData && 'parentGroupId' in boundaryRowData && boundaryRowData.type === 'data') {
+      if (
+        boundaryRowData &&
+        'parentGroupId' in boundaryRowData &&
+        boundaryRowData.type === 'data'
+      ) {
         const startGroupId = boundaryRowData.parentGroupId
 
         // Find the last row in the same group when filling down/up
-        for (let rowIdx = startRow; fillDown ? rowIdx <= endRow : rowIdx >= endRow; fillDown ? rowIdx++ : rowIdx--) {
+        for (
+          let rowIdx = startRow;
+          fillDown ? rowIdx <= endRow : rowIdx >= endRow;
+          fillDown ? rowIdx++ : rowIdx--
+        ) {
           const currentRow = processedRows[rowIdx]
 
           // Stop if we hit a different group or a non-data row
-          if (currentRow && (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId)) {
+          if (
+            currentRow &&
+            (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId)
+          ) {
             endRow = fillDown ? rowIdx - 1 : rowIdx + 1
             break
           }
@@ -520,7 +534,10 @@ export class FillHandleLayerDOM {
   /**
    * Check if selection represents complete rows
    */
-  private isCompleteRowSelection(visualCells: VisualCellPosition[], selectedRows?: Set<string>): boolean {
+  private isCompleteRowSelection(
+    visualCells: VisualCellPosition[],
+    selectedRows?: Set<string>,
+  ): boolean {
     if (!selectedRows || selectedRows.size === 0) return false
 
     // Check if we have cells for all columns in the selected rows

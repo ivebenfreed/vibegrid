@@ -88,7 +88,9 @@ describe('VibeGrid Drag & Drop', () => {
     expect(secondRowId).toBeTruthy()
 
     // Get the drag handle of the first row
-    const firstDragHandle = await page.$(`.vibegridx-row[data-row-id="${firstRowId}"] .vibegridx-drag-column`)
+    const firstDragHandle = await page.$(
+      `.vibegridx-row[data-row-id="${firstRowId}"] .vibegridx-drag-column`,
+    )
     if (!firstDragHandle) {
       console.log('SKIP: No drag handle found')
       return
@@ -181,7 +183,9 @@ describe('VibeGrid Drag & Drop', () => {
     }
 
     const firstRowId = await rows[0].evaluate((el) => el.getAttribute('data-row-id'))
-    const dragHandle = await page.$(`.vibegridx-row[data-row-id="${firstRowId}"] .vibegridx-drag-column`)
+    const dragHandle = await page.$(
+      `.vibegridx-row[data-row-id="${firstRowId}"] .vibegridx-drag-column`,
+    )
 
     if (!dragHandle) {
       console.log('SKIP: No drag handle found')
@@ -237,7 +241,10 @@ describe('VibeGrid Drag & Drop', () => {
 
     const dragColumnBox = await dragColumn.boundingBox()
     if (dragColumnBox) {
-      await page.mouse.move(dragColumnBox.x + dragColumnBox.width / 2, dragColumnBox.y + dragColumnBox.height / 2)
+      await page.mouse.move(
+        dragColumnBox.x + dragColumnBox.width / 2,
+        dragColumnBox.y + dragColumnBox.height / 2,
+      )
     }
     await new Promise((r) => setTimeout(r, 200))
 

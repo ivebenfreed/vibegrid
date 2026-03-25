@@ -8,9 +8,18 @@
 import { action, computed, makeObservable, observable } from 'mobx'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
-import type { FilterBuilderState, FilterGroup, FilterPreset, ValidationError } from '../types/filter-types'
+import type {
+  FilterBuilderState,
+  FilterGroup,
+  FilterPreset,
+  ValidationError,
+} from '../types/filter-types'
 import { createPreset } from '../utils/filter-storage'
-import { validateFilterGroup, countConditions, COMPLEXITY_WARNING_THRESHOLD } from '../utils/filter-utils'
+import {
+  validateFilterGroup,
+  countConditions,
+  COMPLEXITY_WARNING_THRESHOLD,
+} from '../utils/filter-utils'
 
 const logger = getLogger(['vibegrid', 'stores', 'FilterBuilderStore'])
 
@@ -154,7 +163,9 @@ export class FilterBuilderStore implements IStore {
 
   @action
   deletePreset(presetId: string): void {
-    this.filterBuilderState.presets = this.filterBuilderState.presets.filter((p) => p.id !== presetId)
+    this.filterBuilderState.presets = this.filterBuilderState.presets.filter(
+      (p) => p.id !== presetId,
+    )
     logger.info('Preset deleted', { id: presetId })
   }
 }

@@ -9,7 +9,9 @@ import type { GroupNode } from '../../types'
 import { extractGroupInheritedFields } from '../inline-creation-utils'
 
 // Helper to build a minimal GroupNode
-function makeGroup(overrides: Partial<GroupNode> & { id: string; field: string; value: unknown }): GroupNode {
+function makeGroup(
+  overrides: Partial<GroupNode> & { id: string; field: string; value: unknown },
+): GroupNode {
   return {
     level: 0,
     displayValue: String(overrides.value),

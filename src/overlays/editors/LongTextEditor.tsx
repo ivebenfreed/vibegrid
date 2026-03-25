@@ -41,7 +41,14 @@ interface LongTextEditorProps {
   isOpen: boolean
 }
 
-export function LongTextEditor({ cell, column, initialValue, onCommit, onCancel, isOpen }: LongTextEditorProps) {
+export function LongTextEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
+  isOpen,
+}: LongTextEditorProps) {
   const [value, setValue] = useState(initialValue || '')
   const [isDirty, setIsDirty] = useState(false)
   const [showDiscardDialog, setShowDiscardDialog] = useState(false)
@@ -211,7 +218,8 @@ export function LongTextEditor({ cell, column, initialValue, onCommit, onCancel,
             <div>
               {hasMaxLength && (
                 <span className={isOverLimit ? 'text-destructive' : 'text-muted-foreground'}>
-                  {characterCount.toLocaleString()} / {column.maxLength!.toLocaleString()} characters
+                  {characterCount.toLocaleString()} / {column.maxLength!.toLocaleString()}{' '}
+                  characters
                   {isOverLimit && ' (over limit)'}
                 </span>
               )}
@@ -250,7 +258,9 @@ export function LongTextEditor({ cell, column, initialValue, onCommit, onCancel,
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard Changes?</AlertDialogTitle>
-            <AlertDialogDescription>You have unsaved changes. Are you sure you want to cancel?</AlertDialogDescription>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to cancel?
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep Editing</AlertDialogCancel>

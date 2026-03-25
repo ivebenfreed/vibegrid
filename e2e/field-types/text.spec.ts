@@ -126,7 +126,9 @@ describe('VibeGrid Text Field Type', () => {
    */
   async function isTextEditorVisible(): Promise<boolean> {
     // Check for input/textarea in the editing portal or inline
-    const editors = await page.$$('.vibegridx-editing-portal input, .vibegridx-editing-portal textarea')
+    const editors = await page.$$(
+      '.vibegridx-editing-portal input, .vibegridx-editing-portal textarea',
+    )
     const inlineEditors = await page.$$('.vibegridx-text-editor, .vibegridx-email-editor')
     return editors.length > 0 || inlineEditors.length > 0
   }
@@ -249,7 +251,9 @@ describe('VibeGrid Text Field Type', () => {
     const textCells = await findTextCells()
 
     if (textCells.length === 0) {
-      throw new Error('TEST FAILURE: No text cells found. Verify phone/email column exists in schema.')
+      throw new Error(
+        'TEST FAILURE: No text cells found. Verify phone/email column exists in schema.',
+      )
     }
 
     // Find a visible, editable cell
@@ -264,7 +268,9 @@ describe('VibeGrid Text Field Type', () => {
     }
 
     if (!targetCell) {
-      throw new Error('TEST FAILURE: No editable text cell visible. Verify text column is editable.')
+      throw new Error(
+        'TEST FAILURE: No editable text cell visible. Verify text column is editable.',
+      )
     }
 
     // Double-click to enter edit mode (standard text field pattern)
@@ -299,7 +305,9 @@ describe('VibeGrid Text Field Type', () => {
     const textCells = await findTextCells()
 
     if (textCells.length === 0) {
-      throw new Error('TEST FAILURE: No text cells found for save test. Verify phone/email column exists.')
+      throw new Error(
+        'TEST FAILURE: No text cells found for save test. Verify phone/email column exists.',
+      )
     }
 
     // Find editable cell
@@ -360,7 +368,9 @@ describe('VibeGrid Text Field Type', () => {
     const textCells = await findTextCells()
 
     if (textCells.length === 0) {
-      throw new Error('TEST FAILURE: No text cells found for blur save test. Verify phone/email column exists.')
+      throw new Error(
+        'TEST FAILURE: No text cells found for blur save test. Verify phone/email column exists.',
+      )
     }
 
     // Find editable cell
@@ -426,7 +436,9 @@ describe('VibeGrid Text Field Type', () => {
     const textCells = await findTextCells()
 
     if (textCells.length === 0) {
-      throw new Error('TEST FAILURE: No text cells found for escape cancel test. Verify phone/email column exists.')
+      throw new Error(
+        'TEST FAILURE: No text cells found for escape cancel test. Verify phone/email column exists.',
+      )
     }
 
     // Find editable cell
@@ -484,7 +496,9 @@ describe('VibeGrid Text Field Type', () => {
       emptyCells = await page.$$('.vibegridx-cell[data-column-id="email"] .vibegridx-cell-empty')
     }
     if (emptyCells.length === 0) {
-      emptyCells = await page.$$('.vibegridx-cell[data-column-id="description"] .vibegridx-cell-empty')
+      emptyCells = await page.$$(
+        '.vibegridx-cell[data-column-id="description"] .vibegridx-cell-empty',
+      )
     }
     if (emptyCells.length === 0) {
       emptyCells = await page.$$('.vibegridx-cell[data-column-id="website"] .vibegridx-cell-empty')
@@ -514,9 +528,13 @@ describe('VibeGrid Text Field Type', () => {
 
   it('1.7 Read-only shows no affordance', async () => {
     // Look for non-editable text cells (phone or email)
-    let nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="phone"][data-editable="false"]')
+    let nonEditableCells = await page.$$(
+      '.vibegridx-cell[data-column-id="phone"][data-editable="false"]',
+    )
     if (nonEditableCells.length === 0) {
-      nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="email"][data-editable="false"]')
+      nonEditableCells = await page.$$(
+        '.vibegridx-cell[data-column-id="email"][data-editable="false"]',
+      )
     }
 
     if (nonEditableCells.length === 0) {

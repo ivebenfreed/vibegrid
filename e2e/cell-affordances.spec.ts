@@ -77,7 +77,9 @@ describe('VibeGrid Cell Affordances', () => {
     await new Promise((r) => setTimeout(r, 100))
 
     // Cell should be selected
-    const hasSelectedClass = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Cell should NOT be in editing mode
@@ -88,7 +90,9 @@ describe('VibeGrid Cell Affordances', () => {
   it('12.2 Click content = affordance action triggered', async () => {
     // Find cells that have content with affordance attributes
     // Look for cells with data-affordance="edit" on their content
-    const editableCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id] [data-affordance="edit"]')
+    const editableCells = await page.$$(
+      '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="edit"]',
+    )
     const editableCount = editableCells.length
 
     if (editableCount > 0) {
@@ -107,7 +111,9 @@ describe('VibeGrid Cell Affordances', () => {
       await new Promise((r) => setTimeout(r, 200))
 
       // Check if editing was triggered - either editor appeared or cell has editing class
-      const editors = await page.$$('.vibegridx-editing, .vibegridx-cell input, .vibegridx-cell select')
+      const editors = await page.$$(
+        '.vibegridx-editing, .vibegridx-cell input, .vibegridx-cell select',
+      )
       const editorVisible = editors.length
 
       // We expect some editing indicator to be present
@@ -121,7 +127,9 @@ describe('VibeGrid Cell Affordances', () => {
     }
 
     // Also test navigate affordance if present
-    const navigateCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id] [data-affordance="navigate"]')
+    const navigateCells = await page.$$(
+      '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="navigate"]',
+    )
     const navigateCount = navigateCells.length
 
     if (navigateCount > 0) {
@@ -148,20 +156,26 @@ describe('VibeGrid Cell Affordances', () => {
 
     // If no affordance elements found, skip with explanation
     if (editableCount === 0 && navigateCount === 0) {
-      console.log('SKIP: No cells with edit or navigate affordance found - mock data may not include editable fields')
+      console.log(
+        'SKIP: No cells with edit or navigate affordance found - mock data may not include editable fields',
+      )
     }
   })
 
   it('12.4 Toggle affordance', async () => {
     // Look for cells with toggle affordance (boolean fields)
     // These have data-affordance="toggle" on the content element
-    const toggleCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id] [data-affordance="toggle"]')
+    const toggleCells = await page.$$(
+      '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="toggle"]',
+    )
     const toggleCount = toggleCells.length
 
     if (toggleCount === 0) {
       // No toggle fields in the current mock schema
       // The MockTask schema doesn't include boolean fields
-      console.log('SKIP: No toggle affordance cells found - mock schema may not include boolean fields')
+      console.log(
+        'SKIP: No toggle affordance cells found - mock schema may not include boolean fields',
+      )
       return
     }
 
@@ -208,7 +222,9 @@ describe('VibeGrid Cell Affordances', () => {
 
   it('Click on cell with no affordance = selection only', async () => {
     // Find cells with data-affordance="none" or readonly cells
-    const readonlyCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id] [data-affordance="none"]')
+    const readonlyCells = await page.$$(
+      '.vibegridx-cell[data-row-id][data-column-id] [data-affordance="none"]',
+    )
     let targetCell: ElementHandle | null = null
     const readonlyCount = readonlyCells.length
 
@@ -230,7 +246,9 @@ describe('VibeGrid Cell Affordances', () => {
     } else {
       // Use the first readonly content element's parent cell
       const readonlyContent = readonlyCells[0]
-      targetCell = (await readonlyContent.evaluateHandle((el) => el.closest('.vibegridx-cell'))) as ElementHandle
+      targetCell = (await readonlyContent.evaluateHandle((el) =>
+        el.closest('.vibegridx-cell'),
+      )) as ElementHandle
     }
 
     if (!targetCell) {
@@ -254,7 +272,9 @@ describe('VibeGrid Cell Affordances', () => {
       await new Promise((r) => setTimeout(r, 100))
 
       // Should be selected
-      const hasSelectedClass = await anyCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+      const hasSelectedClass = await anyCell.evaluate((el) =>
+        el.classList.contains('vibegridx-selected'),
+      )
       expect(hasSelectedClass).toBe(true)
 
       // Should not be editing
@@ -272,7 +292,9 @@ describe('VibeGrid Cell Affordances', () => {
       await new Promise((r) => setTimeout(r, 100))
 
       // Cell should be selected
-      const hasSelectedClass = await targetCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+      const hasSelectedClass = await targetCell.evaluate((el) =>
+        el.classList.contains('vibegridx-selected'),
+      )
       expect(hasSelectedClass).toBe(true)
 
       // Cell should NOT enter editing mode
@@ -283,7 +305,9 @@ describe('VibeGrid Cell Affordances', () => {
 
   it('Affordance respects non-editable column setting', async () => {
     // Find cells that have data-editable="false"
-    const nonEditableCells = await page.$$('.vibegridx-cell[data-row-id][data-column-id][data-editable="false"]')
+    const nonEditableCells = await page.$$(
+      '.vibegridx-cell[data-row-id][data-column-id][data-editable="false"]',
+    )
     const nonEditableCount = nonEditableCells.length
 
     if (nonEditableCount === 0) {

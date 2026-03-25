@@ -469,7 +469,9 @@ export class InteractionStore implements IStore {
   /**
    * Get data context for range selection (MobX stores)
    */
-  private getDataContext(): { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> } | undefined {
+  private getDataContext():
+    | { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> }
+    | undefined {
     // Assert stores are initialized before accessing
     assertStorePresent(this.tableCoreStore, 'TableCoreStore')
     assertStorePresent(this.visualStateStore, 'VisualStateStore')
@@ -523,7 +525,11 @@ export class InteractionStore implements IStore {
    * Select all cells
    */
   @action
-  selectAll(dataContext?: { rows: any[]; columns: any[]; columnVisibility: Record<string, boolean> }): void {
+  selectAll(dataContext?: {
+    rows: any[]
+    columns: any[]
+    columnVisibility: Record<string, boolean>
+  }): void {
     if (!dataContext) {
       logger.warn('selectAll called without data context - ignoring')
       return
@@ -834,7 +840,12 @@ export class InteractionStore implements IStore {
    * Toggle cell selection
    */
   @action
-  toggleCellSelection(rowId: string, columnId: string, isCtrlKey: boolean = false, isShiftKey: boolean = false): void {
+  toggleCellSelection(
+    rowId: string,
+    columnId: string,
+    isCtrlKey: boolean = false,
+    isShiftKey: boolean = false,
+  ): void {
     const cellId = `${rowId}:${columnId}`
     const cells = new Set(this.selectedCells)
 
@@ -876,7 +887,8 @@ export class InteractionStore implements IStore {
 
     for (const row of rows) {
       const isRowSelected =
-        dataColumns.every((col) => this.selectedCells.has(`${row.id}:${col.id}`)) && dataColumns.length > 0
+        dataColumns.every((col) => this.selectedCells.has(`${row.id}:${col.id}`)) &&
+        dataColumns.length > 0
 
       rowStates.set(row.id, isRowSelected)
     }
@@ -1150,7 +1162,9 @@ export class InteractionStore implements IStore {
   /**
    * Update visual selection state for cells in the DOM
    */
-  updateCellSelectionVisuals(getCellElement: (rowId: string, columnId: string) => HTMLElement | null): void {
+  updateCellSelectionVisuals(
+    getCellElement: (rowId: string, columnId: string) => HTMLElement | null,
+  ): void {
     // Find all cells with selection class and remove it
     document.querySelectorAll('.vibegridx-selected').forEach((el) => {
       el.classList.remove('vibegridx-selected')

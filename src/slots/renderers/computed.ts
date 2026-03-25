@@ -14,7 +14,8 @@ class ComputedExpressionCellRenderer implements CellRenderer {
   render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-computed'
-    container.style.cssText = 'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
+    container.style.cssText =
+      'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
 
     const valueSpan = document.createElement('span')
     valueSpan.textContent = String(value ?? '')
@@ -74,7 +75,8 @@ class ComputedFormulaCellRenderer implements CellRenderer {
   render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-computed'
-    container.style.cssText = 'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
+    container.style.cssText =
+      'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
 
     const valueSpan = document.createElement('span')
     valueSpan.textContent = String(value ?? '')
@@ -134,7 +136,8 @@ class ComputedDecisionTableCellRenderer implements CellRenderer {
   render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-computed-decision-table'
-    container.style.cssText = 'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
+    container.style.cssText =
+      'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
 
     const { label, status } = this.resolveDecision(value)
     const badge = document.createElement('span')

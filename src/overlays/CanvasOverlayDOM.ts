@@ -307,7 +307,9 @@ export class CanvasOverlayDOM {
 
       // If we already have coordinate mapping, apply it to the newly created fill handle layer
       if (this.coordinateMapping) {
-        fileLog.debug('CanvasOverlayDOM: Applying existing coordinate mapping to newly created fill handle layer')
+        fileLog.debug(
+          'CanvasOverlayDOM: Applying existing coordinate mapping to newly created fill handle layer',
+        )
         this.fillHandleLayer.updateCoordinateMapping(this.coordinateMapping)
       }
 
@@ -401,7 +403,9 @@ export class CanvasOverlayDOM {
     fileLog.debug('CanvasOverlayDOM.updateSelectionWithVisualPositions called', {
       visualCellsCount: visualCells.length,
       hasContainer: !!this.overlayContainer,
-      overlayContainerInDom: this.overlayContainer ? document.body.contains(this.overlayContainer) : false,
+      overlayContainerInDom: this.overlayContainer
+        ? document.body.contains(this.overlayContainer)
+        : false,
       visualCells: visualCells.slice(0, 3), // Log first 3 for debugging
     })
 
@@ -475,7 +479,11 @@ export class CanvasOverlayDOM {
   /**
    * Render fill handle
    */
-  renderFillHandle(visualCells: VisualCellPosition[], selectedRows?: Set<string>, viewport?: ViewportInfo): void {
+  renderFillHandle(
+    visualCells: VisualCellPosition[],
+    selectedRows?: Set<string>,
+    viewport?: ViewportInfo,
+  ): void {
     if (!this.overlayContainer) {
       fileLog.warn('CanvasOverlayDOM: Container not initialized for fill handle')
       return
@@ -612,15 +620,20 @@ export class CanvasOverlayDOM {
 
     // CRITICAL: Update coordinate mapping if available (lazy-created overlay needs it)
     if (this.coordinateMapping) {
-      fileLog.debug('[RESIZE-PREVIEW] 📐 Updating coordinate mapping for lazy-created overlay from CanvasOverlay', {
-        hasMapping: !!this.coordinateMapping,
-        columnCount: this.coordinateMapping?.columns.length,
-      })
+      fileLog.debug(
+        '[RESIZE-PREVIEW] 📐 Updating coordinate mapping for lazy-created overlay from CanvasOverlay',
+        {
+          hasMapping: !!this.coordinateMapping,
+          columnCount: this.coordinateMapping?.columns.length,
+        },
+      )
       columnResize.updateCoordinateMapping(this.coordinateMapping)
       this.missingCoordinateMappingWarned = false
     } else {
       if (!this.missingCoordinateMappingWarned) {
-        fileLog.debug('[RESIZE-PREVIEW] ℹ️ CanvasOverlay has no coordinate mapping yet; using DOM fallback')
+        fileLog.debug(
+          '[RESIZE-PREVIEW] ℹ️ CanvasOverlay has no coordinate mapping yet; using DOM fallback',
+        )
         this.missingCoordinateMappingWarned = true
       }
     }

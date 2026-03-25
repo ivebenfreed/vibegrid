@@ -109,7 +109,8 @@ export class GridLineCanvas {
     // Clamp canvas height to actual content so the canvas doesn't extend
     // the scroll container beyond the last row
     const contentHeight = this.getTotalContentHeight()
-    const canvasHeight = contentHeight > 0 ? Math.min(viewportHeight, contentHeight) : viewportHeight
+    const canvasHeight =
+      contentHeight > 0 ? Math.min(viewportHeight, contentHeight) : viewportHeight
 
     // Internal resolution (accounts for DPR)
     this.canvas.width = viewportWidth * this.dpr
@@ -151,7 +152,11 @@ export class GridLineCanvas {
     // Read alternating row background color (--muted)
     const mutedVar = computed.getPropertyValue('--muted').trim()
     if (mutedVar) {
-      if (/^(oklch|rgb|hsl|hwb|lab|lch)\(/i.test(mutedVar) || mutedVar.startsWith('#') || mutedVar.startsWith('var(')) {
+      if (
+        /^(oklch|rgb|hsl|hwb|lab|lch)\(/i.test(mutedVar) ||
+        mutedVar.startsWith('#') ||
+        mutedVar.startsWith('var(')
+      ) {
         this.altRowColor = mutedVar
       } else {
         this.altRowColor = `hsl(${mutedVar})`
@@ -294,7 +299,12 @@ export class GridLineCanvas {
    * Column layouts don't change during scroll so MobX values are fine here.
    * Lines are clamped to actual content height so they don't extend past the last row.
    */
-  private drawVerticalLines(canvasWidth: number, canvasHeight: number, scrollLeft: number, scrollTop: number): void {
+  private drawVerticalLines(
+    canvasWidth: number,
+    canvasHeight: number,
+    scrollLeft: number,
+    scrollTop: number,
+  ): void {
     const visibleColumns = this.visualStateStore.visibleColumns
     const { start, end } = this.visualStateStore.visibleColumnRange
 

@@ -133,7 +133,9 @@ export class SelectionService {
    */
   toggleRow(rowId: string): void {
     // Select ONLY VISIBLE columns (coordinator only tracks visible columns)
-    const columns = this.visualStateStore.visibleOrderedColumns.filter((col) => col.id !== 'selection')
+    const columns = this.visualStateStore.visibleOrderedColumns.filter(
+      (col) => col.id !== 'selection',
+    )
     const cells = columns.map((col) => `${rowId}:${col.id}`)
 
     fileLog.debug('toggleRow (visible columns only)', {

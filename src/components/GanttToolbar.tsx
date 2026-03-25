@@ -5,10 +5,26 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import { Minus, Plus, RotateCcw, Calendar, Settings2, ArrowUpDown, ArrowUp, ArrowDown, Route } from 'lucide-react'
+import {
+  Minus,
+  Plus,
+  RotateCcw,
+  Calendar,
+  Settings2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Route,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Label } from '@/shared/components/ui/label'
 import { useGanttViewStore, useVisualStateStore } from '../stores/context'
@@ -32,8 +48,14 @@ export const GanttToolbar = observer(function GanttToolbar() {
   const ganttViewStore = useGanttViewStore()
   const visualStateStore = useVisualStateStore()
 
-  const { zoomLevel, dependencies, fieldMapping, availableDateFields, availableLabelFields, showCriticalPath } =
-    ganttViewStore
+  const {
+    zoomLevel,
+    dependencies,
+    fieldMapping,
+    availableDateFields,
+    availableLabelFields,
+    showCriticalPath,
+  } = ganttViewStore
 
   // Get current sort from table state
   const currentSort = visualStateStore?.sortBy?.[0]
@@ -56,7 +78,10 @@ export const GanttToolbar = observer(function GanttToolbar() {
           <Minus className="h-4 w-4" />
         </Button>
 
-        <Select value={zoomLevel} onValueChange={(value) => ganttViewStore.setZoomLevel(value as ZoomLevel)}>
+        <Select
+          value={zoomLevel}
+          onValueChange={(value) => ganttViewStore.setZoomLevel(value as ZoomLevel)}
+        >
           <SelectTrigger className="w-24 h-8">
             <SelectValue />
           </SelectTrigger>
@@ -84,13 +109,23 @@ export const GanttToolbar = observer(function GanttToolbar() {
       <div className="w-px h-6 bg-border" />
 
       {/* Today button */}
-      <Button variant="ghost" size="sm" onClick={() => ganttViewStore.scrollToToday()} title="Scroll to today">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => ganttViewStore.scrollToToday()}
+        title="Scroll to today"
+      >
         <Calendar className="h-4 w-4 mr-1" />
         Today
       </Button>
 
       {/* Reset zoom */}
-      <Button variant="ghost" size="sm" onClick={() => ganttViewStore.setZoomLevel('week')} title="Reset to week view">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => ganttViewStore.setZoomLevel('week')}
+        title="Reset to week view"
+      >
         <RotateCcw className="h-4 w-4" />
       </Button>
 
@@ -128,7 +163,11 @@ export const GanttToolbar = observer(function GanttToolbar() {
           title={sortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
           className="px-2"
         >
-          {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+          {sortDirection === 'asc' ? (
+            <ArrowUp className="h-4 w-4" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )}
         </Button>
       </div>
 
@@ -168,7 +207,9 @@ export const GanttToolbar = observer(function GanttToolbar() {
           <div className="grid gap-4">
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Date Field Mapping</h4>
-              <p className="text-xs text-muted-foreground">Select which fields to use for Gantt bar positioning</p>
+              <p className="text-xs text-muted-foreground">
+                Select which fields to use for Gantt bar positioning
+              </p>
             </div>
 
             {/* Start Date Field */}

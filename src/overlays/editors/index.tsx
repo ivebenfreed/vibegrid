@@ -24,7 +24,11 @@ export function isTagsLikeField(column: Column, initialValue: any): boolean {
   const hasCommaSeperatedValues = typeof initialValue === 'string' && initialValue.includes(',')
 
   // Check if column has options (suggesting it's a select-type field)
-  const hasOptions = !!(column.options && Array.isArray(column.options) && column.options.length > 0)
+  const hasOptions = !!(
+    column.options &&
+    Array.isArray(column.options) &&
+    column.options.length > 0
+  )
 
   // For tags fields, we should use PickerMultiEditor if:
   // 1. The column name indicates it's a tags field (most important)

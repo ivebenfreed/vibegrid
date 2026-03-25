@@ -13,14 +13,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { createMockSchemaRegistry } from '@/shared/data/mock/mock-schema-registry'
-import { clearMockStorage, createMockEntityCollection } from '@/shared/data/db/collections/mock-collections'
+import {
+  clearMockStorage,
+  createMockEntityCollection,
+} from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
-import { MockDataControls, SCENARIOS, type ScenarioName } from '@/systems/vibegrid/components/MockDataControls'
+import {
+  MockDataControls,
+  SCENARIOS,
+  type ScenarioName,
+} from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
 import { Badge } from '@/shared/components/ui/badge'
 
-import { FIELD_TYPE_TEST_SCHEMA, HIGH_PRIORITY_FIELDS, FIELD_CATEGORIES } from './_utils/field-type-schema'
+import {
+  FIELD_TYPE_TEST_SCHEMA,
+  HIGH_PRIORITY_FIELDS,
+  FIELD_CATEGORIES,
+} from './_utils/field-type-schema'
 import {
   generateFieldTypeTestEntities,
   generateFieldTypeTestFixtures,

@@ -15,7 +15,14 @@ interface DateEditorProps {
   includeTime?: boolean
 }
 
-export function DateEditor({ cell, column, initialValue, onCommit, onCancel, includeTime = false }: DateEditorProps) {
+export function DateEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
+  includeTime = false,
+}: DateEditorProps) {
   const [value, setValue] = React.useState(initialValue || '')
   const [_isCalendarOpen, setIsCalendarOpen] = React.useState(true) // Open by default
   const [selectedTime, setSelectedTime] = React.useState({ hours: 12, minutes: 0 })
@@ -159,11 +166,16 @@ export function DateEditor({ cell, column, initialValue, onCommit, onCancel, inc
             <div className="flex items-center gap-2 mb-3 text-sm font-medium">
               <ClockIcon className="h-4 w-4" />
               Select Time
-              <span className="text-muted-foreground">({currentDate ? format(currentDate, 'MMM dd, yyyy') : ''})</span>
+              <span className="text-muted-foreground">
+                ({currentDate ? format(currentDate, 'MMM dd, yyyy') : ''})
+              </span>
             </div>
             <div className="space-y-4">
               <div>
-                <label htmlFor="time-input" className="text-xs font-medium text-muted-foreground block mb-2">
+                <label
+                  htmlFor="time-input"
+                  className="text-xs font-medium text-muted-foreground block mb-2"
+                >
                   Time
                 </label>
                 <Input
@@ -186,7 +198,12 @@ export function DateEditor({ cell, column, initialValue, onCommit, onCancel, inc
 
         <div className="flex gap-2 mt-4">
           {showTimePicker && (
-            <Button size="sm" variant="outline" onClick={() => setShowTimePicker(false)} className="flex-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTimePicker(false)}
+              className="flex-1"
+            >
               ← Back
             </Button>
           )}

@@ -86,13 +86,15 @@ export function useVibeGridHierarchy({
           })
 
           // Convert to HierarchyRelationship format
-          const relationships: HierarchyRelationship[] = (response.relationships || []).map((rel) => ({
-            id: rel.id,
-            sourceEntityId: rel.sourceEntityId,
-            targetEntityId: rel.targetEntityId,
-            relationshipType: rel.relationshipType,
-            properties: rel.properties,
-          }))
+          const relationships: HierarchyRelationship[] = (response.relationships || []).map(
+            (rel) => ({
+              id: rel.id,
+              sourceEntityId: rel.sourceEntityId,
+              targetEntityId: rel.targetEntityId,
+              relationshipType: rel.relationshipType,
+              properties: rel.properties,
+            }),
+          )
 
           logger.info('Loaded hierarchy relationships', {
             count: relationships.length,

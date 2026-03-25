@@ -52,7 +52,9 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   const { selectedCells } = interactionStore
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(
+    null,
+  )
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Derive selected rows from selected cells

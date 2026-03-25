@@ -490,7 +490,9 @@ describe('VibeGrid Number Field Type', () => {
       const isEmpty = (text?.trim() || '') === ''
       const hasEditHint = text?.includes('Edit')
       const hasNumber = /[\d,$]+/.test(text || '')
-      const hasEmptyClass = await cell.evaluate((el) => el.querySelector('.vibegridx-cell-empty') !== null)
+      const hasEmptyClass = await cell.evaluate(
+        (el) => el.querySelector('.vibegridx-cell-empty') !== null,
+      )
 
       if (isEmpty || hasEditHint || hasNumber || hasEmptyClass) {
         foundValidState = true
@@ -521,7 +523,9 @@ describe('VibeGrid Number Field Type', () => {
     }
 
     // Look for non-editable cells
-    const nonEditableCells = await page.$$(`.vibegridx-cell[data-column-id="${columnId}"][data-editable="false"]`)
+    const nonEditableCells = await page.$$(
+      `.vibegridx-cell[data-column-id="${columnId}"][data-editable="false"]`,
+    )
 
     if (nonEditableCells.length > 0) {
       // Verify non-editable cells have 'none' affordance

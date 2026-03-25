@@ -9,12 +9,28 @@
 import { ChevronDown, Loader2, PlusIcon, XIcon } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/components/ui/collapsible'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/shared/components/ui/collapsible'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/components/ui/dialog'
 import { Input } from '@/shared/components/ui/input'
 import { Label } from '@/shared/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/shared/components/ui/radio-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
 import { getLogger } from '@/shared/lib/logging'
 
 const logger = getLogger(['vibegrid', 'components', 'SaveViewDialog'])
@@ -37,7 +53,11 @@ export interface SaveViewDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   entityType: string
-  onSave: (name: string, visibility: ViewVisibility, childEntityTabs: ChildEntityConfigInput[]) => Promise<void>
+  onSave: (
+    name: string,
+    visibility: ViewVisibility,
+    childEntityTabs: ChildEntityConfigInput[],
+  ) => Promise<void>
   /** Pre-filled name for "Save As" or edit mode */
   initialName?: string
   /** Pre-filled visibility for edit mode */
@@ -84,7 +104,13 @@ interface ChildTabEntryProps {
   onRemove: (index: number) => void
 }
 
-function ChildTabEntry({ index, entry, entitySchemas, onUpdate, onRemove }: ChildTabEntryProps): React.ReactElement {
+function ChildTabEntry({
+  index,
+  entry,
+  entitySchemas,
+  onUpdate,
+  onRemove,
+}: ChildTabEntryProps): React.ReactElement {
   return (
     <div className="space-y-2 rounded-md border p-3" data-testid={`child-tab-entry-${index}`}>
       <div className="flex items-center justify-between">
@@ -112,7 +138,10 @@ function ChildTabEntry({ index, entry, entitySchemas, onUpdate, onRemove }: Chil
               if (val !== null) onUpdate(index, { ...entry, childEntityType: val })
             }}
           >
-            <SelectTrigger id={`child-entity-type-${index}`} data-testid={`child-entity-type-select-${index}`}>
+            <SelectTrigger
+              id={`child-entity-type-${index}`}
+              data-testid={`child-entity-type-select-${index}`}
+            >
               <SelectValue placeholder="Select entity type" />
             </SelectTrigger>
             <SelectContent>
@@ -145,7 +174,10 @@ function ChildTabEntry({ index, entry, entitySchemas, onUpdate, onRemove }: Chil
             if (val !== null) onUpdate(index, { ...entry, relationshipType: val })
           }}
         >
-          <SelectTrigger id={`child-rel-type-${index}`} data-testid={`child-rel-type-select-${index}`}>
+          <SelectTrigger
+            id={`child-rel-type-${index}`}
+            data-testid={`child-rel-type-select-${index}`}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -163,9 +195,14 @@ function ChildTabEntry({ index, entry, entitySchemas, onUpdate, onRemove }: Chil
         </Label>
         <Select
           value={entry.direction}
-          onValueChange={(val) => onUpdate(index, { ...entry, direction: val as 'incoming' | 'outgoing' })}
+          onValueChange={(val) =>
+            onUpdate(index, { ...entry, direction: val as 'incoming' | 'outgoing' })
+          }
         >
-          <SelectTrigger id={`child-direction-${index}`} data-testid={`child-direction-select-${index}`}>
+          <SelectTrigger
+            id={`child-direction-${index}`}
+            data-testid={`child-direction-select-${index}`}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -341,7 +378,9 @@ export function SaveViewDialog({
                   <RadioGroupItem value="locked" id="visibility-locked" />
                   <Label htmlFor="visibility-locked" className="cursor-pointer font-normal">
                     <div className="text-sm font-medium">Locked</div>
-                    <div className="text-xs text-muted-foreground">Only admins can modify this view</div>
+                    <div className="text-xs text-muted-foreground">
+                      Only admins can modify this view
+                    </div>
                   </Label>
                 </div>
               )}
@@ -357,7 +396,9 @@ export function SaveViewDialog({
                   <span className="ml-1.5 text-xs text-muted-foreground">({childTabs.length})</span>
                 )}
               </span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${childSectionOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${childSectionOpen ? 'rotate-180' : ''}`}
+              />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-3 pt-3">
               {/* List of tab entries */}
@@ -403,7 +444,11 @@ export function SaveViewDialog({
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving || !name.trim()} data-testid="save-view-submit">
+          <Button
+            onClick={handleSave}
+            disabled={isSaving || !name.trim()}
+            data-testid="save-view-submit"
+          >
             {isSaving && <Loader2 className="size-4 animate-spin" />}
             {isEditMode ? 'Rename' : 'Save'}
           </Button>

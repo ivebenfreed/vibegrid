@@ -42,10 +42,16 @@ class EntityReferenceCellRenderer implements CellRenderer {
           ? String((singleValue as Record<string, unknown>).id)
           : String(singleValue)
 
-    const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
+    const rowData = (context as Record<string, unknown>).rowData as
+      | Record<string, unknown>
+      | undefined
 
     // Check for backend-resolved display name (_name suffix from UnifiedResolver)
-    const resolvedDisplayName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
+    const resolvedDisplayName = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
     if (resolvedDisplayName) {
       container.innerHTML = this.createEntityBadge(resolvedDisplayName, column, rawEntityId)
       this.applyNavigableAffordance(container, isEditable)
@@ -72,7 +78,9 @@ class EntityReferenceCellRenderer implements CellRenderer {
 
     // If singleValue is an object with .name or .title, use that
     if (typeof singleValue === 'object' && singleValue !== null) {
-      const candidate = (singleValue as Record<string, unknown>).name || (singleValue as Record<string, unknown>).title
+      const candidate =
+        (singleValue as Record<string, unknown>).name ||
+        (singleValue as Record<string, unknown>).title
       if (candidate) {
         container.innerHTML = this.createEntityBadge(String(candidate), column, rawEntityId)
         this.applyNavigableAffordance(container, isEditable)
@@ -166,7 +174,9 @@ class EntityReferenceCellRenderer implements CellRenderer {
   ): HTMLElement {
     // Render first badge using single-value path
     const firstId = String(values[0])
-    const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
+    const rowData = (context as Record<string, unknown>).rowData as
+      | Record<string, unknown>
+      | undefined
     const resolvedName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
     const displayName = resolvedName ?? firstId.slice(-4)
     container.innerHTML = this.createEntityBadge(displayName, column, firstId)
@@ -191,11 +201,17 @@ class EntityReferenceCellRenderer implements CellRenderer {
     let renderedCount = 0
 
     const renderBatch = (pop: HTMLElement, count: number): void => {
-      const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
+      const rowData = (context as Record<string, unknown>).rowData as
+        | Record<string, unknown>
+        | undefined
       const end = Math.min(renderedCount + count, values.length)
       for (let i = renderedCount; i < end; i++) {
         const eid = String(values[i])
-        const resolvedName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
+        const resolvedName = getResolvedDisplayName(
+          rowData,
+          column,
+          context as Record<string, unknown>,
+        )
         const displayName = resolvedName ?? eid.slice(-4)
         const wrapper = document.createElement('div')
         wrapper.innerHTML = this.createEntityBadge(displayName, column, eid)
@@ -264,9 +280,15 @@ class EntityReferenceCellRenderer implements CellRenderer {
   format(value: unknown, column: Column, context: CellRendererContext): string {
     if (isEmpty(value)) return ''
 
-    const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
+    const rowData = (context as Record<string, unknown>).rowData as
+      | Record<string, unknown>
+      | undefined
 
-    const resolvedDisplayName2 = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
+    const resolvedDisplayName2 = getResolvedDisplayName(
+      rowData,
+      column,
+      context as Record<string, unknown>,
+    )
     if (resolvedDisplayName2) return resolvedDisplayName2
 
     if (rowData) {
@@ -284,7 +306,8 @@ class EntityReferenceCellRenderer implements CellRenderer {
     }
 
     if (typeof value === 'object' && value !== null) {
-      const candidate = (value as Record<string, unknown>).name || (value as Record<string, unknown>).title
+      const candidate =
+        (value as Record<string, unknown>).name || (value as Record<string, unknown>).title
       if (candidate) return String(candidate)
     }
 

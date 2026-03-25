@@ -11,7 +11,11 @@ import type { CellRenderer } from './SlotRegistry'
  * Apply affordance attributes from a CellRenderer to a DOM element.
  * Called by each CellRenderer in its render() method.
  */
-export function applyAffordanceAttrs(element: HTMLElement, renderer: CellRenderer, isEditable = true): void {
+export function applyAffordanceAttrs(
+  element: HTMLElement,
+  renderer: CellRenderer,
+  isEditable = true,
+): void {
   const group = renderer.affordanceGroup
 
   if (group) {
@@ -47,7 +51,8 @@ export function applyAffordanceAttrs(element: HTMLElement, renderer: CellRendere
         content.textContent = text
         content.dataset.action = 'edit'
         content.dataset.affordanceRole = 'content'
-        content.style.cssText = 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;'
+        content.style.cssText =
+          'overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;'
         element.appendChild(content)
       }
     }

@@ -47,7 +47,11 @@ export type CellAction = 'navigate' | 'edit' | 'custom' | 'none'
  * Return 'handled' to prevent default action.
  * Return void or undefined to allow default action.
  */
-export type OnCellClickCallback = (rowId: string, columnId: string, event?: MouseEvent) => undefined | 'handled'
+export type OnCellClickCallback = (
+  rowId: string,
+  columnId: string,
+  event?: MouseEvent,
+) => undefined | 'handled'
 
 // ====================================
 // ROUTER
@@ -100,7 +104,9 @@ export class CellActionRouter {
     // 2. For navigate actions, check for URL href first, then invoke onCellClick callback
     if (action === 'navigate') {
       // Check if this is a URL navigation (external link)
-      const urlHref = (target as HTMLElement).closest('[data-url-href]')?.getAttribute('data-url-href')
+      const urlHref = (target as HTMLElement)
+        .closest('[data-url-href]')
+        ?.getAttribute('data-url-href')
       if (urlHref) {
         fileLog.debug('Opening external URL', { urlHref })
         window.open(urlHref, '_blank', 'noopener,noreferrer')

@@ -109,7 +109,9 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
     <div className="flex items-center gap-4 rounded-md border border-border bg-muted/50 px-4 py-2 text-sm text-foreground">
       <span className="font-medium text-muted-foreground">Compliance:</span>
       <span className="text-green-700 dark:text-green-400">{counts.passing} passing</span>
-      <span className="text-yellow-700 dark:text-yellow-400">{counts.expiringSoon} expiring (30d)</span>
+      <span className="text-yellow-700 dark:text-yellow-400">
+        {counts.expiringSoon} expiring (30d)
+      </span>
       <span className="text-red-700 dark:text-red-400">{counts.failing} failing</span>
     </div>
   )

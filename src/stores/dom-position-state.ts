@@ -77,7 +77,11 @@ class DOMPositionStore {
    */
   @computed
   get computedCellPositions(): CellPositionMap {
-    if (!this.coordinateMapping || !this.coordinateMapping.rows || !this.coordinateMapping.columns) {
+    if (
+      !this.coordinateMapping ||
+      !this.coordinateMapping.rows ||
+      !this.coordinateMapping.columns
+    ) {
       return new Map()
     }
 
@@ -225,7 +229,8 @@ class ReactivePositionTracker {
     }
 
     // Find the viewport container which is where cells and overlays live
-    const viewportContainer = (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
+    const viewportContainer =
+      (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
 
     fileLog.debug('🎯 Initializing DOM position tracking', {
       containerClass: container.className,
@@ -273,7 +278,9 @@ class ReactivePositionTracker {
   private setupScrollListener(_container: HTMLElement): void {
     // P3: No event listeners here. Resize is handled by ResizeObserver in VibeGrid.tsx.
     // Position updates can still be triggered explicitly via requestPositionUpdate().
-    fileLog.debug('✅ Position tracking initialized (no resize listener - handled by VibeGrid ResizeObserver)')
+    fileLog.debug(
+      '✅ Position tracking initialized (no resize listener - handled by VibeGrid ResizeObserver)',
+    )
   }
 
   /**
@@ -348,7 +355,8 @@ class ReactivePositionTracker {
     })
 
     // Get viewport container once to avoid repeated queries
-    const viewportContainer = (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
+    const viewportContainer =
+      (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
 
     // Read scroll position from ViewportStore (single source of truth)
     const vs = domPositionStore.viewportStore
@@ -358,7 +366,8 @@ class ReactivePositionTracker {
     // Container rect: still read from DOM since ViewportStore doesn't track absolute page position
     let viewportRect: DOMRect | null = null
     const lastContainerRectUpdate = domPositionStore.containerRect ? this.lastContainerRectTime : 0
-    const viewportUpdateNeeded = !domPositionStore.containerRect || timestamp - lastContainerRectUpdate > 100 // 10fps max for container rect updates
+    const viewportUpdateNeeded =
+      !domPositionStore.containerRect || timestamp - lastContainerRectUpdate > 100 // 10fps max for container rect updates
 
     if (viewportContainer && viewportUpdateNeeded) {
       viewportRect = viewportContainer.getBoundingClientRect()
@@ -585,7 +594,9 @@ export const PositionEvents = {
   /**
    * Get positions for multiple cells
    */
-  getMultipleCellPositions(cellKeys: string[]): Array<{ key: string; position: CellCoordinates | null }> {
+  getMultipleCellPositions(
+    cellKeys: string[],
+  ): Array<{ key: string; position: CellCoordinates | null }> {
     const positions = domPositionStore.cellPositions
     return cellKeys.map((key) => ({
       key,

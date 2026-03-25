@@ -138,7 +138,9 @@ describe('InlineCreationStore', () => {
   })
 
   it('excludes non-inline-editable types like textarea', () => {
-    const columns = [makeColumn({ id: 'notes', field: 'notes', cellType: 'textarea', required: true })]
+    const columns = [
+      makeColumn({ id: 'notes', field: 'notes', cellType: 'textarea', required: true }),
+    ]
 
     const result = store.computeInlineFields(columns, [])
     expect(result).toHaveLength(0)

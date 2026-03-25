@@ -68,7 +68,11 @@ export class RowPreRenderBuffer {
    * @param scrollDirection 'down' | 'up'
    * @param totalRows Total rows in dataset
    */
-  queueAhead(currentRange: { start: number; end: number }, scrollDirection: 'down' | 'up', totalRows: number): void {
+  queueAhead(
+    currentRange: { start: number; end: number },
+    scrollDirection: 'down' | 'up',
+    totalRows: number,
+  ): void {
     if (this.disposed || !this.ctx) return
 
     const newQueue: number[] = []
@@ -79,26 +83,42 @@ export class RowPreRenderBuffer {
 
     if (scrollDirection === 'down') {
       // Primary: rows AFTER the current range
-      for (let i = currentRange.end; i < Math.min(currentRange.end + primaryCount, totalRows); i++) {
+      for (
+        let i = currentRange.end;
+        i < Math.min(currentRange.end + primaryCount, totalRows);
+        i++
+      ) {
         if (!this.buffer.has(i)) {
           newQueue.push(i)
         }
       }
       // Secondary: rows BEFORE the current range
-      for (let i = currentRange.start - 1; i >= Math.max(currentRange.start - secondaryCount, 0); i--) {
+      for (
+        let i = currentRange.start - 1;
+        i >= Math.max(currentRange.start - secondaryCount, 0);
+        i--
+      ) {
         if (!this.buffer.has(i)) {
           newQueue.push(i)
         }
       }
     } else {
       // Primary: rows BEFORE the current range
-      for (let i = currentRange.start - 1; i >= Math.max(currentRange.start - primaryCount, 0); i--) {
+      for (
+        let i = currentRange.start - 1;
+        i >= Math.max(currentRange.start - primaryCount, 0);
+        i--
+      ) {
         if (!this.buffer.has(i)) {
           newQueue.push(i)
         }
       }
       // Secondary: rows AFTER the current range
-      for (let i = currentRange.end; i < Math.min(currentRange.end + secondaryCount, totalRows); i++) {
+      for (
+        let i = currentRange.end;
+        i < Math.min(currentRange.end + secondaryCount, totalRows);
+        i++
+      ) {
         if (!this.buffer.has(i)) {
           newQueue.push(i)
         }
@@ -218,7 +238,9 @@ export class RowPreRenderBuffer {
     }
 
     if (processed > 0) {
-      log.debug(`rIC: pre-rendered ${processed} rows, buffer=${this.buffer.size}, queue=${this.queue.length}`)
+      log.debug(
+        `rIC: pre-rendered ${processed} rows, buffer=${this.buffer.size}, queue=${this.queue.length}`,
+      )
     }
 
     // Continue if more remain — schedule another rIC (not kickstart, to avoid hogging main thread)

@@ -78,7 +78,8 @@ describe('EditingStore', () => {
     document.body.appendChild(stalePortal)
 
     const activePortal = document.createElement('div')
-    activePortal.className = 'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
+    activePortal.className =
+      'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
     activePortal.setAttribute('data-cell-id', 'row-1:title')
     const activeButton = document.createElement('button')
     activePortal.appendChild(activeButton)
@@ -95,7 +96,8 @@ describe('EditingStore', () => {
     store.startEdit('row-1:title', withMockColumn())
 
     const modalPortal = document.createElement('div')
-    modalPortal.className = 'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
+    modalPortal.className =
+      'vibegridx-editing-portal vibegridx-modal-editor vibegrid-long-text-editor-overlay'
     modalPortal.setAttribute('data-cell-id', 'row-1:title')
     const button = document.createElement('button')
     modalPortal.appendChild(button)

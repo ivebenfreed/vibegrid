@@ -40,7 +40,11 @@ export class SchemaAdapter {
   /**
    * Enhance columns with backend schema metadata
    */
-  static enhanceColumns(columns: Column[], schema: BackendSchema, entityType?: string): EnhancedColumn[] {
+  static enhanceColumns(
+    columns: Column[],
+    schema: BackendSchema,
+    entityType?: string,
+  ): EnhancedColumn[] {
     return columns.map((col) => SchemaAdapter.enhanceColumn(col, schema, entityType))
   }
 
@@ -62,7 +66,8 @@ export class SchemaAdapter {
 
       // Add relationship configuration for relationship fields
       if (SchemaAdapter.isRelationshipField(column)) {
-        enhanced.relationshipConfig = fieldSchema.relationshipConfig || SchemaAdapter.inferRelationshipConfig(column)
+        enhanced.relationshipConfig =
+          fieldSchema.relationshipConfig || SchemaAdapter.inferRelationshipConfig(column)
       }
 
       // Add rollup configuration for rollup fields
@@ -84,7 +89,11 @@ export class SchemaAdapter {
   /**
    * Get field schema from backend schema
    */
-  private static getFieldSchema(column: Column, schema: BackendSchema, entityType?: string): FieldSchema | null {
+  private static getFieldSchema(
+    column: Column,
+    schema: BackendSchema,
+    entityType?: string,
+  ): FieldSchema | null {
     if (!entityType || !schema.entities[entityType]) {
       return null
     }
@@ -98,7 +107,12 @@ export class SchemaAdapter {
    * Check if column is a relationship field
    */
   static isRelationshipField(column: Column): boolean {
-    const relationshipTypes = ['user_reference', 'entity_reference', 'reference-select', 'reference-multi']
+    const relationshipTypes = [
+      'user_reference',
+      'entity_reference',
+      'reference-select',
+      'reference-multi',
+    ]
     const type = column.cellType || column.type || ''
     return relationshipTypes.includes(type)
   }
@@ -333,13 +347,15 @@ export class SchemaAdapter {
     return {
       supportsSorting: true,
       supportsFiltering: true,
-      supportsGrouping: !SchemaAdapter.isRollupField(column) && !SchemaAdapter.isComputedField(column),
+      supportsGrouping:
+        !SchemaAdapter.isRollupField(column) && !SchemaAdapter.isComputedField(column),
       supportsAggregation: ['number', 'integer', 'decimal', 'currency'].includes(type),
       requiresSpecialEditor: SchemaAdapter.isRelationshipField(column),
       hasRichDisplay: ['color', 'file', 'image', 'currency'].includes(type),
       supportsValidation: true,
       supportsFormatting: true,
-      isCalculatedField: SchemaAdapter.isRollupField(column) || SchemaAdapter.isComputedField(column),
+      isCalculatedField:
+        SchemaAdapter.isRollupField(column) || SchemaAdapter.isComputedField(column),
       isReadOnly: SchemaAdapter.isRollupField(column) || SchemaAdapter.isComputedField(column),
     }
   }
@@ -358,7 +374,8 @@ export class SchemaAdapter {
 
     // Type-specific accessibility
     if (SchemaAdapter.isRollupField(column) || SchemaAdapter.isComputedField(column)) {
-      defaultAccessibility.ariaDescription = 'This field is automatically calculated and cannot be edited'
+      defaultAccessibility.ariaDescription =
+        'This field is automatically calculated and cannot be edited'
       defaultAccessibility.ariaLive = 'polite' // Announce changes
     }
 

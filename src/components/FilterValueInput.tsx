@@ -18,7 +18,13 @@
 
 import { observer } from 'mobx-react-lite'
 import { Input } from '@/shared/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select'
 import { Switch } from '@/shared/components/ui/switch'
 import type { CellType } from '../column-types'
 import type { Column, FilterOperator } from '../types'
@@ -39,10 +45,22 @@ const SELECT_CELL_TYPES: ReadonlySet<string> = new Set([
 ])
 
 // Cell types that render as number input
-const NUMBER_CELL_TYPES: ReadonlySet<string> = new Set(['number', 'integer', 'decimal', 'currency', 'percentage'])
+const NUMBER_CELL_TYPES: ReadonlySet<string> = new Set([
+  'number',
+  'integer',
+  'decimal',
+  'currency',
+  'percentage',
+])
 
 // Cell types that render as date input
-const DATE_CELL_TYPES: ReadonlySet<string> = new Set(['date', 'datetime', 'datetime-local', 'timestamp', 'timestamptz'])
+const DATE_CELL_TYPES: ReadonlySet<string> = new Set([
+  'date',
+  'datetime',
+  'datetime-local',
+  'timestamp',
+  'timestamptz',
+])
 
 export interface FilterValueInputProps {
   column: Column | null
@@ -64,7 +82,10 @@ export const FilterValueInput = observer(function FilterValueInput({
   // Empty operators don't need a value
   if (operator === 'is_empty' || operator === 'is_not_empty') {
     return (
-      <div data-testid={`vibegrid-filter-value-${index}`} className="text-sm text-muted-foreground italic px-2">
+      <div
+        data-testid={`vibegrid-filter-value-${index}`}
+        className="text-sm text-muted-foreground italic px-2"
+      >
         (no value needed)
       </div>
     )
@@ -101,7 +122,9 @@ export const FilterValueInput = observer(function FilterValueInput({
           <SelectValue placeholder="Select value..." />
         </SelectTrigger>
         <SelectContent>
-          {(column.options as Array<{ id?: string; value?: string; label?: string; name?: string }>).map((opt) => (
+          {(
+            column.options as Array<{ id?: string; value?: string; label?: string; name?: string }>
+          ).map((opt) => (
             <SelectItem key={opt.id || opt.value} value={opt.value || opt.id || ''}>
               {opt.label || opt.name || opt.value}
             </SelectItem>

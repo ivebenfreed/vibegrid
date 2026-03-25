@@ -11,7 +11,8 @@ const BADGE_LIST_MAX_VISIBLE = 3
 class BadgeListCellRenderer implements CellRenderer {
   render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
-    container.style.cssText = 'display:flex;flex-wrap:nowrap;gap:4px;align-items:center;overflow:hidden;'
+    container.style.cssText =
+      'display:flex;flex-wrap:nowrap;gap:4px;align-items:center;overflow:hidden;'
 
     const items = this.normalize(value)
     if (items.length === 0) {

@@ -70,7 +70,9 @@ describe('VibeGrid Keyboard Navigation', () => {
     await firstCell.click()
 
     // Verify first cell is selected
-    const hasSelectedClass = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Get the row ID of the first cell
@@ -127,7 +129,9 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Get current position
     const afterRightCells = await page.$$('.vibegridx-selected')
-    const rightColumnId = await afterRightCells[0].evaluate((el) => el.getAttribute('data-column-id'))
+    const rightColumnId = await afterRightCells[0].evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
 
     // Horizontal navigation: Column ID should change when moving right
     expect(rightColumnId).not.toBe(firstColumnId)
@@ -206,7 +210,9 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Click cell to focus
     await editableCell.click()
-    const hasSelectedClass = await editableCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await editableCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Press Enter to start editing
@@ -214,7 +220,9 @@ describe('VibeGrid Keyboard Navigation', () => {
     await new Promise((r) => setTimeout(r, 200))
 
     // Check if editing started
-    const inputField = await page.$('.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea')
+    const inputField = await page.$(
+      '.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea',
+    )
 
     if (!inputField) {
       console.log('SKIP: Cell is not editable - Tab navigation in edit mode cannot be tested')
@@ -227,12 +235,16 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Editing overlay should be closed after Tab
     const editingOverlayAfter = await page.$('.vibegridx-editing-overlay')
-    const isEditingAfter = editingOverlayAfter ? await editingOverlayAfter.boundingBox().then((b) => b !== null) : false
+    const isEditingAfter = editingOverlayAfter
+      ? await editingOverlayAfter.boundingBox().then((b) => b !== null)
+      : false
     expect(isEditingAfter).toBe(false)
 
     // Selection should have moved to the next cell (column ID should change)
     const selectedAfterTab = await page.$$('.vibegridx-selected')
-    const newColumnId = await selectedAfterTab[0].evaluate((el) => el.getAttribute('data-column-id'))
+    const newColumnId = await selectedAfterTab[0].evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
 
     // Column should change after Tab (moves right)
     expect(newColumnId).not.toBe(editableCellColumnId)
@@ -263,14 +275,18 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Get current cell after navigation
     const currentCells = await page.$$('.vibegridx-selected')
-    const currentColumnId = await currentCells[0].evaluate((el) => el.getAttribute('data-column-id'))
+    const currentColumnId = await currentCells[0].evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
 
     // Start editing (Shift+Tab only works during edit mode)
     await page.keyboard.press('Enter')
     await new Promise((r) => setTimeout(r, 200))
 
     // Check if editing started
-    const inputField = await page.$('.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea')
+    const inputField = await page.$(
+      '.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea',
+    )
 
     if (!inputField) {
       console.log('SKIP: Cell is not editable - Shift+Tab in edit mode cannot be tested')
@@ -285,12 +301,16 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Editing overlay should be closed after Shift+Tab
     const editingOverlayAfter = await page.$('.vibegridx-editing-overlay')
-    const isEditingAfter = editingOverlayAfter ? await editingOverlayAfter.boundingBox().then((b) => b !== null) : false
+    const isEditingAfter = editingOverlayAfter
+      ? await editingOverlayAfter.boundingBox().then((b) => b !== null)
+      : false
     expect(isEditingAfter).toBe(false)
 
     // Selection should have moved to the previous cell (column ID should change)
     const afterShiftTab = await page.$$('.vibegridx-selected')
-    const columnAfterShiftTab = await afterShiftTab[0].evaluate((el) => el.getAttribute('data-column-id'))
+    const columnAfterShiftTab = await afterShiftTab[0].evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
 
     // Column should change after Shift+Tab (moves left)
     expect(columnAfterShiftTab).not.toBe(currentColumnId)
@@ -329,7 +349,9 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Click cell to focus
     await editableCell.click()
-    const hasSelectedClass = await editableCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await editableCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Press Enter to start editing
@@ -339,7 +361,9 @@ describe('VibeGrid Keyboard Navigation', () => {
     // Check for editing state
     const editingOverlay = await page.$('.vibegridx-editing-overlay, [data-editing="true"]')
     const editingCell = await page.$('.vibegridx-editing')
-    const inputField = await page.$('.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea')
+    const inputField = await page.$(
+      '.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea',
+    )
 
     // At least one indicator of editing should be present
     const isEditingOverlayVisible = editingOverlay !== null
@@ -388,7 +412,9 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Click cell to focus
     await editableCell.click()
-    const hasSelectedClass = await editableCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await editableCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Press Enter to start editing
@@ -396,7 +422,9 @@ describe('VibeGrid Keyboard Navigation', () => {
     await new Promise((r) => setTimeout(r, 200))
 
     // Check if editing started
-    const inputField = await page.$('.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea')
+    const inputField = await page.$(
+      '.vibegridx-editing-overlay input, .vibegridx-editing-overlay textarea',
+    )
 
     if (inputField) {
       // Type something new
@@ -445,7 +473,9 @@ describe('VibeGrid Keyboard Navigation', () => {
     // Click first cell
     const firstCell = cells[0]
     await firstCell.click()
-    const hasSelectedClass = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Shift+ArrowRight to extend selection
@@ -507,7 +537,9 @@ describe('VibeGrid Keyboard Navigation', () => {
 
     // Click a cell to focus
     await cells[0].click()
-    const hasSelectedClass = await cells[0].evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await cells[0].evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Press Delete - should not crash the grid

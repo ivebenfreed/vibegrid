@@ -147,7 +147,11 @@ export class EditingStore implements IStore {
   get isActiveModalTextEditor(): boolean {
     if (!this.currentSession) return false
 
-    const type = (this.currentSession.column.cellType || this.currentSession.column.type || '').toLowerCase()
+    const type = (
+      this.currentSession.column.cellType ||
+      this.currentSession.column.type ||
+      ''
+    ).toLowerCase()
 
     return isModalTextType(type)
   }
@@ -362,7 +366,11 @@ export class EditingStore implements IStore {
    * @param retryCount Internal retry counter to prevent infinite loops
    */
   @action
-  async commitEdit(reason: CommitReason, explicitValue?: any, retryCount: number = 0): Promise<void> {
+  async commitEdit(
+    reason: CommitReason,
+    explicitValue?: any,
+    retryCount: number = 0,
+  ): Promise<void> {
     // SESSION READY CHECK (fixes Issue #7)
     if (!this.sessionReady) {
       // If there's no session, don't defer - just log and return
@@ -401,7 +409,8 @@ export class EditingStore implements IStore {
     }
 
     // Use explicit value if provided, otherwise pendingValue
-    const finalValue = explicitValue !== undefined ? explicitValue : this.currentSession.pendingValue
+    const finalValue =
+      explicitValue !== undefined ? explicitValue : this.currentSession.pendingValue
 
     const { cellId, originalValue, pendingValue, column } = this.currentSession
 
@@ -553,7 +562,9 @@ export class EditingStore implements IStore {
     if (!this.currentSession) return []
 
     const cellId = this.currentSession.cellId
-    const matchingPortals = document.querySelectorAll(`.vibegridx-editing-portal[data-cell-id="${cellId}"]`)
+    const matchingPortals = document.querySelectorAll(
+      `.vibegridx-editing-portal[data-cell-id="${cellId}"]`,
+    )
 
     if (matchingPortals.length > 0) {
       return Array.from(matchingPortals)

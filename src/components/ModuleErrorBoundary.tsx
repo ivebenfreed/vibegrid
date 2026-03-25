@@ -28,7 +28,10 @@ interface ModuleErrorBoundaryState {
  * Error boundary for view mode module failures.
  * Catches module load errors, render errors, and provides reset.
  */
-export class ModuleErrorBoundary extends Component<ModuleErrorBoundaryProps, ModuleErrorBoundaryState> {
+export class ModuleErrorBoundary extends Component<
+  ModuleErrorBoundaryProps,
+  ModuleErrorBoundaryState
+> {
   constructor(props: ModuleErrorBoundaryProps) {
     super(props)
     this.state = { error: null }

@@ -11,7 +11,9 @@ import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import type { SelectionController } from './SelectionController'
 
-const logger = getLogger('components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts')
+const logger = getLogger(
+  'components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts',
+)
 
 export interface KeyboardNavigationOptions {
   interactionStore: InteractionStore
@@ -80,7 +82,8 @@ export class KeyboardNavigationController {
         focusedCell,
         rowFound: currentRowIndex !== -1,
         colFound: currentColIndex !== -1,
-        reason: currentRowIndex === -1 ? 'Row not found (filtered/deleted)' : 'Column not found (hidden)',
+        reason:
+          currentRowIndex === -1 ? 'Row not found (filtered/deleted)' : 'Column not found (hidden)',
       })
 
       this.recoverFocus(processedRows, visibleColumns)
@@ -107,7 +110,10 @@ export class KeyboardNavigationController {
       case 'right':
         newColIndex = Math.min(visibleColumns.length - 1, currentColIndex + 1)
         // Skip selection column
-        if (visibleColumns[newColIndex]?.id === 'selection' && newColIndex < visibleColumns.length - 1) {
+        if (
+          visibleColumns[newColIndex]?.id === 'selection' &&
+          newColIndex < visibleColumns.length - 1
+        ) {
           newColIndex++
         }
         break
@@ -298,7 +304,10 @@ export class KeyboardNavigationController {
       case 'Delete':
       case 'Backspace': {
         const currentFocusedCell = this.interactionStore.focusedCell
-        if ((currentFocusedCell && !event.target) || (event.target as HTMLElement).tagName !== 'INPUT') {
+        if (
+          (currentFocusedCell && !event.target) ||
+          (event.target as HTMLElement).tagName !== 'INPUT'
+        ) {
           // Could trigger delete action here
           logger.debug('Delete key pressed on focused cell', { focusedCell: currentFocusedCell })
           return true

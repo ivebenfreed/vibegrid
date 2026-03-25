@@ -10,7 +10,13 @@ interface PickerMultiEditorProps {
   onCancel: () => void
 }
 
-export function PickerMultiEditor({ cell: _cell, column, initialValue, onCommit, onCancel }: PickerMultiEditorProps) {
+export function PickerMultiEditor({
+  cell: _cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
+}: PickerMultiEditorProps) {
   // Normalize initialValue to string array
   const normalizedInitial = React.useMemo(() => {
     if (Array.isArray(initialValue)) return initialValue

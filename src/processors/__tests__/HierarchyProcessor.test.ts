@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { HierarchyProcessor, type HierarchyConfig, type HierarchyRelationship } from '../HierarchyProcessor'
+import {
+  HierarchyProcessor,
+  type HierarchyConfig,
+  type HierarchyRelationship,
+} from '../HierarchyProcessor'
 import type { TableRow } from '../../types'
 
 // Helper to create test entities
@@ -61,7 +65,10 @@ describe('HierarchyProcessor', () => {
         createEntity('level2', 'Level 2'),
       ]
 
-      const relationships = [createChildOfRelationship('level1', 'root'), createChildOfRelationship('level2', 'level1')]
+      const relationships = [
+        createChildOfRelationship('level1', 'root'),
+        createChildOfRelationship('level2', 'level1'),
+      ]
 
       const tree = HierarchyProcessor.buildTree(entities, relationships, defaultConfig)
 
@@ -147,7 +154,11 @@ describe('HierarchyProcessor', () => {
     })
 
     it('detects longer A -> B -> C -> A cycle', () => {
-      const entities = [createEntity('A', 'Task A'), createEntity('B', 'Task B'), createEntity('C', 'Task C')]
+      const entities = [
+        createEntity('A', 'Task A'),
+        createEntity('B', 'Task B'),
+        createEntity('C', 'Task C'),
+      ]
 
       // A -> B -> C -> A (cycle)
       const parentMap = new Map([
@@ -282,7 +293,10 @@ describe('HierarchyProcessor', () => {
         createEntity('level2', 'Level 2'),
       ]
 
-      const relationships = [createChildOfRelationship('level1', 'root'), createChildOfRelationship('level2', 'level1')]
+      const relationships = [
+        createChildOfRelationship('level1', 'root'),
+        createChildOfRelationship('level2', 'level1'),
+      ]
 
       const expandedConfig: HierarchyConfig = {
         ...defaultConfig,
@@ -366,7 +380,10 @@ describe('HierarchyProcessor', () => {
         createEntity('level2', 'Level 2'),
       ]
 
-      const relationships = [createChildOfRelationship('level1', 'root'), createChildOfRelationship('level2', 'level1')]
+      const relationships = [
+        createChildOfRelationship('level1', 'root'),
+        createChildOfRelationship('level2', 'level1'),
+      ]
 
       const tree = HierarchyProcessor.buildTree(entities, relationships, defaultConfig)
       const maxDepth = HierarchyProcessor.getMaxDepth(tree)

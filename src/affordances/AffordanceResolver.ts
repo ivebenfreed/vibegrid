@@ -35,7 +35,8 @@ export class AffordanceResolver {
    */
   resolve(fieldType: VibeGridFieldType, column: EnhancedColumn): ResolvedAffordance {
     const isEditable = column.editable !== false
-    const declaration = (fieldType as VibeGridFieldType & { affordance?: FieldTypeAffordance }).affordance
+    const declaration = (fieldType as VibeGridFieldType & { affordance?: FieldTypeAffordance })
+      .affordance
 
     // Fallback for field types without affordance declaration
     if (!declaration) {
@@ -91,7 +92,10 @@ export class AffordanceResolver {
   /**
    * Resolve affordance for non-editable columns
    */
-  private resolveNotEditable(declaration: FieldTypeAffordance, fieldType: string): ResolvedAffordance {
+  private resolveNotEditable(
+    declaration: FieldTypeAffordance,
+    fieldType: string,
+  ): ResolvedAffordance {
     const override = declaration.whenNotEditable
 
     // String: use different group entirely
@@ -154,7 +158,10 @@ export class AffordanceResolver {
   /**
    * Create a modified group with specific affordances removed
    */
-  private removeAffordances(baseGroup: AffordanceGroup, toRemove: AffordanceAction[]): AffordanceGroup {
+  private removeAffordances(
+    baseGroup: AffordanceGroup,
+    toRemove: AffordanceAction[],
+  ): AffordanceGroup {
     return {
       ...baseGroup,
       elements: baseGroup.elements.filter((el) => !toRemove.includes(el.affordance)),
@@ -164,7 +171,10 @@ export class AffordanceResolver {
   /**
    * Create a modified group with specific elements overridden
    */
-  private overrideElements(baseGroup: AffordanceGroup, overrides: Partial<AffordanceElement>[]): AffordanceGroup {
+  private overrideElements(
+    baseGroup: AffordanceGroup,
+    overrides: Partial<AffordanceElement>[],
+  ): AffordanceGroup {
     return {
       ...baseGroup,
       elements: baseGroup.elements.map((el) => {

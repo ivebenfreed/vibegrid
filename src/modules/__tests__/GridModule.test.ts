@@ -34,7 +34,9 @@ describe('validateGridModule', () => {
     })
 
     it('should reject non-objects (string)', () => {
-      expect(() => validateGridModule('not-an-object')).toThrow('[GridModule] Module must be an object')
+      expect(() => validateGridModule('not-an-object')).toThrow(
+        '[GridModule] Module must be an object',
+      )
     })
 
     it('should reject non-objects (number)', () => {
@@ -54,7 +56,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module missing valid "id" field')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module missing valid "id" field',
+      )
     })
 
     it('should reject empty string id', () => {
@@ -64,7 +68,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module missing valid "id" field')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module missing valid "id" field',
+      )
     })
 
     it('should reject non-string id', () => {
@@ -74,7 +80,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module missing valid "id" field')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module missing valid "id" field',
+      )
     })
 
     it('should accept valid string id', () => {
@@ -95,7 +103,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module "test-module" missing "displayName"')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module "test-module" missing "displayName"',
+      )
     })
 
     it('should reject empty string displayName', () => {
@@ -105,7 +115,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module "test-module" missing "displayName"')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module "test-module" missing "displayName"',
+      )
     })
 
     it('should reject non-string displayName', () => {
@@ -115,7 +127,9 @@ describe('validateGridModule', () => {
         render: () => React.createElement('div'),
       }
 
-      expect(() => validateGridModule(invalidModule)).toThrow('[GridModule] Module "test-module" missing "displayName"')
+      expect(() => validateGridModule(invalidModule)).toThrow(
+        '[GridModule] Module "test-module" missing "displayName"',
+      )
     })
 
     it('should accept valid string displayName', () => {

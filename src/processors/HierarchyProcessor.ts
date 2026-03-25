@@ -193,7 +193,10 @@ export class HierarchyProcessor {
   /**
    * Build a map of childId → parentId from relationships.
    */
-  private static buildParentMap(relationships: HierarchyRelationship[], relationshipType: string): Map<string, string> {
+  private static buildParentMap(
+    relationships: HierarchyRelationship[],
+    relationshipType: string,
+  ): Map<string, string> {
     const parentMap = new Map<string, string>()
 
     for (const rel of relationships) {
@@ -268,13 +271,23 @@ export class HierarchyProcessor {
   /**
    * Recursively compute levels and ancestor paths for all nodes.
    */
-  private static computeLevelsAndPaths(nodes: HierarchyNode[], level: number, path: string[], maxDepth: number): void {
+  private static computeLevelsAndPaths(
+    nodes: HierarchyNode[],
+    level: number,
+    path: string[],
+    maxDepth: number,
+  ): void {
     for (const node of nodes) {
       node.level = Math.min(level, maxDepth)
       node.path = [...path]
 
       if (node.children.length > 0 && level < maxDepth) {
-        HierarchyProcessor.computeLevelsAndPaths(node.children, level + 1, [...path, node.id], maxDepth)
+        HierarchyProcessor.computeLevelsAndPaths(
+          node.children,
+          level + 1,
+          [...path, node.id],
+          maxDepth,
+        )
       }
     }
   }
@@ -421,7 +434,11 @@ export class HierarchyProcessor {
    * Sort children at each level by a field in the entity data.
    * Modifies the tree in place.
    */
-  static sortChildren(tree: HierarchyTree, sortField: string, direction: 'asc' | 'desc' = 'asc'): void {
+  static sortChildren(
+    tree: HierarchyTree,
+    sortField: string,
+    direction: 'asc' | 'desc' = 'asc',
+  ): void {
     const sortNodes = (nodes: HierarchyNode[]): void => {
       nodes.sort((a, b) => {
         const aValue = a.data.data?.[sortField] ?? a.data[sortField] ?? ''

@@ -11,7 +11,13 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, beforeEach } from 'vitest'
-import { serializeSort, deserializeSort, serializeFilters, deserializeFilters, serializeGroup } from '../useViewUrlSync'
+import {
+  serializeSort,
+  deserializeSort,
+  serializeFilters,
+  deserializeFilters,
+  serializeGroup,
+} from '../useViewUrlSync'
 
 const HOOK_PATH = join(__dirname, '../useViewUrlSync.ts')
 

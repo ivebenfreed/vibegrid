@@ -182,7 +182,11 @@ export class EditingOverlayController extends OverlayController {
    * CRITICAL: Always clears data-editing from ALL cells first to handle
    * direct transitions between editing different cells.
    */
-  private handleEditingUpdate(state: { editingCell: string | null; isEditing: boolean; editValue: any }): void {
+  private handleEditingUpdate(state: {
+    editingCell: string | null
+    isEditing: boolean
+    editValue: any
+  }): void {
     // CRITICAL FIX: Always remove data-editing from ALL cells first
     // This ensures proper cleanup when transitioning directly between edits
     // Without this, the old cell keeps data-editing="true" and has pointer-events: none
@@ -321,7 +325,9 @@ export class EditingOverlayController extends OverlayController {
     // Fallback: Calculate position directly from DOM
     fileLog.debug('DOM position not cached, calculating directly', { cellKey })
 
-    const cell = this.container.querySelector(`[data-row-id="${rowId}"][data-column-id="${columnId}"]`) as HTMLElement
+    const cell = this.container.querySelector(
+      `[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
+    ) as HTMLElement
 
     if (!cell) {
       fileLog.debug('Cell not found in DOM', { cellKey })

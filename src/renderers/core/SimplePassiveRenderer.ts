@@ -62,7 +62,9 @@ export interface SimplePassiveRendererOptions {
   enableSelectionColumn?: boolean
   bufferSize?: number
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
-  onBatchEntityUpdate?: (updates: Array<{ id: string; updates: Record<string, any> }>) => Promise<void> | void
+  onBatchEntityUpdate?: (
+    updates: Array<{ id: string; updates: Record<string, any> }>,
+  ) => Promise<void> | void
   onCellClick?: (rowId: string, columnId: string, event?: MouseEvent) => void
 }
 
@@ -158,10 +160,13 @@ export class SimplePassiveRenderer {
       throw new Error('SimplePassiveRenderer: Must provide MobX stores')
     }
 
-    fileLog.debug('🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)', {
-      instanceId: this.rendererInstanceId,
-      hasContainer: !!this.container,
-    })
+    fileLog.debug(
+      '🚀 SimplePassiveRenderer: Initializing with MobX stores (PURE MOBX - NO BRIDGE)',
+      {
+        instanceId: this.rendererInstanceId,
+        hasContainer: !!this.container,
+      },
+    )
 
     // Store MobX references
     this.stores = options.stores
@@ -371,7 +376,8 @@ export class SimplePassiveRenderer {
       keyboardNavController: this.keyboardNavController!,
       enableSelectionColumn: this.options.enableSelectionColumn,
       container: this.container,
-      createElement: ((tag: string, className?: string) => this.createElement(tag, className ?? '')) as (
+      createElement: ((tag: string, className?: string) =>
+        this.createElement(tag, className ?? '')) as (
         tag: string,
         className?: string,
       ) => HTMLElement,
@@ -461,7 +467,9 @@ export class SimplePassiveRenderer {
       // GH#1827 P2: onUndo/onRedo removed — handled by FocusAwareUndoRouter
     })
 
-    fileLog.info('✅ Phase 2 managers initialized (BodyRenderer, DragDropManager, EventManager, KeyboardController)')
+    fileLog.info(
+      '✅ Phase 2 managers initialized (BodyRenderer, DragDropManager, EventManager, KeyboardController)',
+    )
   }
 
   /**
@@ -998,7 +1006,14 @@ export class SimplePassiveRenderer {
       const fragment = document.createDocumentFragment()
       for (let i = currentRange.start; i < currentRange.end && i < rows.length; i++) {
         const row = rows[i]
-        const rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed)
+        const rowElement = this.createRowElementByType(
+          row,
+          i,
+          columns,
+          columnVisibility,
+          baseOffset,
+          precomputed,
+        )
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
           this.activeRows.set(row.id, rowElement)
@@ -1120,11 +1135,25 @@ export class SimplePassiveRenderer {
         } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
           // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
-          rowElement = this.bodyRenderer.recycleRowForNewData(recycledRow, row, i, columns, precomputed)
+          rowElement = this.bodyRenderer.recycleRowForNewData(
+            recycledRow,
+            row,
+            i,
+            columns,
+            precomputed,
+          )
           rowsRecycled++
         } else {
           // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
-          rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed, false)
+          rowElement = this.createRowElementByType(
+            row,
+            i,
+            columns,
+            columnVisibility,
+            baseOffset,
+            precomputed,
+            false,
+          )
         }
 
         if (rowElement && row?.id) {
@@ -1162,11 +1191,25 @@ export class SimplePassiveRenderer {
         } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
           // TRY RECYCLING: Reuse existing row from pool
           const recycledRow = this.rowPool.pop()!
-          rowElement = this.bodyRenderer.recycleRowForNewData(recycledRow, row, i, columns, precomputed)
+          rowElement = this.bodyRenderer.recycleRowForNewData(
+            recycledRow,
+            row,
+            i,
+            columns,
+            precomputed,
+          )
           rowsRecycled++
         } else {
           // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
-          rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed, false)
+          rowElement = this.createRowElementByType(
+            row,
+            i,
+            columns,
+            columnVisibility,
+            baseOffset,
+            precomputed,
+            false,
+          )
         }
 
         if (rowElement && row?.id) {
@@ -1373,7 +1416,10 @@ export class SimplePassiveRenderer {
     const scrollTop = this.stores.viewportStore.scrollTop
     const viewportHeight = this.stores.viewportStore.viewportHeight
     const vpStart = this.tableCoreStore.findRowAtScrollPosition(scrollTop)
-    const vpEnd = Math.min(rows.length, this.tableCoreStore.findRowAtScrollPosition(scrollTop + viewportHeight) + 1)
+    const vpEnd = Math.min(
+      rows.length,
+      this.tableCoreStore.findRowAtScrollPosition(scrollTop + viewportHeight) + 1,
+    )
 
     // Helper: update columns for a single row — creates full rich cells directly
     const processRow = (row: any, rowElement: HTMLElement, _isViewportRow: boolean) => {
@@ -1876,7 +1922,11 @@ export class SimplePassiveRenderer {
 
       // Also update the shared coordinator with row data + offsets
       // GH#1240: Pass rowOffsets so coordinator knows actual Y positions with expanded rows
-      this.stores.coordinateManager.updateRows(rows as any, this.visualStateStore.sortBy, rowOffsets)
+      this.stores.coordinateManager.updateRows(
+        rows as any,
+        this.visualStateStore.sortBy,
+        rowOffsets,
+      )
 
       fileLog.debug('🔄 Row coordinate mapping updated (local + shared coordinator)', {
         newRowCount: newRows.length,
@@ -1888,7 +1938,9 @@ export class SimplePassiveRenderer {
       // GUARD: Only update coordinate mapping if grid is fully initialized
       const isFullyInitialized = this.initStore.isFullyHydrated
       if (!isFullyInitialized) {
-        fileLog.debug('⏸️ COORDINATE: Skipping coordinate mapping update during initialization (renderBody)')
+        fileLog.debug(
+          '⏸️ COORDINATE: Skipping coordinate mapping update during initialization (renderBody)',
+        )
         return
       }
 
@@ -1906,7 +1958,9 @@ export class SimplePassiveRenderer {
     if (this.initStore.isFullyHydrated) {
       // Coordinate mapping is already updated above - position tracker should react to that
       // instead of doing expensive DOM scanning
-      fileLog.debug('🚀 PERF: Skipping expensive DOM position update - using coordinate mapping instead')
+      fileLog.debug(
+        '🚀 PERF: Skipping expensive DOM position update - using coordinate mapping instead',
+      )
     }
 
     fileLog.debug('✅ Body rendered with Phase 2 managers')
@@ -1940,7 +1994,9 @@ export class SimplePassiveRenderer {
 
     // Update header cell
     if (this.headerContainer) {
-      const headerCell = this.headerContainer.querySelector(`[data-column-id="${columnId}"]`) as HTMLElement
+      const headerCell = this.headerContainer.querySelector(
+        `[data-column-id="${columnId}"]`,
+      ) as HTMLElement
 
       if (headerCell) {
         headerCell.style.width = `${newWidth}px`
@@ -1969,7 +2025,9 @@ export class SimplePassiveRenderer {
     }
 
     // Update positions of columns to the right of the resized column
-    const resizedColumnIndex = this.visualStateStore.columnLayouts.findIndex((col) => col.id === columnId)
+    const resizedColumnIndex = this.visualStateStore.columnLayouts.findIndex(
+      (col) => col.id === columnId,
+    )
 
     if (resizedColumnIndex !== -1) {
       const layouts = this.visualStateStore.columnLayouts
@@ -1980,7 +2038,9 @@ export class SimplePassiveRenderer {
 
         // Update header cell position
         if (this.headerContainer) {
-          const headerCell = this.headerContainer.querySelector(`[data-column-id="${layout.id}"]`) as HTMLElement
+          const headerCell = this.headerContainer.querySelector(
+            `[data-column-id="${layout.id}"]`,
+          ) as HTMLElement
           if (headerCell) {
             headerCell.style.left = `${layout.xOffset}px`
             cellsUpdated++
@@ -2005,7 +2065,9 @@ export class SimplePassiveRenderer {
       newWidth,
       cellsUpdated,
       columnsRepositioned:
-        resizedColumnIndex !== -1 ? this.visualStateStore.columnLayouts.length - resizedColumnIndex - 1 : 0,
+        resizedColumnIndex !== -1
+          ? this.visualStateStore.columnLayouts.length - resizedColumnIndex - 1
+          : 0,
       duration: `${duration.toFixed(2)}ms`,
       avgPerCell: cellsUpdated > 0 ? `${(duration / cellsUpdated).toFixed(3)}ms` : 'N/A',
     })

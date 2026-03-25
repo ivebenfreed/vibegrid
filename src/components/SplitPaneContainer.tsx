@@ -118,7 +118,11 @@ export const SplitPaneContainer = observer(function SplitPaneContainer({
   }, [])
 
   return (
-    <div ref={containerRef} className={cn('flex flex-row overflow-hidden', className)} style={{ height }}>
+    <div
+      ref={containerRef}
+      className={cn('flex flex-row overflow-hidden', className)}
+      style={{ height }}
+    >
       {/* Left Pane (Table) */}
       <div ref={leftPaneRef} className="flex-shrink-0 overflow-auto" style={{ width: cutoffWidth }}>
         {leftPane}

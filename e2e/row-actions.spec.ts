@@ -80,7 +80,9 @@ describe('VibeGrid Row Actions', () => {
     // Verify checkbox is checked
     const isChecked = await firstCheckbox.evaluate((el: HTMLInputElement) => el.checked)
     if (!isChecked) {
-      console.log('SKIP: Row checkbox click did not produce checked state - may use custom checkbox component')
+      console.log(
+        'SKIP: Row checkbox click did not produce checked state - may use custom checkbox component',
+      )
       return
     }
 
@@ -106,7 +108,9 @@ describe('VibeGrid Row Actions', () => {
       const secondRowId = await secondCheckbox.evaluate((el) => el.getAttribute('data-row-id'))
       expect(secondRowId).toBeTruthy()
 
-      const selectedCellsInSecondRow = await page.$$(`[data-row-id="${secondRowId}"].vibegridx-selected`)
+      const selectedCellsInSecondRow = await page.$$(
+        `[data-row-id="${secondRowId}"].vibegridx-selected`,
+      )
       expect(selectedCellsInSecondRow.length).toBeGreaterThan(0)
 
       // Verify both checkboxes are checked
@@ -136,7 +140,9 @@ describe('VibeGrid Row Actions', () => {
       }
     } else {
       // ActionsBar not visible - this is expected if enableDelete/rowActions not configured
-      console.log('ActionsBar not visible - enableDelete or rowActions may not be configured on this route')
+      console.log(
+        'ActionsBar not visible - enableDelete or rowActions may not be configured on this route',
+      )
     }
   })
 
@@ -244,7 +250,9 @@ describe('VibeGrid Row Actions', () => {
 
     // At least one of the selected rows should be removed after delete
     if (firstRowStillExists && secondRowStillExists) {
-      console.log('Warning: Rows not removed - onDelete handler may not be implemented in mock route')
+      console.log(
+        'Warning: Rows not removed - onDelete handler may not be implemented in mock route',
+      )
     }
 
     // The selection should be cleared after delete
@@ -267,7 +275,9 @@ describe('VibeGrid Row Actions', () => {
     }
 
     // Find the header checkbox (select all)
-    const headerCheckbox = await page.$('.vibegridx-header-row .vibegridx-row-checkbox, .vibegridx-select-all-checkbox')
+    const headerCheckbox = await page.$(
+      '.vibegridx-header-row .vibegridx-row-checkbox, .vibegridx-select-all-checkbox',
+    )
 
     if (!headerCheckbox) {
       // Try an alternative selector for the header checkbox
@@ -315,7 +325,9 @@ describe('VibeGrid Row Actions', () => {
     const firstChecked = await rowCheckboxes[0].evaluate((el: HTMLInputElement) => el.checked)
     const secondChecked = await rowCheckboxes[1].evaluate((el: HTMLInputElement) => el.checked)
     if (!firstChecked || !secondChecked) {
-      console.log('SKIP: Row checkbox click did not produce checked state - may use custom checkbox component')
+      console.log(
+        'SKIP: Row checkbox click did not produce checked state - may use custom checkbox component',
+      )
       return
     }
 

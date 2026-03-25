@@ -88,7 +88,8 @@ class SliderCellRenderer implements CellRenderer {
     const percentage = ((numValue - min) / (max - min)) * 100
 
     const progressBar = document.createElement('div')
-    progressBar.style.cssText = 'flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; position: relative;'
+    progressBar.style.cssText =
+      'flex: 1; height: 6px; background: #e5e7eb; border-radius: 3px; position: relative;'
 
     const progress = document.createElement('div')
     progress.style.cssText = `height: 100%; background: #3b82f6; border-radius: 3px; width: ${Math.max(0, Math.min(100, percentage))}%;`
@@ -96,7 +97,8 @@ class SliderCellRenderer implements CellRenderer {
 
     const valueSpan = document.createElement('span')
     valueSpan.textContent = String(numValue)
-    valueSpan.style.cssText = 'font-size: 12px; font-weight: 500; min-width: 30px; text-align: right;'
+    valueSpan.style.cssText =
+      'font-size: 12px; font-weight: 500; min-width: 30px; text-align: right;'
 
     el.appendChild(progressBar)
     el.appendChild(valueSpan)

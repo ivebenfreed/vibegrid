@@ -105,10 +105,14 @@ describe('VibeGrid Scroll + Selection', () => {
     await new Promise((r) => setTimeout(r, 500))
 
     // The original cell should still be selected
-    const selectedCell = await page.$(`.vibegridx-cell[data-row-id="${rowId}"][data-column-id="${columnId}"]`)
+    const selectedCell = await page.$(
+      `.vibegridx-cell[data-row-id="${rowId}"][data-column-id="${columnId}"]`,
+    )
 
     if (selectedCell) {
-      const stillSelected = await selectedCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+      const stillSelected = await selectedCell.evaluate((el) =>
+        el.classList.contains('vibegridx-selected'),
+      )
       expect(stillSelected).toBe(true)
     }
   })
@@ -221,7 +225,9 @@ describe('VibeGrid Scroll + Selection', () => {
     await new Promise((r) => setTimeout(r, 200))
 
     // Scroll horizontally
-    const gridContainer = await page.$('.vibegridx-scroller, .vibegridx-body, [data-testid="vibegrid-container"]')
+    const gridContainer = await page.$(
+      '.vibegridx-scroller, .vibegridx-body, [data-testid="vibegrid-container"]',
+    )
     if (gridContainer) {
       await gridContainer.evaluate((el: HTMLElement) => {
         el.scrollLeft = 500

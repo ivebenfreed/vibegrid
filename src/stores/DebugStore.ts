@@ -89,8 +89,10 @@ export class DebugStore implements IStore {
   // PHASE TRACKING
   // ====================================
 
-  @observable phases: Map<string, { start: number; end?: number; status: 'pending' | 'active' | 'complete' }> =
-    new Map()
+  @observable phases: Map<
+    string,
+    { start: number; end?: number; status: 'pending' | 'active' | 'complete' }
+  > = new Map()
 
   // Render durations history for averaging
   private renderDurations: number[] = []

@@ -36,8 +36,8 @@ export const ReorderConfirmationDialog = observer(function ReorderConfirmationDi
         <AlertDialogHeader>
           <AlertDialogTitle>Clear sort to reorder?</AlertDialogTitle>
           <AlertDialogDescription>
-            This reorder operation will cancel the current sort and create a new unsorted order. Do you want to
-            continue?
+            This reorder operation will cancel the current sort and create a new unsorted order. Do
+            you want to continue?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

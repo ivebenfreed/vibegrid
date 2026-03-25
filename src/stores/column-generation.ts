@@ -185,7 +185,9 @@ export async function generateColumnsFromEntitySchema<T = any>(
   // Special case: Platform organizations (admin-only, not DataForge entities)
   if (entityType === 'PlatformOrganization') {
     fileLog.debug('🏢 Using platform organization schema (system entity)', { entityType })
-    const { platformOrganizationColumns } = await import('@/features/admin/schemas/platform-organization-schema')
+    const { platformOrganizationColumns } = await import(
+      '@/features/admin/schemas/platform-organization-schema'
+    )
     // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(platformOrganizationColumns) as any
   }
@@ -193,7 +195,9 @@ export async function generateColumnsFromEntitySchema<T = any>(
   // Special case: Email threads (Communications worker, not DataForge entities)
   if (entityType === 'EmailThread') {
     fileLog.debug('📧 Using email thread schema (communications entity)', { entityType })
-    const { emailThreadColumns } = await import('@/features/email-inbox/schemas/email-thread-schema')
+    const { emailThreadColumns } = await import(
+      '@/features/email-inbox/schemas/email-thread-schema'
+    )
     // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(emailThreadColumns) as any
   }
@@ -201,7 +205,9 @@ export async function generateColumnsFromEntitySchema<T = any>(
   // Special case: Command Center items (aggregated from multiple sources, not DataForge entities)
   if (entityType === 'CommandCenterItem') {
     fileLog.debug('📋 Using command center item schema (aggregated entity)', { entityType })
-    const { commandCenterItemColumns } = await import('@/features/command-center/schemas/command-center-item-schema')
+    const { commandCenterItemColumns } = await import(
+      '@/features/command-center/schemas/command-center-item-schema'
+    )
     // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
   }
@@ -232,7 +238,9 @@ export async function generateColumnsFromEntitySchema<T = any>(
     fileLog.debug('🌐 Using global bid package schema (cross-project view)', {
       entityType,
     })
-    const { globalBidPackageColumns } = await import('@/features/bid-mail/schemas/global-bid-package-schema')
+    const { globalBidPackageColumns } = await import(
+      '@/features/bid-mail/schemas/global-bid-package-schema'
+    )
     // Pass through enrichColumnsWithFieldTypes for compatibility
     return enrichColumnsWithFieldTypes(globalBidPackageColumns) as any
   }
@@ -292,7 +300,8 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
 
   // Read primaryField from schema businessMetadata (e.g., 'subject' for GCRFIDraft)
   // When set, the matching column gets isPrimaryField: true → entity-name renderer with nav affordance
-  const primaryFieldName: string | undefined = entitySchema.businessMetadata?.primaryField ?? entitySchema.primaryField
+  const primaryFieldName: string | undefined =
+    entitySchema.businessMetadata?.primaryField ?? entitySchema.primaryField
 
   // GH#1699: Read only from unified 'fields' key
   let schemaFields = entitySchema.fields || []
@@ -366,7 +375,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       }
 
       const safeFieldDef: EntityField =
-        fieldDef && typeof fieldDef === 'object' ? { ...fieldDef, name: fieldName } : { name: fieldName, type: 'text' }
+        fieldDef && typeof fieldDef === 'object'
+          ? { ...fieldDef, name: fieldName }
+          : { name: fieldName, type: 'text' }
       const fieldType = String(safeFieldDef.type || 'text').toLowerCase()
 
       // Map DataForge field types to VibeGrid cell types
@@ -385,8 +396,10 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
           safeFieldDef.referenceEntity ||
           deriveTargetEntityFromField(fieldName) ||
           null
-        const displayField = safeFieldDef.relationshipDisplayField || safeFieldDef.displayField || 'name'
-        const searchFields = safeFieldDef.relationshipSearchFields || safeFieldDef.searchFields || ['name', 'title']
+        const displayField =
+          safeFieldDef.relationshipDisplayField || safeFieldDef.displayField || 'name'
+        const searchFields = safeFieldDef.relationshipSearchFields ||
+          safeFieldDef.searchFields || ['name', 'title']
 
         relationshipMetadata = {
           targetEntityType,
@@ -411,7 +424,8 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       const width = (safeFieldDef as any).display?.width ?? defaults.width
 
       // Determine if field should be editable
-      const isEditable = !['id', 'created_at', 'updated_at'].includes(fieldName) && safeFieldDef.syncable !== false
+      const isEditable =
+        !['id', 'created_at', 'updated_at'].includes(fieldName) && safeFieldDef.syncable !== false
 
       // Use options from schema (backend already provides colored options)
       const options = safeFieldDef.editor?.options || []

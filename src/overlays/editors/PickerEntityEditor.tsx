@@ -1,7 +1,10 @@
 import React from 'react'
 import { EntityPicker, UserPicker } from '@/shared/components/ui/picker'
 import { useRelationshipArchetype } from '@/shared/components/ui/picker/hooks/useRelationshipArchetype'
-import { createRelationshipEntityRecord, deleteRelationshipEntityRecord } from './relationship-utils'
+import {
+  createRelationshipEntityRecord,
+  deleteRelationshipEntityRecord,
+} from './relationship-utils'
 import { orpcClient } from '@/shared/data/orpc/client'
 import type { CellRef, CellType, Column } from '../../types'
 
@@ -13,7 +16,13 @@ interface PickerEntityEditorProps {
   onCancel: () => void
 }
 
-export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCancel }: PickerEntityEditorProps) {
+export function PickerEntityEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
+}: PickerEntityEditorProps) {
   const [hasCommitted, setHasCommitted] = React.useState(false)
   const cellType = (column.cellType || column.type) as CellType
   const isUserReference = cellType === 'user_reference'
@@ -26,7 +35,9 @@ export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCan
   const relArchetypeInfo = useRelationshipArchetype(isUserReference ? undefined : targetEntityType)
 
   const displayField =
-    (column as any).relationshipConfig?.displayField || (column as any).relationshipDisplayField || 'name'
+    (column as any).relationshipConfig?.displayField ||
+    (column as any).relationshipDisplayField ||
+    'name'
 
   const handleValueChange = React.useCallback(
     (value: string | null) => {
@@ -41,7 +52,9 @@ export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCan
 
         // Create new relationship
         if (newTargetEntityId && newTargetEntityId !== oldTargetEntityId) {
-          createRelationshipEntityRecord(targetEntityType, sourceEntityId, newTargetEntityId).catch(() => {})
+          createRelationshipEntityRecord(targetEntityType, sourceEntityId, newTargetEntityId).catch(
+            () => {},
+          )
         }
 
         // Delete old relationship

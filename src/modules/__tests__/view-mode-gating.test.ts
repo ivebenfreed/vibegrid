@@ -74,7 +74,10 @@ describe('Kanban canHandle predicate', () => {
   it('returns true when schema has a status_set field', () => {
     const meta = viewModeRegistry.getMetadata('kanban')
 
-    const result = meta!.canHandle!(makeProps([field('text', 'name'), field('status_set', 'status')]), mockStores)
+    const result = meta!.canHandle!(
+      makeProps([field('text', 'name'), field('status_set', 'status')]),
+      mockStores,
+    )
     expect(result).toBe(true)
   })
 
@@ -91,14 +94,20 @@ describe('Kanban canHandle predicate', () => {
   it('returns true when schema has a multi-select field', () => {
     const meta = viewModeRegistry.getMetadata('kanban')
 
-    const result = meta!.canHandle!(makeProps([field('text', 'name'), field('multi-select', 'tags')]), mockStores)
+    const result = meta!.canHandle!(
+      makeProps([field('text', 'name'), field('multi-select', 'tags')]),
+      mockStores,
+    )
     expect(result).toBe(true)
   })
 
   it('returns true when schema has a priority field', () => {
     const meta = viewModeRegistry.getMetadata('kanban')
 
-    const result = meta!.canHandle!(makeProps([field('text', 'title'), field('priority', 'priority')]), mockStores)
+    const result = meta!.canHandle!(
+      makeProps([field('text', 'title'), field('priority', 'priority')]),
+      mockStores,
+    )
     expect(result).toBe(true)
   })
 
@@ -160,7 +169,11 @@ describe('Kanban canHandle predicate', () => {
     const meta = viewModeRegistry.getMetadata('kanban')
 
     const result = meta!.canHandle!(
-      makeProps([field('status_set', 'status'), field('priority', 'priority'), field('single-select', 'category')]),
+      makeProps([
+        field('status_set', 'status'),
+        field('priority', 'priority'),
+        field('single-select', 'category'),
+      ]),
       mockStores,
     )
     expect(result).toBe(true)
@@ -198,7 +211,10 @@ describe('Gantt canHandle predicate', () => {
   it('returns true when schema has date fields', () => {
     const meta = viewModeRegistry.getMetadata('gantt')
 
-    const result = meta!.canHandle!(makeProps([field('date', 'start_date'), field('date', 'end_date')]), mockStores)
+    const result = meta!.canHandle!(
+      makeProps([field('date', 'start_date'), field('date', 'end_date')]),
+      mockStores,
+    )
     expect(result).toBe(true)
   })
 })

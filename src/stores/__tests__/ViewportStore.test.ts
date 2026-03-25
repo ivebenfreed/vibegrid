@@ -195,7 +195,9 @@ describe('ViewportStore', () => {
         findRowAtScrollPosition: vi.fn((scrollTop: number) => Math.floor(scrollTop / 40)),
       }
 
-      store.setTableCoreStore(mockTableCoreStore as unknown as import('../TableCoreStore').TableCoreStore)
+      store.setTableCoreStore(
+        mockTableCoreStore as unknown as import('../TableCoreStore').TableCoreStore,
+      )
 
       runInAction(() => {
         store.updateViewportSize(1000, 400)
@@ -297,8 +299,11 @@ describe('ViewportStore', () => {
         getCellPositionWithViewport: vi.fn((rowId: string, _colId: string, viewport: any) => {
           // Simulate a cell that's outside the viewport vertically
           const cellY =
-            rowId === 'visible-row' ? viewport.scrollTop + 10 : viewport.scrollTop + viewport.viewportHeight + 100
-          const isVisible = cellY >= viewport.scrollTop && cellY < viewport.scrollTop + viewport.viewportHeight
+            rowId === 'visible-row'
+              ? viewport.scrollTop + 10
+              : viewport.scrollTop + viewport.viewportHeight + 100
+          const isVisible =
+            cellY >= viewport.scrollTop && cellY < viewport.scrollTop + viewport.viewportHeight
           return {
             absolute: { x: 50, y: cellY },
             viewport: { x: 50, y: cellY - viewport.scrollTop },

@@ -13,7 +13,9 @@ interface DebugOverlayProps {
   debugStore: DebugStore
 }
 
-export const DebugOverlay: React.FC<DebugOverlayProps> = observer(function DebugOverlay({ debugStore }) {
+export const DebugOverlay: React.FC<DebugOverlayProps> = observer(function DebugOverlay({
+  debugStore,
+}) {
   if (!debugStore.isEnabled) {
     return null
   }
@@ -24,7 +26,11 @@ export const DebugOverlay: React.FC<DebugOverlayProps> = observer(function Debug
     <div className="absolute top-2 right-2 z-50 bg-black/80 text-white text-xs font-mono p-3 rounded-lg shadow-lg max-w-xs">
       <div className="flex items-center justify-between mb-2">
         <span className="font-bold text-green-400">VibGrid Debug</span>
-        <button type="button" onClick={() => debugStore.setEnabled(false)} className="text-gray-400 hover:text-white">
+        <button
+          type="button"
+          onClick={() => debugStore.setEnabled(false)}
+          className="text-gray-400 hover:text-white"
+        >
           ✕
         </button>
       </div>

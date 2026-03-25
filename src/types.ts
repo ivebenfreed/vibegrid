@@ -48,7 +48,9 @@ export interface SchemaRegistryLike {
   schemas: import('@/shared/types/dataforge').NormalizedEntitySchemas | null
   isBootstrapping: boolean
   isReady: boolean
-  getEntityArtifacts?(entityName: string): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
+  getEntityArtifacts?(
+    entityName: string,
+  ): import('@/shared/data/schema/artifacts').EntitySchemaArtifacts | undefined
 }
 
 // Import our local column types
@@ -86,7 +88,9 @@ export interface RelationshipContext {
 }
 
 // Provider function that returns filtered options for a relationship field
-export type RelationshipOptionsProvider = (context: RelationshipContext) => Promise<EnumOption[]> | EnumOption[]
+export type RelationshipOptionsProvider = (
+  context: RelationshipContext,
+) => Promise<EnumOption[]> | EnumOption[]
 
 // Map of field names to their options providers
 export type RelationshipOptionsProviders = Record<string, RelationshipOptionsProvider>
@@ -120,7 +124,10 @@ export interface Column<T = any> extends Omit<BaseColumn<T>, 'options' | 'cellTy
   type?: string // Legacy field
 
   // Additional runtime options - override base type to include string[] for backward compatibility
-  options?: string[] | EnumOption[] | Array<{ value: string; label: string; color?: string; group?: string }>
+  options?:
+    | string[]
+    | EnumOption[]
+    | Array<{ value: string; label: string; color?: string; group?: string }>
 
   // Dynamic options provider for relationship fields
   relationshipOptionsProvider?: RelationshipOptionsProvider
@@ -515,7 +522,9 @@ export interface TableContext {
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
 
   // Batch entity update handler for bulk operations
-  onBatchEntityUpdate?: (updates: Array<{ id: string; updates: Record<string, any> }>) => Promise<void> | void
+  onBatchEntityUpdate?: (
+    updates: Array<{ id: string; updates: Record<string, any> }>,
+  ) => Promise<void> | void
 
   // Notification handler for user feedback
   onNotification?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void
@@ -786,7 +795,9 @@ export interface TableConfig {
   enableSelectionColumn?: boolean
   persistedData?: any // Persisted UI state from localStorage (sync machine pattern)
   onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void // Generic entity update handler
-  onBatchEntityUpdate?: (updates: Array<{ id: string; updates: Record<string, any> }>) => Promise<void> | void // Batch entity update handler
+  onBatchEntityUpdate?: (
+    updates: Array<{ id: string; updates: Record<string, any> }>,
+  ) => Promise<void> | void // Batch entity update handler
   onNotification?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void // Notification handler
 
   // New store-based architecture

@@ -293,7 +293,8 @@ export class MouseController {
         return
       }
 
-      const isEditableElement = target.matches('input, textarea, select') || target.contentEditable === 'true'
+      const isEditableElement =
+        target.matches('input, textarea, select') || target.contentEditable === 'true'
 
       fileLog.debug('Cell mouse down - pure event coordination', {
         cellId,
@@ -351,7 +352,10 @@ export class MouseController {
    */
   private onMouseMove(e: MouseEvent): void {
     if (this.isTracking) {
-      const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
+      const distance = Math.hypot(
+        e.clientX - this.startPosition.x,
+        e.clientY - this.startPosition.y,
+      )
 
       fileLog.debug('Mouse move while tracking', {
         distance,
@@ -475,7 +479,12 @@ export class MouseController {
     }
 
     // Handle cell drag selection updates
-    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting) {
+    if (
+      this.isDragging &&
+      !this.isColumnDrag &&
+      !this.isRowDrag &&
+      this.interactionStore.isDragSelecting
+    ) {
       this.dragSelectionController.updateDragSelect(e.target as HTMLElement)
     }
 
@@ -562,7 +571,11 @@ export class MouseController {
         deltaFromStart: e.clientX - this.startPosition.x,
       })
 
-      if (result.columnId && result.newWidth && this.visualState?.visualOperations?.setColumnWidth) {
+      if (
+        result.columnId &&
+        result.newWidth &&
+        this.visualState?.visualOperations?.setColumnWidth
+      ) {
         const now = Date.now()
         const timeSinceLastUpdate = now - this.lastResizeUpdate
 
@@ -785,7 +798,9 @@ export class MouseController {
   // ====================================
 
   private createDragPreview(columnId: string): void {
-    const headerElement = this.container.querySelector(`[data-column-id="${columnId}"]:not([data-row-id])`)
+    const headerElement = this.container.querySelector(
+      `[data-column-id="${columnId}"]:not([data-row-id])`,
+    )
     const columnText = headerElement?.textContent?.trim() || columnId
 
     this.dragPreviewElement = document.createElement('div')
@@ -849,7 +864,9 @@ export class MouseController {
 
     const headerRect = headerContainer.getBoundingClientRect()
     const cellRect = targetHeaderElement.getBoundingClientRect()
-    const linePosition = insertBefore ? cellRect.left - headerRect.left : cellRect.right - headerRect.left
+    const linePosition = insertBefore
+      ? cellRect.left - headerRect.left
+      : cellRect.right - headerRect.left
 
     Object.assign(this.dropLineElement.style, {
       position: 'absolute',
@@ -955,7 +972,9 @@ export class MouseController {
 
     const containerRect = container.getBoundingClientRect()
     const rowRect = targetRowElement.getBoundingClientRect()
-    const linePosition = insertBefore ? rowRect.top - containerRect.top : rowRect.bottom - containerRect.top
+    const linePosition = insertBefore
+      ? rowRect.top - containerRect.top
+      : rowRect.bottom - containerRect.top
 
     Object.assign(this.dropLineElement.style, {
       position: 'absolute',
@@ -1000,7 +1019,11 @@ export class MouseController {
     const targetGroupElement = targetRowElement.closest('[data-group-id]')
     const targetGroupId = targetGroupElement?.getAttribute('data-group-id') || null
 
-    const targetIndex = this.calculateRowDropIndex(targetRowElement as HTMLElement, targetGroupId, insertBefore)
+    const targetIndex = this.calculateRowDropIndex(
+      targetRowElement as HTMLElement,
+      targetGroupId,
+      insertBefore,
+    )
 
     fileLog.debug('Row dropped for reordering', {
       sourceRowId: this.dragRowId,
@@ -1026,7 +1049,11 @@ export class MouseController {
     }
   }
 
-  private calculateRowDropIndex(targetRowElement: HTMLElement, groupId: string | null, insertBefore: boolean): number {
+  private calculateRowDropIndex(
+    targetRowElement: HTMLElement,
+    groupId: string | null,
+    insertBefore: boolean,
+  ): number {
     if (groupId) {
       const isGroupHeader = targetRowElement.classList.contains('vibegridx-group-header')
 
@@ -1035,7 +1062,9 @@ export class MouseController {
         if (!groupContainer) return 0
 
         const dataRows = Array.from(
-          groupContainer.querySelectorAll(`.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`),
+          groupContainer.querySelectorAll(
+            `.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`,
+          ),
         )
         const calculatedIndex = insertBefore ? 0 : dataRows.length
 
@@ -1054,7 +1083,9 @@ export class MouseController {
       if (!groupContainer) return 0
 
       const dataRows = Array.from(
-        groupContainer.querySelectorAll(`.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`),
+        groupContainer.querySelectorAll(
+          `.vibegridx-row:not(.vibegridx-group-header)[data-group-id="${groupId}"]`,
+        ),
       )
       const targetIndex = dataRows.indexOf(targetRowElement)
 
@@ -1090,7 +1121,9 @@ export class MouseController {
       const container = targetRowElement.closest('.vibegridx-container')
       if (!container) return 0
 
-      const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'))
+      const dataRows = Array.from(
+        container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+      )
       const targetIndex = dataRows.indexOf(targetRowElement)
       return insertBefore ? targetIndex : targetIndex + 1
     }
@@ -1103,13 +1136,19 @@ export class MouseController {
     const container = rowElement.closest('.vibegridx-container')
     if (!container) return 0
 
-    const dataRows = Array.from(container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'))
+    const dataRows = Array.from(
+      container.querySelectorAll('.vibegridx-row:not(.vibegridx-group-header)'),
+    )
     return dataRows.indexOf(rowElement)
   }
 
   private callRowMoveHandler(draggedRowId: string, targetGroupId: string, newIndex: number): void {
     if (this.bodyRenderer?.dragDropManager?.callbacks?.onRowMove) {
-      const success = this.bodyRenderer.dragDropManager.callbacks.onRowMove(draggedRowId, targetGroupId, newIndex)
+      const success = this.bodyRenderer.dragDropManager.callbacks.onRowMove(
+        draggedRowId,
+        targetGroupId,
+        newIndex,
+      )
       fileLog.debug(success ? 'Same-group row move' : 'Row move failed', {
         draggedRowId,
         targetGroupId,
@@ -1148,7 +1187,11 @@ export class MouseController {
   // Event listener tracking and cleanup
   // ====================================
 
-  private addEventListenerTracked(element: EventTarget, event: string, handler: EventListener): void {
+  private addEventListenerTracked(
+    element: EventTarget,
+    event: string,
+    handler: EventListener,
+  ): void {
     element.addEventListener(event, handler)
     this.eventListeners.push({ element, event, handler })
   }

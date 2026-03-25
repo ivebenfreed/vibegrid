@@ -52,7 +52,10 @@ class ColorCellRenderer implements CellRenderer {
       return null
     }
     const colorStr = String(value).trim()
-    if (!/^#?[0-9A-Fa-f]{3,6}$/.test(colorStr) && !/^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(colorStr)) {
+    if (
+      !/^#?[0-9A-Fa-f]{3,6}$/.test(colorStr) &&
+      !/^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(colorStr)
+    ) {
       return `${column.name || 'Field'} must be a valid color`
     }
     return null

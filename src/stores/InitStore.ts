@@ -489,7 +489,11 @@ export class InitStore implements IStore {
         if (this.criticalErrors.length > 0) {
           clearTimeout(overallTimeout)
           clearInterval(checkInterval)
-          reject(new Error(`Critical hydration errors: ${this.criticalErrors.map((e) => e.error).join(', ')}`))
+          reject(
+            new Error(
+              `Critical hydration errors: ${this.criticalErrors.map((e) => e.error).join(', ')}`,
+            ),
+          )
         }
       }, 100)
     })
@@ -769,7 +773,11 @@ export class InitStore implements IStore {
     const timeout = setTimeout(() => {
       // Only log error if dependency is STILL not ready (prevents false positives from store recreation)
       if (!this.hydrationState[dependency]) {
-        this.markError(dependency, `Dependency '${dependency}' timed out after ${this.DEPENDENCY_TIMEOUT}ms`, true)
+        this.markError(
+          dependency,
+          `Dependency '${dependency}' timed out after ${this.DEPENDENCY_TIMEOUT}ms`,
+          true,
+        )
       }
     }, this.DEPENDENCY_TIMEOUT)
 

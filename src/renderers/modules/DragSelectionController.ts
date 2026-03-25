@@ -8,7 +8,13 @@
 import { getLogger } from '@/shared/lib/logging'
 import type { VisualStateStore } from '../../stores/VisualStateStore'
 
-const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'DragSelectionController.ts'])
+const fileLog = getLogger([
+  'custom',
+  'vibegrid',
+  'renderers',
+  'modules',
+  'DragSelectionController.ts',
+])
 
 export interface DragSelectionControllerDeps {
   interactionStore: any // InteractionStore - has focusedCell, startDragSelect(), updateDragSelection(), endDragSelect(), isDragSelecting, dragSelectCurrent

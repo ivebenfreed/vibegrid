@@ -23,7 +23,13 @@ function applySorting(rows: any[], sortBy: SortConfig[]): any[] {
 describe('VIbeGrid sorting', () => {
   describe('null/empty handling', () => {
     it('sorts nulls last in ascending order', () => {
-      const rows = [{ name: null }, { name: 'Beta' }, { name: 'Alpha' }, { name: undefined }, { name: '' }]
+      const rows = [
+        { name: null },
+        { name: 'Beta' },
+        { name: 'Alpha' },
+        { name: undefined },
+        { name: '' },
+      ]
       const sorted = applySorting(rows, [{ field: 'name', direction: 'asc' }])
       expect(sorted.map((r) => r.name)).toEqual(['Alpha', 'Beta', null, undefined, ''])
     })
@@ -52,15 +58,30 @@ describe('VIbeGrid sorting', () => {
     })
 
     it('sorts mixed alpha-numeric strings naturally', () => {
-      const rows = [{ name: 'Item 10' }, { name: 'Item 2' }, { name: 'Item 1' }, { name: 'Item 20' }]
+      const rows = [
+        { name: 'Item 10' },
+        { name: 'Item 2' },
+        { name: 'Item 1' },
+        { name: 'Item 20' },
+      ]
       const sorted = applySorting(rows, [{ field: 'name', direction: 'asc' }])
       expect(sorted.map((r) => r.name)).toEqual(['Item 1', 'Item 2', 'Item 10', 'Item 20'])
     })
 
     it('sorts numbers starting names before letters', () => {
-      const rows = [{ name: 'Zebra' }, { name: '2020 Work Orders' }, { name: 'Alpha' }, { name: '100 Main St' }]
+      const rows = [
+        { name: 'Zebra' },
+        { name: '2020 Work Orders' },
+        { name: 'Alpha' },
+        { name: '100 Main St' },
+      ]
       const sorted = applySorting(rows, [{ field: 'name', direction: 'asc' }])
-      expect(sorted.map((r) => r.name)).toEqual(['100 Main St', '2020 Work Orders', 'Alpha', 'Zebra'])
+      expect(sorted.map((r) => r.name)).toEqual([
+        '100 Main St',
+        '2020 Work Orders',
+        'Alpha',
+        'Zebra',
+      ])
     })
   })
 
@@ -80,7 +101,14 @@ describe('VIbeGrid sorting', () => {
 
   describe('zip code sorting (real-world)', () => {
     it('sorts zip codes with nulls last', () => {
-      const rows = [{ zip: null }, { zip: '93921' }, { zip: null }, { zip: '85281' }, { zip: '90002' }, { zip: '' }]
+      const rows = [
+        { zip: null },
+        { zip: '93921' },
+        { zip: null },
+        { zip: '85281' },
+        { zip: '90002' },
+        { zip: '' },
+      ]
       const sorted = applySorting(rows, [{ field: 'zip', direction: 'asc' }])
       expect(sorted.map((r) => r.zip)).toEqual(['85281', '90002', '93921', null, null, ''])
     })

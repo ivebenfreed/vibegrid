@@ -93,7 +93,13 @@ export interface ViewPickerProps {
 // VIEW MODE ICON HELPER
 // ====================================
 
-function ViewModeIcon({ mode, className }: { mode: ViewMode; className?: string }): React.ReactElement {
+function ViewModeIcon({
+  mode,
+  className,
+}: {
+  mode: ViewMode
+  className?: string
+}): React.ReactElement {
   switch (mode) {
     case 'gantt':
       return <GanttChart className={className} />
@@ -174,7 +180,9 @@ export const ViewPicker = observer(function ViewPicker({
   const myViews = views.filter((v) => v.created_by === userId && !pinnedViewIds.has(v.id))
   const sharedViews = views.filter(
     (v) =>
-      v.created_by !== userId && (v.visibility === 'shared' || v.visibility === 'locked') && !pinnedViewIds.has(v.id),
+      v.created_by !== userId &&
+      (v.visibility === 'shared' || v.visibility === 'locked') &&
+      !pinnedViewIds.has(v.id),
   )
 
   // Find active view name for trigger label
@@ -259,7 +267,9 @@ export const ViewPicker = observer(function ViewPicker({
 
   const handleReorderPins = useCallback(
     async (viewId: string, direction: 'up' | 'down') => {
-      const sortedPinnedIds = [...pins].sort((a, b) => a.pin_order - b.pin_order).map((p) => p.view_id)
+      const sortedPinnedIds = [...pins]
+        .sort((a, b) => a.pin_order - b.pin_order)
+        .map((p) => p.view_id)
 
       const currentIndex = sortedPinnedIds.indexOf(viewId)
       if (currentIndex === -1) return
@@ -296,11 +306,20 @@ export const ViewPicker = observer(function ViewPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        render={<Button variant="outline" size="sm" className="gap-1.5" data-testid="view-picker-trigger" />}
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            data-testid="view-picker-trigger"
+          />
+        }
       >
         <ViewModeIcon mode={currentViewMode} className="size-4" />
         <span className="max-w-[120px] truncate">{triggerLabel}</span>
-        {hasUnsavedChanges && <span className="size-1.5 rounded-full bg-amber-500" title="Unsaved changes" />}
+        {hasUnsavedChanges && (
+          <span className="size-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+        )}
         <ChevronDown className="size-3.5 opacity-60" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-0" data-testid="view-picker-content">
@@ -465,10 +484,18 @@ export const ViewPicker = observer(function ViewPicker({
 // SUB-COMPONENTS
 // ====================================
 
-function ViewSection({ title, children }: { title: string; children: React.ReactNode }): React.ReactElement {
+function ViewSection({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}): React.ReactElement {
   return (
     <div className="border-b last:border-b-0">
-      <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</div>
+      <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        {title}
+      </div>
       <div className="pb-1">{children}</div>
     </div>
   )
@@ -547,7 +574,12 @@ function ViewItem({
         }}
         title={isPinned ? 'Unpin view' : 'Pin view'}
       >
-        <Star className={cn('size-3.5', isPinned ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/40')} />
+        <Star
+          className={cn(
+            'size-3.5',
+            isPinned ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/40',
+          )}
+        />
       </button>
 
       {/* View name (clickable, Alt+Arrow for reorder) */}
@@ -571,7 +603,10 @@ function ViewItem({
       >
         <span className="flex-1 truncate">{view.name}</span>
         {isLocked && (
-          <Lock className="size-3 text-muted-foreground shrink-0" data-testid={`view-picker-lock-${view.id}`} />
+          <Lock
+            className="size-3 text-muted-foreground shrink-0"
+            data-testid={`view-picker-lock-${view.id}`}
+          />
         )}
         {view.is_default && (
           <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 font-normal shrink-0">
@@ -606,7 +641,10 @@ function ViewItem({
             Duplicate to My Views
           </DropdownMenuItem>
           {canSetDefault && (
-            <DropdownMenuItem onClick={onSetDefault} data-testid={`view-picker-set-default-${view.id}`}>
+            <DropdownMenuItem
+              onClick={onSetDefault}
+              data-testid={`view-picker-set-default-${view.id}`}
+            >
               <Shield className="size-3.5" />
               Set as Default
             </DropdownMenuItem>

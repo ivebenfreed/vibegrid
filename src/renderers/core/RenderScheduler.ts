@@ -172,7 +172,9 @@ export class RenderScheduler {
         const changedCells = this.tableCoreStore.lastChangedCells
 
         if (!changedCells || changedCells.size === 0) {
-          fileLog.warn('Granular update strategy but no changed cells found, falling back to full render')
+          fileLog.warn(
+            'Granular update strategy but no changed cells found, falling back to full render',
+          )
           this.callbacks.renderFull()
           return
         }
@@ -181,7 +183,10 @@ export class RenderScheduler {
           // CELL-LEVEL UPDATE PATH (≤10 cells)
           // Update individual cell innerHTML - fastest path
 
-          const totalCells = Array.from(changedCells.values()).reduce((sum, cols) => sum + cols.size, 0)
+          const totalCells = Array.from(changedCells.values()).reduce(
+            (sum, cols) => sum + cols.size,
+            0,
+          )
 
           fileLog.info('Cell-level update (fast path)', {
             rowsAffected: changedCells.size,

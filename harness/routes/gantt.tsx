@@ -23,9 +23,12 @@ function DebugGanttPage() {
         <div className="flex flex-col h-full w-full">
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">Gantt View Debug</h2>
-            <p className="text-muted-foreground">Test VibeGrid Gantt mode with split pane layout - {entityType}</p>
+            <p className="text-muted-foreground">
+              Test VibeGrid Gantt mode with split pane layout - {entityType}
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Use the Table/Gantt toggle in the grid header to switch views. Drag the divider to resize panes.
+              Use the Table/Gantt toggle in the grid header to switch views. Drag the divider to
+              resize panes.
             </p>
           </div>
 

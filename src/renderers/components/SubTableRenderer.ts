@@ -148,7 +148,11 @@ export class SubTableRenderer {
   /**
    * Render a single data row
    */
-  private renderRow(columns: SubTableColumn[], rowData: Record<string, unknown>, rowIndex: number): HTMLElement {
+  private renderRow(
+    columns: SubTableColumn[],
+    rowData: Record<string, unknown>,
+    rowIndex: number,
+  ): HTMLElement {
     const row = this.createElement('div', 'vibegridx-subtable-row')
     row.style.cssText = `
       display: table-row;

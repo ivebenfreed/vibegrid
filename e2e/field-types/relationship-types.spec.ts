@@ -103,7 +103,9 @@ describe('VibeGrid Relationship Field Types', () => {
       const cells = await findUserRefCells()
 
       if (cells.length === 0) {
-        throw new Error('TEST FAILURE: No user reference cells found. Verify assigned_to column exists in schema.')
+        throw new Error(
+          'TEST FAILURE: No user reference cells found. Verify assigned_to column exists in schema.',
+        )
       }
 
       // Find first cell with actual value (badge)
@@ -626,7 +628,9 @@ describe('VibeGrid Relationship Field Types', () => {
           if (!badge) return null
           const styles = window.getComputedStyle(badge)
           return {
-            hasBackground: styles.backgroundColor !== 'rgba(0, 0, 0, 0)' && styles.backgroundColor !== 'transparent',
+            hasBackground:
+              styles.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+              styles.backgroundColor !== 'transparent',
             hasBorder: styles.borderWidth !== '0px',
             hasPadding: styles.padding !== '0px',
           }

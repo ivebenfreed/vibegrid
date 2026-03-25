@@ -118,7 +118,11 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
     },
   ]
 
-  const handleRowAction = async (actionId: string, rowIds: string[], _rowsData: unknown[]): Promise<void> => {
+  const handleRowAction = async (
+    actionId: string,
+    rowIds: string[],
+    _rowsData: unknown[],
+  ): Promise<void> => {
     switch (actionId) {
       case 'archive':
         await handleArchive(rowIds)
@@ -204,7 +208,11 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={isCreating}>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={isCreating}
+            >
               Cancel
             </Button>
             <Button onClick={handleCreateOrganization} disabled={isCreating}>

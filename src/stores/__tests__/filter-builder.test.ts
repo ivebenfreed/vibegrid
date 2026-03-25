@@ -75,7 +75,10 @@ describe('FilterGroup Type Structure', () => {
 
     const outerGroup: FilterGroup = {
       logic: 'AND',
-      conditions: [{ id: 'cond-3', field: 'status', operator: 'equals', value: 'active' }, innerGroup],
+      conditions: [
+        { id: 'cond-3', field: 'status', operator: 'equals', value: 'active' },
+        innerGroup,
+      ],
     }
 
     expect(outerGroup.conditions).toHaveLength(2)
@@ -193,7 +196,9 @@ describe('FilterBuilderStore filterBuilderState', () => {
     expect(store.filterBuilderState.draftFilterGroup).toBe(expectedInitial.draftFilterGroup)
     expect(store.filterBuilderState.presets).toEqual(expectedInitial.presets)
     expect(store.filterBuilderState.validationErrors).toEqual(expectedInitial.validationErrors)
-    expect(store.filterBuilderState.showComplexityWarning).toBe(expectedInitial.showComplexityWarning)
+    expect(store.filterBuilderState.showComplexityWarning).toBe(
+      expectedInitial.showComplexityWarning,
+    )
   })
 
   it('should reset filterBuilderState on store reset', () => {

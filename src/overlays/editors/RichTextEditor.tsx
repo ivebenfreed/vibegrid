@@ -55,7 +55,14 @@ const alignButtons: FormatButton[] = [
   { command: 'justifyRight', icon: '⟶', title: 'Align Right' },
 ]
 
-export function RichTextEditor({ cell, column, initialValue, onCommit, onCancel, isOpen }: RichTextEditorProps) {
+export function RichTextEditor({
+  cell,
+  column,
+  initialValue,
+  onCommit,
+  onCancel,
+  isOpen,
+}: RichTextEditorProps) {
   const [isDirty, setIsDirty] = useState(false)
   const [charCount, setCharCount] = useState(0)
   const editorRef = useRef<HTMLDivElement>(null)
@@ -66,7 +73,11 @@ export function RichTextEditor({ cell, column, initialValue, onCommit, onCancel,
   const textToHtml = useCallback((text: string): string => {
     if (!text) return ''
     // Simple conversion: preserve line breaks and basic formatting
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>')
   }, [])
 
   const htmlToText = useCallback((html: string): string => {
@@ -246,7 +257,9 @@ export function RichTextEditor({ cell, column, initialValue, onCommit, onCancel,
         {/* Header */}
         <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-muted">
           <div>
-            <h3 className="m-0 text-base font-semibold text-foreground">Edit {column.name} (Rich Text)</h3>
+            <h3 className="m-0 text-base font-semibold text-foreground">
+              Edit {column.name} (Rich Text)
+            </h3>
             <p className="mt-1 mb-0 text-xs text-muted-foreground">
               Cell: {cell.rowId}:{cell.columnId}
             </p>
@@ -346,7 +359,9 @@ export function RichTextEditor({ cell, column, initialValue, onCommit, onCancel,
             onKeyDown={handleKeyDown}
             className={cn(
               'flex-1 min-h-[200px] max-h-[350px] border rounded p-3 text-sm font-inherit leading-relaxed outline-none overflow-auto',
-              isOverLimit ? 'bg-destructive/10 border-destructive' : 'bg-background text-foreground border-border',
+              isOverLimit
+                ? 'bg-destructive/10 border-destructive'
+                : 'bg-background text-foreground border-border',
             )}
           />
 

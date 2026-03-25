@@ -147,7 +147,9 @@ describe('VibeGrid Column Operations', () => {
 
     // Get column IDs before reorder
     const firstColumnId = await firstHeaderCell.evaluate((el) => el.getAttribute('data-column-id'))
-    const secondColumnId = await secondHeaderCell.evaluate((el) => el.getAttribute('data-column-id'))
+    const secondColumnId = await secondHeaderCell.evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
     expect(firstColumnId).toBeTruthy()
     expect(secondColumnId).toBeTruthy()
 
@@ -178,7 +180,9 @@ describe('VibeGrid Column Operations', () => {
     // The first column should now be at a different position
     // Note: The exact behavior depends on implementation - columns may swap or shift
     const newHeaderCells = await page.$$('.vibegridx-header-cell[data-column-id]')
-    const newFirstColumnId = await newHeaderCells[0].evaluate((el) => el.getAttribute('data-column-id'))
+    const newFirstColumnId = await newHeaderCells[0].evaluate((el) =>
+      el.getAttribute('data-column-id'),
+    )
 
     // Either the first column moved, or the second column moved to first position
     // (reorder behavior may vary based on implementation)
@@ -285,7 +289,9 @@ describe('VibeGrid Column Operations', () => {
       if (checkboxItemCount === 0) {
         // Dropdown opened but no toggleable items found
         // Verify at least the dropdown structure exists
-        const menuExists = await page.$('[role="menu"], [data-radix-menu-content], .dropdown-menu-content')
+        const menuExists = await page.$(
+          '[role="menu"], [data-radix-menu-content], .dropdown-menu-content',
+        )
         expect(menuExists).not.toBeNull()
         return
       }
@@ -293,7 +299,8 @@ describe('VibeGrid Column Operations', () => {
       // Find first toggleable column (not a required/locked column)
       for (let i = 0; i < checkboxItemCount; i++) {
         const checkboxItem = checkboxItems[i]
-        const isDisabled = (await checkboxItem.evaluate((el) => el.getAttribute('data-disabled'))) === 'true'
+        const isDisabled =
+          (await checkboxItem.evaluate((el) => el.getAttribute('data-disabled'))) === 'true'
 
         if (!isDisabled) {
           // Get initial state

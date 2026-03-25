@@ -132,11 +132,13 @@ class ImageCellRenderer implements CellRenderer {
     const img = document.createElement('img')
     img.src = String(imageData.url || '')
     img.alt = String(imageData.name || 'Image')
-    img.style.cssText = 'width: 24px; height: 24px; object-fit: cover; border-radius: 3px; border: 1px solid #d1d5db;'
+    img.style.cssText =
+      'width: 24px; height: 24px; object-fit: cover; border-radius: 3px; border: 1px solid #d1d5db;'
 
     const nameSpan = document.createElement('span')
     nameSpan.textContent = String(imageData.name || 'Image')
-    nameSpan.style.cssText = 'font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
+    nameSpan.style.cssText =
+      'font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'
 
     el.appendChild(img)
     el.appendChild(nameSpan)

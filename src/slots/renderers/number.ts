@@ -37,7 +37,9 @@ class NumberCellRenderer implements CellRenderer {
       return null
     }
     const raw =
-      typeof value === 'object' && value !== null && 'amount' in value ? (value as { amount: number }).amount : value
+      typeof value === 'object' && value !== null && 'amount' in value
+        ? (value as { amount: number }).amount
+        : value
     const numValue = Number(raw)
     if (Number.isNaN(numValue)) return `${column.name || 'Field'} must be a valid number`
     const cellType = (column.cellType || 'number') as string
@@ -57,7 +59,9 @@ class NumberCellRenderer implements CellRenderer {
     if (value == null) return ''
     // Handle currency objects: {amount: number, currency: string}
     const raw =
-      typeof value === 'object' && value !== null && 'amount' in value ? (value as { amount: number }).amount : value
+      typeof value === 'object' && value !== null && 'amount' in value
+        ? (value as { amount: number }).amount
+        : value
     const numValue = Number(raw)
     if (Number.isNaN(numValue)) return String(value)
 

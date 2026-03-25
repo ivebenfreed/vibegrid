@@ -26,7 +26,11 @@ export interface EntityChangeEvent {
 export abstract class BaseRollupCalculator implements RollupCalculator {
   abstract calculate(rollupConfig: RollupConfig, sourceData: any[], currentRowId: string): any
 
-  getSourceData(rollupConfig: RollupConfig, currentRowId: string, _tableCore$: TableCoreStore): any[] {
+  getSourceData(
+    rollupConfig: RollupConfig,
+    currentRowId: string,
+    _tableCore$: TableCoreStore,
+  ): any[] {
     // This would integrate with the table's data to get related records
     // For now, return empty array - will be implemented when integrating with table
     fileLog.debug('Getting source data for rollup', {
@@ -49,7 +53,9 @@ export abstract class BaseRollupCalculator implements RollupCalculator {
   protected matchesConditions(item: any, conditions: Record<string, any>): boolean {
     if (!conditions) return true
 
-    return Object.entries(conditions).every(([field, expectedValue]) => item[field] === expectedValue)
+    return Object.entries(conditions).every(
+      ([field, expectedValue]) => item[field] === expectedValue,
+    )
   }
 }
 
@@ -62,7 +68,9 @@ export class RollupCountCalculator extends BaseRollupCalculator {
 
     // Apply conditions if specified
     if (rollupConfig.conditions) {
-      filteredData = sourceData.filter((item) => this.matchesConditions(item, rollupConfig.conditions!))
+      filteredData = sourceData.filter((item) =>
+        this.matchesConditions(item, rollupConfig.conditions!),
+      )
     }
 
     return filteredData.length
@@ -87,7 +95,9 @@ export class RollupSumCalculator extends BaseRollupCalculator {
 
     // Apply conditions if specified
     if (rollupConfig.conditions) {
-      filteredData = sourceData.filter((item) => this.matchesConditions(item, rollupConfig.conditions!))
+      filteredData = sourceData.filter((item) =>
+        this.matchesConditions(item, rollupConfig.conditions!),
+      )
     }
 
     const sum = filteredData.reduce((total, item) => {
@@ -123,7 +133,9 @@ export class RollupAverageCalculator extends BaseRollupCalculator {
 
     // Apply conditions if specified
     if (rollupConfig.conditions) {
-      filteredData = sourceData.filter((item) => this.matchesConditions(item, rollupConfig.conditions!))
+      filteredData = sourceData.filter((item) =>
+        this.matchesConditions(item, rollupConfig.conditions!),
+      )
     }
 
     if (filteredData.length === 0) return 0
@@ -163,7 +175,9 @@ export class RollupConcatCalculator extends BaseRollupCalculator {
 
     // Apply conditions if specified
     if (rollupConfig.conditions) {
-      filteredData = sourceData.filter((item) => this.matchesConditions(item, rollupConfig.conditions!))
+      filteredData = sourceData.filter((item) =>
+        this.matchesConditions(item, rollupConfig.conditions!),
+      )
     }
 
     const values = filteredData

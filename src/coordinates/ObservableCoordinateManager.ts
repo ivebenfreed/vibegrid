@@ -115,7 +115,10 @@ export class ObservableCoordinateManager {
   /**
    * Get cell position by row and column IDs
    */
-  getCellPosition(rowId: string, columnId: string): { x: number; y: number; row: number; column: number } | null {
+  getCellPosition(
+    rowId: string,
+    columnId: string,
+  ): { x: number; y: number; row: number; column: number } | null {
     return this.coordinator.getCellPosition(rowId, columnId)
   }
 
@@ -221,7 +224,10 @@ export class ObservableCoordinateManager {
   /**
    * Get all visible cells in viewport
    */
-  getVisibleCells(selectedCells: Set<string>, viewport: ViewportInfo): Map<string, ViewportAwarePosition> {
+  getVisibleCells(
+    selectedCells: Set<string>,
+    viewport: ViewportInfo,
+  ): Map<string, ViewportAwarePosition> {
     return this.coordinator.getVisibleCells(selectedCells, viewport)
   }
 

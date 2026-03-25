@@ -39,7 +39,9 @@ export const FilterFieldPicker = observer(function FilterFieldPicker({
   const filteredColumns = useMemo(() => {
     if (!searchValue) return columns
     const lower = searchValue.toLowerCase()
-    return columns.filter((col) => col.name.toLowerCase().includes(lower) || col.id.toLowerCase().includes(lower))
+    return columns.filter(
+      (col) => col.name.toLowerCase().includes(lower) || col.id.toLowerCase().includes(lower),
+    )
   }, [columns, searchValue])
 
   const selectedColumn = columns.find((col) => col.id === value)
@@ -88,7 +90,9 @@ export const FilterFieldPicker = observer(function FilterFieldPicker({
                   value === column.id && 'bg-accent',
                 )}
               >
-                <Check className={cn('mr-2 h-4 w-4', value === column.id ? 'opacity-100' : 'opacity-0')} />
+                <Check
+                  className={cn('mr-2 h-4 w-4', value === column.id ? 'opacity-100' : 'opacity-0')}
+                />
                 {column.name}
               </button>
             ))

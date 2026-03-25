@@ -69,7 +69,9 @@ describe('VibeGrid Date Field Type', () => {
     if (calendarContainers.length > 0) return true
 
     // Legacy: Check for native date inputs
-    const dateInputs = await page.$$('input[type="date"], input[type="datetime-local"], .vibegridx-date-editor')
+    const dateInputs = await page.$$(
+      'input[type="date"], input[type="datetime-local"], .vibegridx-date-editor',
+    )
     return dateInputs.length > 0
   }
 
@@ -92,15 +94,21 @@ describe('VibeGrid Date Field Type', () => {
     const dateCells = await findDateCells()
 
     if (dateCells.length === 0) {
-      throw new Error('TEST FAILURE: No date cells found - due_date field not in schema. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date cells found - due_date field not in schema. Check test fixtures.',
+      )
     }
 
     // Find a date badge with edit affordance
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
       // May have null values - look for any non-empty badge
-      const anyDateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] .vibegridx-date-badge')
+      const anyDateBadges = await page.$$(
+        '.vibegridx-cell[data-column-id="due_date"] .vibegridx-date-badge',
+      )
       if (anyDateBadges.length > 0 && (await isElementVisible(anyDateBadges[0]))) {
         await expect(anyDateBadges[0]).toBeVisible()
       } else {
@@ -124,10 +132,14 @@ describe('VibeGrid Date Field Type', () => {
   })
 
   it('3.2 Date badge has correct styling', async () => {
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
-      throw new Error('TEST FAILURE: No date badge with edit affordance visible. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date badge with edit affordance visible. Check test fixtures.',
+      )
     }
 
     const dateBadge = dateBadges[0]
@@ -141,10 +153,14 @@ describe('VibeGrid Date Field Type', () => {
   })
 
   it('3.3 Click opens date picker', async () => {
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
-      throw new Error('TEST FAILURE: No date badge with edit affordance visible for click test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date badge with edit affordance visible for click test. Check test fixtures.',
+      )
     }
 
     const dateBadge = dateBadges[0]
@@ -168,10 +184,14 @@ describe('VibeGrid Date Field Type', () => {
   })
 
   it('3.4 Select date updates cell', async () => {
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
-      throw new Error('TEST FAILURE: No date badge with edit affordance visible for update test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date badge with edit affordance visible for update test. Check test fixtures.',
+      )
     }
 
     const dateBadge = dateBadges[0]
@@ -187,7 +207,9 @@ describe('VibeGrid Date Field Type', () => {
     const calendarVisible = await isDateEditorVisible()
     if (!calendarVisible) {
       await page.keyboard.press('Escape')
-      throw new Error('TEST FAILURE: Date calendar not visible after clicking badge. Check date editor implementation.')
+      throw new Error(
+        'TEST FAILURE: Date calendar not visible after clicking badge. Check date editor implementation.',
+      )
     }
 
     // Find and click a different day in the calendar
@@ -199,7 +221,9 @@ describe('VibeGrid Date Field Type', () => {
       const rdpDayButtons = await page.$$('.vibegridx-editing-portal .rdp-day')
       if (rdpDayButtons.length > 0) {
         // Click a day that's not today (usually has rdp-selected or rdp-today class)
-        const availableDays = await page.$$('.vibegridx-editing-portal .rdp-day:not(.rdp-selected):not(.rdp-outside)')
+        const availableDays = await page.$$(
+          '.vibegridx-editing-portal .rdp-day:not(.rdp-selected):not(.rdp-outside)',
+        )
         if (availableDays.length > 0) {
           await availableDays[0].click()
           await new Promise((r) => setTimeout(r, 500))
@@ -215,7 +239,9 @@ describe('VibeGrid Date Field Type', () => {
 
     // If calendar closed, selection was made
     if (!calendarStillVisible) {
-      const updatedBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+      const updatedBadges = await page.$$(
+        '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+      )
       if (updatedBadges.length > 0) {
         const updatedText = await updatedBadges[0].evaluate((el) => el.textContent)
         // Date should have some content
@@ -231,10 +257,14 @@ describe('VibeGrid Date Field Type', () => {
   })
 
   it('3.5 Clear date shows empty state', async () => {
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
-      throw new Error('TEST FAILURE: No date badge with edit affordance visible for clear test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date badge with edit affordance visible for clear test. Check test fixtures.',
+      )
     }
 
     const dateBadge = dateBadges[0]
@@ -247,13 +277,17 @@ describe('VibeGrid Date Field Type', () => {
     const calendarVisible = await isDateEditorVisible()
     if (!calendarVisible) {
       await page.keyboard.press('Escape')
-      throw new Error('TEST FAILURE: Date calendar not visible for clear test. Check date editor implementation.')
+      throw new Error(
+        'TEST FAILURE: Date calendar not visible for clear test. Check date editor implementation.',
+      )
     }
 
     // Look for a clear button in the calendar UI
     const clearButton = await page.evaluateHandle(() => {
       const buttons = document.querySelectorAll('.vibegridx-editing-portal button')
-      return Array.from(buttons).find((btn) => btn.textContent?.toLowerCase().includes('clear')) || null
+      return (
+        Array.from(buttons).find((btn) => btn.textContent?.toLowerCase().includes('clear')) || null
+      )
     })
 
     // In Playwright, JSHandle from evaluateHandle can be used directly as ElementHandle
@@ -273,7 +307,9 @@ describe('VibeGrid Date Field Type', () => {
     }
 
     // Look for empty cell indicator
-    const emptyCells = await page.$$('.vibegridx-cell[data-column-id="due_date"] .vibegridx-cell-empty')
+    const emptyCells = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] .vibegridx-cell-empty',
+    )
     const isEmpty = emptyCells.length > 0
 
     // Alternatively, check if edit hint is shown
@@ -317,17 +353,22 @@ describe('VibeGrid Date Field Type', () => {
     const cellText = await firstCell.evaluate((el) => el.textContent)
 
     // Datetime should include some time indicator (: for hours:minutes or AM/PM)
-    const hasTimeComponent = cellText?.includes(':') || cellText?.includes('AM') || cellText?.includes('PM')
+    const hasTimeComponent =
+      cellText?.includes(':') || cellText?.includes('AM') || cellText?.includes('PM')
 
     // If it's a date-only display, that's also acceptable for cells with datetime data
     expect((cellText?.trim().length || 0) > 0).toBe(true)
   })
 
   it('3.7 Escape cancels date edit', async () => {
-    const dateBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+    const dateBadges = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+    )
 
     if (dateBadges.length === 0 || !(await isElementVisible(dateBadges[0]))) {
-      throw new Error('TEST FAILURE: No date badge with edit affordance visible for escape test. Check test fixtures.')
+      throw new Error(
+        'TEST FAILURE: No date badge with edit affordance visible for escape test. Check test fixtures.',
+      )
     }
 
     const dateBadge = dateBadges[0]
@@ -359,17 +400,25 @@ describe('VibeGrid Date Field Type', () => {
 
   it('3.8 Read-only date shows no edit affordance', async () => {
     // Look for non-editable date cells
-    const nonEditableCells = await page.$$('.vibegridx-cell[data-column-id="due_date"][data-editable="false"]')
+    const nonEditableCells = await page.$$(
+      '.vibegridx-cell[data-column-id="due_date"][data-editable="false"]',
+    )
 
     if (nonEditableCells.length === 0) {
       // Verify editable cells have edit affordance
-      const editableBadges = await page.$$('.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]')
+      const editableBadges = await page.$$(
+        '.vibegridx-cell[data-column-id="due_date"] [data-affordance="edit"]',
+      )
 
       if (editableBadges.length === 0 || !(await isElementVisible(editableBadges[0]))) {
-        throw new Error('TEST FAILURE: No date cells found to test read-only affordance. Check test fixtures.')
+        throw new Error(
+          'TEST FAILURE: No date cells found to test read-only affordance. Check test fixtures.',
+        )
       }
 
-      const affordance = await editableBadges[0].evaluate((el) => el.getAttribute('data-affordance'))
+      const affordance = await editableBadges[0].evaluate((el) =>
+        el.getAttribute('data-affordance'),
+      )
       expect(affordance).toBe('edit')
     } else {
       // Verify non-editable cells have 'none' affordance

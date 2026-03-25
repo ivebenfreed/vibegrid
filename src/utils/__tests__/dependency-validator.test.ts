@@ -38,7 +38,12 @@ describe('wouldCreateCycle', () => {
   it('detects cycle in diamond graph, adding D->A', () => {
     // Diamond: A->B, A->C, B->D, C->D
     // Existing: A depends_on B, A depends_on C, B depends_on D, C depends_on D
-    const deps = [createDep('A', 'B'), createDep('A', 'C'), createDep('B', 'D'), createDep('C', 'D')]
+    const deps = [
+      createDep('A', 'B'),
+      createDep('A', 'C'),
+      createDep('B', 'D'),
+      createDep('C', 'D'),
+    ]
 
     // Adding D depends_on A would create cycle: D->A->B->D or D->A->C->D
     expect(wouldCreateCycle('D', 'A', deps)).toBe(true)
@@ -73,7 +78,12 @@ describe('wouldCreateCycle', () => {
 
   it('handles longer chains without false positives', () => {
     // Chain: A->B->C->D->E
-    const deps = [createDep('A', 'B'), createDep('B', 'C'), createDep('C', 'D'), createDep('D', 'E')]
+    const deps = [
+      createDep('A', 'B'),
+      createDep('B', 'C'),
+      createDep('C', 'D'),
+      createDep('D', 'E'),
+    ]
 
     // Adding F->A is fine
     expect(wouldCreateCycle('F', 'A', deps)).toBe(false)

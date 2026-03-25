@@ -307,9 +307,11 @@ describe('Lazy Module Loading Integration', () => {
   })
 
   it('should accurately reflect loaded state via isLoaded()', async () => {
-    viewModeRegistry.register('state-test', async () => createTestModule('state-test', 'State Test'), {
-      displayName: 'State Test',
-    })
+    viewModeRegistry.register(
+      'state-test',
+      async () => createTestModule('state-test', 'State Test'),
+      { displayName: 'State Test' },
+    )
 
     // Initially not loaded
     expect(viewModeRegistry.isLoaded('state-test')).toBe(false)
@@ -465,13 +467,17 @@ describe('Custom Slot Registration from View Module', () => {
     const tableContext = createMockContext({ viewMode: 'table' })
     await testSlotRegistry.preloadForColumns([textColumn], tableContext)
     const tableRenderer = testSlotRegistry.resolve(textColumn, tableContext)
-    expect(tableRenderer!.render(null, textColumn, tableContext).className).toBe('renderer-text-default')
+    expect(tableRenderer!.render(null, textColumn, tableContext).className).toBe(
+      'renderer-text-default',
+    )
 
     // In kanban mode - should use kanban-specific
     const kanbanContext = createMockContext({ viewMode: 'kanban' })
     await testSlotRegistry.preloadForColumns([textColumn], kanbanContext)
     const kanbanRenderer = testSlotRegistry.resolve(textColumn, kanbanContext)
-    expect(kanbanRenderer!.render(null, textColumn, kanbanContext).className).toBe('renderer-text-kanban')
+    expect(kanbanRenderer!.render(null, textColumn, kanbanContext).className).toBe(
+      'renderer-text-kanban',
+    )
   })
 
   it('should allow priority override (view slot overrides default)', async () => {
@@ -504,21 +510,27 @@ describe('Custom Slot Registration from View Module', () => {
     const genericContext = createMockContext({ viewMode: 'table', entityType: 'Project' })
     await testSlotRegistry.preloadForColumns([statusColumn], genericContext)
     expect(
-      testSlotRegistry.resolve(statusColumn, genericContext)!.render(null, statusColumn, genericContext).className,
+      testSlotRegistry
+        .resolve(statusColumn, genericContext)!
+        .render(null, statusColumn, genericContext).className,
     ).toBe('renderer-status-default')
 
     // Scenario 2: Task entity in table - should use domain-specific (priority 50)
     const taskTableContext = createMockContext({ viewMode: 'table', entityType: 'Task' })
     await testSlotRegistry.preloadForColumns([statusColumn], taskTableContext)
     expect(
-      testSlotRegistry.resolve(statusColumn, taskTableContext)!.render(null, statusColumn, taskTableContext).className,
+      testSlotRegistry
+        .resolve(statusColumn, taskTableContext)!
+        .render(null, statusColumn, taskTableContext).className,
     ).toBe('renderer-status-task')
 
     // Scenario 3: Task entity in gantt - should use view-specific (priority 100)
     const taskGanttContext = createMockContext({ viewMode: 'gantt', entityType: 'Task' })
     await testSlotRegistry.preloadForColumns([statusColumn], taskGanttContext)
     expect(
-      testSlotRegistry.resolve(statusColumn, taskGanttContext)!.render(null, statusColumn, taskGanttContext).className,
+      testSlotRegistry
+        .resolve(statusColumn, taskGanttContext)!
+        .render(null, statusColumn, taskGanttContext).className,
     ).toBe('renderer-status-gantt-task')
   })
 })
@@ -632,10 +644,14 @@ describe('ViewModeRegistry + SlotRegistry Integration', () => {
 
     // Verify correct renderers resolved
     const textRenderer = testSlotRegistry.resolve(columns[0], kanbanContext)
-    expect(textRenderer!.render(null, columns[0], kanbanContext).className).toBe('renderer-text-kanban')
+    expect(textRenderer!.render(null, columns[0], kanbanContext).className).toBe(
+      'renderer-text-kanban',
+    )
 
     const numberRenderer = testSlotRegistry.resolve(columns[1], kanbanContext)
-    expect(numberRenderer!.render(null, columns[1], kanbanContext).className).toBe('renderer-number-default')
+    expect(numberRenderer!.render(null, columns[1], kanbanContext).className).toBe(
+      'renderer-number-default',
+    )
   })
 
   it('should handle module slot cleanup on view mode change', async () => {
@@ -738,7 +754,12 @@ describe('Full Module Lifecycle Integration', () => {
     // Initialize
     const stores = createMockStores()
     const cleanup = module.init?.(stores)
-    expect(lifecycleEvents).toEqual(['registered', 'factory-called', 'registerSlots-called', 'init-called'])
+    expect(lifecycleEvents).toEqual([
+      'registered',
+      'factory-called',
+      'registerSlots-called',
+      'init-called',
+    ])
 
     // Render (module render is React component, just verify it exists)
     expect(typeof module.render).toBe('function')
@@ -876,7 +897,9 @@ describe('Performance Benchmarks', () => {
     // Load all modules and measure time
     const startTime = performance.now()
 
-    await Promise.all(Array.from({ length: 10 }, (_, i) => viewModeRegistry.get(`perf-module-${i}`)))
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) => viewModeRegistry.get(`perf-module-${i}`)),
+    )
 
     const totalTime = performance.now() - startTime
     const timePerModule = totalTime / 10
@@ -928,9 +951,11 @@ describe('Edge Cases and Error Handling', () => {
   })
 
   it('should handle module without registerSlots gracefully', async () => {
-    viewModeRegistry.register('no-slots', async () => createTestModule('no-slots', 'No Slots Module'), {
-      displayName: 'No Slots Module',
-    })
+    viewModeRegistry.register(
+      'no-slots',
+      async () => createTestModule('no-slots', 'No Slots Module'),
+      { displayName: 'No Slots Module' },
+    )
 
     const module = await viewModeRegistry.get('no-slots')
 
@@ -939,9 +964,13 @@ describe('Edge Cases and Error Handling', () => {
   })
 
   it('should handle module without init gracefully', async () => {
-    viewModeRegistry.register('no-init', async () => createTestModule('no-init', 'No Init Module'), {
-      displayName: 'No Init Module',
-    })
+    viewModeRegistry.register(
+      'no-init',
+      async () => createTestModule('no-init', 'No Init Module'),
+      {
+        displayName: 'No Init Module',
+      },
+    )
 
     const module = await viewModeRegistry.get('no-init')
     const stores = createMockStores()
@@ -975,9 +1004,11 @@ describe('Edge Cases and Error Handling', () => {
   })
 
   it('should isolate errors between modules', async () => {
-    viewModeRegistry.register('good-module', async () => createTestModule('good-module', 'Good Module'), {
-      displayName: 'Good Module',
-    })
+    viewModeRegistry.register(
+      'good-module',
+      async () => createTestModule('good-module', 'Good Module'),
+      { displayName: 'Good Module' },
+    )
 
     viewModeRegistry.register(
       'bad-module',

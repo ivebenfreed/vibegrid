@@ -70,7 +70,9 @@ describe('VibeGrid Selection', () => {
     await firstCell.click()
 
     // Verify cell has selected class
-    const hasSelectedClass = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelectedClass = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelectedClass).toBe(true)
 
     // Verify only one cell is selected
@@ -139,7 +141,9 @@ describe('VibeGrid Selection', () => {
 
     // Click first cell
     await firstCell.click()
-    const firstSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const firstSelected = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(firstSelected).toBe(true)
 
     // Ctrl+click second cell
@@ -148,8 +152,12 @@ describe('VibeGrid Selection', () => {
     await page.keyboard.up('Control')
 
     // Both cells should be selected
-    const firstStillSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
-    const secondSelected = await secondCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const firstStillSelected = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
+    const secondSelected = await secondCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(firstStillSelected).toBe(true)
     expect(secondSelected).toBe(true)
 
@@ -178,7 +186,9 @@ describe('VibeGrid Selection', () => {
 
     // Click first cell to set anchor
     await firstCell.click()
-    const firstSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const firstSelected = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(firstSelected).toBe(true)
 
     // Get initial selection count
@@ -217,7 +227,9 @@ describe('VibeGrid Selection', () => {
     // First, select a cell
     const firstCell = cells[0]
     await firstCell.click()
-    const hasSelected = await firstCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const hasSelected = await firstCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(hasSelected).toBe(true)
 
     // Verify we have a selection
@@ -331,12 +343,18 @@ describe('VibeGrid Selection', () => {
     await thirdCell.click()
 
     // Should now only have one cell selected
-    const thirdSelected = await thirdCell.evaluate((el) => el.classList.contains('vibegridx-selected'))
+    const thirdSelected = await thirdCell.evaluate((el) =>
+      el.classList.contains('vibegridx-selected'),
+    )
     expect(thirdSelected).toBe(true)
 
     // Previous cells should not be selected
-    const firstNotSelected = await firstCell.evaluate((el) => !el.classList.contains('vibegridx-selected'))
-    const secondNotSelected = await secondCell.evaluate((el) => !el.classList.contains('vibegridx-selected'))
+    const firstNotSelected = await firstCell.evaluate(
+      (el) => !el.classList.contains('vibegridx-selected'),
+    )
+    const secondNotSelected = await secondCell.evaluate(
+      (el) => !el.classList.contains('vibegridx-selected'),
+    )
     expect(firstNotSelected).toBe(true)
     expect(secondNotSelected).toBe(true)
   })

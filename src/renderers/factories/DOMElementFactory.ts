@@ -327,7 +327,8 @@ export class DOMElementFactory {
     if (column.sortable !== false) {
       // When icon-only (no label), center the sort icon
       if (isIconOnly) {
-        textGroup.style.cssText = 'display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0;'
+        textGroup.style.cssText =
+          'display: flex; align-items: center; justify-content: center; flex: 1; min-width: 0;'
       }
       const sortIcon = this.createElement('span', 'vibegridx-sort-icon')
       sortIcon.style.cssText = `

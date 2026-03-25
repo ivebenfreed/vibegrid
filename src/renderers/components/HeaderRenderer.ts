@@ -107,7 +107,8 @@ export class HeaderRenderer {
     fileLog.debug('🔄 HEADER RENDER STATE CHECK', {
       currentOrderString: currentRenderState.columnOrderString,
       lastOrderString: this.lastRenderState?.columnOrderString,
-      orderChanged: this.lastRenderState?.columnOrderString !== currentRenderState.columnOrderString,
+      orderChanged:
+        this.lastRenderState?.columnOrderString !== currentRenderState.columnOrderString,
       columnOrder: columnOrder,
     })
 
@@ -208,7 +209,10 @@ export class HeaderRenderer {
       // ARIA: Add sort state for sortable columns
       const columnSort = sortState?.find((s: any) => s.field === (column.field || column.id))
       if (columnSort) {
-        headerCell.setAttribute('aria-sort', columnSort.direction === 'asc' ? 'ascending' : 'descending')
+        headerCell.setAttribute(
+          'aria-sort',
+          columnSort.direction === 'asc' ? 'ascending' : 'descending',
+        )
       } else {
         headerCell.setAttribute('aria-sort', 'none')
       }
@@ -314,7 +318,12 @@ export class HeaderRenderer {
       this.coordinateMapping.columns.length !== newColumns.length ||
       newColumns.some((newCol, index) => {
         const oldCol = this.coordinateMapping.columns?.[index]
-        return !oldCol || oldCol.columnId !== newCol.columnId || oldCol.width !== newCol.width || oldCol.x !== newCol.x
+        return (
+          !oldCol ||
+          oldCol.columnId !== newCol.columnId ||
+          oldCol.width !== newCol.width ||
+          oldCol.x !== newCol.x
+        )
       })
 
     if (hasChanged) {
@@ -324,7 +333,9 @@ export class HeaderRenderer {
         newColumnCount: newColumns.length,
         firstColumnId: newColumns[0]?.columnId,
         mappingVersion: this.coordinateMapping.version,
-        sampleColumns: newColumns.slice(0, 3).map((c) => ({ id: c.columnId, x: c.x, width: c.width })),
+        sampleColumns: newColumns
+          .slice(0, 3)
+          .map((c) => ({ id: c.columnId, x: c.x, width: c.width })),
       })
 
       return true
@@ -546,7 +557,10 @@ export class HeaderRenderer {
 
       // ARIA: Keep aria-sort in sync with sort state
       if (columnSort) {
-        headerCell.setAttribute('aria-sort', columnSort.direction === 'asc' ? 'ascending' : 'descending')
+        headerCell.setAttribute(
+          'aria-sort',
+          columnSort.direction === 'asc' ? 'ascending' : 'descending',
+        )
       } else {
         headerCell.setAttribute('aria-sort', 'none')
       }
