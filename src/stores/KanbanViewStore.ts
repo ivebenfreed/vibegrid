@@ -12,6 +12,8 @@ import { action, computed, makeObservable, observable } from 'mobx'
 import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
+import type { CommandBus } from '@/systems/commands/CommandBus'
+import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'KanbanViewStore'])
@@ -74,6 +76,7 @@ export class KanbanViewStore implements IStore {
   // Dependencies
   private tableCoreStore: TableCoreStore | null = null
   private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity updates
+  private commandBus: CommandBus | null = null // CommandBus for undo/redo tracking
 
   // ====================================
   // OBSERVABLE STATE
@@ -119,6 +122,10 @@ export class KanbanViewStore implements IStore {
   setCollection(collection: Collection<any, any, any, any, any>): void {
     this.collection = collection
     logger.info('Collection set on KanbanViewStore')
+  }
+
+  setCommandBus(commandBus: CommandBus): void {
+    this.commandBus = commandBus
   }
 
   // ====================================
@@ -481,16 +488,39 @@ export class KanbanViewStore implements IStore {
     // Clear drag state before async operation
     this.cancelDrag()
 
-    // Persist to database
+    // Persist via CommandBus (undoable) or direct fallback
     if (this.collection) {
       try {
-        const tx = this.collection.update(cardId, (draft: any) => {
-          draft[this.groupByField] = newStatus
-          draft.updated_at = new Date().toISOString()
-        })
+        const row = this.tableCoreStore?.processedRows.find((r) => (r.data?.id || r.id) === cardId)
+        const previousValue = (row?.data || row)?.[this.groupByField] ?? null
+        const entityName = this.tableCoreStore?.entityType ?? 'unknown'
 
-        await tx.isPersisted.promise
-        logger.info('Card status updated successfully', { cardId, newStatus })
+        if (this.commandBus) {
+          const cmd = new UpdateEntityRecordCommand()
+          const result = await this.commandBus.execute(cmd, {
+            collection: this.collection,
+            entityName,
+            recordId: cardId,
+            field: this.groupByField,
+            newValue: newStatus,
+            previousValue,
+          })
+          if (!result.success) {
+            // Fallback to direct update
+            const tx = this.collection.update(cardId, (draft: any) => {
+              draft[this.groupByField] = newStatus
+              draft.updated_at = new Date().toISOString()
+            })
+            await tx.isPersisted.promise
+          }
+        } else {
+          const tx = this.collection.update(cardId, (draft: any) => {
+            draft[this.groupByField] = newStatus
+            draft.updated_at = new Date().toISOString()
+          })
+          await tx.isPersisted.promise
+        }
+        logger.info('Card status updated', { cardId, newStatus, undoable: !!this.commandBus })
       } catch (error) {
         logger.error('Failed to update card status', {
           cardId,

@@ -11,6 +11,8 @@ import { action, computed, makeObservable, observable, reaction, runInAction } f
 import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
+import type { CommandBus } from '@/systems/commands/CommandBus'
+import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
 import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
@@ -184,6 +186,7 @@ export class GanttViewStore implements IStore {
   private disposeSchemaReaction?: () => void
   private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for entity updates
   private dependencyCollection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for dependencies
+  private commandBus: CommandBus | null = null // CommandBus for undo/redo tracking
 
   // ====================================
   // OBSERVABLE STATE
@@ -926,6 +929,10 @@ export class GanttViewStore implements IStore {
     logger.info('Collection set on GanttViewStore')
   }
 
+  setCommandBus(commandBus: CommandBus): void {
+    this.commandBus = commandBus
+  }
+
   /**
    * Set TanStack DB collection for dependency CRUD with optimistic updates
    *
@@ -1095,13 +1102,41 @@ export class GanttViewStore implements IStore {
           cascadeCount: cascadeUpdates.length,
         })
 
-        // Update the dragged bar
-        const tx = this.collection.update(barId, (draft: any) => {
-          Object.assign(draft, updates)
-          draft.updated_at = new Date().toISOString()
-        })
+        // Update the dragged bar via CommandBus (undoable) or direct
+        const entityName = this.tableCoreStore?.entityType ?? 'unknown'
 
-        // Apply cascade updates in parallel
+        if (this.commandBus) {
+          if (startChanged) {
+            const cmd = new UpdateEntityRecordCommand()
+            await this.commandBus.execute(cmd, {
+              collection: this.collection,
+              entityName,
+              recordId: barId,
+              field: this.fieldMapping.startField,
+              newValue: newStartDate.toISOString(),
+              previousValue: originalBar?.startDate.toISOString() ?? null,
+            })
+          }
+          if (endChanged) {
+            const cmd = new UpdateEntityRecordCommand()
+            await this.commandBus.execute(cmd, {
+              collection: this.collection,
+              entityName,
+              recordId: barId,
+              field: this.fieldMapping.endField,
+              newValue: newEndDate.toISOString(),
+              previousValue: originalBar?.endDate.toISOString() ?? null,
+            })
+          }
+        } else {
+          const tx = this.collection.update(barId, (draft: any) => {
+            Object.assign(draft, updates)
+            draft.updated_at = new Date().toISOString()
+          })
+          await tx.isPersisted.promise
+        }
+
+        // Apply cascade updates directly (consequence of main change)
         const col = this.collection
         const cascadePromises = cascadeUpdates.map((update) => {
           const cascadeTx = col.update(update.entityId, (draft: any) => {
@@ -1112,9 +1147,12 @@ export class GanttViewStore implements IStore {
           return cascadeTx.isPersisted.promise
         })
 
-        // Wait for all persistence
-        await Promise.all([tx.isPersisted.promise, ...cascadePromises])
-        logger.info('Bar drag changes persisted', { barId, cascadeCount: cascadeUpdates.length })
+        await Promise.all(cascadePromises)
+        logger.info('Bar drag changes persisted', {
+          barId,
+          cascadeCount: cascadeUpdates.length,
+          undoable: !!this.commandBus,
+        })
       } catch (error) {
         logger.error('Failed to persist bar drag changes', {
           barId,

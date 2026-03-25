@@ -591,6 +591,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
     ganttViewStore.setCollection(collection)
   }, [collection, ganttViewStore, entityType])
 
+  // Set CommandBus on GanttViewStore for undo/redo on bar drag
+  useEffect(() => {
+    if (!ganttViewStore || !commandBus) return
+    ganttViewStore.setCommandBus(commandBus)
+  }, [ganttViewStore, commandBus])
+
   // Set TanStack DB collection on KanbanViewStore for card drag persistence
   useEffect(() => {
     if (!kanbanViewStore || !collection) return
@@ -600,6 +606,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
     })
     kanbanViewStore.setCollection(collection)
   }, [collection, kanbanViewStore, entityType])
+
+  // Set CommandBus on KanbanViewStore for undo/redo on card drag
+  useEffect(() => {
+    if (!kanbanViewStore || !commandBus) return
+    kanbanViewStore.setCommandBus(commandBus)
+  }, [kanbanViewStore, commandBus])
 
   // Set TanStack DB dependency collection on GanttViewStore for optimistic updates
   useEffect(() => {
