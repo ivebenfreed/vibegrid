@@ -12,7 +12,10 @@ import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { getLogger } from '@/shared/lib/logging'
 import type { CommandBus } from '@/systems/commands/CommandBus'
-import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
+import {
+  BatchUpdateEntityRecordsCommand,
+  type FieldUpdate,
+} from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
 import type { DependencyRecord } from '@/shared/data/db/collections/dependency-collection'
 import type { DependencyMetadata } from '@/shared/types/dataforge'
 import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
@@ -1102,55 +1105,71 @@ export class GanttViewStore implements IStore {
           cascadeCount: cascadeUpdates.length,
         })
 
-        // Update the dragged bar via CommandBus (undoable) or direct
+        // Build all field updates: main bar + cascades as one batch
         const entityName = this.tableCoreStore?.entityType ?? 'unknown'
+        const allUpdates: FieldUpdate[] = []
 
-        if (this.commandBus) {
-          if (startChanged) {
-            const cmd = new UpdateEntityRecordCommand()
-            await this.commandBus.execute(cmd, {
-              collection: this.collection,
-              entityName,
-              recordId: barId,
-              field: this.fieldMapping.startField,
-              newValue: newStartDate.toISOString(),
-              previousValue: originalBar?.startDate.toISOString() ?? null,
-            })
-          }
-          if (endChanged) {
-            const cmd = new UpdateEntityRecordCommand()
-            await this.commandBus.execute(cmd, {
-              collection: this.collection,
-              entityName,
-              recordId: barId,
-              field: this.fieldMapping.endField,
-              newValue: newEndDate.toISOString(),
-              previousValue: originalBar?.endDate.toISOString() ?? null,
-            })
-          }
-        } else {
-          const tx = this.collection.update(barId, (draft: any) => {
-            Object.assign(draft, updates)
-            draft.updated_at = new Date().toISOString()
+        // Main bar updates
+        if (startChanged) {
+          allUpdates.push({
+            recordId: barId,
+            field: this.fieldMapping.startField,
+            newValue: newStartDate.toISOString(),
+            previousValue: originalBar?.startDate.toISOString() ?? null,
           })
-          await tx.isPersisted.promise
+        }
+        if (endChanged) {
+          allUpdates.push({
+            recordId: barId,
+            field: this.fieldMapping.endField,
+            newValue: newEndDate.toISOString(),
+            previousValue: originalBar?.endDate.toISOString() ?? null,
+          })
         }
 
-        // Apply cascade updates directly (consequence of main change)
-        const col = this.collection
-        const cascadePromises = cascadeUpdates.map((update) => {
-          const cascadeTx = col.update(update.entityId, (draft: any) => {
-            draft[this.fieldMapping.startField] = update.newStartDate.toISOString()
-            draft[this.fieldMapping.endField] = update.newEndDate.toISOString()
-            draft.updated_at = new Date().toISOString()
-          })
-          return cascadeTx.isPersisted.promise
-        })
+        // Cascade updates — capture previous values from current bar positions
+        for (const cascade of cascadeUpdates) {
+          const currentBar = this.barPositions.find((b) => b.rowId === cascade.entityId)
+          allUpdates.push(
+            {
+              recordId: cascade.entityId,
+              field: this.fieldMapping.startField,
+              newValue: cascade.newStartDate.toISOString(),
+              previousValue: currentBar?.startDate.toISOString() ?? null,
+            },
+            {
+              recordId: cascade.entityId,
+              field: this.fieldMapping.endField,
+              newValue: cascade.newEndDate.toISOString(),
+              previousValue: currentBar?.endDate.toISOString() ?? null,
+            },
+          )
+        }
 
-        await Promise.all(cascadePromises)
+        if (this.commandBus) {
+          // Single batch command — undo reverts main bar + all cascades atomically
+          const cmd = new BatchUpdateEntityRecordsCommand()
+          await this.commandBus.execute(cmd, {
+            collection: this.collection,
+            entityName,
+            updates: allUpdates,
+          })
+        } else {
+          // Direct fallback — apply all updates without undo tracking
+          const promises = allUpdates.map((u) => {
+            const tx = this.collection!.update(u.recordId, (draft: any) => {
+              draft[u.field] = u.newValue
+              draft.updated_at = new Date().toISOString()
+            })
+            return tx.isPersisted.promise
+          })
+          await Promise.all(promises)
+        }
+
         logger.info('Bar drag changes persisted', {
           barId,
           cascadeCount: cascadeUpdates.length,
+          totalUpdates: allUpdates.length,
           undoable: !!this.commandBus,
         })
       } catch (error) {
