@@ -1,8 +1,7 @@
 /**
- * MouseController - Global pointer event coordinator for VibeGrid
+ * MouseController - Global mouse event coordinator for VibeGrid
  *
- * Single source of truth for all pointer interactions to prevent event conflicts.
- * Uses PointerEvent API for unified mouse + touch + pen support.
+ * Single source of truth for all mouse interactions to prevent event conflicts.
  * Routes events to focused sub-controllers:
  * - ClickRouter: click interpretation and dispatch
  * - DragSelectionController: drag-to-select rectangle
@@ -60,10 +59,6 @@ export class MouseController {
   private dragThreshold = 8 // pixels (increased to be less sensitive)
   private startPosition: { x: number; y: number } = { x: 0, y: 0 }
   private justEndedDrag = false
-
-  // Pointer deduplication (pointermove can fire without actual movement)
-  private lastPointerX = 0
-  private lastPointerY = 0
 
   // Column drag state (retained - tightly coupled to header)
   private isColumnDrag = false
@@ -135,33 +130,33 @@ export class MouseController {
     this.container.style.userSelect = 'none'
     this.container.style.webkitUserSelect = 'none'
 
-    this.setupGlobalPointerHandling()
-    fileLog.debug('MouseController initialized with global pointer event handling')
+    this.setupGlobalMouseHandling()
+    fileLog.debug('MouseController initialized with global event handling')
   }
 
   /**
-   * Setup global pointer event listeners - ONLY these listeners should exist for pointer events
+   * Setup global mouse event listeners - ONLY these listeners should exist for mouse events
    */
-  private setupGlobalPointerHandling(): void {
-    fileLog.debug('Setting up global pointer event coordination')
+  private setupGlobalMouseHandling(): void {
+    fileLog.debug('Setting up global mouse event coordination')
 
-    const pointerDownHandler = this.onPointerDown.bind(this)
-    const pointerMoveHandler = this.onPointerMove.bind(this)
-    const pointerUpHandler = this.onPointerUp.bind(this)
+    const mouseDownHandler = this.onMouseDown.bind(this)
+    const mouseMoveHandler = this.onMouseMove.bind(this)
+    const mouseUpHandler = this.onMouseUp.bind(this)
     const clickHandler = this.onClick.bind(this)
 
-    this.addEventListenerTracked(document, 'pointerdown', pointerDownHandler as EventListener)
-    this.addEventListenerTracked(document.body, 'pointermove', pointerMoveHandler as EventListener)
-    this.addEventListenerTracked(document, 'pointerup', pointerUpHandler as EventListener)
+    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener)
+    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener)
+    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener)
     this.addEventListenerTracked(document, 'click', clickHandler as EventListener)
 
-    fileLog.debug('Global pointer event coordination setup complete')
+    fileLog.debug('Global mouse event coordination setup complete')
   }
 
   /**
-   * Handle pointer down - start tracking potential drag and provide immediate feedback
+   * Handle mouse down - start tracking potential drag and provide immediate feedback
    */
-  private onPointerDown(e: PointerEvent): void {
+  private onMouseDown(e: MouseEvent): void {
     if (!this.container.contains(e.target as Node)) {
       return
     }
@@ -169,7 +164,6 @@ export class MouseController {
     this.startPosition = { x: e.clientX, y: e.clientY }
     this.isDragging = false
     this.isTracking = true
-    this.container.setPointerCapture(e.pointerId)
     this.isColumnDrag = false
     this.dragColumnId = null
     this.isRowDrag = false
@@ -180,7 +174,7 @@ export class MouseController {
 
     const target = e.target as HTMLElement
 
-    fileLog.debug('Pointer down on element', {
+    fileLog.debug('Mouse down on element', {
       tagName: target.tagName,
       className: target.className,
       id: target.id,
@@ -215,7 +209,7 @@ export class MouseController {
 
         this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth)
 
-        fileLog.debug('[RESIZE] Column resize handle pointer down', {
+        fileLog.debug('[RESIZE] Column resize handle mouse down', {
           columnId,
           initialWidth,
           element: resizeHandle.tagName,
@@ -261,7 +255,7 @@ export class MouseController {
       if (columnId) {
         this.isColumnDrag = true
         this.dragColumnId = columnId
-        fileLog.debug('Column header pointer down - preparing for drag', { columnId })
+        fileLog.debug('Column header mouse down - preparing for drag', { columnId })
         return
       } else {
         fileLog.warn('Header element found but no column ID', {
@@ -290,7 +284,7 @@ export class MouseController {
         this.dragRowId = rowId
         this.dragRowGroupId = groupId || null
 
-        fileLog.debug('Row drag handle pointer down - preparing for row drag', {
+        fileLog.debug('Row drag handle mouse down - preparing for row drag', {
           cellId,
           rowId,
           groupId,
@@ -301,7 +295,7 @@ export class MouseController {
 
       const isEditableElement = target.matches('input, textarea, select') || target.contentEditable === 'true'
 
-      fileLog.debug('Cell pointer down - pure event coordination', {
+      fileLog.debug('Cell mouse down - pure event coordination', {
         cellId,
         tagName: target.tagName,
         className: target.className,
@@ -329,7 +323,7 @@ export class MouseController {
           alt: e.altKey,
           meta: e.metaKey,
         },
-        nativeEvent: e,
+        nativeEvent: e as PointerEvent,
       })
 
       if (this.keyboardController && !isEditableElement) {
@@ -346,25 +340,20 @@ export class MouseController {
       }
     }
 
-    fileLog.debug('Pointer down tracked', {
+    fileLog.debug('Mouse down tracked', {
       position: this.startPosition,
       target: target.tagName,
     })
   }
 
   /**
-   * Handle pointer move - detect drag threshold and update drag/selection/fill/hover
+   * Handle mouse move - detect drag threshold and update drag/selection/fill/hover
    */
-  private onPointerMove(e: PointerEvent): void {
-    // Dedup guard: pointermove can fire without actual movement
-    if (e.clientX === this.lastPointerX && e.clientY === this.lastPointerY) return
-    this.lastPointerX = e.clientX
-    this.lastPointerY = e.clientY
-
+  private onMouseMove(e: MouseEvent): void {
     if (this.isTracking) {
       const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
 
-      fileLog.debug('Pointer move while tracking', {
+      fileLog.debug('Mouse move while tracking', {
         distance,
         threshold: this.dragThreshold,
         startPos: this.startPosition,
@@ -490,10 +479,8 @@ export class MouseController {
       this.dragSelectionController.updateDragSelect(e.target as HTMLElement)
     }
 
-    // Only update hover position for mouse pointers (touch uses :active CSS instead)
-    if (e.pointerType === 'mouse') {
-      this.hoverTracker.updateMousePosition(e.clientX, e.clientY)
-    }
+    // Always update mouse coordinates
+    this.hoverTracker.updateMousePosition(e.clientX, e.clientY)
 
     // Update drag preview position for column drag
     if (this.isDragging && this.isColumnDrag && this.dragPreviewElement) {
@@ -507,14 +494,10 @@ export class MouseController {
   }
 
   /**
-   * Handle pointer up - reset drag state
+   * Handle mouse up - reset drag state
    */
-  private onPointerUp(e: PointerEvent): void {
-    if (this.container.hasPointerCapture(e.pointerId)) {
-      this.container.releasePointerCapture(e.pointerId)
-    }
-
-    fileLog.debug('Pointer up detected', {
+  private onMouseUp(e: MouseEvent): void {
+    fileLog.debug('Mouse up detected', {
       withinContainer: this.container.contains(e.target as Node),
       wasTracking: this.isTracking,
       wasDragging: this.isDragging,
@@ -537,7 +520,7 @@ export class MouseController {
         this.dragSelectionController.endDragSelect()
       }
 
-      fileLog.debug('Pointer up after drag - preventing synthetic click')
+      fileLog.debug('Mouse up after drag - preventing synthetic click')
       fileLog.debug('About to reset all drag state')
       e.preventDefault()
       e.stopPropagation()
@@ -553,7 +536,7 @@ export class MouseController {
     } else {
       // No drag was happening, reset immediately
       this.resetAllDragState()
-      fileLog.debug('Non-drag pointer up - state reset')
+      fileLog.debug('Non-drag mouse up - state reset')
     }
   }
 
@@ -568,7 +551,7 @@ export class MouseController {
   // Column resize (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnResize(e: PointerEvent): void {
+  private handleColumnResize(e: MouseEvent): void {
     const result = this.interactionStore.updateColumnResize(e.clientX)
 
     if (result) {
@@ -615,7 +598,7 @@ export class MouseController {
     e.preventDefault()
   }
 
-  private handleColumnResizeEnd(e: PointerEvent): void {
+  private handleColumnResizeEnd(e: MouseEvent): void {
     if (this.resizeThrottleTimeout) {
       window.clearTimeout(this.resizeThrottleTimeout)
       this.resizeThrottleTimeout = null
@@ -656,7 +639,7 @@ export class MouseController {
   // Column drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnDragEnd(e: PointerEvent): void {
+  private handleColumnDragEnd(e: MouseEvent): void {
     const targetColumnId = this.interactionStore.dragTarget
     if (targetColumnId && targetColumnId !== this.dragColumnId) {
       const targetHeaderElement = this.container.querySelector(
@@ -698,7 +681,7 @@ export class MouseController {
   // Row drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleRowDragEnd(e: PointerEvent): void {
+  private handleRowDragEnd(e: MouseEvent): void {
     const targetRowId = this.interactionStore.dragTarget
     if (targetRowId && targetRowId !== this.dragRowId) {
       this.handleRowDrop(targetRowId, e.clientY)
@@ -1178,7 +1161,7 @@ export class MouseController {
       try {
         element.removeEventListener(event, handler)
       } catch (error) {
-        fileLog.error('Error removing event listener', { event, error })
+        fileLog.error('Error removing mouse event listener', { event, error })
       }
     })
     this.eventListeners = []
