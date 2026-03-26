@@ -2,13 +2,15 @@
  * KanbanColumn - A column in the Kanban board
  *
  * Renders a vertical list of cards with header showing status name and count.
- * Handles drop zone for drag-and-drop reordering.
+ * Uses @dnd-kit useDroppable for cross-platform drop zone (mouse + touch).
+ *
+ * GH#2200: Migrated from HTML5 DnD to dnd-kit for touch support
  */
 
+import { useDroppable } from '@dnd-kit/core'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { observer } from 'mobx-react-lite'
-import { memo, useRef, useState } from 'react'
-import type React from 'react'
+import { memo, useRef } from 'react'
 import { cn } from '@/shared/lib/utils'
 import type { KanbanCard as KanbanCardType, KanbanColumn as KanbanColumnType } from '../../stores/KanbanViewStore'
 import { KanbanCard } from './KanbanCard'
@@ -16,60 +18,17 @@ import { KanbanCard } from './KanbanCard'
 interface KanbanColumnProps {
   column: KanbanColumnType
   cards: KanbanCardType[]
-  isDragOver?: boolean
-  draggingCardId?: string | null
   enableDragAndDrop?: boolean
-  onDragOver?: (columnId: string) => void
-  onDragLeave?: () => void
-  onDrop?: (columnId: string) => void
-  onCardDragStart?: (cardId: string, columnId: string) => void
-  onCardDragEnd?: () => void
   onCardClick?: (cardId: string) => void
 }
 
 const KanbanColumnInner = observer(function KanbanColumn({
   column,
   cards,
-  isDragOver = false,
-  draggingCardId,
   enableDragAndDrop = true,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onCardDragStart,
-  onCardDragEnd,
   onCardClick,
 }: KanbanColumnProps) {
-  const [isLocalDragOver, setIsLocalDragOver] = useState(false)
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!enableDragAndDrop) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (!isLocalDragOver) {
-      setIsLocalDragOver(true)
-      onDragOver?.(column.id)
-    }
-  }
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!enableDragAndDrop) return
-    // Only trigger leave if actually leaving the column, not just moving between cards
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX
-    const y = e.clientY
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      setIsLocalDragOver(false)
-      onDragLeave?.()
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    if (!enableDragAndDrop) return
-    e.preventDefault()
-    setIsLocalDragOver(false)
-    onDrop?.(column.id)
-  }
+  const { isOver, setNodeRef: setDropRef } = useDroppable({ id: column.id })
 
   // Cards are already pre-filtered by KanbanBoard (O(n) pre-split)
   const columnCards = cards
@@ -86,15 +45,13 @@ const KanbanColumnInner = observer(function KanbanColumn({
 
   return (
     <article
+      ref={setDropRef}
       className={cn(
         'vibegridx-kanban-column flex flex-col h-full min-w-[280px] max-w-[320px] flex-shrink-0',
         'bg-muted/30 rounded-lg border border-border/50',
         'transition-all duration-200',
-        (isDragOver || isLocalDragOver) && 'border-primary/50 bg-primary/5 ring-2 ring-primary/20',
+        isOver && 'border-primary/50 bg-primary/5 ring-2 ring-primary/20',
       )}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
       aria-label={`${column.label} column, ${columnCards.length} cards`}
     >
       {/* Column Header */}
@@ -136,14 +93,7 @@ const KanbanColumnInner = observer(function KanbanColumn({
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
                 >
-                  <KanbanCard
-                    card={card}
-                    isDragging={draggingCardId === card.id}
-                    enableDragAndDrop={enableDragAndDrop}
-                    onDragStart={onCardDragStart}
-                    onDragEnd={onCardDragEnd}
-                    onClick={onCardClick}
-                  />
+                  <KanbanCard card={card} enableDragAndDrop={enableDragAndDrop} onClick={onCardClick} />
                 </div>
               )
             })}

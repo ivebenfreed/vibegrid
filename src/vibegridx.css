@@ -24,6 +24,8 @@
   max-width: 100%;
   overflow: hidden; /* Internal viewport handles scrolling — no container-level scrollbars */
   font-size: 13px; /* Ensure consistent base font size */
+  touch-action: pan-y; /* Allow native vertical scroll, JS handles horizontal interactions */
+  -webkit-overflow-scrolling: touch; /* Smooth momentum scroll on iOS */
 }
 
 .vibegridx-container:focus {
@@ -407,6 +409,17 @@ body.vibegridx-dragging-active * {
   cursor: col-resize;
   z-index: 5;
   user-select: none;
+  touch-action: none; /* Prevent browser scroll during column resize */
+}
+
+/* 44px touch target for resize handle (Apple HIG minimum) */
+.vibegridx-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -19px;
+  right: -19px;
 }
 
 .vibegridx-resize-handle::after {

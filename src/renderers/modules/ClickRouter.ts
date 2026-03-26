@@ -33,7 +33,7 @@ export interface ClickRouterDeps {
  * - Group header clicks -> VisualStateStore.toggleGroupExpansion()
  * - Row expand header -> InteractionStore expand/collapse all
  * - Outside clicks -> ScrollController.handleOutsideClick()
- * - Expand button clicks -> suppressed (handled in mousedown)
+ * - Expand button clicks -> suppressed (handled in pointerdown)
  */
 export class ClickRouter {
   private container: HTMLElement
@@ -101,10 +101,10 @@ export class ClickRouter {
    * Handle clicks within the grid container.
    */
   private handleContainerClick(e: MouseEvent, target: HTMLElement): boolean {
-    // Expand-row clicks are handled in onMouseDown, not onClick
+    // Expand-row clicks are handled in onPointerDown, not onClick
     const expandButton = target.closest('[data-action="expand-row"]') as HTMLElement | null
     if (expandButton) {
-      fileLog.debug('[onClick] Ignoring expand button - handled in mousedown')
+      fileLog.debug('[onClick] Ignoring expand button - handled in pointerdown')
       e.stopPropagation()
       e.preventDefault()
       return true

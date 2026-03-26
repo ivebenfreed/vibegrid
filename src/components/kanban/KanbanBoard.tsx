@@ -1,10 +1,22 @@
 /**
  * KanbanBoard - Main Kanban board container
  *
- * Renders columns horizontally with drag-and-drop support.
+ * Renders columns horizontally with drag-and-drop support via @dnd-kit.
  * Integrates with KanbanViewStore for state management.
+ *
+ * GH#2200: Migrated from HTML5 DnD to dnd-kit for touch support
  */
 
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { observer } from 'mobx-react-lite'
 import { useMemo } from 'react'
 import { getLogger } from '@/shared/lib/logging'
@@ -26,7 +38,17 @@ export const KanbanBoard = observer(function KanbanBoard({
   enableDragAndDrop = true,
 }: KanbanBoardProps) {
   const kanbanStore = useKanbanViewStore()
-  const { columns, cards, dragState } = kanbanStore
+  const { columns, cards } = kanbanStore
+
+  // Sensors: PointerSensor for mouse (8px distance threshold), TouchSensor for touch (250ms hold)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 5 },
+    }),
+  )
 
   // Pre-split cards by column in O(n) — eliminates O(n^2) per-column filtering
   const cardsByColumnId = useMemo(() => {
@@ -42,45 +64,44 @@ export const KanbanBoard = observer(function KanbanBoard({
     return map
   }, [cards])
 
-  // Drag handlers
-  const handleCardDragStart = (cardId: string, columnId: string) => {
-    logger.debug('Card drag started', { cardId, columnId })
-    kanbanStore.startDrag(cardId, columnId)
+  // dnd-kit event handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event
+    const columnId = active.data.current?.columnId as string
+    logger.debug('Card drag started', { cardId: active.id, columnId })
+    kanbanStore.startDrag(active.id as string, columnId)
   }
 
-  const handleCardDragEnd = () => {
-    logger.debug('Card drag ended')
-    // If drag ended without a valid drop (no target column), cancel it
-    // This handles drops outside of any column
-    if (dragState.isDragging && !dragState.targetColumnId) {
+  const handleDragOver = (event: DragOverEvent) => {
+    const { over } = event
+    const targetColumnId = over?.id as string | null
+    if (kanbanStore.dragState.targetColumnId !== targetColumnId) {
+      logger.debug('Drag over column', { columnId: targetColumnId })
+      kanbanStore.updateDragTarget(targetColumnId ?? null)
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { over } = event
+    if (over) {
+      const targetColumnId = over.id as string
+      logger.info('Card dropped', {
+        cardId: kanbanStore.dragState.cardId,
+        from: kanbanStore.dragState.sourceColumnId,
+        to: targetColumnId,
+      })
+      kanbanStore.updateDragTarget(targetColumnId)
+      await kanbanStore.endDrag()
+    } else {
+      // Dropped outside any column — cancel
+      logger.debug('Card drag cancelled — dropped outside columns')
       kanbanStore.cancelDrag()
     }
   }
 
-  const handleDragOver = (columnId: string) => {
-    if (dragState.targetColumnId !== columnId) {
-      logger.debug('Drag over column', { columnId })
-      kanbanStore.updateDragTarget(columnId)
-    }
-  }
-
-  const handleDragLeave = () => {
-    // Only clear if not over another column
-    kanbanStore.updateDragTarget(null)
-  }
-
-  const handleDrop = async (targetColumnId: string) => {
-    logger.info('Card dropped', {
-      cardId: dragState.cardId,
-      from: dragState.sourceColumnId,
-      to: targetColumnId,
-    })
-
-    // Update target before ending drag
-    kanbanStore.updateDragTarget(targetColumnId)
-
-    // End drag and persist
-    await kanbanStore.endDrag()
+  const handleDragCancel = () => {
+    logger.debug('Card drag cancelled (Escape or interrupt)')
+    kanbanStore.cancelDrag()
   }
 
   if (columns.length === 0) {
@@ -96,7 +117,7 @@ export const KanbanBoard = observer(function KanbanBoard({
     )
   }
 
-  return (
+  const boardContent = (
     <section
       className={`vibegridx-kanban-board flex gap-4 p-4 overflow-x-auto h-full ${className}`}
       aria-label="Kanban board"
@@ -106,17 +127,26 @@ export const KanbanBoard = observer(function KanbanBoard({
           key={column.id}
           column={column}
           cards={cardsByColumnId.get(column.id) ?? []}
-          isDragOver={dragState.targetColumnId === column.id}
-          draggingCardId={dragState.cardId}
           enableDragAndDrop={enableDragAndDrop}
-          onDragOver={enableDragAndDrop ? handleDragOver : undefined}
-          onDragLeave={enableDragAndDrop ? handleDragLeave : undefined}
-          onDrop={enableDragAndDrop ? handleDrop : undefined}
-          onCardDragStart={enableDragAndDrop ? handleCardDragStart : undefined}
-          onCardDragEnd={enableDragAndDrop ? handleCardDragEnd : undefined}
           onCardClick={onCardClick}
         />
       ))}
     </section>
+  )
+
+  if (!enableDragAndDrop) {
+    return boardContent
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      {boardContent}
+    </DndContext>
   )
 })

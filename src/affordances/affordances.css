@@ -201,3 +201,40 @@ body.vibegridx-dragging-active * {
     transform: none;
   }
 }
+
+/* ====================================
+ * DRAG HANDLE TOUCH ACTION
+ *
+ * Prevent browser scroll/zoom on drag handles.
+ * ==================================== */
+
+[data-affordance="drag-handle"] {
+  touch-action: none;
+}
+
+/* ====================================
+ * TOUCH DEVICE AFFORDANCES
+ *
+ * On touch-only devices (no hover capability), make hover-dependent
+ * affordances permanently visible. :active replaces :hover for feedback.
+ * Uses opacity (not display:none) to keep elements in the ARIA tree.
+ * ==================================== */
+
+@media (hover: none) {
+  /* Fill handle: always visible on touch */
+  .vibegridx-fill-handle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Edit icons: always visible on touch */
+  [data-affordance-role="icon"] {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Navigate cells: underline on tap (active) instead of hover */
+  [data-action="navigate"]:active {
+    text-decoration: underline;
+  }
+}

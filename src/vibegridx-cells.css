@@ -2,6 +2,21 @@
    VIBEGRIDX CELL RENDERER STYLES
    ==================================== */
 
+/* Fill handle touch target — 44px hit area via ::after pseudo-element */
+.vibegridx-fill-handle {
+  touch-action: none; /* Prevent browser scroll during fill drag */
+  position: relative; /* For ::after positioning */
+}
+
+.vibegridx-fill-handle::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: -20px;
+  right: -20px;
+}
+
 /* Base Cell Container - Static positioning styles (dynamic left/width set via JS) */
 .vibegridx-cell {
   position: absolute;

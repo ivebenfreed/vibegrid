@@ -3,11 +3,13 @@
  *
  * Renders a draggable card with title, status, and auto-detected smart fields
  * (assignee, due date, priority) when present in entity data.
- * Uses native HTML5 drag API for drag-and-drop interactions.
+ * Uses @dnd-kit for cross-platform drag-and-drop (mouse + touch).
  *
  * GH#2139: Smart field display
+ * GH#2200: Migrated from HTML5 DnD to dnd-kit for touch support
  */
 
+import { useDraggable } from '@dnd-kit/core'
 import { CalendarDays, GripVertical, User } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { memo } from 'react'
@@ -19,10 +21,7 @@ import type { KanbanCard as KanbanCardType } from '../../stores/KanbanViewStore'
 
 interface KanbanCardProps {
   card: KanbanCardType
-  isDragging?: boolean
   enableDragAndDrop?: boolean
-  onDragStart?: (cardId: string, columnId: string) => void
-  onDragEnd?: () => void
   onClick?: (cardId: string) => void
 }
 
@@ -37,23 +36,12 @@ function formatShortDate(isoDate: string): string {
   }
 }
 
-const KanbanCardInner = observer(function KanbanCard({
-  card,
-  isDragging = false,
-  enableDragAndDrop = true,
-  onDragStart,
-  onDragEnd,
-  onClick,
-}: KanbanCardProps) {
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-    e.dataTransfer.setData('text/plain', card.id)
-    e.dataTransfer.effectAllowed = 'move'
-    onDragStart?.(card.id, card.columnId)
-  }
-
-  const handleDragEnd = () => {
-    onDragEnd?.()
-  }
+const KanbanCardInner = observer(function KanbanCard({ card, enableDragAndDrop = true, onClick }: KanbanCardProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: card.id,
+    data: { columnId: card.columnId },
+    disabled: !enableDragAndDrop,
+  })
 
   const handleClick = () => {
     onClick?.(card.id)
@@ -70,7 +58,7 @@ const KanbanCardInner = observer(function KanbanCard({
   const hasSmartFields = smartFields?.assignee || smartFields?.dueDate || smartFields?.priority
 
   return (
-    <div>
+    <div ref={setNodeRef} {...listeners} {...attributes}>
       <Card
         className={cn(
           'vibegridx-kanban-card transition-all duration-200',
@@ -79,9 +67,6 @@ const KanbanCardInner = observer(function KanbanCard({
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           isDragging && 'opacity-50 shadow-lg rotate-2 scale-105',
         )}
-        draggable={enableDragAndDrop}
-        onDragStart={enableDragAndDrop ? handleDragStart : undefined}
-        onDragEnd={enableDragAndDrop ? handleDragEnd : undefined}
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         tabIndex={0}

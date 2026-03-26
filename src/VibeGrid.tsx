@@ -947,6 +947,29 @@ function VibeGridInnerBase(props: VibeGridProps) {
   }, [effectiveViewMode, ganttViewStore, stores.viewportStore.scrollTop])
 
   // ====================================
+  // SAFARI GESTURE PREVENTION (GH#2200)
+  // Prevent pinch-zoom on the grid container on iOS Safari.
+  // gesturestart/gesturechange/gestureend are Safari-specific events.
+  // ====================================
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const preventGesture = (e: Event) => e.preventDefault()
+
+    container.addEventListener('gesturestart', preventGesture, { passive: false })
+    container.addEventListener('gesturechange', preventGesture, { passive: false })
+    container.addEventListener('gestureend', preventGesture, { passive: false })
+
+    return () => {
+      container.removeEventListener('gesturestart', preventGesture)
+      container.removeEventListener('gesturechange', preventGesture)
+      container.removeEventListener('gestureend', preventGesture)
+    }
+  }, [])
+
+  // ====================================
   // DERIVED STATE
   // ====================================
 
