@@ -1112,23 +1112,21 @@ body.vibegridx-dragging-active * {
   .vibegridx-cell {
     /* Slightly reduce padding to fit more content */
     padding: 6px 10px;
+    font-size: 12px;
   }
 }
 
-/* Mobile breakpoint — increase font sizes for readability on small screens */
+/* Mobile breakpoint */
 @media (max-width: 768px) {
-  .vibegridx-container {
-    font-size: 16px; /* Up from 13px desktop — match mobile-friendly sizing */
-  }
-
   .vibegridx-header-cell,
   .vibegridx-cell {
-    padding: 8px 10px;
-    font-size: 15px; /* Up from 13px — readable on phone screens */
+    /* Width handled dynamically */
+    padding: 6px 8px;
+    font-size: 12px;
   }
 
   .vibegridx-header {
-    font-size: 14px; /* Up from 12px */
+    font-size: 11px;
   }
 }
 
