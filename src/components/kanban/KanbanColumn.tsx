@@ -90,7 +90,7 @@ const KanbanColumnInner = observer(function KanbanColumn({
   return (
     <article
       className={cn(
-        'vibegridx-kanban-column flex flex-col h-full min-w-[280px] max-w-[320px]',
+        'vibegridx-kanban-column flex flex-col h-full min-w-[280px] max-w-[320px] flex-shrink-0',
         'bg-muted/30 rounded-lg border border-border/50',
         'transition-all duration-200',
         (isDragOver || isLocalDragOver) && 'border-primary/50 bg-primary/5 ring-2 ring-primary/20',
