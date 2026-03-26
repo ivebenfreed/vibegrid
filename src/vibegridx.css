@@ -1130,6 +1130,15 @@ body.vibegridx-dragging-active * {
   }
 }
 
+/* Mobile toolbar breakpoint */
+@media (max-width: 639px) {
+  .vibegridx-header-toolbar {
+    padding: 6px 8px;
+    gap: 6px;
+    min-height: 36px;
+  }
+}
+
 /* Selection column styles */
 .vibegridx-selection-header,
 .vibegridx-selection-cell {

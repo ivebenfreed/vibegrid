@@ -120,14 +120,14 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
 
   return (
     <div
-      className={`vibegridx-header-toolbar flex items-center justify-between p-2 border-b bg-muted/50 ${className}`}
+      className={`vibegridx-header-toolbar flex flex-wrap items-center justify-between gap-y-1 p-2 border-b bg-muted/50 ${className}`}
       data-testid="vibegrid-header"
       style={{
         minHeight: '44px',
         flexShrink: 0,
       }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         {/* Leading content (e.g., page title + record count) */}
         {toolbarLeading}
 
@@ -145,7 +145,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
               data-testid="view-mode-table"
             >
               <LayoutList className="size-4" />
-              Table
+              <span className="hidden sm:inline">Table</span>
             </Button>
             {availableModules.includes('gantt') && (
               <Button
@@ -156,7 +156,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
                 data-testid="view-mode-gantt"
               >
                 <GanttChart className="size-4" />
-                Gantt
+                <span className="hidden sm:inline">Gantt</span>
               </Button>
             )}
             {availableModules.includes('kanban') && (
@@ -168,7 +168,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
                 data-testid="view-mode-kanban"
               >
                 <Kanban className="size-4" />
-                Kanban
+                <span className="hidden sm:inline">Kanban</span>
               </Button>
             )}
           </ButtonGroup>
@@ -193,12 +193,12 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
             data-testid="toggle-hierarchy"
           >
             <Network className="size-4 mr-1" />
-            Hierarchy
+            <span className="hidden sm:inline">Hierarchy</span>
           </Button>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         {/* Group By Dropdown */}
         {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
 

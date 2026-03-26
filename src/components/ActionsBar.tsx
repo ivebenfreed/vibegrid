@@ -52,9 +52,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   const { selectedCells } = interactionStore
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(
-    null,
-  )
+  const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Derive selected rows from selected cells
@@ -204,7 +202,7 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 px-4 py-3 bg-popover border border-border rounded-lg shadow-xl min-w-[320px]">
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-popover border border-border rounded-lg shadow-xl max-w-[calc(100vw-32px)]">
           {/* Selection count */}
           <div className="flex items-center gap-2 pr-3 border-r border-border">
             <span className="text-sm font-medium" data-testid="selection-count">
