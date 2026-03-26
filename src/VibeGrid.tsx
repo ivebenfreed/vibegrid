@@ -1046,7 +1046,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Main content area - Table, Split Pane (Gantt), or Kanban */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
-      <div className="flex-1 flex flex-row overflow-hidden" style={{ minHeight: 0 }}>
+      <div className={`flex-1 flex flex-row ${effectiveViewMode === 'kanban' ? 'overflow-x-auto overflow-y-hidden' : 'overflow-hidden'}`} style={{ minHeight: 0 }}>
         {/* Table container - ALWAYS rendered to maintain renderer attachment */}
         {/* Hidden when in Kanban mode, but kept in DOM to preserve renderer state */}
         <div
