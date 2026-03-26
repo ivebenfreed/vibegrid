@@ -127,7 +127,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         flexShrink: 0,
       }}
     >
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
         {/* Leading content (e.g., page title + record count) */}
         {toolbarLeading}
 
@@ -198,7 +198,7 @@ export const VibeGridXHeaderPure = observer(function VibeGridXHeaderPure({
         )}
       </div>
 
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
         {/* Group By Dropdown */}
         {enableGrouping && <GroupConfigDropdownPure stores={stores} />}
 
