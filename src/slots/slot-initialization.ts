@@ -139,8 +139,7 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   registry.register({
     id: 'entity-name',
     priority: 50,
-    canHandle: (column) =>
-      column.id === 'name' || column.id === 'title' || (column as any).isPrimaryField === true,
+    canHandle: (column) => column.id === 'name' || column.id === 'title' || (column as any).isPrimaryField === true,
     renderer: () => entityNameCellRenderer,
   })
 

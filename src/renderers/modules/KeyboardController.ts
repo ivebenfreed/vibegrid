@@ -94,11 +94,7 @@ export class KeyboardController {
       // Route all keyboard events through coordinator when available.
       // Fall back to legacy handling when coordinator declines.
       if (this.interactionCoordinator) {
-        const handled = this.interactionCoordinator.handleKeyboardNavigation(
-          event.key,
-          modifiers,
-          event,
-        )
+        const handled = this.interactionCoordinator.handleKeyboardNavigation(event.key, modifiers, event)
         if (handled) {
           return
         }

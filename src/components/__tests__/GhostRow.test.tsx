@@ -121,9 +121,7 @@ describe('GhostRow - editing state', () => {
 
   it('Enter keydown calls onCommit', () => {
     const onCommit = vi.fn()
-    const { container } = render(
-      <GhostRow {...defaultProps} status="editing" onCommit={onCommit} />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="editing" onCommit={onCommit} />)
 
     const row = container.querySelector('.vibegridx-ghost-row--editing')!
     fireEvent.keyDown(row, { key: 'Enter' })
@@ -132,9 +130,7 @@ describe('GhostRow - editing state', () => {
 
   it('Escape keydown calls onCancel', () => {
     const onCancel = vi.fn()
-    const { container } = render(
-      <GhostRow {...defaultProps} status="editing" onCancel={onCancel} />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="editing" onCancel={onCancel} />)
 
     const row = container.querySelector('.vibegridx-ghost-row--editing')!
     fireEvent.keyDown(row, { key: 'Escape' })
@@ -143,9 +139,7 @@ describe('GhostRow - editing state', () => {
 
   it('Tab on last field calls onCommit', () => {
     const onCommit = vi.fn()
-    const { container } = render(
-      <GhostRow {...defaultProps} status="editing" onCommit={onCommit} />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="editing" onCommit={onCommit} />)
 
     // Focus the last input so Tab on it triggers commit
     const lastInput = screen.getByTestId('field-status')
@@ -159,9 +153,7 @@ describe('GhostRow - editing state', () => {
 
   it('Tab on non-last field does not call onCommit', () => {
     const onCommit = vi.fn()
-    const { container } = render(
-      <GhostRow {...defaultProps} status="editing" onCommit={onCommit} />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="editing" onCommit={onCommit} />)
 
     // Focus the first field — Tab should not commit
     const firstInput = screen.getByTestId('field-name')
@@ -175,9 +167,7 @@ describe('GhostRow - editing state', () => {
 
   it('Shift+Tab does not call onCommit even on last field', () => {
     const onCommit = vi.fn()
-    const { container } = render(
-      <GhostRow {...defaultProps} status="editing" onCommit={onCommit} />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="editing" onCommit={onCommit} />)
 
     const lastInput = screen.getByTestId('field-status')
     lastInput.focus()
@@ -235,9 +225,7 @@ describe('GhostRow - saving state', () => {
 describe('GhostRow - error state', () => {
   beforeEach(() => vi.clearAllMocks())
   it('has vibegridx-ghost-row--error class', () => {
-    const { container } = render(
-      <GhostRow {...defaultProps} status="error" errorMessage="Network error" />,
-    )
+    const { container } = render(<GhostRow {...defaultProps} status="error" errorMessage="Network error" />)
 
     const row = container.querySelector('.vibegridx-ghost-row--error')
     expect(row).toBeInTheDocument()
@@ -251,12 +239,7 @@ describe('GhostRow - error state', () => {
 
   it('renders fields as re-editable', () => {
     render(
-      <GhostRow
-        {...defaultProps}
-        status="error"
-        inlineColumns={[makeColumn('name')]}
-        errorMessage="Save failed"
-      />,
+      <GhostRow {...defaultProps} status="error" inlineColumns={[makeColumn('name')]} errorMessage="Save failed" />,
     )
 
     expect(screen.getByTestId('field-name')).toBeInTheDocument()

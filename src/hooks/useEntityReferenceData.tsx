@@ -113,11 +113,7 @@ export function useEntityReferenceData(tableCoreStore: TableCoreStore | null): R
   return (
     <>
       {targetEntityTypes.map((entityType) => (
-        <MemoizedBridge
-          key={entityType}
-          targetEntityType={entityType}
-          tableCoreStore={tableCoreStore}
-        />
+        <MemoizedBridge key={entityType} targetEntityType={entityType} tableCoreStore={tableCoreStore} />
       ))}
     </>
   )

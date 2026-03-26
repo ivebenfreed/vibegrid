@@ -28,16 +28,10 @@ class UserReferenceCellRenderer implements CellRenderer {
 
     const rawUserId = typeof value === 'string' ? value : String(value)
 
-    const rowData = (context as Record<string, unknown>).rowData as
-      | Record<string, unknown>
-      | undefined
+    const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
 
     // Check for backend-resolved display name (_name suffix from UnifiedResolver)
-    const userResolvedName = getResolvedDisplayName(
-      rowData,
-      column,
-      context as Record<string, unknown>,
-    )
+    const userResolvedName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
     if (userResolvedName) {
       container.innerHTML = this.createUserBadgeFromName(userResolvedName, rawUserId)
       this.applyNavigableAffordance(container, isEditable)
@@ -73,15 +67,9 @@ class UserReferenceCellRenderer implements CellRenderer {
   format(value: unknown, column: Column, context: CellRendererContext): string {
     if (isEmpty(value)) return ''
 
-    const rowData = (context as Record<string, unknown>).rowData as
-      | Record<string, unknown>
-      | undefined
+    const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
 
-    const userFormatResolved = getResolvedDisplayName(
-      rowData,
-      column,
-      context as Record<string, unknown>,
-    )
+    const userFormatResolved = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
     if (userFormatResolved) return userFormatResolved
 
     if (rowData) {

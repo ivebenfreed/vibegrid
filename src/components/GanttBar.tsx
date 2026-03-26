@@ -303,9 +303,7 @@ export const GanttBar = observer(function GanttBar({
         >
           {/* Progress percentage badge for bars with progress */}
           {bar.progress != null && bar.progress > 0 && bar.width > 100 && (
-            <span className="absolute right-1 text-[10px] opacity-80 z-10">
-              {Math.round(bar.progress)}%
-            </span>
+            <span className="absolute right-1 text-[10px] opacity-80 z-10">{Math.round(bar.progress)}%</span>
           )}
 
           {/* Label - inside bar when wide enough */}

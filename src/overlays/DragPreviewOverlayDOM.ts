@@ -96,16 +96,13 @@ export class DragPreviewOverlayDOM {
   private isColumnDragOperation(): boolean {
     // Column drags are handled by interaction-handlers.ts with setDragImage
     // We can detect them by checking for active column drag via DOM or by checking if the drag preview exists in body
-    const draggingHeaders = document.querySelectorAll(
-      '.vibegridx-header-cell.dragging, .vibegridx-dragging',
-    )
+    const draggingHeaders = document.querySelectorAll('.vibegridx-header-cell.dragging, .vibegridx-dragging')
     const bodyDragPreview = document.body.querySelector('.vibegridx-column-drag-preview')
 
     // Also check if any header elements are currently being dragged (via drag state in DOM)
     const headerContainer = document.querySelector('.vibegridx-header-container')
     const isDragInProgress =
-      headerContainer?.classList.contains('dragging') ||
-      headerContainer?.querySelector('.dragging') !== null
+      headerContainer?.classList.contains('dragging') || headerContainer?.querySelector('.dragging') !== null
 
     const isColumnDrag = draggingHeaders.length > 0 || bodyDragPreview !== null || isDragInProgress
 

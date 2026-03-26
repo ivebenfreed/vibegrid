@@ -20,19 +20,9 @@ import {
 } from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
-import {
-  MockDataControls,
-  SCENARIOS,
-  type ScenarioName,
-} from '@/systems/vibegrid/components/MockDataControls'
+import { MockDataControls, SCENARIOS, type ScenarioName } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/gantt')({
   beforeLoad: async () => {
@@ -45,12 +35,7 @@ export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/gantt'
 })
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'done', 'blocked'] as const
-const DEPENDENCY_TYPES = [
-  'finish_to_start',
-  'start_to_start',
-  'finish_to_finish',
-  'start_to_finish',
-] as const
+const DEPENDENCY_TYPES = ['finish_to_start', 'start_to_start', 'finish_to_finish', 'start_to_finish'] as const
 
 /**
  * Generate a single mock task with random data
@@ -140,18 +125,10 @@ function GanttControls({
         <CardDescription>Manage dependencies ({dependencyCount} dependencies)</CardDescription>
       </CardHeader>
       <CardContent className="flex gap-4">
-        <Button
-          variant="outline"
-          onClick={onGenerateDependencies}
-          data-testid="generate-dependencies-button"
-        >
+        <Button variant="outline" onClick={onGenerateDependencies} data-testid="generate-dependencies-button">
           Generate Dependencies
         </Button>
-        <Button
-          variant="outline"
-          onClick={onClearDependencies}
-          data-testid="clear-dependencies-button"
-        >
+        <Button variant="outline" onClick={onClearDependencies} data-testid="clear-dependencies-button">
           Clear Dependencies
         </Button>
       </CardContent>
@@ -166,9 +143,7 @@ function MockVibeGridGantt() {
   const [scenario, setScenario] = useState<ScenarioName>('small')
   const [customCount, setCustomCount] = useState(10)
   const [dataVersion, setDataVersion] = useState(0)
-  const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasksForGantt(SCENARIOS.small.rowCount),
-  )
+  const [mockData, setMockData] = useState<MockEntity[]>(() => generateMockTasksForGantt(SCENARIOS.small.rowCount))
   const [dependencies, setDependencies] = useState<MockDependency[]>([])
 
   // Expose test state for E2E testing
@@ -271,8 +246,7 @@ function MockVibeGridGantt() {
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Gantt Test</h2>
             <p className="text-muted-foreground">
-              Test VibeGrid Gantt view with mock data - {mockData.length} rows,{' '}
-              {dependencies.length} dependencies
+              Test VibeGrid Gantt view with mock data - {mockData.length} rows, {dependencies.length} dependencies
             </p>
           </div>
 

@@ -18,11 +18,7 @@ const logger = getLogger(['vibegrid', 'utils', 'cascade-scheduler'])
 // TYPES
 // ====================================
 
-export type DependencyType =
-  | 'finish_to_start'
-  | 'start_to_start'
-  | 'finish_to_finish'
-  | 'start_to_finish'
+export type DependencyType = 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish'
 
 export interface CascadeDependency {
   id: string

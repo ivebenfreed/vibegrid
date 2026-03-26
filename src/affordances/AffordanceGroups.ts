@@ -94,9 +94,7 @@ export const AFFORDANCE_GROUPS: Record<string, AffordanceGroup> = {
   'link-only': {
     name: 'link-only',
     description: 'Clickable text that navigates, no edit capability',
-    elements: [
-      { role: 'link', affordance: 'navigate', cursor: 'pointer', hoverEffect: 'underline' },
-    ],
+    elements: [{ role: 'link', affordance: 'navigate', cursor: 'pointer', hoverEffect: 'underline' }],
     container: { affordance: 'select', cursor: 'default' },
   },
 

@@ -13,8 +13,7 @@ export { formatFieldForDisplay }
 export function renderEmpty(element: HTMLElement, isEditable: boolean): void {
   element.className = 'vibegridx-cell-empty'
   if (isEditable) {
-    element.innerHTML =
-      '<span data-action="edit" data-affordance-role="content" style="opacity: 0.6;">Edit ✏️</span>'
+    element.innerHTML = '<span data-action="edit" data-affordance-role="content" style="opacity: 0.6;">Edit ✏️</span>'
   } else {
     element.textContent = ''
   }
@@ -41,9 +40,7 @@ export function getResolvedDisplayName(
   if (!resolved) return null
 
   // If the _name key is a real schema field, don't treat it as resolved display data
-  const tableCoreStore = context.tableCoreStore as
-    | { columns?: Array<{ field?: string; id?: string }> }
-    | undefined
+  const tableCoreStore = context.tableCoreStore as { columns?: Array<{ field?: string; id?: string }> } | undefined
   if (tableCoreStore?.columns?.some((col) => col.field === nameKey || col.id === nameKey)) {
     return null
   }

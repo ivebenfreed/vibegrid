@@ -10,24 +10,14 @@ interface PickerEnumEditorProps {
   onCancel: () => void
 }
 
-export function PickerEnumEditor({
-  cell: _cell,
-  column,
-  initialValue,
-  onCommit,
-  onCancel,
-}: PickerEnumEditorProps) {
+export function PickerEnumEditor({ cell: _cell, column, initialValue, onCommit, onCancel }: PickerEnumEditorProps) {
   const [hasCommitted, setHasCommitted] = React.useState(false)
 
   // Build field definition from column for EnumPicker
   const field = React.useMemo(() => {
     // Check all three option sources, matching SelectCellRenderer.getOptions logic
     const rawOptions =
-      column.enumOptions ||
-      column.options ||
-      (column.validation?.enum as any[]) ||
-      column.editor?.options ||
-      []
+      column.enumOptions || column.options || (column.validation?.enum as any[]) || column.editor?.options || []
     const options = rawOptions.map((opt: any) =>
       typeof opt === 'string'
         ? { value: opt, label: opt }

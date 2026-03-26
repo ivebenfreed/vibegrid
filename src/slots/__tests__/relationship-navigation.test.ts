@@ -302,9 +302,7 @@ describe('Relationship Field Navigation (GH#1843)', () => {
 
       // Simulate what EntityListView does on badge click
       const target = event.target as HTMLElement
-      const found = target.closest<HTMLElement>(
-        '[data-affordance="navigate"][data-entity-type][data-entity-id]',
-      )
+      const found = target.closest<HTMLElement>('[data-affordance="navigate"][data-entity-type][data-entity-id]')
       if (found?.dataset.entityType && found?.dataset.entityId) {
         event.preventDefault()
       }

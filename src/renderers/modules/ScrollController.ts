@@ -91,11 +91,7 @@ export class ScrollController {
   /**
    * Add event listener with tracking for cleanup
    */
-  private addEventListenerTracked(
-    element: EventTarget,
-    event: string,
-    handler: EventListener,
-  ): void {
+  private addEventListenerTracked(element: EventTarget, event: string, handler: EventListener): void {
     element.addEventListener(event, handler, { passive: event === 'scroll' })
     this.eventListeners.push({ element, event, handler })
   }
@@ -112,10 +108,7 @@ export class ScrollController {
       // Detect rapid scrolling before updating last position
       const deltaX = Math.abs(scrollLeft - this.lastScrollLeft)
       const deltaY = Math.abs(scrollTop - this.lastScrollTop)
-      if (
-        (deltaX > this.scrollVelocityThreshold || deltaY > this.scrollVelocityThreshold) &&
-        this.onRapidScroll
-      ) {
+      if ((deltaX > this.scrollVelocityThreshold || deltaY > this.scrollVelocityThreshold) && this.onRapidScroll) {
         this.onRapidScroll(scrollLeft, scrollTop)
       }
 
@@ -286,9 +279,7 @@ export class ScrollController {
       (!viewportElement && !cellElement && !headerElement)
 
     if (shouldClearSelection) {
-      const clickType = viewportElement
-        ? 'empty space within viewport'
-        : 'outside VibeGrid container'
+      const clickType = viewportElement ? 'empty space within viewport' : 'outside VibeGrid container'
       fileLog.debug(`🖱️ Click on ${clickType} - delegating to handler`)
 
       // Just delegate the event, don't manage state

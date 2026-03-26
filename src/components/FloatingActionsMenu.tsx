@@ -39,14 +39,7 @@ interface FloatingActionsMenuProps {
 }
 
 const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) => {
-  const {
-    rowActions = [],
-    onRowAction,
-    enableDelete,
-    onDelete,
-    deleteConfirmation,
-    getRowData,
-  } = props
+  const { rowActions = [], onRowAction, enableDelete, onDelete, deleteConfirmation, getRowData } = props
 
   const { menuStateStore } = useVibeGridStores()
   const { rowActionMenuState } = menuStateStore
@@ -151,9 +144,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
                   {Icon && <Icon className="mr-2 h-4 w-4" />}
                   {action.label}
                 </DropdownMenuItem>
-                {index < visibleActions.length - 1 && action.destructive && (
-                  <DropdownMenuSeparator />
-                )}
+                {index < visibleActions.length - 1 && action.destructive && <DropdownMenuSeparator />}
               </React.Fragment>
             )
           })}

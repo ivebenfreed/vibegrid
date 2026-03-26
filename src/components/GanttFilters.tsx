@@ -3,15 +3,7 @@
  */
 
 import { observer } from 'mobx-react-lite'
-import {
-  List,
-  CalendarDays,
-  AlertCircle,
-  Calendar,
-  GitBranch,
-  CalendarRange,
-  X,
-} from 'lucide-react'
+import { List, CalendarDays, AlertCircle, Calendar, GitBranch, CalendarRange, X } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Calendar as CalendarPicker } from '@/shared/components/ui/calendar'
@@ -47,8 +39,7 @@ export const GanttFilters = observer(function GanttFilters({ className }: GanttF
   const ganttViewStore = useGanttViewStore()
   const { activeQuickFilter, dateRangeFilter } = ganttViewStore
 
-  const hasActiveFilters =
-    activeQuickFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end
+  const hasActiveFilters = activeQuickFilter !== 'all' || dateRangeFilter.start || dateRangeFilter.end
 
   const dateRangeLabel =
     dateRangeFilter.start || dateRangeFilter.end

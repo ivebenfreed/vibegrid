@@ -68,9 +68,7 @@ export class EventManager {
     this.setupContextMenu()
     this.setupGlobalDocumentHandling()
 
-    fileLog.info(
-      '✅ Global event handling setup complete (keyboard handling moved to KeyboardController)',
-    ) // Keep: lifecycle
+    fileLog.info('✅ Global event handling setup complete (keyboard handling moved to KeyboardController)') // Keep: lifecycle
   }
 
   /**
@@ -80,9 +78,7 @@ export class EventManager {
     const contextMenuHandler = (e: MouseEvent) => {
       e.preventDefault()
 
-      const cellElement = (e.target as HTMLElement).closest(
-        '[data-row-id][data-column-id]',
-      ) as HTMLElement
+      const cellElement = (e.target as HTMLElement).closest('[data-row-id][data-column-id]') as HTMLElement
       if (cellElement && this.overlayManager) {
         const rowId = cellElement.dataset.rowId
         const columnId = cellElement.dataset.columnId
@@ -213,11 +209,7 @@ export class EventManager {
   /**
    * Add event listener with tracking for cleanup
    */
-  private addEventListenerTracked(
-    target: EventTarget,
-    type: string,
-    listener: EventListener,
-  ): void {
+  private addEventListenerTracked(target: EventTarget, type: string, listener: EventListener): void {
     target.addEventListener(type, listener)
     this.activeEventListeners.push({ target, type, listener })
   }

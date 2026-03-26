@@ -4,10 +4,7 @@
 
 import type { CellType, Column } from './types'
 
-export const COLUMN_DEFAULTS: Record<
-  CellType,
-  { width: number; minWidth: number; maxWidth: number }
-> = {
+export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number; maxWidth: number }> = {
   // Basic text types
   text: { width: 200, minWidth: 120, maxWidth: 400 },
   longtext: { width: 300, minWidth: 200, maxWidth: 600 },

@@ -19,19 +19,9 @@ import {
 } from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
-import {
-  MockDataControls,
-  SCENARIOS,
-  type ScenarioName,
-} from '@/systems/vibegrid/components/MockDataControls'
+import { MockDataControls, SCENARIOS, type ScenarioName } from '@/systems/vibegrid/components/MockDataControls'
 import { Button } from '@/shared/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/shared/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Switch } from '@/shared/components/ui/switch'
 import { Label } from '@/shared/components/ui/label'
 
@@ -138,9 +128,7 @@ function MockVibeGridDragDrop() {
   const [dataVersion, setDataVersion] = useState(0)
   const [enableRowDrag, setEnableRowDrag] = useState(true)
   const [enableFillHandle, setEnableFillHandle] = useState(true)
-  const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasks(SCENARIOS.small.rowCount),
-  )
+  const [mockData, setMockData] = useState<MockEntity[]>(() => generateMockTasks(SCENARIOS.small.rowCount))
 
   // Expose test state for E2E testing
   useEffect(() => {
@@ -238,9 +226,7 @@ function MockVibeGridDragDrop() {
         <div className="flex flex-col h-full w-full" data-testid="vibegrid-test-drag-drop">
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Drag & Drop Test</h2>
-            <p className="text-muted-foreground">
-              Test VibeGrid drag & drop with mock data - {mockData.length} rows
-            </p>
+            <p className="text-muted-foreground">Test VibeGrid drag & drop with mock data - {mockData.length} rows</p>
           </div>
 
           <MockDataControls

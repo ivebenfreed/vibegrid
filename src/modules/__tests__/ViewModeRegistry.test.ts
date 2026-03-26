@@ -231,9 +231,7 @@ describe('ViewModeRegistry', () => {
     it('should throw when registry is empty (fail-fast)', () => {
       // Registry is cleared in beforeEach, so it's empty
 
-      expect(() => viewModeRegistry.getRegisteredIds()).toThrow(
-        '[ViewModeRegistry] Registry is empty',
-      )
+      expect(() => viewModeRegistry.getRegisteredIds()).toThrow('[ViewModeRegistry] Registry is empty')
     })
 
     it('should not load modules (just return IDs)', async () => {
@@ -277,9 +275,7 @@ describe('ViewModeRegistry', () => {
     })
 
     it('should throw when registry is empty (fail-fast)', () => {
-      expect(() => viewModeRegistry.getRegisteredMeta()).toThrow(
-        '[ViewModeRegistry] Registry is empty',
-      )
+      expect(() => viewModeRegistry.getRegisteredMeta()).toThrow('[ViewModeRegistry] Registry is empty')
     })
 
     it('should return a copy (not reference to internal map)', () => {
@@ -357,22 +353,14 @@ describe('ViewModeRegistry', () => {
     })
 
     it('should filter by canHandle', () => {
-      viewModeRegistry.register(
-        'can-handle',
-        async () => createTestModule('can-handle', 'Can Handle'),
-        {
-          displayName: 'Can Handle',
-          canHandle: () => true,
-        },
-      )
-      viewModeRegistry.register(
-        'cannot-handle',
-        async () => createTestModule('cannot-handle', 'Cannot Handle'),
-        {
-          displayName: 'Cannot Handle',
-          canHandle: () => false,
-        },
-      )
+      viewModeRegistry.register('can-handle', async () => createTestModule('can-handle', 'Can Handle'), {
+        displayName: 'Can Handle',
+        canHandle: () => true,
+      })
+      viewModeRegistry.register('cannot-handle', async () => createTestModule('cannot-handle', 'Cannot Handle'), {
+        displayName: 'Cannot Handle',
+        canHandle: () => false,
+      })
 
       const props: GridModuleRenderProps = { tableId: 'test', entityType: 'Task' }
       const stores = createMockStores()

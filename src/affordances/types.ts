@@ -64,10 +64,7 @@ export interface FieldTypeAffordance {
    * - { remove: string[] }: Remove specific affordances from current group
    * - { override: Partial<AffordanceElement>[] }: Override specific elements
    */
-  whenNotEditable:
-    | string
-    | { remove: AffordanceAction[] }
-    | { override: Partial<AffordanceElement>[] }
+  whenNotEditable: string | { remove: AffordanceAction[] } | { override: Partial<AffordanceElement>[] }
 }
 
 /**

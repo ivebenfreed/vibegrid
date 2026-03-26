@@ -153,29 +153,15 @@ export const SELECT_CELL_TYPES = new Set<CellType>([
 ] as const)
 
 /** @deprecated Use isDropdownPositioned() from './constants/field-type-categories' instead */
-export const DROPDOWN_CELL_TYPES = new Set<CellType>([
-  ...SELECT_CELL_TYPES,
-  'boolean',
-  'date',
-  'datetime',
-] as const)
+export const DROPDOWN_CELL_TYPES = new Set<CellType>([...SELECT_CELL_TYPES, 'boolean', 'date', 'datetime'] as const)
 
 /** @deprecated Use isTextPositioned() from './constants/field-type-categories' instead */
-export const TEXT_CELL_TYPES = new Set<CellType>([
-  'text',
-  'longtext',
-  'rich-text',
-  'email',
-  'url',
-  'phone',
-] as const)
+export const TEXT_CELL_TYPES = new Set<CellType>(['text', 'longtext', 'rich-text', 'email', 'url', 'phone'] as const)
 
 // Utility functions for optimal type checking
 /** @deprecated Use FIELD_TYPE_CATEGORIES from './constants/field-type-categories' instead */
-export const isSelectType = (cellType: string): boolean =>
-  SELECT_CELL_TYPES.has(cellType as CellType)
+export const isSelectType = (cellType: string): boolean => SELECT_CELL_TYPES.has(cellType as CellType)
 /** @deprecated Use isDropdownPositioned() from './constants/field-type-categories' instead */
-export const isDropdownType = (cellType: string): boolean =>
-  DROPDOWN_CELL_TYPES.has(cellType as CellType)
+export const isDropdownType = (cellType: string): boolean => DROPDOWN_CELL_TYPES.has(cellType as CellType)
 /** @deprecated Use isTextPositioned() from './constants/field-type-categories' instead */
 export const isTextType = (cellType: string): boolean => TEXT_CELL_TYPES.has(cellType as CellType)

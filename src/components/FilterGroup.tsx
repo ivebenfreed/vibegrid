@@ -14,10 +14,7 @@ import { observer } from 'mobx-react-lite'
 import { Button } from '@/shared/components/ui/button'
 import { getLogger } from '@/shared/lib/logging'
 import { FilterCondition } from './FilterCondition'
-import type {
-  FilterCondition as FilterConditionType,
-  FilterGroup as FilterGroupType,
-} from '../types/filter-types'
+import type { FilterCondition as FilterConditionType, FilterGroup as FilterGroupType } from '../types/filter-types'
 import type { Column } from '../types'
 
 const logger = getLogger(['vibegrid', 'FilterGroup'])
@@ -158,21 +155,11 @@ export const FilterGroup = observer(function FilterGroup({
 
       {/* Add buttons */}
       <div className="flex gap-2 mt-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          data-testid={`vibegrid-filter-add-condition-${depth}`}
-          onClick={addCondition}
-        >
+        <Button variant="ghost" size="sm" data-testid={`vibegrid-filter-add-condition-${depth}`} onClick={addCondition}>
           <Plus className="h-3 w-3 mr-1" /> Condition
         </Button>
         {canAddGroup && (
-          <Button
-            variant="ghost"
-            size="sm"
-            data-testid={`vibegrid-filter-add-group-${depth}`}
-            onClick={addGroup}
-          >
+          <Button variant="ghost" size="sm" data-testid={`vibegrid-filter-add-group-${depth}`} onClick={addGroup}>
             <Plus className="h-3 w-3 mr-1" /> Group
           </Button>
         )}

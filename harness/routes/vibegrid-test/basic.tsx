@@ -19,11 +19,7 @@ import {
 } from '@/shared/data/db/collections/mock-collections'
 import { VibeGrid } from '@/systems/vibegrid'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
-import {
-  MockDataControls,
-  SCENARIOS,
-  type ScenarioName,
-} from '@/systems/vibegrid/components/MockDataControls'
+import { MockDataControls, SCENARIOS, type ScenarioName } from '@/systems/vibegrid/components/MockDataControls'
 
 export const Route = createFileRoute('/_authenticated/debug/vibegrid-test/basic')({
   beforeLoad: async () => {
@@ -77,9 +73,7 @@ function MockVibeGridBasic() {
   const [scenario, setScenario] = useState<ScenarioName>('small')
   const [customCount, setCustomCount] = useState(10)
   const [dataVersion, setDataVersion] = useState(0)
-  const [mockData, setMockData] = useState<MockEntity[]>(() =>
-    generateMockTasks(SCENARIOS.small.rowCount),
-  )
+  const [mockData, setMockData] = useState<MockEntity[]>(() => generateMockTasks(SCENARIOS.small.rowCount))
 
   // Expose test state for E2E testing
   useEffect(() => {
@@ -161,9 +155,7 @@ function MockVibeGridBasic() {
         <div className="flex flex-col h-full w-full" data-testid="vibegrid-test-basic">
           <div className="pb-4">
             <h2 className="text-2xl font-bold tracking-tight">Mock VibeGrid Test</h2>
-            <p className="text-muted-foreground">
-              Test VibeGrid with mock data - {mockData.length} rows
-            </p>
+            <p className="text-muted-foreground">Test VibeGrid with mock data - {mockData.length} rows</p>
           </div>
 
           <MockDataControls

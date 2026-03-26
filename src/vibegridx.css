@@ -1217,9 +1217,7 @@ body.vibegridx-dragging-active * {
   border-color: hsl(var(--primary));
 }
 
-.vibegridx-checkbox-wrapper
-  input[type="checkbox"]:indeterminate
-  ~ .vibegridx-checkbox-custom::after {
+.vibegridx-checkbox-wrapper input[type="checkbox"]:indeterminate ~ .vibegridx-checkbox-custom::after {
   content: "";
   position: absolute;
   display: block;

@@ -476,8 +476,7 @@ export class VisualStateStore implements IStore {
    */
   @computed get orderedColumns(): Column[] {
     // Safety check: If columnOrder is empty but columns exist, use columns order
-    const orderToUse =
-      this.columnOrder.length > 0 ? this.columnOrder : this.columns.map((col) => col.id)
+    const orderToUse = this.columnOrder.length > 0 ? this.columnOrder : this.columns.map((col) => col.id)
 
     return orderToUse
       .map((id) => this.columns.find((col) => col.id === id))
@@ -794,11 +793,7 @@ export class VisualStateStore implements IStore {
    * Reorder columns
    */
   @action
-  reorderColumns(
-    sourceColumnId: string,
-    targetColumnId: string,
-    insertBefore: boolean = true,
-  ): void {
+  reorderColumns(sourceColumnId: string, targetColumnId: string, insertBefore: boolean = true): void {
     const currentOrder = [...this.columnOrder]
     const sourceIndex = currentOrder.indexOf(sourceColumnId)
     const targetIndex = currentOrder.indexOf(targetColumnId)
@@ -955,11 +950,7 @@ export class VisualStateStore implements IStore {
    * Handle viewport scroll with change detection
    */
   @action
-  handleViewportScroll(
-    scrollLeft: number,
-    scrollTop: number,
-    source: 'header' | 'body' = 'body',
-  ): void {
+  handleViewportScroll(scrollLeft: number, scrollTop: number, source: 'header' | 'body' = 'body'): void {
     // Skip update if values haven't changed
     if (this.scrollLeft === scrollLeft && this.scrollTop === scrollTop) {
       logger.debug('Scroll event with same values - skipping update', {
@@ -993,10 +984,7 @@ export class VisualStateStore implements IStore {
     const column = this.columnLayouts.find((c) => c.id === columnId)
     if (!column || !column.visible) return false
 
-    return (
-      column.xOffset < this.scrollLeft + this.viewportWidth &&
-      column.xOffset + column.width > this.scrollLeft
-    )
+    return column.xOffset < this.scrollLeft + this.viewportWidth && column.xOffset + column.width > this.scrollLeft
   }
 
   /**
@@ -1008,10 +996,7 @@ export class VisualStateStore implements IStore {
     if (!column || !column.visible) return
 
     // Check if column is already visible
-    if (
-      column.xOffset >= this.scrollLeft &&
-      column.xOffset + column.width <= this.scrollLeft + this.viewportWidth
-    ) {
+    if (column.xOffset >= this.scrollLeft && column.xOffset + column.width <= this.scrollLeft + this.viewportWidth) {
       return // Already visible
     }
 
@@ -1166,11 +1151,7 @@ export class VisualStateStore implements IStore {
    * Set filter for a field
    */
   @action
-  setFilter(
-    field: string,
-    value: FilterValue,
-    operator: FilterConfig['operator'] = 'equals',
-  ): void {
+  setFilter(field: string, value: FilterValue, operator: FilterConfig['operator'] = 'equals'): void {
     const existingIndex = this.filters.findIndex((f) => f.field === field)
     const newFilter: FilterConfig = { field, value, operator }
 
@@ -1399,20 +1380,13 @@ export class VisualStateStore implements IStore {
 
         return {
           columnVisibility:
-            parsed.columnVisibility && typeof parsed.columnVisibility === 'object'
-              ? parsed.columnVisibility
-              : null,
-          columnWidths:
-            parsed.columnWidths && typeof parsed.columnWidths === 'object'
-              ? parsed.columnWidths
-              : null,
+            parsed.columnVisibility && typeof parsed.columnVisibility === 'object' ? parsed.columnVisibility : null,
+          columnWidths: parsed.columnWidths && typeof parsed.columnWidths === 'object' ? parsed.columnWidths : null,
           columnOrder: parsedColumnOrder,
           sortBy: Array.isArray(parsed.sortBy) ? parsed.sortBy : null,
           filters: Array.isArray(parsed.filters) ? parsed.filters : null,
           groupConfig:
-            parsed.groupConfig &&
-            parsed.groupConfig.fields &&
-            Array.isArray(parsed.groupConfig.fields)
+            parsed.groupConfig && parsed.groupConfig.fields && Array.isArray(parsed.groupConfig.fields)
               ? {
                   ...parsed.groupConfig,
                   expandedGroups: new Set(parsed.groupConfig.expandedGroups || []),

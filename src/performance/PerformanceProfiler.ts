@@ -149,18 +149,10 @@ export class VibeGridPerformanceProfiler {
     const metricsArray = Array.from(this.metrics.values())
 
     // Calculate summary metrics
-    const initMetrics = metricsArray.filter(
-      (m) => m.name.includes('init') || m.name.includes('dependency'),
-    )
-    const renderMetrics = metricsArray.filter(
-      (m) => m.name.includes('render') || m.name.includes('body'),
-    )
-    const cellMetrics = metricsArray.filter(
-      (m) => m.name.includes('cell') || m.name.includes('row'),
-    )
-    const domMetrics = metricsArray.filter(
-      (m) => m.name.includes('dom') || m.name.includes('element'),
-    )
+    const initMetrics = metricsArray.filter((m) => m.name.includes('init') || m.name.includes('dependency'))
+    const renderMetrics = metricsArray.filter((m) => m.name.includes('render') || m.name.includes('body'))
+    const cellMetrics = metricsArray.filter((m) => m.name.includes('cell') || m.name.includes('row'))
+    const domMetrics = metricsArray.filter((m) => m.name.includes('dom') || m.name.includes('element'))
 
     const initializationTime = initMetrics.reduce((sum, m) => sum + (m.duration || 0), 0)
     const renderingTime = renderMetrics.reduce((sum, m) => sum + (m.duration || 0), 0)
@@ -256,8 +248,7 @@ export class VibeGridPerformanceProfiler {
 // Global instance for easy access
 export const vibeGridProfiler = new VibeGridPerformanceProfiler(
   // Enable in development or when explicitly requested
-  process.env.NODE_ENV === 'development' ||
-    (typeof window !== 'undefined' && (window as any).enableVibeGridProfiler),
+  process.env.NODE_ENV === 'development' || (typeof window !== 'undefined' && (window as any).enableVibeGridProfiler),
 )
 
 // Expose to window for debugging

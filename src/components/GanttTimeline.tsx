@@ -52,9 +52,7 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
   current.setHours(0, 0, 0, 0)
 
   while (current <= endDate) {
-    const daysSinceStart = Math.floor(
-      (current.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000),
-    )
+    const daysSinceStart = Math.floor((current.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
     const left = daysSinceStart * pixelsPerDay
 
     let label = ''
@@ -97,17 +95,12 @@ const TimeScaleHeader = observer(function TimeScaleHeader({
   }
 
   return (
-    <div
-      className="relative border-b bg-muted/50 flex-shrink-0"
-      style={{ height: HEADER_HEIGHT, width }}
-    >
+    <div className="relative border-b bg-muted/50 flex-shrink-0" style={{ height: HEADER_HEIGHT, width }}>
       {markers.map((marker, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: stable marker order from date range
         <div key={i} className="absolute flex flex-col items-start" style={{ left: marker.left }}>
           <div className="h-2 w-px bg-border" />
-          <span className="text-xs text-muted-foreground whitespace-nowrap px-1">
-            {marker.label}
-          </span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap px-1">{marker.label}</span>
         </div>
       ))}
     </div>
@@ -209,10 +202,7 @@ interface GanttTimelineProps {
   onBarClick?: (rowId: string) => void
 }
 
-export const GanttTimeline = observer(function GanttTimeline({
-  className,
-  onBarClick,
-}: GanttTimelineProps) {
+export const GanttTimeline = observer(function GanttTimeline({ className, onBarClick }: GanttTimelineProps) {
   const ganttViewStore = useGanttViewStore()
   const tableCoreStore = useTableCoreStore()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -287,12 +277,7 @@ export const GanttTimeline = observer(function GanttTimeline({
   const handleDependencyNodeHover = useCallback(
     (barId: string, edge: DependencyEdge) => {
       if (dependencyDragState.isDragging && barId !== dependencyDragState.sourceBarId) {
-        ganttViewStore.updateDependencyDrag(
-          dependencyDragState.currentX,
-          dependencyDragState.currentY,
-          barId,
-          edge,
-        )
+        ganttViewStore.updateDependencyDrag(dependencyDragState.currentX, dependencyDragState.currentY, barId, edge)
       }
     },
     [ganttViewStore, dependencyDragState],
@@ -378,11 +363,7 @@ export const GanttTimeline = observer(function GanttTimeline({
   })
 
   return (
-    <div
-      ref={containerRef}
-      className={cn('h-full w-full overflow-auto', className)}
-      onScroll={handleScroll}
-    >
+    <div ref={containerRef} className={cn('h-full w-full overflow-auto', className)} onScroll={handleScroll}>
       {/* Time scale header */}
       <TimeScaleHeader
         startDate={timeScale.startDate}
@@ -421,9 +402,7 @@ export const GanttTimeline = observer(function GanttTimeline({
         </div>
 
         {/* Today line */}
-        {todayLinePosition !== null && (
-          <TodayLine position={todayLinePosition} height={totalHeight} />
-        )}
+        {todayLinePosition !== null && <TodayLine position={todayLinePosition} height={totalHeight} />}
 
         {/* Render bars */}
         {barPositions.map((bar) => {
@@ -432,8 +411,7 @@ export const GanttTimeline = observer(function GanttTimeline({
           const rowData = row?.data || row || {}
           const shape = ganttViewStore.getBarShapeForRow(rowData as Record<string, unknown>)
           const isDragging = dragState.isDragging && dragState.barId === bar.rowId
-          const isDependencyDragTarget =
-            dependencyDragState.isDragging && dependencyDragState.targetBarId === bar.rowId
+          const isDependencyDragTarget = dependencyDragState.isDragging && dependencyDragState.targetBarId === bar.rowId
 
           return (
             <GanttBar

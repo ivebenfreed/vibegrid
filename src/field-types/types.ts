@@ -127,23 +127,11 @@ export interface CellValidator {
 }
 
 export interface AsyncDataLoader {
-  loadRelationshipData(
-    column: EnhancedColumn,
-    rowIds: string[],
-    tableCore$: TableCoreStore,
-  ): Promise<RelationshipData>
+  loadRelationshipData(column: EnhancedColumn, rowIds: string[], tableCore$: TableCoreStore): Promise<RelationshipData>
 
-  resolveDisplayValue(
-    value: any,
-    column: EnhancedColumn,
-    relationshipData: RelationshipData,
-  ): string
+  resolveDisplayValue(value: any, column: EnhancedColumn, relationshipData: RelationshipData): string
 
-  getSearchSuggestions(
-    query: string,
-    column: EnhancedColumn,
-    limit?: number,
-  ): Promise<RelationshipOption[]>
+  getSearchSuggestions(query: string, column: EnhancedColumn, limit?: number): Promise<RelationshipOption[]>
 
   getCacheKey(column: EnhancedColumn, value: any): string
   invalidateCache(column: EnhancedColumn): void
@@ -196,12 +184,7 @@ export interface VibeGridFieldType {
 
 // Utility functions
 export function isRelationshipField(column: EnhancedColumn): boolean {
-  const relationshipTypes = [
-    'user_reference',
-    'entity_reference',
-    'reference-select',
-    'reference-multi',
-  ]
+  const relationshipTypes = ['user_reference', 'entity_reference', 'reference-select', 'reference-multi']
   const type = column.cellType || column.type || ''
   return relationshipTypes.includes(type)
 }

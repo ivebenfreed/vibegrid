@@ -318,13 +318,9 @@ export class PersistenceStore implements IStore {
               ? prefs.gantt.fieldMapping.startField
               : 'start_date',
           endField:
-            typeof prefs.gantt.fieldMapping.endField === 'string'
-              ? prefs.gantt.fieldMapping.endField
-              : 'end_date',
+            typeof prefs.gantt.fieldMapping.endField === 'string' ? prefs.gantt.fieldMapping.endField : 'end_date',
           labelField:
-            typeof prefs.gantt.fieldMapping.labelField === 'string'
-              ? prefs.gantt.fieldMapping.labelField
-              : 'name',
+            typeof prefs.gantt.fieldMapping.labelField === 'string' ? prefs.gantt.fieldMapping.labelField : 'name',
         }
       }
 
@@ -332,29 +328,19 @@ export class PersistenceStore implements IStore {
       let dateRangeFilter: SerializableDateRangeFilter | undefined
       if (prefs.gantt.dateRangeFilter && typeof prefs.gantt.dateRangeFilter === 'object') {
         dateRangeFilter = {
-          start:
-            typeof prefs.gantt.dateRangeFilter.start === 'string'
-              ? prefs.gantt.dateRangeFilter.start
-              : null,
-          end:
-            typeof prefs.gantt.dateRangeFilter.end === 'string'
-              ? prefs.gantt.dateRangeFilter.end
-              : null,
+          start: typeof prefs.gantt.dateRangeFilter.start === 'string' ? prefs.gantt.dateRangeFilter.start : null,
+          end: typeof prefs.gantt.dateRangeFilter.end === 'string' ? prefs.gantt.dateRangeFilter.end : null,
         }
       }
 
       gantt = {
         zoomLevel: validZoomLevels.includes(prefs.gantt.zoomLevel) ? prefs.gantt.zoomLevel : 'week',
         cutoffWidth:
-          typeof prefs.gantt.cutoffWidth === 'number' && prefs.gantt.cutoffWidth >= 200
-            ? prefs.gantt.cutoffWidth
-            : 400,
+          typeof prefs.gantt.cutoffWidth === 'number' && prefs.gantt.cutoffWidth >= 200 ? prefs.gantt.cutoffWidth : 400,
         viewMode: validViewModes.includes(prefs.gantt.viewMode) ? prefs.gantt.viewMode : 'table',
         fieldMapping,
         // Gantt sort/filter state
-        ganttSortField: validSortFields.includes(prefs.gantt.ganttSortField)
-          ? prefs.gantt.ganttSortField
-          : undefined,
+        ganttSortField: validSortFields.includes(prefs.gantt.ganttSortField) ? prefs.gantt.ganttSortField : undefined,
         ganttSortDirection: validSortDirections.includes(prefs.gantt.ganttSortDirection)
           ? prefs.gantt.ganttSortDirection
           : undefined,
@@ -436,10 +422,7 @@ export class PersistenceStore implements IStore {
         }
         // Apply Gantt sort/filter state if present
         if (prefs.gantt.ganttSortField) {
-          this.ganttViewStore.setGanttSort(
-            prefs.gantt.ganttSortField,
-            prefs.gantt.ganttSortDirection,
-          )
+          this.ganttViewStore.setGanttSort(prefs.gantt.ganttSortField, prefs.gantt.ganttSortDirection)
         }
         if (prefs.gantt.activeQuickFilter) {
           this.ganttViewStore.setQuickFilter(prefs.gantt.activeQuickFilter)

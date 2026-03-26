@@ -23,10 +23,7 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
-import type {
-  CoordinatePosition,
-  ViewportAwarePosition,
-} from '../coordinates/VibeGridXCoordinateManager'
+import type { CoordinatePosition, ViewportAwarePosition } from '../coordinates/VibeGridXCoordinateManager'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'ViewportStore'])
@@ -85,8 +82,7 @@ export class ViewportStore implements IStore {
    * Callback for programmatic column scrolling.
    * Set by ScrollController during initialization.
    */
-  private _scrollToColumnFn: ((columnId: string, behavior?: ScrollBehavior) => boolean) | null =
-    null
+  private _scrollToColumnFn: ((columnId: string, behavior?: ScrollBehavior) => boolean) | null = null
 
   constructor() {
     makeObservable(this)
@@ -201,9 +197,7 @@ export class ViewportStore implements IStore {
       const visibleStart = this.tableCoreStore.findRowAtScrollPosition(this.scrollTop)
       const visibleEnd = Math.min(
         this.totalRows - 1,
-        this.tableCoreStore.findRowAtScrollPosition(
-          this.scrollTop + Math.max(this.viewportHeight, 400),
-        ) + 1,
+        this.tableCoreStore.findRowAtScrollPosition(this.scrollTop + Math.max(this.viewportHeight, 400)) + 1,
       )
 
       return {
@@ -224,8 +218,7 @@ export class ViewportStore implements IStore {
 
     // Fallback to constant-height calculation
     const visibleStart = Math.floor(this.scrollTop / ROW_HEIGHT)
-    const visibleEnd =
-      Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / ROW_HEIGHT) + 1
+    const visibleEnd = Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / ROW_HEIGHT) + 1
 
     return {
       start: Math.max(0, visibleStart - buffer),

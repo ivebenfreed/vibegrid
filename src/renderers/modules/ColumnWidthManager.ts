@@ -33,9 +33,7 @@ export class ColumnWidthManager {
   updateHeaderCellWidth(columnId: string, newWidth: number): void {
     if (!this.headerContainer) return
 
-    const headerCell = this.headerContainer.querySelector(
-      `[data-field="${columnId}"]`,
-    ) as HTMLElement
+    const headerCell = this.headerContainer.querySelector(`[data-field="${columnId}"]`) as HTMLElement
     if (headerCell) {
       // Update the width style to match HeaderRenderer's absolute positioning approach
       headerCell.style.width = `${newWidth}px`
@@ -61,17 +59,12 @@ export class ColumnWidthManager {
   updateBodyCellWidths(columnId: string, newWidth: number): void {
     if (!this.bodyContainer) return
 
-    const bodyCells = this.bodyContainer.querySelectorAll(
-      `[data-column-id="${columnId}"]`,
-    ) as NodeListOf<HTMLElement>
+    const bodyCells = this.bodyContainer.querySelectorAll(`[data-column-id="${columnId}"]`) as NodeListOf<HTMLElement>
     if (bodyCells && bodyCells.length > 0) {
       bodyCells.forEach((cell) => {
         // Update the flex-basis style to match new width
         const currentStyle = cell.style.cssText
-        const updatedStyle = currentStyle.replace(
-          /flex:\s*0\s+0\s+\d+px/,
-          `flex: 0 0 ${newWidth}px`,
-        )
+        const updatedStyle = currentStyle.replace(/flex:\s*0\s+0\s+\d+px/, `flex: 0 0 ${newWidth}px`)
         cell.style.cssText = updatedStyle
       })
 

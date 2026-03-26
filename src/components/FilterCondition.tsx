@@ -77,16 +77,8 @@ export const FilterCondition = observer(function FilterCondition({
 
   return (
     <div className="flex flex-col gap-1">
-      <div
-        data-testid={`vibegrid-filter-condition-${index}`}
-        className={`flex items-center gap-2 ${className ?? ''}`}
-      >
-        <FilterFieldPicker
-          columns={columns}
-          value={condition.field}
-          onChange={handleFieldChange}
-          index={index}
-        />
+      <div data-testid={`vibegrid-filter-condition-${index}`} className={`flex items-center gap-2 ${className ?? ''}`}>
+        <FilterFieldPicker columns={columns} value={condition.field} onChange={handleFieldChange} index={index} />
 
         <FilterOperatorPicker
           cellType={selectedColumn?.cellType ?? 'text'}
@@ -116,10 +108,7 @@ export const FilterCondition = observer(function FilterCondition({
 
       {/* Inline validation error */}
       {errorMessage && (
-        <span
-          data-testid={`vibegrid-filter-error-${index}`}
-          className="text-sm text-destructive pl-1"
-        >
+        <span data-testid={`vibegrid-filter-error-${index}`} className="text-sm text-destructive pl-1">
           {errorMessage}
         </span>
       )}

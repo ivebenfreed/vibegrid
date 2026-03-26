@@ -94,12 +94,7 @@ const FILE_TYPE_COLUMN: Column = {
  * in a new tab. Uses file_path or file_url if available, otherwise falls back to
  * the /api/files/download/:id endpoint.
  */
-function downloadFile(file: {
-  id: string
-  file_path?: string
-  file_url?: string
-  name?: string
-}): void {
+function downloadFile(file: { id: string; file_path?: string; file_url?: string; name?: string }): void {
   const url = resolveFileUrl(file, 'download')
   const link = document.createElement('a')
   link.href = url
@@ -181,11 +176,7 @@ interface FileUploadDialogProps {
  * Dialog for uploading files to a project.
  * Uses presigned URL flow: getUploadUrl -> PUT to R2 -> confirmUpload.
  */
-const FileUploadDialog = observer(function FileUploadDialog({
-  projectId,
-  open,
-  onOpenChange,
-}: FileUploadDialogProps) {
+const FileUploadDialog = observer(function FileUploadDialog({ projectId, open, onOpenChange }: FileUploadDialogProps) {
   const queryClient = useQueryClient()
   const organizationStore = useOrganization()
   const orgId = organizationStore.activeOrganizationId
@@ -278,20 +269,13 @@ const FileUploadDialog = observer(function FileUploadDialog({
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
           <DialogDescription>
-            Select files to upload to this project. Files will be stored in R2 and associated with
-            the project.
+            Select files to upload to this project. Files will be stored in R2 and associated with the project.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+          <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileSelect} />
 
           {/* Drop zone / file picker */}
           <button
@@ -402,8 +386,8 @@ const DeleteFileDialog = observer(function DeleteFileDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete File</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{fileName}"? This will remove the file from storage.
-            This action cannot be undone.
+            Are you sure you want to delete "{fileName}"? This will remove the file from storage. This action cannot be
+            undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -441,13 +425,7 @@ const DeleteFileDialog = observer(function DeleteFileDialog({
  * - Push data to tableCoreStore.setRows() directly
  * - Use entityType="GCFile" for column schema (all file types share similar fields)
  */
-const FileGrid = observer(function FileGrid({
-  tableId,
-  projectId,
-}: {
-  tableId: string
-  projectId: string
-}) {
+const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: string; projectId: string }) {
   const stores = useVibeGridStores()
   const tableCoreStore = useTableCoreStore()
   const initStore = useInitStore()
@@ -554,10 +532,7 @@ const FileGrid = observer(function FileGrid({
   )
 })
 
-export const GCFileBrowser = observer(function GCFileBrowser({
-  projectId,
-  projectName,
-}: GCFileBrowserProps) {
+export const GCFileBrowser = observer(function GCFileBrowser({ projectId, projectName }: GCFileBrowserProps) {
   const scopeContext = useScopeContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)

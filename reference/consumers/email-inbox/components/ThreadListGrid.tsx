@@ -24,11 +24,7 @@ import { runInAction } from 'mobx'
 import { useNavigate } from '@tanstack/react-router'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
 import { Mail, MailOpen, Star, StarOff, UserPlus } from 'lucide-react'
-import {
-  VibeGridStoreProvider,
-  useTableCoreStore,
-  useInitStore,
-} from '@/systems/vibegrid/stores/context'
+import { VibeGridStoreProvider, useTableCoreStore, useInitStore } from '@/systems/vibegrid/stores/context'
 import { useOrganization, useAuth } from '@/app/stores'
 import type { ThreadWithLatestSender } from '../hooks'
 import { useEmailInbox } from '../stores'
@@ -86,10 +82,7 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
       let fallbackParticipant = null
       if (!thread.latestSender && thread.participants) {
         try {
-          const parsed =
-            typeof thread.participants === 'string'
-              ? JSON.parse(thread.participants)
-              : thread.participants
+          const parsed = typeof thread.participants === 'string' ? JSON.parse(thread.participants) : thread.participants
           fallbackParticipant = Array.isArray(parsed) ? parsed[0] : null
         } catch {
           fallbackParticipant = null
@@ -288,11 +281,7 @@ export const ThreadListGrid = observer(function ThreadListGrid(props: ThreadList
   const _userId = useMemo(() => auth.user?.id || '', [auth.user?.id])
 
   if (!orgId) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        No organization selected
-      </div>
-    )
+    return <div className="flex-1 flex items-center justify-center text-muted-foreground">No organization selected</div>
   }
 
   return (

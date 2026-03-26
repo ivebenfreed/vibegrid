@@ -5,11 +5,7 @@ import { rootStore, StoreProvider } from '@/app/stores'
 import { queryClient } from '@/shared/data/api/client'
 import { getLogger } from '@/shared/lib/logging'
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
-import {
-  isDateType,
-  isDropdownPositioned,
-  isTextPositioned,
-} from '../constants/field-type-categories'
+import { isDateType, isDropdownPositioned, isTextPositioned } from '../constants/field-type-categories'
 import type { CellRef, Column } from '../types'
 // Pure Observable architecture - no XState dependencies
 import { createEditor, isTagsLikeField } from './editors'
@@ -66,8 +62,7 @@ export class EditingOverlay {
 
   constructor(container: HTMLElement, config: EditingOverlayConfig) {
     // Find the viewport container which is where cells are positioned
-    const viewportContainer =
-      (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
+    const viewportContainer = (container.querySelector('.vibegridx-viewport') as HTMLElement) || container
     this.container = viewportContainer
     this.config = config
 
@@ -149,8 +144,7 @@ export class EditingOverlay {
     // CRITICAL: Hide portal IMMEDIATELY to prevent flash at old position
     // This must happen before any other operations when transitioning between cells
     const isTransition =
-      this.currentCell &&
-      (this.currentCell.rowId !== cell.rowId || this.currentCell.columnId !== cell.columnId)
+      this.currentCell && (this.currentCell.rowId !== cell.rowId || this.currentCell.columnId !== cell.columnId)
 
     if (isTransition) {
       // Hide immediately to prevent flash
@@ -253,12 +247,8 @@ export class EditingOverlay {
       const isDate = isDateType(cellType)
 
       // Only date pickers need a fixed width - other dropdowns auto-size to content
-      const dropdownWidth = isDate
-        ? Math.max(position.width, GRID_DIMENSIONS.DATE_PICKER_MIN_WIDTH)
-        : 'auto'
-      const dropdownHeight = isDate
-        ? GRID_DIMENSIONS.DATE_PICKER_MAX_HEIGHT
-        : GRID_DIMENSIONS.DROPDOWN_MAX_HEIGHT
+      const dropdownWidth = isDate ? Math.max(position.width, GRID_DIMENSIONS.DATE_PICKER_MIN_WIDTH) : 'auto'
+      const dropdownHeight = isDate ? GRID_DIMENSIONS.DATE_PICKER_MAX_HEIGHT : GRID_DIMENSIONS.DROPDOWN_MAX_HEIGHT
 
       fileLog.debug('EditingOverlay: Using visual state coordinates', {
         position: { x: position.x, y: position.y, width: position.width, height: position.height },
@@ -270,8 +260,7 @@ export class EditingOverlay {
       // Position dropdown directly below cell using visual state coordinates
       this.portal.style.left = `${position.x}px`
       this.portal.style.top = `${position.y + position.height}px`
-      this.portal.style.width =
-        typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
+      this.portal.style.width = typeof dropdownWidth === 'number' ? `${dropdownWidth}px` : dropdownWidth
       this.portal.style.height = 'auto'
       this.portal.style.maxHeight = `${dropdownHeight}px`
       this.portal.style.padding = '4px'
@@ -279,8 +268,7 @@ export class EditingOverlay {
       this.portal.style.backgroundColor = 'hsl(var(--popover))'
       this.portal.style.border = '1px solid hsl(var(--border))'
       this.portal.style.borderRadius = '4px'
-      this.portal.style.boxShadow =
-        '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      this.portal.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
       this.portal.style.zIndex = String(GRID_DIMENSIONS.EDITING_DROPDOWN_Z_INDEX)
       this.portal.style.overflow = 'auto'
 
@@ -349,8 +337,7 @@ export class EditingOverlay {
 
     fileLog.debug('EditingOverlay: Editor component created', {
       editorComponent,
-      componentType:
-        typeof editorComponent.type === 'function' ? editorComponent.type.name : 'unknown',
+      componentType: typeof editorComponent.type === 'function' ? editorComponent.type.name : 'unknown',
     })
 
     this.root.render(wrapWithProviders(editorComponent))

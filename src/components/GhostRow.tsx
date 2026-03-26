@@ -179,10 +179,7 @@ export const GhostRow = observer(function GhostRow({
             const colId = col.id ?? col.field ?? ''
             const hasFieldError = !!validationErrors[colId]
             return (
-              <div
-                key={colId}
-                className={`vibegridx-ghost-cell ${hasFieldError ? 'border-destructive' : ''}`}
-              >
+              <div key={colId} className={`vibegridx-ghost-cell ${hasFieldError ? 'border-destructive' : ''}`}>
                 <FormFieldValue
                   fieldId={colId}
                   value={fieldValues[colId]}
@@ -216,10 +213,7 @@ export const GhostRow = observer(function GhostRow({
           const colId = col.id ?? col.field ?? ''
           const hasFieldError = !!validationErrors[colId]
           return (
-            <div
-              key={colId}
-              className={`vibegridx-ghost-cell ${hasFieldError ? 'border-destructive' : ''}`}
-            >
+            <div key={colId} className={`vibegridx-ghost-cell ${hasFieldError ? 'border-destructive' : ''}`}>
               <FormFieldValue
                 fieldId={colId}
                 value={fieldValues[colId]}
@@ -232,9 +226,7 @@ export const GhostRow = observer(function GhostRow({
           )
         })}
       </div>
-      {hasErrors && (
-        <div className="text-destructive text-sm mt-1 px-2">Fill required fields to save</div>
-      )}
+      {hasErrors && <div className="text-destructive text-sm mt-1 px-2">Fill required fields to save</div>}
     </div>
   )
 })
