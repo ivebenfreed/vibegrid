@@ -149,9 +149,12 @@ export class MouseController {
     const pointerUpHandler = this.onPointerUp.bind(this)
     const clickHandler = this.onClick.bind(this)
 
+    const pointerCancelHandler = this.onPointerCancel.bind(this)
+
     this.addEventListenerTracked(document, 'pointerdown', pointerDownHandler as EventListener)
     this.addEventListenerTracked(document.body, 'pointermove', pointerMoveHandler as EventListener)
     this.addEventListenerTracked(document, 'pointerup', pointerUpHandler as EventListener)
+    this.addEventListenerTracked(document, 'pointercancel', pointerCancelHandler as EventListener)
     this.addEventListenerTracked(document, 'click', clickHandler as EventListener)
 
     fileLog.debug('Global pointer event coordination setup complete')
@@ -559,8 +562,53 @@ export class MouseController {
     } else {
       // No drag was happening, reset immediately
       this.resetAllDragState()
-      fileLog.debug('Non-drag mouse up - state reset')
+      fileLog.debug('Non-drag pointer up - state reset')
     }
+  }
+
+  /**
+   * Handle pointer cancel — browser took over the gesture (e.g. touch scroll via touch-action: pan-y).
+   * Clean up drag state without completing any operations.
+   */
+  private onPointerCancel(e: PointerEvent): void {
+    if (!this.isTracking) return
+
+    fileLog.debug('Pointer cancelled by browser (touch-action takeover)', {
+      wasTracking: this.isTracking,
+      wasDragging: this.isDragging,
+    })
+
+    if (this.container.hasPointerCapture(e.pointerId)) {
+      this.container.releasePointerCapture(e.pointerId)
+    }
+
+    // Cancel any in-progress drag without committing
+    if (this.isDragging) {
+      if (this.isColumnDrag) {
+        runInAction(() => {
+          this.interactionStore.isDragging = false
+          this.interactionStore.dragSource = null
+          this.interactionStore.dragTarget = null
+        })
+        this.removeDragPreview()
+        this.hideDropLine()
+      } else if (this.isRowDrag) {
+        runInAction(() => {
+          this.interactionStore.isDragging = false
+          this.interactionStore.dragSource = null
+          this.interactionStore.dragTarget = null
+        })
+        this.removeRowDragPreview()
+        this.hideRowDropIndicator()
+      } else if (this.isFillDrag) {
+        // Cancel fill without committing
+        // Fill drag has no cancel method — just reset state
+      } else {
+        this.dragSelectionController.endDragSelect()
+      }
+    }
+
+    this.resetAllDragState()
   }
 
   /**
