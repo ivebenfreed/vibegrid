@@ -22,6 +22,7 @@ import { calculateCascadeUpdates } from '../utils/cascade-scheduler'
 import { calculateCriticalPath } from '../utils/critical-path'
 import { wouldCreateCycle } from '../utils/dependency-validator'
 import type { SchemaRegistryLike } from '../types'
+import { formatFieldName } from '../column-defaults'
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -381,7 +382,7 @@ export class GanttViewStore implements IStore {
       })
       .map((col) => ({
         id: col.id,
-        name: col.name || col.id,
+        name: col.name || formatFieldName(col.id),
         type: col.type || col.cellType || 'date',
       }))
   }
@@ -403,7 +404,7 @@ export class GanttViewStore implements IStore {
       })
       .map((col) => ({
         id: col.id,
-        name: col.name || col.id,
+        name: col.name || formatFieldName(col.id),
       }))
   }
 
