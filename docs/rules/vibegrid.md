@@ -69,6 +69,18 @@ Bundle type: `VibeGridStores` in `stores/context.tsx`.
 5. **Row actions** — set `enableSelectionColumn={true}`, bulk handlers receive `(rowIds[], rowsData[])`
 6. **Non-DataForge sources** — use `collectionOverride` + `skipDataFetching={true}`
 
+## Touch & Pointer Events
+
+Grid uses the **Pointer Events API** (not MouseEvent) for unified mouse + touch handling (GH#2200):
+
+- `MouseController` → migrated to `pointerdown`/`pointermove`/`pointerup` with `setPointerCapture()`
+- CSS: `touch-action: pan-y` on grid container, `touch-action: none` on drag handles
+- `@media (hover: none)` rules in `affordances.css` for touch device affordances (larger targets, always-visible edit icons)
+
+**Kanban view** uses `@dnd-kit` with dual sensors:
+- `PointerSensor` — 8px activation distance (mouse)
+- `TouchSensor` — 250ms hold activation delay (touch)
+
 ## Accessibility & Browser Automation
 
 VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:

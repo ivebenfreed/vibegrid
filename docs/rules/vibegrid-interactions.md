@@ -79,6 +79,15 @@ features/{domain}/
 | Gantt | `docs/primitives/vibegrid/gantt.md` | Timeline, zoom, task bars, dependencies |
 | Export | `docs/primitives/vibegrid/export-services.md` | CSV, PDF, ZIP export |
 
+## Kanban View Module
+
+Kanban view (`modules/kanban/`) uses `@dnd-kit` for card drag-and-drop:
+
+- `KanbanBoard.tsx` — `DndContext` with `PointerSensor` (8px distance) + `TouchSensor` (250ms delay)
+- Cards grouped by status set field (`KanbanViewStore.groupingField`)
+- Drop targets are status columns — moving a card updates the entity's status field
+- `SortableContext` within each column for intra-column reordering
+
 ## Cell Renderer DOM Contract
 
 Two-attribute system for cell interaction:
