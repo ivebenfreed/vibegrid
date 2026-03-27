@@ -1,7 +1,7 @@
 /**
- * MouseController - Global pointer event coordinator for VibeGrid
+ * MouseController - Global mouse event coordinator for VibeGrid
  *
- * Single source of truth for all pointer interactions (mouse + touch + pen).
+ * Single source of truth for all mouse interactions to prevent event conflicts.
  * Routes events to focused sub-controllers:
  * - ClickRouter: click interpretation and dispatch
  * - DragSelectionController: drag-to-select rectangle
@@ -59,14 +59,6 @@ export class MouseController {
   private dragThreshold = 8 // pixels (increased to be less sensitive)
   private startPosition: { x: number; y: number } = { x: 0, y: 0 }
   private justEndedDrag = false
-
-  // Touch gesture disambiguation: defer selection until we know intent
-  private isTouchPointer = false
-  private deferredCellInfo: { cellId: string; rowId: string; columnId: string; e: PointerEvent } | null = null
-
-  // Pointer deduplication (pointermove can fire without actual movement)
-  private lastPointerX = 0
-  private lastPointerY = 0
 
   // Column drag state (retained - tightly coupled to header)
   private isColumnDrag = false
@@ -138,36 +130,33 @@ export class MouseController {
     this.container.style.userSelect = 'none'
     this.container.style.webkitUserSelect = 'none'
 
-    this.setupGlobalPointerHandling()
-    fileLog.debug('MouseController initialized with global pointer event handling')
+    this.setupGlobalMouseHandling()
+    fileLog.debug('MouseController initialized with global event handling')
   }
 
   /**
-   * Setup global pointer event listeners — unified mouse + touch + pen support
+   * Setup global mouse event listeners - ONLY these listeners should exist for mouse events
    */
-  private setupGlobalPointerHandling(): void {
-    fileLog.debug('Setting up global pointer event coordination')
+  private setupGlobalMouseHandling(): void {
+    fileLog.debug('Setting up global mouse event coordination')
 
-    const pointerDownHandler = this.onPointerDown.bind(this)
-    const pointerMoveHandler = this.onPointerMove.bind(this)
-    const pointerUpHandler = this.onPointerUp.bind(this)
+    const mouseDownHandler = this.onMouseDown.bind(this)
+    const mouseMoveHandler = this.onMouseMove.bind(this)
+    const mouseUpHandler = this.onMouseUp.bind(this)
     const clickHandler = this.onClick.bind(this)
 
-    const pointerCancelHandler = this.onPointerCancel.bind(this)
-
-    this.addEventListenerTracked(document, 'pointerdown', pointerDownHandler as EventListener)
-    this.addEventListenerTracked(document.body, 'pointermove', pointerMoveHandler as EventListener)
-    this.addEventListenerTracked(document, 'pointerup', pointerUpHandler as EventListener)
-    this.addEventListenerTracked(document, 'pointercancel', pointerCancelHandler as EventListener)
+    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener)
+    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener)
+    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener)
     this.addEventListenerTracked(document, 'click', clickHandler as EventListener)
 
-    fileLog.debug('Global pointer event coordination setup complete')
+    fileLog.debug('Global mouse event coordination setup complete')
   }
 
   /**
-   * Handle pointer down - start tracking potential drag and provide immediate feedback
+   * Handle mouse down - start tracking potential drag and provide immediate feedback
    */
-  private onPointerDown(e: PointerEvent): void {
+  private onMouseDown(e: MouseEvent): void {
     if (!this.container.contains(e.target as Node)) {
       return
     }
@@ -175,8 +164,6 @@ export class MouseController {
     this.startPosition = { x: e.clientX, y: e.clientY }
     this.isDragging = false
     this.isTracking = true
-    this.isTouchPointer = e.pointerType !== 'mouse'
-    this.deferredCellInfo = null
     this.isColumnDrag = false
     this.dragColumnId = null
     this.isRowDrag = false
@@ -205,7 +192,6 @@ export class MouseController {
     if (this.fillDragController.isFillHandleTarget(target)) {
       this.isFillDrag = true
       this.fillDragController.handleFillStart()
-      this.container.setPointerCapture(e.pointerId)
       e.preventDefault()
       e.stopPropagation()
       return
@@ -222,7 +208,6 @@ export class MouseController {
         const initialWidth = columnWidths[columnId] || 150
 
         this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth)
-        this.container.setPointerCapture(e.pointerId)
 
         fileLog.debug('[RESIZE] Column resize handle mouse down', {
           columnId,
@@ -323,42 +308,34 @@ export class MouseController {
         return
       }
 
+      fileLog.debug('Delegating pointer down to InteractionCoordinator')
+
+      this.coordinator.handlePointerDown({
+        cellId,
+        rowId: rowId!,
+        columnId: columnId!,
+        x: e.clientX,
+        y: e.clientY,
+        target: e.target as Element,
+        modifiers: {
+          ctrl: e.ctrlKey,
+          shift: e.shiftKey,
+          alt: e.altKey,
+          meta: e.metaKey,
+        },
+        nativeEvent: e as PointerEvent,
+      })
+
+      if (this.keyboardController && !isEditableElement) {
+        this.keyboardController.ensureContainerFocus()
+      }
+
       if (target.matches('input, textarea, select') || target.contentEditable === 'true') {
         this.isDragging = false
         this.isTracking = false
         this.startPosition = { x: 0, y: 0 }
         return
-      }
-
-      if (this.isTouchPointer) {
-        // Touch: defer selection — we don't know if this is a tap, scroll, or drag.
-        // Selection fires on click (tap) or when drag threshold is exceeded.
-        // Don't capture or change touch-action yet — let browser handle scroll.
-        this.deferredCellInfo = { cellId, rowId: rowId!, columnId: columnId!, e }
-        fileLog.debug('Touch pointer down on cell - deferring selection', { cellId })
       } else {
-        // Mouse: select immediately (existing behavior)
-        fileLog.debug('Delegating pointer down to InteractionCoordinator')
-        this.coordinator.handlePointerDown({
-          cellId,
-          rowId: rowId!,
-          columnId: columnId!,
-          x: e.clientX,
-          y: e.clientY,
-          target: e.target as Element,
-          modifiers: {
-            ctrl: e.ctrlKey,
-            shift: e.shiftKey,
-            alt: e.altKey,
-            meta: e.metaKey,
-          },
-          nativeEvent: e,
-        })
-
-        if (this.keyboardController && !isEditableElement) {
-          this.keyboardController.ensureContainerFocus()
-        }
-
         e.preventDefault()
       }
     }
@@ -370,14 +347,9 @@ export class MouseController {
   }
 
   /**
-   * Handle pointer move - detect drag threshold and update drag/selection/fill/hover
+   * Handle mouse move - detect drag threshold and update drag/selection/fill/hover
    */
-  private onPointerMove(e: PointerEvent): void {
-    // Dedup guard: pointermove can fire without actual movement
-    if (e.clientX === this.lastPointerX && e.clientY === this.lastPointerY) return
-    this.lastPointerX = e.clientX
-    this.lastPointerY = e.clientY
-
+  private onMouseMove(e: MouseEvent): void {
     if (this.isTracking) {
       const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
 
@@ -402,57 +374,11 @@ export class MouseController {
     }
 
     // Calculate distance from start position
-    const dx = Math.abs(e.clientX - this.startPosition.x)
-    const dy = Math.abs(e.clientY - this.startPosition.y)
-    const distance = Math.hypot(dx, dy)
-
-    // Touch gesture disambiguation: if movement is primarily vertical, it's a scroll.
-    // Cells have touch-action: none so the browser won't scroll — we do it in JS.
-    if (this.isTouchPointer && !this.isDragging && distance > 4) {
-      if (dy > dx * 1.5) {
-        // Vertical scroll intent — scroll viewport programmatically
-        const viewport = this.container.querySelector('.vibegridx-viewport')
-        if (viewport) {
-          const deltaY = this.startPosition.y - e.clientY
-          viewport.scrollTop += deltaY
-          this.startPosition = { x: e.clientX, y: e.clientY }
-        }
-        // Don't start drag — keep tracking for continued scroll
-        this.deferredCellInfo = null
-        return
-      }
-    }
+    const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
 
     // Update drag state if threshold exceeded
     if (!this.isDragging && distance > this.dragThreshold) {
       this.isDragging = true
-
-      // For touch: commit deferred selection now that we know it's a drag
-      if (this.isTouchPointer && this.deferredCellInfo && this.coordinator) {
-        const { cellId, rowId, columnId, e: downEvent } = this.deferredCellInfo
-        this.coordinator.handlePointerDown({
-          cellId,
-          rowId,
-          columnId,
-          x: downEvent.clientX,
-          y: downEvent.clientY,
-          target: downEvent.target as Element,
-          modifiers: {
-            ctrl: downEvent.ctrlKey,
-            shift: downEvent.shiftKey,
-            alt: downEvent.altKey,
-            meta: downEvent.metaKey,
-          },
-          nativeEvent: downEvent,
-        })
-        this.deferredCellInfo = null
-      }
-
-      // Capture pointer and suppress touch-action for reliable drag tracking
-      this.container.setPointerCapture(e.pointerId)
-      if (this.isTouchPointer) {
-        this.container.style.touchAction = 'none'
-      }
       fileLog.debug('Drag threshold exceeded - now dragging', {
         distance,
         threshold: this.dragThreshold,
@@ -553,10 +479,8 @@ export class MouseController {
       this.dragSelectionController.updateDragSelect(e.target as HTMLElement)
     }
 
-    // Only track hover for mouse — touch devices use :active CSS instead
-    if (e.pointerType === 'mouse') {
-      this.hoverTracker.updateMousePosition(e.clientX, e.clientY)
-    }
+    // Always update mouse coordinates
+    this.hoverTracker.updateMousePosition(e.clientX, e.clientY)
 
     // Update drag preview position for column drag
     if (this.isDragging && this.isColumnDrag && this.dragPreviewElement) {
@@ -570,13 +494,9 @@ export class MouseController {
   }
 
   /**
-   * Handle pointer up - reset drag state
+   * Handle mouse up - reset drag state
    */
-  private onPointerUp(e: PointerEvent): void {
-    if (this.container.hasPointerCapture(e.pointerId)) {
-      this.container.releasePointerCapture(e.pointerId)
-    }
-
+  private onMouseUp(e: MouseEvent): void {
     fileLog.debug('Mouse up detected', {
       withinContainer: this.container.contains(e.target as Node),
       wasTracking: this.isTracking,
@@ -616,53 +536,8 @@ export class MouseController {
     } else {
       // No drag was happening, reset immediately
       this.resetAllDragState()
-      fileLog.debug('Non-drag pointer up - state reset')
+      fileLog.debug('Non-drag mouse up - state reset')
     }
-  }
-
-  /**
-   * Handle pointer cancel — browser took over the gesture (e.g. touch scroll via touch-action: pan-y).
-   * Clean up drag state without completing any operations.
-   */
-  private onPointerCancel(e: PointerEvent): void {
-    if (!this.isTracking) return
-
-    fileLog.debug('Pointer cancelled by browser (touch-action takeover)', {
-      wasTracking: this.isTracking,
-      wasDragging: this.isDragging,
-    })
-
-    if (this.container.hasPointerCapture(e.pointerId)) {
-      this.container.releasePointerCapture(e.pointerId)
-    }
-
-    // Cancel any in-progress drag without committing
-    if (this.isDragging) {
-      if (this.isColumnDrag) {
-        runInAction(() => {
-          this.interactionStore.isDragging = false
-          this.interactionStore.dragSource = null
-          this.interactionStore.dragTarget = null
-        })
-        this.removeDragPreview()
-        this.hideDropLine()
-      } else if (this.isRowDrag) {
-        runInAction(() => {
-          this.interactionStore.isDragging = false
-          this.interactionStore.dragSource = null
-          this.interactionStore.dragTarget = null
-        })
-        this.removeRowDragPreview()
-        this.hideRowDropIndicator()
-      } else if (this.isFillDrag) {
-        // Cancel fill without committing
-        // Fill drag has no cancel method — just reset state
-      } else {
-        this.dragSelectionController.endDragSelect()
-      }
-    }
-
-    this.resetAllDragState()
   }
 
   /**
@@ -676,7 +551,7 @@ export class MouseController {
   // Column resize (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnResize(e: PointerEvent): void {
+  private handleColumnResize(e: MouseEvent): void {
     const result = this.interactionStore.updateColumnResize(e.clientX)
 
     if (result) {
@@ -723,7 +598,7 @@ export class MouseController {
     e.preventDefault()
   }
 
-  private handleColumnResizeEnd(e: PointerEvent): void {
+  private handleColumnResizeEnd(e: MouseEvent): void {
     if (this.resizeThrottleTimeout) {
       window.clearTimeout(this.resizeThrottleTimeout)
       this.resizeThrottleTimeout = null
@@ -764,7 +639,7 @@ export class MouseController {
   // Column drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnDragEnd(e: PointerEvent): void {
+  private handleColumnDragEnd(e: MouseEvent): void {
     const targetColumnId = this.interactionStore.dragTarget
     if (targetColumnId && targetColumnId !== this.dragColumnId) {
       const targetHeaderElement = this.container.querySelector(
@@ -806,7 +681,7 @@ export class MouseController {
   // Row drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleRowDragEnd(e: PointerEvent): void {
+  private handleRowDragEnd(e: MouseEvent): void {
     const targetRowId = this.interactionStore.dragTarget
     if (targetRowId && targetRowId !== this.dragRowId) {
       this.handleRowDrop(targetRowId, e.clientY)
@@ -834,8 +709,6 @@ export class MouseController {
   private resetAllDragState(): void {
     this.isDragging = false
     this.isTracking = false
-    this.isTouchPointer = false
-    this.deferredCellInfo = null
     this.isColumnDrag = false
     this.dragColumnId = null
     this.isRowDrag = false
@@ -844,8 +717,6 @@ export class MouseController {
     this.isColumnResize = false
     this.isFillDrag = false
     this.startPosition = { x: 0, y: 0 }
-    // Restore touch-action so vertical scroll works again for subsequent touches
-    this.container.style.touchAction = 'pan-y'
     fileLog.debug('Drag state reset', {
       isDragging: this.isDragging,
       isTracking: this.isTracking,

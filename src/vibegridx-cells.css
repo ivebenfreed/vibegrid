@@ -23,7 +23,6 @@
   top: 0;
   height: 100%;
   padding: 0 12px;
-  touch-action: none; /* JS handles all cell touch gestures (drag-select, scroll disambiguation) */
   display: flex;
   align-items: center;
   font-size: 13px;
