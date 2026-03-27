@@ -17,7 +17,7 @@ phases:
         instruction: |
           1. Confirm dev server:
           ```bash
-          curl -sf http://localhost:$DEV_PORT/api/health
+          curl -sf $TARGET_URL/api/health
           ```
 
           2. Login primary test user:
@@ -170,7 +170,7 @@ phases:
 
           1. **Setup** — navigate to the right page, login as right user:
           ```bash
-          agent-browser open http://localhost:$DEV_PORT/entities/{entityType}
+          agent-browser open $TARGET_URL/entities/{entityType}
           agent-browser snapshot -i -s "[role=grid]"
           ```
 
@@ -215,7 +215,7 @@ phases:
           **Multi-persona testing:** Switch users for permission tests:
           ```bash
           agent-browser auth login viewer
-          agent-browser open http://localhost:$DEV_PORT/entities/{entityType}
+          agent-browser open $TARGET_URL/entities/{entityType}
           # Verify: no edit affordances, no create button
           ```
 
