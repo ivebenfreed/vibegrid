@@ -407,13 +407,18 @@ export class MouseController {
     const distance = Math.hypot(dx, dy)
 
     // Touch gesture disambiguation: if movement is primarily vertical, it's a scroll.
-    // Bail out early so the browser handles it natively.
+    // Cells have touch-action: none so the browser won't scroll — we do it in JS.
     if (this.isTouchPointer && !this.isDragging && distance > 4) {
       if (dy > dx * 1.5) {
-        // Vertical scroll intent — release tracking, let browser scroll
-        fileLog.debug('Touch vertical scroll detected — releasing to browser', { dx, dy })
+        // Vertical scroll intent — scroll viewport programmatically
+        const viewport = this.container.querySelector('.vibegridx-viewport')
+        if (viewport) {
+          const deltaY = this.startPosition.y - e.clientY
+          viewport.scrollTop += deltaY
+          this.startPosition = { x: e.clientX, y: e.clientY }
+        }
+        // Don't start drag — keep tracking for continued scroll
         this.deferredCellInfo = null
-        this.resetAllDragState()
         return
       }
     }
