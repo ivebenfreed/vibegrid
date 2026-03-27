@@ -345,6 +345,12 @@ export class MouseController {
         this.startPosition = { x: 0, y: 0 }
         return
       } else {
+        // Capture pointer and suppress touch-action so the browser doesn't
+        // fire pointercancel before our drag threshold is reached.
+        // touch-action is evaluated at pointerdown time, so we set it here.
+        // Restored in onPointerUp / onPointerCancel.
+        this.container.setPointerCapture(e.pointerId)
+        this.container.style.touchAction = 'none'
         e.preventDefault()
       }
     }
@@ -788,6 +794,8 @@ export class MouseController {
     this.isColumnResize = false
     this.isFillDrag = false
     this.startPosition = { x: 0, y: 0 }
+    // Restore touch-action so vertical scroll works again for subsequent touches
+    this.container.style.touchAction = 'pan-y'
     fileLog.debug('Drag state reset', {
       isDragging: this.isDragging,
       isTracking: this.isTracking,
