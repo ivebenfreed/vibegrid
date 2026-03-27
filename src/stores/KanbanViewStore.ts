@@ -91,6 +91,9 @@ export class KanbanViewStore implements IStore {
   /** Status color options from schema (value -> color mapping) */
   @observable statusColorMap: Map<string, StatusColorOption> = new Map()
 
+  /** The field ID that statusColorMap was built from */
+  @observable private statusColorMapFieldId: string | null = null
+
   /** Drag state for card interactions */
   @observable dragState: CardDragState = {
     cardId: null,
@@ -228,23 +231,37 @@ export class KanbanViewStore implements IStore {
       }
     }
 
-    // Build columns from status color map or unique values
+    // Build columns — only use statusColorMap when grouping by the field it was built from
     const columnsFromMap: KanbanColumn[] = []
+    const useColorMap = this.statusColorMapFieldId === this.groupByField && this.statusColorMap.size > 0
 
-    // First, add columns from the status color map (preserves order)
-    for (const [value, option] of this.statusColorMap) {
-      columnsFromMap.push({
-        id: value,
-        label: option.label,
-        color: option.color,
-        backgroundColor: option.backgroundColor,
-        cardIds: this.getCardIdsForColumn(value),
-      })
-    }
+    if (useColorMap) {
+      // Add columns from the status color map (preserves order)
+      for (const [value, option] of this.statusColorMap) {
+        columnsFromMap.push({
+          id: value,
+          label: option.label,
+          color: option.color,
+          backgroundColor: option.backgroundColor,
+          cardIds: this.getCardIdsForColumn(value),
+        })
+      }
 
-    // Add any values not in the color map
-    for (const value of uniqueValues) {
-      if (!this.statusColorMap.has(value)) {
+      // Add any data-discovered values not in the color map
+      for (const value of uniqueValues) {
+        if (!this.statusColorMap.has(value)) {
+          columnsFromMap.push({
+            id: value,
+            label: value,
+            color: '#666666',
+            backgroundColor: '#f0f0f0',
+            cardIds: this.getCardIdsForColumn(value),
+          })
+        }
+      }
+    } else {
+      // No color map for this field — build columns from discovered values only
+      for (const value of uniqueValues) {
         columnsFromMap.push({
           id: value,
           label: value,
@@ -434,8 +451,9 @@ export class KanbanViewStore implements IStore {
   }
 
   @action
-  setStatusColorMap(options: StatusColorOption[]): void {
+  setStatusColorMap(options: StatusColorOption[], fieldId?: string): void {
     this.statusColorMap.clear()
+    this.statusColorMapFieldId = fieldId ?? this.groupByField
     for (const opt of options) {
       // Safely convert value to string and lowercase
       const key = opt.value != null ? String(opt.value).toLowerCase() : null
@@ -443,7 +461,7 @@ export class KanbanViewStore implements IStore {
         this.statusColorMap.set(key, opt)
       }
     }
-    logger.info('Status color map updated', { count: this.statusColorMap.size })
+    logger.info('Status color map updated', { count: this.statusColorMap.size, fieldId: this.statusColorMapFieldId })
   }
 
   // ====================================

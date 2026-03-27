@@ -715,7 +715,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
             backgroundColor: opt.backgroundColor,
           }))
         if (colorOptions.length > 0) {
-          kanbanViewStore.setStatusColorMap(colorOptions)
+          kanbanViewStore.setStatusColorMap(colorOptions, statusCol.id)
           logger.info('Set Kanban status color map from schema', { count: colorOptions.length })
         }
       }
