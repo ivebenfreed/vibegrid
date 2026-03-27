@@ -18,7 +18,9 @@ import type { VisualStateStore } from '../../stores/VisualStateStore'
 import { ClickRouter } from './ClickRouter'
 import { DragSelectionController } from './DragSelectionController'
 import { FillDragController } from './FillDragController'
+import { GestureEngine, type GestureCallbacks, type PointingOrigin } from './GestureEngine'
 import { HoverTracker } from './HoverTracker'
+import { ScrollPhysics } from './ScrollPhysics'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'MouseController.ts'])
 
@@ -52,11 +54,15 @@ export class MouseController {
   private dragSelectionController: DragSelectionController
   private fillDragController: FillDragController
   private hoverTracker: HoverTracker
+  private gestureEngine: GestureEngine
+  private scrollPhysics: ScrollPhysics
+
+  private lastPointerX = -1
+  private lastPointerY = -1
 
   // Mouse state tracking (shared coordinator state)
   private isDragging = false
   private isTracking = false
-  private dragThreshold = 8 // pixels (increased to be less sensitive)
   private startPosition: { x: number; y: number } = { x: 0, y: 0 }
   private justEndedDrag = false
 
@@ -70,12 +76,6 @@ export class MouseController {
   private isRowDrag = false
   private dragRowId: string | null = null
   private dragRowGroupId: string | null = null
-
-  // Column resize state (retained - tightly coupled to header)
-  private isColumnResize = false
-
-  // Fill handle drag state
-  private isFillDrag = false
 
   // Throttling for resize updates
   private resizeThrottleTimeout: number | null = null
@@ -126,417 +126,106 @@ export class MouseController {
       interactionStore: this.interactionStore,
     })
 
+    this.gestureEngine = new GestureEngine(this.createGestureCallbacks())
+    this.scrollPhysics = new ScrollPhysics()
+
     // Prevent text selection during drag operations
     this.container.style.userSelect = 'none'
     this.container.style.webkitUserSelect = 'none'
 
-    this.setupGlobalMouseHandling()
-    fileLog.debug('MouseController initialized with global event handling')
+    this.setupGlobalPointerHandling()
+    fileLog.debug('MouseController initialized with global pointer event handling')
   }
 
   /**
-   * Setup global mouse event listeners - ONLY these listeners should exist for mouse events
+   * Setup global pointer event listeners - ONLY these listeners should exist for pointer events
    */
-  private setupGlobalMouseHandling(): void {
-    fileLog.debug('Setting up global mouse event coordination')
+  private setupGlobalPointerHandling(): void {
+    fileLog.debug('Setting up global pointer event coordination')
 
-    const mouseDownHandler = this.onMouseDown.bind(this)
-    const mouseMoveHandler = this.onMouseMove.bind(this)
-    const mouseUpHandler = this.onMouseUp.bind(this)
+    const pointerDownHandler = this.onPointerDown.bind(this)
+    const pointerMoveHandler = this.onPointerMove.bind(this)
+    const pointerUpHandler = this.onPointerUp.bind(this)
+    const pointerCancelHandler = this.onPointerCancel.bind(this)
     const clickHandler = this.onClick.bind(this)
 
-    this.addEventListenerTracked(document, 'mousedown', mouseDownHandler as EventListener)
-    this.addEventListenerTracked(document, 'mousemove', mouseMoveHandler as EventListener)
-    this.addEventListenerTracked(document, 'mouseup', mouseUpHandler as EventListener)
+    this.addEventListenerTracked(document, 'pointerdown', pointerDownHandler as EventListener)
+    this.addEventListenerTracked(document, 'pointermove', pointerMoveHandler as EventListener)
+    this.addEventListenerTracked(document, 'pointerup', pointerUpHandler as EventListener)
+    this.addEventListenerTracked(document, 'pointercancel', pointerCancelHandler as EventListener)
     this.addEventListenerTracked(document, 'click', clickHandler as EventListener)
 
-    fileLog.debug('Global mouse event coordination setup complete')
+    fileLog.debug('Global pointer event coordination setup complete')
   }
 
   /**
-   * Handle mouse down - start tracking potential drag and provide immediate feedback
+   * Handle pointer down - delegate to GestureEngine for state machine tracking
    */
-  private onMouseDown(e: MouseEvent): void {
+  private onPointerDown(e: PointerEvent): void {
     if (!this.container.contains(e.target as Node)) {
       return
     }
 
-    this.startPosition = { x: e.clientX, y: e.clientY }
-    this.isDragging = false
-    this.isTracking = true
-    this.isColumnDrag = false
-    this.dragColumnId = null
-    this.isRowDrag = false
-    this.dragRowId = null
-    this.dragRowGroupId = null
-    this.isColumnResize = false
-    this.isFillDrag = false
+    // Cancel any in-flight momentum scroll
+    this.scrollPhysics.cancel()
 
-    const target = e.target as HTMLElement
+    // Set pointer capture for reliable drag tracking
+    this.container.setPointerCapture(e.pointerId)
 
-    fileLog.debug('Mouse down on element', {
-      tagName: target.tagName,
-      className: target.className,
-      id: target.id,
-      hasDataColumnId: target.hasAttribute('data-column-id'),
-      hasDataRowId: target.hasAttribute('data-row-id'),
-      parentTagName: target.parentElement?.tagName,
-      parentClassName: target.parentElement?.className,
-      hasResizeHandle: target.classList.contains('vibegridx-resize-handle'),
-      closestResizeHandle: !!target.closest('.vibegridx-resize-handle'),
-      hasFillHandle: target.classList.contains('vibegridx-fill-handle'),
-      closestFillHandle: !!target.closest('.vibegridx-fill-handle'),
-    })
+    this.gestureEngine.handlePointerDown(e, this.container)
 
-    // Check for fill handle first (highest priority - should not trigger selection)
-    if (this.fillDragController.isFillHandleTarget(target)) {
-      this.isFillDrag = true
-      this.fillDragController.handleFillStart()
-      e.preventDefault()
-      e.stopPropagation()
-      return
+    // Release capture if GestureEngine declined to track (e.g., editable element)
+    if (this.gestureEngine.currentState === 'idle' && this.container.hasPointerCapture(e.pointerId)) {
+      this.container.releasePointerCapture(e.pointerId)
     }
-
-    // Check for column resize handle second (high priority)
-    const resizeHandle = target.closest('.vibegridx-resize-handle')
-    if (resizeHandle) {
-      const headerElement = resizeHandle.closest('[data-column-id]')
-      const columnId = headerElement?.getAttribute('data-column-id')
-      if (columnId) {
-        this.isColumnResize = true
-        const columnWidths = this.visualStateStore.columnWidths
-        const initialWidth = columnWidths[columnId] || 150
-
-        this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth)
-
-        fileLog.debug('[RESIZE] Column resize handle mouse down', {
-          columnId,
-          initialWidth,
-          element: resizeHandle.tagName,
-          mouseX: e.clientX,
-        })
-
-        e.preventDefault()
-        return
-      }
-    }
-
-    // GH#1240: Check for expand-row button clicks BEFORE selection
-    const expandButton = target.closest('[data-action="expand-row"]') as HTMLElement | null
-    if (expandButton) {
-      const rowId = expandButton.getAttribute('data-row-id')
-      fileLog.info('[mousedown] Expand button detected', {
-        rowId,
-        rowExpansionEnabled: this.interactionStore.rowExpansionEnabled,
-        expandedRowIds: Array.from(this.interactionStore.expandedRowIds || []),
-      })
-      if (rowId && this.interactionStore.rowExpansionEnabled) {
-        fileLog.info('[mousedown] Calling toggleRowExpansion', { rowId })
-        this.interactionStore.toggleRowExpansion(rowId)
-        this.isTracking = false
-        e.preventDefault()
-        e.stopPropagation()
-        return
-      }
-    }
-
-    // Check for column header drag
-    const headerElement = target.closest('[data-column-id]:not([data-row-id])')
-    if (headerElement) {
-      const columnId = headerElement.getAttribute('data-column-id')
-      fileLog.debug('Header element detected', {
-        element: headerElement.tagName,
-        columnId,
-        hasColumnId: !!columnId,
-        attributes: Array.from(headerElement.attributes)
-          .map((a) => `${a.name}="${a.value}"`)
-          .join(' '),
-      })
-      if (columnId) {
-        this.isColumnDrag = true
-        this.dragColumnId = columnId
-        fileLog.debug('Column header mouse down - preparing for drag', { columnId })
-        return
-      } else {
-        fileLog.warn('Header element found but no column ID', {
-          element: headerElement.tagName,
-          attributes: Array.from(headerElement.attributes)
-            .map((a) => `${a.name}="${a.value}"`)
-            .join(' '),
-        })
-      }
-    }
-
-    const cellElement = target.closest('[data-row-id][data-column-id]')
-
-    if (cellElement) {
-      const rowId = cellElement.getAttribute('data-row-id')
-      const columnId = cellElement.getAttribute('data-column-id')
-      const cellId = `${rowId}:${columnId}`
-
-      // Check if this is a drag handle cell - if so, prepare for row drag
-      if (columnId === '__drag_handle') {
-        const rowElement = cellElement.closest('[data-row-id]')
-        const groupElement = rowElement?.closest('[data-group-id]')
-        const groupId = groupElement?.getAttribute('data-group-id')
-
-        this.isRowDrag = true
-        this.dragRowId = rowId
-        this.dragRowGroupId = groupId || null
-
-        fileLog.debug('Row drag handle mouse down - preparing for row drag', {
-          cellId,
-          rowId,
-          groupId,
-          targetElement: target.tagName,
-        })
-        return
-      }
-
-      const isEditableElement = target.matches('input, textarea, select') || target.contentEditable === 'true'
-
-      fileLog.debug('Cell mouse down - pure event coordination', {
-        cellId,
-        tagName: target.tagName,
-        className: target.className,
-        isEditableElement,
-        hasCoordinator: !!this.coordinator,
-      })
-
-      if (!this.coordinator) {
-        fileLog.error('CRITICAL: Coordinator not initialized - this should never happen')
-        return
-      }
-
-      fileLog.debug('Delegating pointer down to InteractionCoordinator')
-
-      this.coordinator.handlePointerDown({
-        cellId,
-        rowId: rowId!,
-        columnId: columnId!,
-        x: e.clientX,
-        y: e.clientY,
-        target: e.target as Element,
-        modifiers: {
-          ctrl: e.ctrlKey,
-          shift: e.shiftKey,
-          alt: e.altKey,
-          meta: e.metaKey,
-        },
-        nativeEvent: e as PointerEvent,
-      })
-
-      if (this.keyboardController && !isEditableElement) {
-        this.keyboardController.ensureContainerFocus()
-      }
-
-      if (target.matches('input, textarea, select') || target.contentEditable === 'true') {
-        this.isDragging = false
-        this.isTracking = false
-        this.startPosition = { x: 0, y: 0 }
-        return
-      } else {
-        e.preventDefault()
-      }
-    }
-
-    fileLog.debug('Mouse down tracked', {
-      position: this.startPosition,
-      target: target.tagName,
-    })
   }
 
   /**
-   * Handle mouse move - detect drag threshold and update drag/selection/fill/hover
+   * Handle pointer move - delegate to GestureEngine
+   * Note: hover tracking guarded by e.pointerType === 'mouse' inside GestureEngine
    */
-  private onMouseMove(e: MouseEvent): void {
-    if (this.isTracking) {
-      const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
+  private onPointerMove(e: PointerEvent): void {
+    // Deduplicate pointermove events (touch devices send duplicates)
+    if (e.clientX === this.lastPointerX && e.clientY === this.lastPointerY) return
+    this.lastPointerX = e.clientX
+    this.lastPointerY = e.clientY
 
-      fileLog.debug('Mouse move while tracking', {
-        distance,
-        threshold: this.dragThreshold,
-        startPos: this.startPosition,
-        currentPos: { x: e.clientX, y: e.clientY },
-        isTracking: this.isTracking,
-        isDragging: this.isDragging,
-      })
-    }
+    this.gestureEngine.handlePointerMove(e)
 
-    if (!this.isTracking) {
-      return
-    }
-
-    // Handle column resize immediately (no threshold needed)
-    if (this.isColumnResize) {
-      this.handleColumnResize(e)
-      return
-    }
-
-    // Calculate distance from start position
-    const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
-
-    // Update drag state if threshold exceeded
-    if (!this.isDragging && distance > this.dragThreshold) {
-      this.isDragging = true
-      fileLog.debug('Drag threshold exceeded - now dragging', {
-        distance,
-        threshold: this.dragThreshold,
-        isColumnDrag: this.isColumnDrag,
-        dragColumnId: this.dragColumnId,
-        isRowDrag: this.isRowDrag,
-        dragRowId: this.dragRowId,
-      })
-
-      if (this.isColumnResize) {
-        this.handleColumnResize(e)
-      } else if (this.isColumnDrag && this.dragColumnId) {
-        fileLog.debug('Column drag started', { columnId: this.dragColumnId })
-        runInAction(() => {
-          this.interactionStore.isDragging = true
-        })
-        runInAction(() => {
-          this.interactionStore.dragSource = this.dragColumnId
-        })
-        this.createDragPreview(this.dragColumnId)
-      } else if (this.isRowDrag && this.dragRowId) {
-        fileLog.debug('Row drag started', {
-          rowId: this.dragRowId,
-          groupId: this.dragRowGroupId,
-        })
-        runInAction(() => {
-          this.interactionStore.isDragging = true
-        })
-        runInAction(() => {
-          this.interactionStore.dragSource = this.dragRowId
-        })
-        this.createRowDragPreview(this.dragRowId)
-      } else if (this.isColumnDrag) {
-        fileLog.warn('Column drag detected but dragColumnId is missing')
-      } else if (this.isRowDrag) {
-        fileLog.warn('Row drag detected but dragRowId is missing')
-      } else if (this.isFillDrag) {
-        this.fillDragController.handleFillDragThresholdExceeded()
-      } else {
-        // Cell drag selection
-        this.dragSelectionController.startDragSelect()
-      }
-    }
-
-    // Handle column drag target detection
-    if (this.isDragging && this.isColumnDrag && this.dragColumnId) {
-      const target = e.target as HTMLElement
-      const targetHeaderElement = target.closest('[data-column-id]:not([data-row-id])')
-      if (targetHeaderElement) {
-        const targetColumnId = targetHeaderElement.getAttribute('data-column-id')
-        if (targetColumnId && targetColumnId !== this.dragColumnId) {
-          runInAction(() => {
-            this.interactionStore.dragTarget = targetColumnId
-          })
-          this.showDropLine(targetHeaderElement as HTMLElement, e.clientX)
-          fileLog.debug('Column drag over target', {
-            sourceColumnId: this.dragColumnId,
-            targetColumnId,
-          })
-        }
-      } else {
-        this.hideDropLine()
-      }
-    }
-
-    // Handle row drag target detection
-    if (this.isDragging && this.isRowDrag && this.dragRowId) {
-      const target = e.target as HTMLElement
-      const targetRowElement = target.closest('[data-row-id]')
-      if (targetRowElement) {
-        const targetRowId = targetRowElement.getAttribute('data-row-id')
-        const targetCellElement = target.closest('[data-column-id]')
-        const _targetColumnId = targetCellElement?.getAttribute('data-column-id')
-
-        if (targetRowId && targetRowId !== this.dragRowId) {
-          runInAction(() => {
-            this.interactionStore.dragTarget = targetRowId
-          })
-          this.showRowDropIndicator(targetRowElement as HTMLElement, e.clientY)
-          fileLog.debug('Row drag over target', {
-            sourceRowId: this.dragRowId,
-            targetRowId,
-          })
-        }
-      } else {
-        this.hideRowDropIndicator()
-      }
-    }
-
-    // Handle fill drag updates
-    if (this.isDragging && this.isFillDrag) {
-      this.fillDragController.handleFillMove(e.target as HTMLElement)
-      return // Don't allow fill drag to trigger selection updates
-    }
-
-    // Handle cell drag selection updates
-    if (this.isDragging && !this.isColumnDrag && !this.isRowDrag && this.interactionStore.isDragSelecting) {
-      this.dragSelectionController.updateDragSelect(e.target as HTMLElement)
-    }
-
-    // Always update mouse coordinates
-    this.hoverTracker.updateMousePosition(e.clientX, e.clientY)
-
-    // Update drag preview position for column drag
-    if (this.isDragging && this.isColumnDrag && this.dragPreviewElement) {
-      this.updateDragPreviewPosition(e.clientX, e.clientY)
-    }
-
-    // Update drag preview position for row drag
-    if (this.isDragging && this.isRowDrag && this.dragPreviewElement) {
+    // Update drag preview position for column/row drag
+    if (this.dragPreviewElement) {
       this.updateDragPreviewPosition(e.clientX, e.clientY)
     }
   }
 
   /**
-   * Handle mouse up - reset drag state
+   * Handle pointer cancel - clean up state (safety net, should not fire with touch-action: none)
    */
-  private onMouseUp(e: MouseEvent): void {
-    fileLog.debug('Mouse up detected', {
-      withinContainer: this.container.contains(e.target as Node),
-      wasTracking: this.isTracking,
-      wasDragging: this.isDragging,
-      wasColumnDrag: this.isColumnDrag,
-      wasRowDrag: this.isRowDrag,
-      wasColumnResize: this.isColumnResize,
-    })
+  private onPointerCancel(e: PointerEvent): void {
+    fileLog.debug('Pointer cancel received', { pointerId: e.pointerId })
+    if (this.container.hasPointerCapture(e.pointerId)) {
+      this.container.releasePointerCapture(e.pointerId)
+    }
+    this.gestureEngine.handlePointerCancel(e)
+  }
 
-    if (this.isDragging || this.isColumnResize) {
-      if (this.isColumnResize) {
-        this.handleColumnResizeEnd(e)
-      } else if (this.isColumnDrag && this.dragColumnId) {
-        this.handleColumnDragEnd(e)
-      } else if (this.isFillDrag) {
-        this.fillDragController.handleFillComplete(e.target as HTMLElement)
-      } else if (this.isRowDrag && this.dragRowId) {
-        this.handleRowDragEnd(e)
-      } else {
-        // End drag selection
-        this.dragSelectionController.endDragSelect()
-      }
+  /**
+   * Handle pointer up - delegate to GestureEngine
+   */
+  private onPointerUp(e: PointerEvent): void {
+    // Release pointer capture
+    if (this.container.hasPointerCapture(e.pointerId)) {
+      this.container.releasePointerCapture(e.pointerId)
+    }
 
-      fileLog.debug('Mouse up after drag - preventing synthetic click')
-      fileLog.debug('About to reset all drag state')
-      e.preventDefault()
-      e.stopPropagation()
+    const wasActive = this.gestureEngine.currentState !== 'idle'
+    this.gestureEngine.handlePointerUp(e)
 
+    if (wasActive) {
       this.justEndedDrag = true
-      this.resetAllDragState()
-
-      // Clear the flag after a brief delay to allow normal clicks again
       setTimeout(() => {
         this.justEndedDrag = false
-        fileLog.debug('Post-drag click blocking cleared')
       }, 100)
-    } else {
-      // No drag was happening, reset immediately
-      this.resetAllDragState()
-      fileLog.debug('Non-drag mouse up - state reset')
     }
   }
 
@@ -548,10 +237,204 @@ export class MouseController {
   }
 
   // ====================================
+  // GestureEngine callbacks
+  // ====================================
+
+  private createGestureCallbacks(): GestureCallbacks {
+    return {
+      onTap: (_origin: PointingOrigin) => {
+        // Tap is handled by click event (onClick handler still works via click listener)
+        // No action needed here -- the click event fires naturally after pointerup
+        fileLog.debug('Gesture resolved as tap')
+      },
+
+      onDragSelectStart: () => {
+        this.isDragging = true
+        this.dragSelectionController.startDragSelect()
+      },
+      onDragSelectMove: (target: HTMLElement) => {
+        if (this.interactionStore.isDragSelecting) {
+          this.dragSelectionController.updateDragSelect(target)
+        }
+      },
+      onDragSelectEnd: () => {
+        this.dragSelectionController.endDragSelect()
+        this.resetAllDragState()
+      },
+
+      onFillStart: () => {
+        this.isTracking = true
+        this.fillDragController.handleFillStart()
+      },
+      onFillThresholdExceeded: () => {
+        this.isDragging = true
+        this.fillDragController.handleFillDragThresholdExceeded()
+      },
+      onFillMove: (target: HTMLElement) => {
+        this.fillDragController.handleFillMove(target)
+      },
+      onFillComplete: (target: HTMLElement) => {
+        this.fillDragController.handleFillComplete(target)
+        this.resetAllDragState()
+      },
+
+      onColumnResizeStart: (columnId: string, clientX: number) => {
+        this.isTracking = true
+        const columnWidths = this.visualStateStore.columnWidths
+        const initialWidth = columnWidths[columnId] || 150
+        this.interactionStore.startColumnResize(columnId, clientX, initialWidth)
+      },
+      onColumnResizeMove: (e: PointerEvent) => {
+        this.handleColumnResize(e)
+      },
+      onColumnResizeEnd: (e: PointerEvent) => {
+        this.handleColumnResizeEnd(e)
+        this.resetAllDragState()
+      },
+
+      onColumnDragStart: (columnId: string) => {
+        this.isColumnDrag = true
+        this.isDragging = true
+        this.dragColumnId = columnId
+        runInAction(() => {
+          this.interactionStore.isDragging = true
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = columnId
+        })
+        this.createDragPreview(columnId)
+      },
+      onColumnDragMove: (e: PointerEvent) => {
+        const target = e.target as HTMLElement
+        const targetHeaderElement = target.closest('[data-column-id]:not([data-row-id])')
+        if (targetHeaderElement) {
+          const targetColumnId = targetHeaderElement.getAttribute('data-column-id')
+          if (targetColumnId && targetColumnId !== this.dragColumnId) {
+            runInAction(() => {
+              this.interactionStore.dragTarget = targetColumnId
+            })
+            this.showDropLine(targetHeaderElement as HTMLElement, e.clientX)
+          }
+        } else {
+          this.hideDropLine()
+        }
+      },
+      onColumnDragEnd: (e: PointerEvent) => {
+        this.handleColumnDragEnd(e)
+        this.resetAllDragState()
+      },
+
+      onRowDragStart: (rowId: string, groupId: string | null) => {
+        this.isRowDrag = true
+        this.isDragging = true
+        this.dragRowId = rowId
+        this.dragRowGroupId = groupId
+        runInAction(() => {
+          this.interactionStore.isDragging = true
+        })
+        runInAction(() => {
+          this.interactionStore.dragSource = rowId
+        })
+        this.createRowDragPreview(rowId)
+      },
+      onRowDragMove: (e: PointerEvent) => {
+        const target = e.target as HTMLElement
+        const targetRowElement = target.closest('[data-row-id]')
+        if (targetRowElement) {
+          const targetRowId = targetRowElement.getAttribute('data-row-id')
+          if (targetRowId && targetRowId !== this.dragRowId) {
+            runInAction(() => {
+              this.interactionStore.dragTarget = targetRowId
+            })
+            this.showRowDropIndicator(targetRowElement as HTMLElement, e.clientY)
+          }
+        } else {
+          this.hideRowDropIndicator()
+        }
+      },
+      onRowDragEnd: (e: PointerEvent) => {
+        this.handleRowDragEnd(e)
+        this.resetAllDragState()
+      },
+
+      // Scrolling - JS-managed vertical scroll with momentum (GH#2219 Phase 3)
+      onScrollStart: () => {
+        fileLog.debug('Touch scroll gesture started')
+        const origin = this.gestureEngine.currentOrigin
+        if (origin) {
+          this.scrollPhysics.begin(origin.y)
+        }
+      },
+      onScrollMove: (e: PointerEvent) => {
+        const viewport = this.getViewport()
+        if (!viewport) return
+        const dy = this.scrollPhysics.addMove(e.clientY)
+        viewport.scrollTop -= dy
+      },
+      onScrollEnd: (_e: PointerEvent) => {
+        const viewport = this.getViewport()
+        if (!viewport) {
+          this.scrollPhysics.reset()
+          return
+        }
+        this.scrollPhysics.startMomentum(viewport)
+      },
+
+      onExpandToggle: (rowId: string) => {
+        if (this.interactionStore.rowExpansionEnabled) {
+          this.interactionStore.toggleRowExpansion(rowId)
+        }
+      },
+
+      onCellPointerDown: (origin: PointingOrigin) => {
+        const { targetInfo } = origin
+        if (!this.coordinator) {
+          fileLog.error('CRITICAL: Coordinator not initialized')
+          return
+        }
+        if (targetInfo.cellElement && targetInfo.rowId && targetInfo.columnId) {
+          this.coordinator.handlePointerDown({
+            cellId: `${targetInfo.rowId}:${targetInfo.columnId}`,
+            rowId: targetInfo.rowId,
+            columnId: targetInfo.columnId,
+            x: origin.x,
+            y: origin.y,
+            target: origin.target,
+            modifiers: origin.modifiers,
+            nativeEvent: origin.nativeEvent,
+          })
+          if (this.keyboardController && !targetInfo.isEditableElement) {
+            this.keyboardController.ensureContainerFocus()
+          }
+        }
+      },
+
+      onHoverUpdate: (clientX: number, clientY: number) => {
+        this.hoverTracker.updateMousePosition(clientX, clientY)
+      },
+
+      onCancel: () => {
+        this.resetAllDragState()
+        this.removeDragPreview()
+        this.hideDropLine()
+        this.removeRowDragPreview()
+        this.hideRowDropIndicator()
+      },
+    }
+  }
+
+  /**
+   * Get the viewport element (scrollable container) within the grid.
+   */
+  private getViewport(): HTMLElement | null {
+    return this.container.querySelector('.vibegridx-viewport')
+  }
+
+  // ====================================
   // Column resize (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnResize(e: MouseEvent): void {
+  private handleColumnResize(e: PointerEvent): void {
     const result = this.interactionStore.updateColumnResize(e.clientX)
 
     if (result) {
@@ -598,7 +481,7 @@ export class MouseController {
     e.preventDefault()
   }
 
-  private handleColumnResizeEnd(e: MouseEvent): void {
+  private handleColumnResizeEnd(e: PointerEvent): void {
     if (this.resizeThrottleTimeout) {
       window.clearTimeout(this.resizeThrottleTimeout)
       this.resizeThrottleTimeout = null
@@ -639,7 +522,7 @@ export class MouseController {
   // Column drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleColumnDragEnd(e: MouseEvent): void {
+  private handleColumnDragEnd(e: PointerEvent): void {
     const targetColumnId = this.interactionStore.dragTarget
     if (targetColumnId && targetColumnId !== this.dragColumnId) {
       const targetHeaderElement = this.container.querySelector(
@@ -681,7 +564,7 @@ export class MouseController {
   // Row drag (retained - tightly coupled to header)
   // ====================================
 
-  private handleRowDragEnd(e: MouseEvent): void {
+  private handleRowDragEnd(e: PointerEvent): void {
     const targetRowId = this.interactionStore.dragTarget
     if (targetRowId && targetRowId !== this.dragRowId) {
       this.handleRowDrop(targetRowId, e.clientY)
@@ -714,8 +597,6 @@ export class MouseController {
     this.isRowDrag = false
     this.dragRowId = null
     this.dragRowGroupId = null
-    this.isColumnResize = false
-    this.isFillDrag = false
     this.startPosition = { x: 0, y: 0 }
     fileLog.debug('Drag state reset', {
       isDragging: this.isDragging,
@@ -1157,6 +1038,8 @@ export class MouseController {
    * Clean up all mouse event handling
    */
   destroy(): void {
+    this.scrollPhysics.reset()
+    this.gestureEngine.forceReset()
     this.eventListeners.forEach(({ element, event, handler }) => {
       try {
         element.removeEventListener(event, handler)

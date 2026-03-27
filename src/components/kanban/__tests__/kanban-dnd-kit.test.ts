@@ -125,11 +125,16 @@ describe('MouseController pointer event migration (GH#2200)', () => {
   })
 })
 
-describe('CSS touch targets (GH#2200)', () => {
-  it('has touch-action: pan-y on container', async () => {
+describe('CSS touch targets (GH#2200, GH#2219)', () => {
+  it('has touch-action: none on container (GH#2219)', async () => {
     const fs = await import('node:fs')
     const source = fs.readFileSync(new URL('../../../vibegridx.css', import.meta.url).pathname, 'utf-8')
-    expect(source).toContain('touch-action: pan-y')
+    // GH#2219: touch-action: none for JS-managed scrolling
+    expect(source).not.toContain('touch-action: pan-y')
+    // Container should have touch-action: none
+    const containerStart = source.indexOf('.vibegridx-container {')
+    const containerBlock = source.slice(containerStart, source.indexOf('}', containerStart) + 1)
+    expect(containerBlock).toContain('touch-action: none')
   })
 
   it('has touch-action: none on resize handle', async () => {

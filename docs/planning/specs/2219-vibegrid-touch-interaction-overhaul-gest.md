@@ -10,7 +10,42 @@ github_issue: 2219
 github_milestone: null
 created: 2026-03-26
 updated: 2026-03-27
-phases: [p1, p2, p3, p4]
+phases:
+  - id: p1
+    name: "Pointer Event Migration"
+    tasks:
+      - "Replace mouse events with pointer events in MouseController.setupGlobalMouseHandling()"
+      - "Add setPointerCapture/releasePointerCapture on pointerdown/pointerup"
+      - "Add pointercancel handler for cleanup"
+      - "Filter HoverTracker to mouse-only (pointerType === 'mouse')"
+      - "Fix/update pre-existing pointer event tests in kanban-dnd-kit.test.ts"
+      - "Verify all existing mouse interaction tests pass"
+  - id: p2
+    name: "GestureEngine State Machine"
+    tasks:
+      - "Create GestureEngine.ts with state machine (Idle, Pointing, DragSelecting, FillDragging, ColumnResizing, ColumnDragging, RowDragging, Scrolling stub)"
+      - "Implement Pointing state with threshold disambiguation (4px mouse, 8px touch)"
+      - "Wire sub-controllers (DragSelectionController, FillDragController, ClickRouter) through state transitions"
+      - "Rename MouseController.ts to PointerController.ts, delegate to GestureEngine"
+      - "Write GestureEngine.test.ts with all state transition tests"
+      - "Verify mouse behavior identical after wiring"
+  - id: p3
+    name: "touch-action none + JS Vertical Scroll"
+    tasks:
+      - "Create ScrollPhysics.ts with velocity tracking and momentum RAF loop"
+      - "Implement ScrollingState in GestureEngine wired to ScrollPhysics"
+      - "Change vibegridx.css .vibegridx-viewport from touch-action: pan-y to touch-action: none"
+      - "Write ScrollPhysics.test.ts (velocity, deceleration, bounds clamping)"
+      - "Cancel in-flight momentum on new pointerdown"
+      - "Verify touch scroll works with momentum deceleration"
+  - id: p4
+    name: "Touch Polish + Verification"
+    tasks:
+      - "Write agent-browser smoke tests for mouse regression (click, drag-select, fill, resize, reorder)"
+      - "Add iOS Safari workarounds if needed (-webkit-touch-callout, tap-highlight-color)"
+      - "Validate @media (hover: none) affordances still work"
+      - "Run full typecheck and lint"
+      - "Verify zero pointercancel events during touch interactions"
 ---
 
 # VIbeGrid touch interaction overhaul — gesture engine + mobile scroll

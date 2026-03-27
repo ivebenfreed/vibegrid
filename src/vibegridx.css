@@ -24,8 +24,9 @@
   max-width: 100%;
   overflow: hidden; /* Internal viewport handles scrolling — no container-level scrollbars */
   font-size: 13px; /* Ensure consistent base font size */
-  touch-action: pan-y; /* Allow native vertical scroll, JS handles horizontal interactions */
-  -webkit-overflow-scrolling: touch; /* Smooth momentum scroll on iOS */
+  touch-action: none; /* JS handles all touch interactions — GH#2219 GestureEngine */
+  -webkit-touch-callout: none; /* Prevent iOS long-press callout during grid gestures */
+  -webkit-tap-highlight-color: transparent; /* Remove iOS tap highlight — grid provides its own feedback */
 }
 
 .vibegridx-container:focus {
