@@ -62,12 +62,15 @@ Every tldraw tool uses the same three-state pattern:
 - **On pointermove in Pointing** → if distance > threshold → transition to the active state (Drawing, DragSelecting, Translating, etc.)
 - **On pointerup in Pointing** → it was a click, not a drag → handle as click, return to Idle
 
+**Critical: Pointing provides IMMEDIATE visual feedback.** The select tool feels just as instant as the draw tool because entering the Pointing state immediately shows selection highlights, handles, etc. The dead zone only gates the *drag commitment* (translating, brushing), not the visual response. The user sees "I touched this shape, it's selected" while the engine quietly waits to determine click vs drag. This separation of feedback from commitment is what makes everything feel instant despite the dead zone.
+
 **Threshold is input-aware:**
-- Mouse: small threshold (~5px)
-- Touch (coarse pointer): larger threshold for fat fingers
+- Mouse: 4px (`dragDistanceSquared: 16`)
+- Touch (coarse pointer): 6px (`coarseDragDistanceSquared: 36`)
+- UI toolbar on touch: 25px (`uiCoarseDragDistanceSquared: 625`) — "really easy to accidentally drag from the toolbar on mobile"
 - Pen: different behavior (can skip Pointing in some tools)
 
-**This is exactly what VIbeGrid needs.** The failed hotfixes tried to implement this ad-hoc with boolean flags. tldraw makes it a first-class state machine.
+**This is exactly what VIbeGrid needs.** The failed hotfixes tried to implement this ad-hoc with boolean flags — and worse, they *deferred the selection itself* (`deferredCellInfo`) to avoid committing to the wrong gesture. tldraw shows the right approach: commit visual feedback immediately, only defer the drag action. If the gesture turns out to be a scroll, undo the highlight — but that almost never happens because the threshold is so small.
 
 ### 3. CSS `touch-action: none` — The Nuclear Option That Works
 
@@ -217,6 +220,17 @@ The **Pointing** state is the key — it's where VIbeGrid would decide:
 - Move > threshold, primarily horizontal → drag-select or fill
 - Move > threshold, primarily vertical → scroll (programmatic)
 - Move on drag handle → row/column reorder
+
+**The Pointing state MUST provide immediate feedback:**
+```
+pointerdown on cell
+  → IMMEDIATELY: highlight cell, show selection feedback (enter Pointing)
+  → DEFER: whether this becomes drag-select, fill, or scroll
+  → pointerup without exceeding threshold = it was a tap (already looks right)
+  → pointermove past threshold = commit to drag/fill/scroll
+  → if scroll: undo the highlight (rare — threshold is tiny)
+```
+This is the opposite of what the reverted hotfixes did (deferring selection via `deferredCellInfo`). Commit visual feedback immediately, only defer the drag commitment.
 
 ### Option B: Selective `touch-action: none` (Compromise)
 
