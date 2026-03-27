@@ -192,6 +192,7 @@ export class MouseController {
     if (this.fillDragController.isFillHandleTarget(target)) {
       this.isFillDrag = true
       this.fillDragController.handleFillStart()
+      this.container.setPointerCapture(e.pointerId)
       e.preventDefault()
       e.stopPropagation()
       return
@@ -208,6 +209,7 @@ export class MouseController {
         const initialWidth = columnWidths[columnId] || 150
 
         this.interactionStore.startColumnResize(columnId, e.clientX, initialWidth)
+        this.container.setPointerCapture(e.pointerId)
 
         fileLog.debug('[RESIZE] Column resize handle mouse down', {
           columnId,
@@ -379,6 +381,12 @@ export class MouseController {
     // Update drag state if threshold exceeded
     if (!this.isDragging && distance > this.dragThreshold) {
       this.isDragging = true
+      // Capture pointer now that a real drag has started — keeps events flowing
+      // even if pointer leaves the container. NOT called on pointerdown because
+      // that would fight with touch-action: pan-y and break native scroll.
+      if (this.container.hasPointerCapture?.(e.pointerId) === false) {
+        this.container.setPointerCapture(e.pointerId)
+      }
       fileLog.debug('Drag threshold exceeded - now dragging', {
         distance,
         threshold: this.dragThreshold,
