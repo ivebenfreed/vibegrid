@@ -60,6 +60,10 @@ export class MouseController {
   private startPosition: { x: number; y: number } = { x: 0, y: 0 }
   private justEndedDrag = false
 
+  // Touch gesture disambiguation: defer selection until we know intent
+  private isTouchPointer = false
+  private deferredCellInfo: { cellId: string; rowId: string; columnId: string; e: PointerEvent } | null = null
+
   // Pointer deduplication (pointermove can fire without actual movement)
   private lastPointerX = 0
   private lastPointerY = 0
@@ -171,6 +175,8 @@ export class MouseController {
     this.startPosition = { x: e.clientX, y: e.clientY }
     this.isDragging = false
     this.isTracking = true
+    this.isTouchPointer = e.pointerType !== 'mouse'
+    this.deferredCellInfo = null
     this.isColumnDrag = false
     this.dragColumnId = null
     this.isRowDrag = false
@@ -317,40 +323,42 @@ export class MouseController {
         return
       }
 
-      fileLog.debug('Delegating pointer down to InteractionCoordinator')
-
-      this.coordinator.handlePointerDown({
-        cellId,
-        rowId: rowId!,
-        columnId: columnId!,
-        x: e.clientX,
-        y: e.clientY,
-        target: e.target as Element,
-        modifiers: {
-          ctrl: e.ctrlKey,
-          shift: e.shiftKey,
-          alt: e.altKey,
-          meta: e.metaKey,
-        },
-        nativeEvent: e as PointerEvent,
-      })
-
-      if (this.keyboardController && !isEditableElement) {
-        this.keyboardController.ensureContainerFocus()
-      }
-
       if (target.matches('input, textarea, select') || target.contentEditable === 'true') {
         this.isDragging = false
         this.isTracking = false
         this.startPosition = { x: 0, y: 0 }
         return
+      }
+
+      if (this.isTouchPointer) {
+        // Touch: defer selection — we don't know if this is a tap, scroll, or drag.
+        // Selection fires on click (tap) or when drag threshold is exceeded.
+        // Don't capture or change touch-action yet — let browser handle scroll.
+        this.deferredCellInfo = { cellId, rowId: rowId!, columnId: columnId!, e }
+        fileLog.debug('Touch pointer down on cell - deferring selection', { cellId })
       } else {
-        // Capture pointer and suppress touch-action so the browser doesn't
-        // fire pointercancel before our drag threshold is reached.
-        // touch-action is evaluated at pointerdown time, so we set it here.
-        // Restored in onPointerUp / onPointerCancel.
-        this.container.setPointerCapture(e.pointerId)
-        this.container.style.touchAction = 'none'
+        // Mouse: select immediately (existing behavior)
+        fileLog.debug('Delegating pointer down to InteractionCoordinator')
+        this.coordinator.handlePointerDown({
+          cellId,
+          rowId: rowId!,
+          columnId: columnId!,
+          x: e.clientX,
+          y: e.clientY,
+          target: e.target as Element,
+          modifiers: {
+            ctrl: e.ctrlKey,
+            shift: e.shiftKey,
+            alt: e.altKey,
+            meta: e.metaKey,
+          },
+          nativeEvent: e,
+        })
+
+        if (this.keyboardController && !isEditableElement) {
+          this.keyboardController.ensureContainerFocus()
+        }
+
         e.preventDefault()
       }
     }
@@ -394,16 +402,51 @@ export class MouseController {
     }
 
     // Calculate distance from start position
-    const distance = Math.hypot(e.clientX - this.startPosition.x, e.clientY - this.startPosition.y)
+    const dx = Math.abs(e.clientX - this.startPosition.x)
+    const dy = Math.abs(e.clientY - this.startPosition.y)
+    const distance = Math.hypot(dx, dy)
+
+    // Touch gesture disambiguation: if movement is primarily vertical, it's a scroll.
+    // Bail out early so the browser handles it natively.
+    if (this.isTouchPointer && !this.isDragging && distance > 4) {
+      if (dy > dx * 1.5) {
+        // Vertical scroll intent — release tracking, let browser scroll
+        fileLog.debug('Touch vertical scroll detected — releasing to browser', { dx, dy })
+        this.deferredCellInfo = null
+        this.resetAllDragState()
+        return
+      }
+    }
 
     // Update drag state if threshold exceeded
     if (!this.isDragging && distance > this.dragThreshold) {
       this.isDragging = true
-      // Capture pointer now that a real drag has started — keeps events flowing
-      // even if pointer leaves the container. NOT called on pointerdown because
-      // that would fight with touch-action: pan-y and break native scroll.
-      if (this.container.hasPointerCapture?.(e.pointerId) === false) {
-        this.container.setPointerCapture(e.pointerId)
+
+      // For touch: commit deferred selection now that we know it's a drag
+      if (this.isTouchPointer && this.deferredCellInfo && this.coordinator) {
+        const { cellId, rowId, columnId, e: downEvent } = this.deferredCellInfo
+        this.coordinator.handlePointerDown({
+          cellId,
+          rowId,
+          columnId,
+          x: downEvent.clientX,
+          y: downEvent.clientY,
+          target: downEvent.target as Element,
+          modifiers: {
+            ctrl: downEvent.ctrlKey,
+            shift: downEvent.shiftKey,
+            alt: downEvent.altKey,
+            meta: downEvent.metaKey,
+          },
+          nativeEvent: downEvent,
+        })
+        this.deferredCellInfo = null
+      }
+
+      // Capture pointer and suppress touch-action for reliable drag tracking
+      this.container.setPointerCapture(e.pointerId)
+      if (this.isTouchPointer) {
+        this.container.style.touchAction = 'none'
       }
       fileLog.debug('Drag threshold exceeded - now dragging', {
         distance,
@@ -786,6 +829,8 @@ export class MouseController {
   private resetAllDragState(): void {
     this.isDragging = false
     this.isTracking = false
+    this.isTouchPointer = false
+    this.deferredCellInfo = null
     this.isColumnDrag = false
     this.dragColumnId = null
     this.isRowDrag = false
