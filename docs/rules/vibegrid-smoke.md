@@ -22,7 +22,8 @@ phases:
 
           2. Login primary test user:
           ```bash
-          agent-browser auth login ceo
+          agent-browser open $TARGET_URL/sign-in
+          agent-browser eval "window.__auth.signIn('ceo').then(r => JSON.stringify(r))"
           ```
 
           3. Discover entity types and find one with diverse field types:
@@ -214,7 +215,7 @@ phases:
 
           **Multi-persona testing:** Switch users for permission tests:
           ```bash
-          agent-browser auth login viewer
+          agent-browser eval "window.__auth.signIn('viewer').then(r => JSON.stringify(r))"
           agent-browser open $TARGET_URL/entities/{entityType}
           # Verify: no edit affordances, no create button
           ```
