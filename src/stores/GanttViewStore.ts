@@ -23,6 +23,11 @@ import { calculateCriticalPath } from '../utils/critical-path'
 import { wouldCreateCycle } from '../utils/dependency-validator'
 import type { SchemaRegistryLike } from '../types'
 import { formatFieldName } from '../column-defaults'
+
+/** Check if a name looks human-formatted (has spaces/capitals) vs raw snake_case */
+function looksFormatted(name: string | undefined): name is string {
+  return !!name && name !== name.toLowerCase() && name.includes(' ')
+}
 import type { TableCoreStore } from './TableCoreStore'
 
 const logger = getLogger(['vibegrid', 'stores', 'GanttViewStore'])
@@ -382,7 +387,7 @@ export class GanttViewStore implements IStore {
       })
       .map((col) => ({
         id: col.id,
-        name: col.name || formatFieldName(col.id),
+        name: looksFormatted(col.name) ? col.name : formatFieldName(col.id),
         type: col.type || col.cellType || 'date',
       }))
   }
@@ -404,7 +409,7 @@ export class GanttViewStore implements IStore {
       })
       .map((col) => ({
         id: col.id,
-        name: col.name || formatFieldName(col.id),
+        name: looksFormatted(col.name) ? col.name : formatFieldName(col.id),
       }))
   }
 
