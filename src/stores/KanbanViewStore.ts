@@ -190,12 +190,32 @@ export class KanbanViewStore implements IStore {
     return null
   }
 
+  /**
+   * Data-only rows (excludes group headers from GroupProcessor).
+   * Kanban operates on entity records, not group summaries.
+   */
+  @computed
+  private get dataRows(): any[] {
+    if (!this.tableCoreStore) return []
+    return this.tableCoreStore.processedRows.filter((row) => !row.type || row.type === 'data')
+  }
+
+  /**
+   * Human-readable label for the null/empty column based on current groupByField.
+   */
+  private get emptyColumnLabel(): string {
+    if (!this.tableCoreStore) return 'No Status'
+    const col = this.tableCoreStore.columns.find((c: any) => c.id === this.groupByField)
+    const fieldName = col?.name || this.groupByField
+    return `No ${fieldName}`
+  }
+
   @computed
   get columns(): KanbanColumn[] {
     if (!this.tableCoreStore) return []
 
-    // Get unique values for the group field from data
-    const rows = this.tableCoreStore.processedRows
+    // Get unique values for the group field from data (data rows only)
+    const rows = this.dataRows
     const uniqueValues = new Set<string>()
 
     for (const row of rows) {
@@ -235,12 +255,12 @@ export class KanbanViewStore implements IStore {
       }
     }
 
-    // Add "No Status" column for items without a status
+    // Add empty-value column for items without a value for the group field
     const noStatusCards = this.getCardIdsForColumn(null)
     if (noStatusCards.length > 0) {
       columnsFromMap.unshift({
         id: '__no_status__',
-        label: 'No Status',
+        label: this.emptyColumnLabel,
         color: '#999999',
         backgroundColor: '#e0e0e0',
         cardIds: noStatusCards,
@@ -258,7 +278,7 @@ export class KanbanViewStore implements IStore {
   private get cardsByColumn(): Map<string, string[]> {
     if (!this.tableCoreStore) return new Map()
 
-    const rows = this.tableCoreStore.processedRows
+    const rows = this.dataRows
     const groups = new Map<string, string[]>()
 
     for (const row of rows) {
@@ -359,7 +379,7 @@ export class KanbanViewStore implements IStore {
   get cards(): KanbanCard[] {
     if (!this.tableCoreStore) return []
 
-    const rows = this.tableCoreStore.processedRows
+    const rows = this.dataRows
     return rows.map((row) => {
       const rowData = row.data || row
       const statusValue = rowData[this.groupByField]
