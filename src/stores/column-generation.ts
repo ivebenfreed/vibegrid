@@ -198,6 +198,13 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(emailThreadColumns) as any
   }
 
+  // Special case: Member (system entity backed by organization_members, not entity_records)
+  if (entityType === 'Member') {
+    fileLog.debug('Using member schema (system entity)', { entityType })
+    const { memberColumns } = await import('@/features/entities/schemas/member-schema')
+    return enrichColumnsWithFieldTypes(memberColumns) as any
+  }
+
   // Special case: Command Center items (aggregated from multiple sources, not DataForge entities)
   if (entityType === 'CommandCenterItem') {
     fileLog.debug('📋 Using command center item schema (aggregated entity)', { entityType })
