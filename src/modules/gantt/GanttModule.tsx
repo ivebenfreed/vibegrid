@@ -23,7 +23,7 @@ const DATE_TYPES = ['date', 'datetime', 'datetime-local']
 
 /** Check if schema has any date fields */
 function hasDateFields(schemaFields?: SchemaFieldDescriptor[]): boolean {
-  if (!schemaFields?.length) return true // graceful fallback: assume dates exist
+  if (!schemaFields?.length) return false // no schema fields = show empty state
   return schemaFields.some((f) => DATE_TYPES.includes(f.fieldType))
 }
 
