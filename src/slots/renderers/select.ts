@@ -93,7 +93,11 @@ class SelectCellRenderer implements CellRenderer {
       }
       container.appendChild(badge)
     } else {
-      container.textContent = String(value)
+      // Humanize snake_case slug as fallback (e.g., "not_started" → "Not Started")
+      const raw = String(value)
+      container.textContent = raw.includes('_')
+        ? raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : raw
       container.style.fontStyle = 'italic'
       container.style.opacity = '0.7'
     }

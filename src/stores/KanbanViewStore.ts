@@ -250,9 +250,13 @@ export class KanbanViewStore implements IStore {
       // Add any data-discovered values not in the color map
       for (const value of uniqueValues) {
         if (!this.statusColorMap.has(value)) {
+          // Humanize snake_case slug as fallback
+          const humanized = value.includes('_')
+            ? value.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+            : value
           columnsFromMap.push({
             id: value,
-            label: value,
+            label: humanized,
             color: '#666666',
             backgroundColor: '#f0f0f0',
             cardIds: this.getCardIdsForColumn(value),
@@ -260,11 +264,15 @@ export class KanbanViewStore implements IStore {
         }
       }
     } else {
-      // No color map for this field — build columns from discovered values only
+      // No color map for this field — build columns from discovered values, resolve labels from column options
+      const groupCol = this.tableCoreStore.columns.find((c: any) => c.id === this.groupByField)
+      const optionsList: Array<{ value: string; label?: string }> = (groupCol as any)?.editor?.options || (groupCol as any)?.options || []
+      const labelMap = new Map(optionsList.filter((o) => o.value).map((o) => [o.value, o.label || o.value]))
+
       for (const value of uniqueValues) {
         columnsFromMap.push({
           id: value,
-          label: value,
+          label: labelMap.get(value) || value,
           color: '#666666',
           backgroundColor: '#f0f0f0',
           cardIds: this.getCardIdsForColumn(value),

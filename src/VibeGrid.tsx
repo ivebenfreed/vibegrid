@@ -707,12 +707,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
       const editorOptions = (statusCol as any).editor?.options || []
       if (editorOptions.length > 0) {
         const colorOptions = editorOptions
-          .filter((opt: any) => opt.value && opt.backgroundColor)
+          .filter((opt: any) => opt.value)
           .map((opt: any) => ({
             value: opt.value,
             label: opt.label || opt.value,
             color: opt.color || '#000000',
-            backgroundColor: opt.backgroundColor,
+            backgroundColor: opt.backgroundColor || undefined,
           }))
         if (colorOptions.length > 0) {
           kanbanViewStore.setStatusColorMap(colorOptions, statusCol.id)
