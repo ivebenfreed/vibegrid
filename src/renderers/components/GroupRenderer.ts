@@ -99,7 +99,10 @@ export class GroupRenderer {
     // Build group label text with proper display values
     const displayValue = groupData.displayValue || groupData.value || 'Unknown'
     const rowCount = groupData.rowCount || groupData.count || 0
-    const fieldName = groupData.field || 'Group'
+    // Use column display name instead of raw field name (e.g., "Owner" instead of "owner_id")
+    const rawField = groupData.field || 'Group'
+    const column = this.visualState.columns?.find((c: any) => c.field === rawField || c.id === rawField)
+    const fieldName = column?.name || rawField.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
 
     groupLabel.textContent = `${fieldName}: ${displayValue} (${rowCount} items)`
 

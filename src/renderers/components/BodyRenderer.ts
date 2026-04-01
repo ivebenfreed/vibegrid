@@ -737,7 +737,9 @@ export class BodyRenderer {
       color: #333;
     `
 
-    const fieldName = groupData.field.charAt(0).toUpperCase() + groupData.field.slice(1)
+    // Use column display name instead of raw field name
+    const column = this.visualStateStore?.columns?.find((c: any) => c.field === groupData.field || c.id === groupData.field)
+    const fieldName = column?.name || groupData.field.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
     const displayValue = groupData.displayValue
     const count = groupData.rowCount
 
