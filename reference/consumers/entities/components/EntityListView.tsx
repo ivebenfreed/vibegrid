@@ -104,6 +104,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const userId = authStore.user?.id ?? ''
   const userRole = authStore.session?.organization?.role ?? 'member'
   const isAdmin = userRole === 'admin' || userRole === 'owner'
+  const hasWriteAccess = userRole !== 'viewer'
 
   // Duplicate view: create a personal copy with "(copy)" suffix
   const handleDuplicateView = useCallback(
@@ -236,8 +237,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableGrouping={true}
         enableFiltering={true}
         enableSorting={true}
-        enableDragAndDrop={true}
-        enableDelete={true}
+        enableDragAndDrop={hasWriteAccess}
+        enableDelete={hasWriteAccess}
         enableExport={true}
         enableInlineCreation={enableInlineCreation}
         onInlineCreate={onInlineCreate}
@@ -606,19 +607,21 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                 </div>
               }
               toolbarTrailing={
-                <CreationModeButton
-                  entityName={schema.entityName}
-                  displayName={entityTitle}
-                  creationModes={creationModes}
-                  onCreateForm={() =>
-                    startTransition(() => {
-                      setCreateDialogOpen(true)
-                    })
-                  }
-                  onCreateUpload={() => uploadDialogRef.current?.open()}
-                  disabled={isTransitionPending}
-                  size="sm"
-                />
+                hasWriteAccess ? (
+                  <CreationModeButton
+                    entityName={schema.entityName}
+                    displayName={entityTitle}
+                    creationModes={creationModes}
+                    onCreateForm={() =>
+                      startTransition(() => {
+                        setCreateDialogOpen(true)
+                      })
+                    }
+                    onCreateUpload={() => uploadDialogRef.current?.open()}
+                    disabled={isTransitionPending}
+                    size="sm"
+                  />
+                ) : undefined
               }
               onCellClick={(rowId, _columnId, event) => {
                 // GH#1843: Check if click originated from a relationship badge — open drawer for referenced entity
