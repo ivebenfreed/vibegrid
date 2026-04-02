@@ -19,6 +19,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCommandBus, useUndoRouter } from '@/app/stores'
 import { useDependencyCollection, useMembersCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
+import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
+import { BatchUpdateEntityRecordsCommand } from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
 import { ActionsBar } from './components/ActionsBar'
 import { DebugOverlay } from './components/DebugOverlay'
 import { FloatingActionsMenu } from './components/FloatingActionsMenu'
@@ -581,6 +583,62 @@ function VibeGridInnerBase(props: VibeGridProps) {
     return dispose
   }, [commandBus, undoRouter])
 
+  // CommandBus-routed onEntityUpdate wrapper — routes fill handle, paste, and other
+  // non-EditingStore mutations through CommandBus for undo/redo tracking.
+  const commandBusEntityUpdate = useCallback(
+    async (rowId: string, updates: Record<string, any>) => {
+      const directUpdate = onEntityUpdate || updateEntity
+      if (!commandBus || !collection) {
+        directUpdate?.(rowId, updates)
+        return
+      }
+
+      const fields = Object.keys(updates)
+      if (fields.length === 0) return
+
+      // Look up previous values from collection
+      const currentData = collection.get(String(rowId))
+
+      try {
+        if (fields.length === 1) {
+          const field = fields[0]
+          const command = new UpdateEntityRecordCommand()
+          const result = await commandBus.execute(command, {
+            collection,
+            entityName: entityType,
+            recordId: String(rowId),
+            field,
+            newValue: updates[field],
+            previousValue: currentData?.[field] ?? null,
+          })
+          if (!result.success) {
+            directUpdate?.(rowId, updates)
+          }
+        } else {
+          const command = new BatchUpdateEntityRecordsCommand()
+          const result = await commandBus.execute(command, {
+            collection,
+            entityName: entityType,
+            updates: fields.map((field) => ({
+              recordId: String(rowId),
+              field,
+              newValue: updates[field],
+              previousValue: currentData?.[field] ?? null,
+            })),
+          })
+          if (!result.success) {
+            directUpdate?.(rowId, updates)
+          }
+        }
+      } catch {
+        directUpdate?.(rowId, updates)
+      }
+    },
+    [commandBus, collection, entityType, onEntityUpdate, updateEntity],
+  )
+  const commandBusEntityUpdateRef = useRef(commandBusEntityUpdate)
+  commandBusEntityUpdateRef.current = commandBusEntityUpdate
+
   // Set TanStack DB collection on GanttViewStore for bar drag persistence
   useEffect(() => {
     if (!ganttViewStore || !collection) return
@@ -765,7 +823,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
         entityType,
         enableSelectionColumn,
         bufferSize,
-        onEntityUpdate: (rowId, updates) => (onEntityUpdateRef.current || updateEntityRef.current)?.(rowId, updates),
+        onEntityUpdate: (rowId, updates) => commandBusEntityUpdateRef.current(rowId, updates),
         onBatchEntityUpdate: (updates) => onBatchEntityUpdateRef.current?.(updates),
         onCellClick: (rowId, columnId, event) => onCellClickRef.current?.(rowId, columnId, event),
       })
@@ -1154,7 +1212,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
               enableGrouping,
               enableHierarchy,
               onCellClick,
-              onEntityUpdate: onEntityUpdate || updateEntity,
+              onEntityUpdate: commandBusEntityUpdate,
               schemaFields,
             },
             stores,
