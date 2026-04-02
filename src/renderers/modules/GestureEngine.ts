@@ -50,6 +50,7 @@ export interface TargetInfo {
   isRowDragHandle: boolean // __drag_handle column
   isExpandButton: boolean
   isEditableElement: boolean
+  isRowHeader: boolean
   cellElement: Element | null
   rowId: string | null
   columnId: string | null
@@ -137,6 +138,9 @@ export function resolveTargetInfo(target: HTMLElement): TargetInfo {
 
   const isEditableElement = target.matches('input, textarea, select') || target.contentEditable === 'true'
 
+  // Row header: has data-interaction-type="row-header" (contains row number + checkbox)
+  const isRowHeader = !!target.closest('[data-interaction-type="row-header"]')
+
   return {
     isFillHandle,
     isResizeHandle,
@@ -144,6 +148,7 @@ export function resolveTargetInfo(target: HTMLElement): TargetInfo {
     isRowDragHandle,
     isExpandButton,
     isEditableElement,
+    isRowHeader,
     cellElement,
     rowId,
     columnId,
@@ -250,6 +255,13 @@ export class GestureEngine {
         return
       }
       // Touch: stays in pointing, will transition after threshold
+    }
+
+    // Row header (checkbox / row number) — bail to idle so pointer capture
+    // is released and the click event reaches ClickRouter.handleRowHeaderClick.
+    if (targetInfo.isRowHeader) {
+      this.transition('idle')
+      return
     }
 
     // Cell pointer down: immediate visual feedback
