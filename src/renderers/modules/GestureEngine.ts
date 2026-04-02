@@ -262,6 +262,18 @@ export class GestureEngine {
         return
       }
       e.preventDefault()
+    } else if (
+      !targetInfo.cellElement &&
+      !targetInfo.isFillHandle &&
+      !targetInfo.isResizeHandle &&
+      !targetInfo.isColumnDragHandle &&
+      !targetInfo.isRowDragHandle
+    ) {
+      // Non-trackable target (row header, checkbox, etc.) — bail to idle.
+      // Staying in 'pointing' would keep pointer capture active and could
+      // prevent the click event from reaching ClickRouter.
+      this.transition('idle')
+      return
     }
   }
 
