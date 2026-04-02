@@ -90,7 +90,15 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
         const expiryRaw = record.expiration_date as string | null | undefined
 
         if (expiryRaw) {
-          const expiry = new Date(expiryRaw)
+          // Date-only strings (YYYY-MM-DD) must be parsed as local dates,
+          // not UTC, to avoid off-by-one day in western timezones.
+          let expiry: Date
+          if (/^\d{4}-\d{2}-\d{2}$/.test(expiryRaw)) {
+            const [y, m, d] = expiryRaw.split('-').map(Number)
+            expiry = new Date(y, m - 1, d)
+          } else {
+            expiry = new Date(expiryRaw)
+          }
           if (expiry > now && expiry <= thirtyDaysFromNow) {
             expiringSoon++
           }
