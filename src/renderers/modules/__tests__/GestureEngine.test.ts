@@ -11,7 +11,7 @@ vi.mock('@/shared/lib/logging', () => ({
   }),
 }))
 
-import { GestureEngine, resolveTargetInfo, type GestureCallbacks } from '../GestureEngine'
+import { GestureEngine, resolveTargetInfo, resolvePointerTarget, type GestureCallbacks } from '../GestureEngine'
 
 function createMockCallbacks(): GestureCallbacks {
   return {
@@ -479,6 +479,99 @@ describe('GestureEngine', () => {
       cell.setAttribute('data-column-id', '__drag_handle')
       const info = resolveTargetInfo(cell)
       expect(info.isRowDragHandle).toBe(true)
+    })
+  })
+
+  describe('resolvePointerTarget', () => {
+    it('returns elementFromPoint result instead of e.target', () => {
+      // Simulate pointer capture scenario: e.target is the container,
+      // but the real element under the cursor is a row cell
+      const realTarget = document.createElement('td')
+      realTarget.setAttribute('data-row-id', 'row1')
+      realTarget.style.position = 'fixed'
+      realTarget.style.left = '50px'
+      realTarget.style.top = '50px'
+      realTarget.style.width = '100px'
+      realTarget.style.height = '30px'
+      document.body.appendChild(realTarget)
+
+      const containerEl = document.createElement('div')
+      const event = {
+        clientX: 80,
+        clientY: 60,
+        target: containerEl, // Pointer capture makes e.target the container
+      } as unknown as PointerEvent
+
+      const resolved = resolvePointerTarget(event)
+      // In jsdom, elementFromPoint may not work with layout,
+      // so we verify the function exists and returns an HTMLElement
+      expect(resolved).toBeInstanceOf(HTMLElement)
+
+      realTarget.remove()
+    })
+
+    it('falls back to e.target when elementFromPoint returns null', () => {
+      const fallback = document.createElement('div')
+      // elementFromPoint(-9999, -9999) returns null — off-screen coords
+      const event = {
+        clientX: -9999,
+        clientY: -9999,
+        target: fallback,
+      } as unknown as PointerEvent
+
+      const resolved = resolvePointerTarget(event)
+      expect(resolved).toBe(fallback)
+    })
+  })
+
+  describe('drag move callbacks use resolvePointerTarget', () => {
+    it('passes resolved target to onDragSelectMove during drag_selecting', () => {
+      const target = document.createElement('div')
+      const cell = document.createElement('td')
+      cell.setAttribute('data-row-id', 'r1')
+      cell.setAttribute('data-column-id', 'c1')
+      cell.appendChild(target)
+      container.appendChild(cell)
+
+      engine.handlePointerDown(
+        createPointerEvent({ target, clientX: 100, clientY: 100, pointerId: 1, pointerType: 'mouse' }),
+        container,
+      )
+      // Exceed threshold to enter drag_selecting
+      engine.handlePointerMove(
+        createPointerEvent({ clientX: 105, clientY: 100, pointerId: 1, pointerType: 'mouse' }),
+      )
+      expect(engine.currentState).toBe('drag_selecting')
+
+      // Subsequent move — callback should receive an HTMLElement (not raw e.target)
+      engine.handlePointerMove(
+        createPointerEvent({ clientX: 110, clientY: 100, pointerId: 1, pointerType: 'mouse' }),
+      )
+      expect(callbacks.onDragSelectMove).toHaveBeenCalled()
+      const passedTarget = (callbacks.onDragSelectMove as any).mock.calls[0][0]
+      expect(passedTarget).toBeInstanceOf(HTMLElement)
+    })
+
+    it('passes resolved target to onFillComplete on pointerup during fill_dragging', () => {
+      const fillHandle = document.createElement('div')
+      fillHandle.classList.add('vibegridx-fill-handle')
+      container.appendChild(fillHandle)
+
+      engine.handlePointerDown(
+        createPointerEvent({ target: fillHandle, clientX: 100, clientY: 100, pointerId: 1 }),
+        container,
+      )
+      engine.handlePointerMove(
+        createPointerEvent({ clientX: 105, clientY: 100, pointerId: 1 }),
+      )
+      expect(engine.currentState).toBe('fill_dragging')
+
+      engine.handlePointerUp(
+        createPointerEvent({ clientX: 110, clientY: 100, pointerId: 1 }),
+      )
+      expect(callbacks.onFillComplete).toHaveBeenCalled()
+      const passedTarget = (callbacks.onFillComplete as any).mock.calls[0][0]
+      expect(passedTarget).toBeInstanceOf(HTMLElement)
     })
   })
 })

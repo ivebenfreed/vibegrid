@@ -158,6 +158,22 @@ export function resolveTargetInfo(target: HTMLElement): TargetInfo {
 }
 
 // ============================================================
+// Helpers
+// ============================================================
+
+/**
+ * Resolve the actual element under the pointer.
+ *
+ * When setPointerCapture() is active, e.target is the captured element
+ * (the grid container), NOT the element under the cursor. We need
+ * elementFromPoint to find the real target for hit-testing during drags.
+ */
+export function resolvePointerTarget(e: PointerEvent): HTMLElement {
+  const hit = document.elementFromPoint?.(e.clientX, e.clientY) as HTMLElement | null
+  return hit ?? (e.target as HTMLElement)
+}
+
+// ============================================================
 // GestureEngine
 // ============================================================
 
@@ -293,10 +309,10 @@ export class GestureEngine {
         this.handlePointingMove(e)
         break
       case 'drag_selecting':
-        this.callbacks.onDragSelectMove(e.target as HTMLElement)
+        this.callbacks.onDragSelectMove(resolvePointerTarget(e))
         break
       case 'fill_dragging':
-        this.callbacks.onFillMove(e.target as HTMLElement)
+        this.callbacks.onFillMove(resolvePointerTarget(e))
         break
       case 'column_resizing':
         this.callbacks.onColumnResizeMove(e)
@@ -328,7 +344,7 @@ export class GestureEngine {
         this.callbacks.onDragSelectEnd()
         break
       case 'fill_dragging':
-        this.callbacks.onFillComplete(e.target as HTMLElement)
+        this.callbacks.onFillComplete(resolvePointerTarget(e))
         break
       case 'column_resizing':
         this.callbacks.onColumnResizeEnd(e)

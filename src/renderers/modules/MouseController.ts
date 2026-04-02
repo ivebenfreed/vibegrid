@@ -18,7 +18,7 @@ import type { VisualStateStore } from '../../stores/VisualStateStore'
 import { ClickRouter } from './ClickRouter'
 import { DragSelectionController } from './DragSelectionController'
 import { FillDragController } from './FillDragController'
-import { GestureEngine, type GestureCallbacks, type PointingOrigin } from './GestureEngine'
+import { GestureEngine, type GestureCallbacks, type PointingOrigin, resolvePointerTarget } from './GestureEngine'
 import { HoverTracker } from './HoverTracker'
 import { ScrollPhysics } from './ScrollPhysics'
 
@@ -309,7 +309,7 @@ export class MouseController {
         this.createDragPreview(columnId)
       },
       onColumnDragMove: (e: PointerEvent) => {
-        const target = e.target as HTMLElement
+        const target = resolvePointerTarget(e)
         const targetHeaderElement = target.closest('[data-column-id]:not([data-row-id])')
         if (targetHeaderElement) {
           const targetColumnId = targetHeaderElement.getAttribute('data-column-id')
@@ -342,7 +342,7 @@ export class MouseController {
         this.createRowDragPreview(rowId)
       },
       onRowDragMove: (e: PointerEvent) => {
-        const target = e.target as HTMLElement
+        const target = resolvePointerTarget(e)
         const targetRowElement = target.closest('[data-row-id]')
         if (targetRowElement) {
           const targetRowId = targetRowElement.getAttribute('data-row-id')
