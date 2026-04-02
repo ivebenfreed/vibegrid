@@ -78,8 +78,13 @@ export class ClickRouter {
       return true
     }
 
-    const target = e.target as HTMLElement
-    const isWithinContainer = this.container.contains(e.target as Node)
+    // Resolve the real element under the cursor. setPointerCapture() on the
+    // container during pointerdown redirects pointerup to the container,
+    // which causes the click event to fire with the container as e.target
+    // instead of the actual cell element. elementFromPoint gives us the
+    // true element under the cursor.
+    const target = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement) || (e.target as HTMLElement)
+    const isWithinContainer = this.container.contains(target)
 
     fileLog.info('onClick entry', {
       targetTag: target.tagName,
@@ -114,7 +119,7 @@ export class ClickRouter {
     const rowHeaderElement = target.closest('[data-interaction-type="row-header"]')
 
     if (cellElement && this.selectionController) {
-      return this.handleCellClick(e, cellElement)
+      return this.handleCellClick(e, cellElement, target)
     } else if (rowHeaderElement && this.selectionController) {
       return this.handleRowHeaderClick(e, rowHeaderElement, target)
     } else {
@@ -125,7 +130,7 @@ export class ClickRouter {
   /**
    * Handle cell clicks - delegate to InteractionCoordinator.
    */
-  private handleCellClick(e: MouseEvent, cellElement: Element): boolean {
+  private handleCellClick(e: MouseEvent, cellElement: Element, resolvedTarget?: HTMLElement): boolean {
     const rowId = cellElement.getAttribute('data-row-id')
     const columnId = cellElement.getAttribute('data-column-id')
     const cellId = `${rowId}:${columnId}`
@@ -152,7 +157,7 @@ export class ClickRouter {
       columnId: columnId!,
       x: e.clientX,
       y: e.clientY,
-      target: e.target as Element,
+      target: (resolvedTarget || e.target) as Element,
       modifiers: {
         ctrl: e.ctrlKey,
         shift: e.shiftKey,
