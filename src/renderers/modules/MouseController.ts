@@ -218,10 +218,14 @@ export class MouseController {
       this.container.releasePointerCapture(e.pointerId)
     }
 
-    const wasActive = this.gestureEngine.currentState !== 'idle'
+    const stateBeforeUp = this.gestureEngine.currentState
     this.gestureEngine.handlePointerUp(e)
 
-    if (wasActive) {
+    // Only suppress the subsequent click after actual drags/resizes, not simple taps.
+    // 'pointing' is the pre-threshold state — releasing from it is a tap, not a drag.
+    // Row header/checkbox clicks rely on the click event reaching ClickRouter.
+    const wasDragging = stateBeforeUp !== 'idle' && stateBeforeUp !== 'pointing'
+    if (wasDragging) {
       this.justEndedDrag = true
       setTimeout(() => {
         this.justEndedDrag = false
