@@ -205,12 +205,12 @@ export async function generateColumnsFromEntitySchema<T = any>(
     return enrichColumnsWithFieldTypes(memberColumns) as any
   }
 
-  // Special case: Command Center items (aggregated from multiple sources, not DataForge entities)
-  if (entityType === 'CommandCenterItem') {
-    fileLog.debug('📋 Using command center item schema (aggregated entity)', { entityType })
-    const { commandCenterItemColumns } = await import('@/features/command-center/schemas/command-center-item-schema')
+  // Special case: Work Queue items (aggregated from multiple sources, not DataForge entities)
+  if (entityType === 'WorkQueueItem') {
+    fileLog.debug('📋 Using work queue item schema (aggregated entity)', { entityType })
+    const { workQueueItemColumns } = await import('@/features/my-work/schemas/work-queue-item-schema')
     // Pass through enrichColumnsWithFieldTypes for compatibility
-    return enrichColumnsWithFieldTypes(commandCenterItemColumns) as any
+    return enrichColumnsWithFieldTypes(workQueueItemColumns) as any
   }
 
   // TODO: GH#292 - RFI Module schema not yet implemented
