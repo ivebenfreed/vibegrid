@@ -28,7 +28,7 @@ import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
-import { EntityReviewSheet } from '@/features/entity-review/components/EntityReviewSheet'
+
 import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
 import type { EntityRecord } from '@/shared/types/dataforge'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
@@ -385,23 +385,19 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     entityId: string
   }>({ open: false, entityType: '', entityId: '' })
 
-  // GH#1534: Entity review queue state
-  const [reviewSheetOpen, setReviewSheetOpen] = useState(false)
-  const [reviewQueue, setReviewQueue] = useState<EntityRecord[]>([])
-  // reviewSessionId forces EntityReviewSheet remount on each open, preventing stale queue
-  const [reviewSessionId, setReviewSessionId] = useState(0)
+
   const reviewQueueResult = useReviewQueue(resolvedName, hasReviewMode ? orgId || null : null)
   // Use backend count when loaded; fall back to upload store count while loading
   const reviewCount = reviewQueueResult.isLoading ? uploadStore.reviewRequiredCount : reviewQueueResult.total
 
   const handleOpenReview = useCallback((_rowIds: string[], rowsData: any[]) => {
-    // VibeGrid processedRows wrap entities in VirtualRow: { type, id, index, height, data: entityRecord }
-    // Extract the actual entity records before populating the review queue
+    // GH#2326: Open review overlay via search params (page stays mounted underneath)
     const entities = rowsData.map((row) => (row?.data ?? row) as EntityRecord)
-    setReviewQueue(entities)
-    setReviewSessionId((n) => n + 1)
-    setReviewSheetOpen(true)
-  }, [])
+    const ids = entities.map((e) => e.id).join(',')
+    navigate({
+      search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: ids }),
+    } as any)
+  }, [navigate, resolvedName])
 
   // GH#1658: Inline creation via ghost rows
   const featureFlags = useFeatureFlags()
@@ -703,15 +699,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         />
       )}
 
-      {/* Entity Review Sheet — GH#1534 */}
-      {/* key={reviewSessionId} forces remount on each open, preventing stale queue */}
-      <EntityReviewSheet
-        key={reviewSessionId}
-        open={reviewSheetOpen}
-        onClose={() => setReviewSheetOpen(false)}
-        entityQueue={reviewQueue}
-        entityTypeName={schema.entityName}
-      />
+
 
       {/* GH#1843: Related entity drawer for relationship badge clicks */}
       {drawerState.entityType && (
