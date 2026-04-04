@@ -172,6 +172,10 @@ interface VibeGridProps<_T = any> {
   /** Props for the saved views picker (replaces ButtonGroup when provided) */
   viewPickerProps?: Omit<ViewPickerProps, 'currentViewMode'>
 
+  // GH#2361: Read-only mode (viewer role → all cells non-editable)
+  /** When true, all columns become non-editable regardless of schema. */
+  readOnly?: boolean
+
   // Inline creation (GH#1658)
   /** Enable inline ghost row creation. Requires onInlineCreate. Default: false. */
   enableInlineCreation?: boolean
@@ -245,6 +249,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onCopyLink,
     // View picker (GH#1570 P2.3)
     viewPickerProps,
+    // GH#2361: Read-only mode
+    readOnly = false,
     // Inline creation (GH#1658)
     enableInlineCreation = false,
     onInlineCreate,
@@ -533,6 +539,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
     })
     tableCoreStore.setCollection(collection)
   }, [collection, tableCoreStore, entityType])
+
+  // GH#2361: Sync readOnly prop to TableCoreStore
+  useEffect(() => {
+    if (!tableCoreStore) return
+    tableCoreStore.setReadOnly(readOnly)
+  }, [readOnly, tableCoreStore])
 
   // GH#1240: Set row expansion config on TableCoreStore
   useEffect(() => {

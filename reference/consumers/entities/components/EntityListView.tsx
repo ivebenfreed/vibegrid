@@ -237,6 +237,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         enableGrouping={true}
         enableFiltering={true}
         enableSorting={true}
+        readOnly={!hasWriteAccess}
         enableDragAndDrop={hasWriteAccess}
         enableDelete={hasWriteAccess}
         enableExport={true}

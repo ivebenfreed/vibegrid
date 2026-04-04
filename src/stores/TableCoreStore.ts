@@ -254,6 +254,8 @@ export class TableCoreStore implements IStore {
 
   @observable entityType: string
   @observable columns: Column[] = []
+  // GH#2361: Grid-level read-only override (viewer role → all columns non-editable)
+  @observable readOnly: boolean = false
   @observable groupRowOrders: Record<string, GroupRowOrderConfig> = {}
   @observable flatRowOrder: string[] = []
   @observable isSchemaLoaded: boolean = false
@@ -373,6 +375,20 @@ export class TableCoreStore implements IStore {
    */
   setAppendColumns(columns: Column[]): void {
     this.pendingAppendColumns = columns
+  }
+
+  /**
+   * GH#2361: Set grid-level read-only mode (e.g., viewer role).
+   * Overrides column.editable to false for all columns.
+   */
+  @action
+  setReadOnly(value: boolean): void {
+    this.readOnly = value
+    if (value && this.columns.length > 0) {
+      for (const col of this.columns) {
+        col.editable = false
+      }
+    }
   }
 
   /**
@@ -1847,6 +1863,12 @@ export class TableCoreStore implements IStore {
 
       runInAction(() => {
         this.columns = allColumns
+        // GH#2361: Apply read-only override after columns are set
+        if (this.readOnly) {
+          for (const col of allColumns) {
+            col.editable = false
+          }
+        }
         this.isSchemaLoaded = true
         this.schemaError = null
       })
