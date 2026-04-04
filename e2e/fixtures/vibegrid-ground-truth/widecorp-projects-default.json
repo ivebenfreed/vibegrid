@@ -1,0 +1,18 @@
+{
+  "source_pdf": "n/a",
+  "local_path": "n/a",
+  "expected_fields": {
+    "row_count_min": 1,
+    "col_count_min": 3,
+    "has_header_row": true,
+    "has_data_rows": true,
+    "grid_role": "grid"
+  },
+  "field_matchers": {
+    "row_count_min": { "type": "numeric_tolerance", "tolerance": 0 },
+    "col_count_min": { "type": "numeric_tolerance", "tolerance": 0 },
+    "has_header_row": { "type": "exact" },
+    "has_data_rows": { "type": "exact" },
+    "grid_role": { "type": "exact" }
+  }
+}
