@@ -1,0 +1,14 @@
+{
+  "source_pdf": "n/a",
+  "local_path": "n/a",
+  "expected_fields": {
+    "has_group_headers": true,
+    "group_count_min": 1,
+    "groups_are_collapsible": true
+  },
+  "field_matchers": {
+    "has_group_headers": { "type": "exact" },
+    "group_count_min": { "type": "numeric_tolerance", "tolerance": 0 },
+    "groups_are_collapsible": { "type": "exact" }
+  }
+}
