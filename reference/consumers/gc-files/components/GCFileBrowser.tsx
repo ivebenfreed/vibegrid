@@ -50,7 +50,7 @@ import {
   AlertDialogTitle,
 } from '@/shared/components/ui/alert-dialog'
 import { FileViewerModal } from './FileViewerModal'
-import { fileViewerStore } from '../stores/FileViewerStore'
+import { canvasViewportStore } from '@/systems/vibecanvas/stores/ViewportStore'
 import { resolveFileUrl } from '../types'
 import { Loader2, Files, Eye, Download, Upload, Trash2 } from 'lucide-react'
 import type { GCFile } from '../types'
@@ -134,7 +134,7 @@ const FILE_ROW_ACTIONS: RowAction[] = [
     label: 'Preview',
     icon: Eye,
     onClick: (rowData) => {
-      fileViewerStore.openFile(rowData as GCFile)
+      canvasViewportStore.openFile(rowData as GCFile)
     },
   },
   {
@@ -508,7 +508,7 @@ const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: s
     (rowId: string, _columnId: string) => {
       const rowData = data?.items.find((item) => item.id === rowId) as GCFile | undefined
       if (rowData) {
-        fileViewerStore.openFile(rowData)
+        canvasViewportStore.openFile(rowData)
       }
     },
     [data],
