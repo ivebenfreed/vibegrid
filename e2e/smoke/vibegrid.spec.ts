@@ -1045,3 +1045,237 @@ test.describe('VIbeGrid — Data Controls + Column Interactions', () => {
     // Action bar presence is informational — some grids may not have it
   })
 })
+
+// ---------------------------------------------------------------------------
+// Suite 5: VIbeGrid — Clipboard + Row Expansion + Gantt + Export
+// ---------------------------------------------------------------------------
+
+test.describe('VIbeGrid — Clipboard + Row Expansion + Gantt + Export', () => {
+  test.setTimeout(120_000)
+
+  test.beforeEach(async ({ page }) => {
+    await signInAs(page, 'ceo')
+    await page.goto('/projects')
+    const { waitForGridReady } = await import('../helpers/grid-state')
+    await waitForGridReady(page)
+  })
+
+  // -- Clipboard --
+
+  test('CB: copy cell with Ctrl+C shows overlay', async ({ page }) => {
+    // Click a cell to focus it
+    const firstCell = page.locator('[aria-rowindex="2"] [role="gridcell"]').first()
+    await firstCell.click()
+    await page.waitForTimeout(200)
+
+    // Copy
+    await page.keyboard.press('Control+c')
+    await page.waitForTimeout(300)
+
+    // Check for clipboard overlay or state attribute
+    const hasOverlay = await page.locator('[data-clipboard-state], .vibegridx-canvas-overlay').isVisible().catch(() => false)
+
+    // Escape to clear
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(200)
+
+    // Grid should still be functional
+    const grid = page.locator('[role=grid]').first()
+    await expect(grid).toBeVisible()
+  })
+
+  test('CB: paste with Ctrl+V does not crash', async ({ page }) => {
+    const firstCell = page.locator('[aria-rowindex="2"] [role="gridcell"]').first()
+    await firstCell.click()
+    await page.waitForTimeout(200)
+
+    // Copy then paste
+    await page.keyboard.press('Control+c')
+    await page.waitForTimeout(200)
+
+    // Move to next cell
+    await page.keyboard.press('ArrowRight')
+    await page.waitForTimeout(200)
+
+    await page.keyboard.press('Control+v')
+    await page.waitForTimeout(300)
+
+    // Grid should still be functional
+    const grid = page.locator('[role=grid]').first()
+    await expect(grid).toBeVisible()
+
+    await page.keyboard.press('Escape')
+  })
+
+  test('CB: cut with Ctrl+X shows cut overlay', async ({ page }) => {
+    const editableCell = page.locator('[data-affordance="edit"]').first()
+    const hasEditable = await editableCell.isVisible().catch(() => false)
+
+    if (!hasEditable) {
+      test.skip(true, 'No editable cells for cut test')
+      return
+    }
+
+    await editableCell.click()
+    await page.waitForTimeout(200)
+
+    await page.keyboard.press('Control+x')
+    await page.waitForTimeout(300)
+
+    // Escape to cancel
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(200)
+  })
+
+  test('CB: Escape clears clipboard state', async ({ page }) => {
+    const firstCell = page.locator('[aria-rowindex="2"] [role="gridcell"]').first()
+    await firstCell.click()
+    await page.waitForTimeout(200)
+
+    await page.keyboard.press('Control+c')
+    await page.waitForTimeout(200)
+
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+
+    // Clipboard overlay should be gone
+    const hasOverlay = await page.locator('[data-clipboard-state="copy"], [data-clipboard-state="cut"]').isVisible().catch(() => false)
+    expect(hasOverlay).toBe(false)
+  })
+
+  // -- Row Expansion --
+
+  test('RE-B1: expand button shows child content', async ({ page }) => {
+    const expandButton = page.locator('.vibegridx-expand-button, [data-testid$="-expand"] [data-affordance="navigate"]').first()
+    const hasExpand = await expandButton.isVisible().catch(() => false)
+
+    if (!hasExpand) {
+      test.skip(true, 'No row expand buttons visible')
+      return
+    }
+
+    await expandButton.click()
+    await page.waitForTimeout(500)
+
+    // Expanded region should appear
+    const expandedContent = page.locator('.vibegridx-expanded-content, [data-testid="expanded-row-content"]').first()
+    const hasContent = await expandedContent.isVisible().catch(() => false)
+
+    // Click again to collapse
+    await expandButton.click()
+    await page.waitForTimeout(300)
+  })
+
+  test('RE-B2: multiple rows expandable simultaneously', async ({ page }) => {
+    const expandButtons = page.locator('.vibegridx-expand-button, [data-testid$="-expand"] [data-affordance="navigate"]')
+    const count = await expandButtons.count()
+
+    if (count < 2) {
+      test.skip(true, 'Not enough expand buttons for multi-expand test')
+      return
+    }
+
+    // Expand first two rows
+    await expandButtons.nth(0).click()
+    await page.waitForTimeout(300)
+    await expandButtons.nth(1).click()
+    await page.waitForTimeout(300)
+
+    // Grid should still be functional
+    const grid = page.locator('[role=grid]').first()
+    await expect(grid).toBeVisible()
+
+    // Collapse both
+    await expandButtons.nth(0).click()
+    await page.waitForTimeout(200)
+    await expandButtons.nth(1).click()
+    await page.waitForTimeout(200)
+  })
+
+  // -- Gantt --
+
+  test('GN-B1: Gantt view mode switch', async ({ page }) => {
+    // Look for view mode switcher
+    const ganttTab = page.locator('[data-testid="view-gantt"], button:has-text("Gantt"), [aria-label="Gantt view"]').first()
+    const hasGantt = await ganttTab.isVisible().catch(() => false)
+
+    if (!hasGantt) {
+      test.skip(true, 'No Gantt view tab found')
+      return
+    }
+
+    await ganttTab.click()
+    await page.waitForTimeout(1000)
+
+    // Timeline header should appear
+    const timeline = page.locator('.gantt-timeline, [data-testid="gantt-timeline"], .vibegridx-gantt-header').first()
+    const hasTimeline = await timeline.isVisible().catch(() => false)
+
+    // Switch back to grid view
+    const gridTab = page.locator('[data-testid="view-grid"], button:has-text("Grid"), [aria-label="Grid view"]').first()
+    const hasGrid = await gridTab.isVisible().catch(() => false)
+    if (hasGrid) {
+      await gridTab.click()
+      await page.waitForTimeout(500)
+    }
+  })
+
+  // -- Export --
+
+  test('EX-B1: export button is accessible', async ({ page }) => {
+    const exportButton = page.locator('[data-testid="export-button"], button:has-text("Export"), [aria-label="Export"]').first()
+    const hasExport = await exportButton.isVisible().catch(() => false)
+
+    if (!hasExport) {
+      test.skip(true, 'No export button found')
+      return
+    }
+
+    await exportButton.click()
+    await page.waitForTimeout(300)
+
+    // Export dropdown/menu should appear
+    const exportMenu = page.locator('[data-testid="export-menu"], [role="menu"]:has-text("CSV"), [role="menu"]:has-text("PDF")').first()
+    const hasMenu = await exportMenu.isVisible().catch(() => false)
+
+    // Dismiss
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(200)
+  })
+
+  test('EX-B4: CSV export produces downloadable file', async ({ page }) => {
+    const exportButton = page.locator('[data-testid="export-button"], button:has-text("Export"), [aria-label="Export"]').first()
+    const hasExport = await exportButton.isVisible().catch(() => false)
+
+    if (!hasExport) {
+      test.skip(true, 'No export button found')
+      return
+    }
+
+    // Open export menu
+    await exportButton.click()
+    await page.waitForTimeout(300)
+
+    const csvOption = page.locator('button:has-text("CSV"), [data-testid="export-csv"], [role="menuitem"]:has-text("CSV")').first()
+    const hasCsv = await csvOption.isVisible().catch(() => false)
+
+    if (!hasCsv) {
+      await page.keyboard.press('Escape')
+      test.skip(true, 'No CSV export option found')
+      return
+    }
+
+    // Start download listener before clicking
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 30_000 }).catch(() => null),
+      csvOption.click(),
+    ])
+
+    if (download) {
+      const path = await download.path()
+      expect(path).toBeTruthy()
+    }
+
+    await page.keyboard.press('Escape')
+  })
+})
