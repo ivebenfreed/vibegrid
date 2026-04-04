@@ -1,0 +1,16 @@
+{
+  "source_pdf": "n/a",
+  "local_path": "n/a",
+  "expected_fields": {
+    "sort_column": "Name",
+    "sort_direction": "ascending",
+    "rows_are_sorted": true,
+    "first_row_precedes_last_alphabetically": true
+  },
+  "field_matchers": {
+    "sort_column": { "type": "exact" },
+    "sort_direction": { "type": "exact" },
+    "rows_are_sorted": { "type": "exact" },
+    "first_row_precedes_last_alphabetically": { "type": "exact" }
+  }
+}
