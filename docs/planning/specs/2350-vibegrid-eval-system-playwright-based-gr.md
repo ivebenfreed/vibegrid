@@ -10,7 +10,39 @@ github_issue: 2350
 github_milestone: null
 created: 2026-04-04
 updated: 2026-04-04
-phases: []
+phases:
+  - id: p1
+    name: "Infrastructure — Helpers, Fixtures, Suite 1"
+    tasks:
+      - "Create apps/web/e2e/helpers/grid-state.ts with extractGridState, waitForGridReady, getCell, getCellAffordance, extractColumnValues"
+      - "Create widecorp-projects-default.json ground truth fixture"
+      - "Create apps/web/e2e/smoke/vibegrid.spec.ts with Suite 1 (INF-1, INF-2, INF-3) and eval self-tests"
+      - "Run Suite 1 against staging and verify green"
+  - id: p2
+    name: "Cell Renderer Coverage (27 types) — Suite 3 CR block"
+    tasks:
+      - "Create widecorp-all-renderers.json ground truth fixture"
+      - "Add Suite 3 CR test block with parameterized tests for all 27 renderer types"
+      - "Verify all 27 renderers display non-empty aria-label"
+  - id: p3
+    name: "Core + Editing + Selection — Suites 2 and 3 SEL"
+    tasks:
+      - "Create widecorp-projects-sorted-name.json fixture"
+      - "Add Suite 2 CORE-B1 through B14 and EDIT-B1 through B14 tests"
+      - "Add Suite 3 SEL-B1 through B16 selection tests"
+  - id: p4
+    name: "Data Controls + Column Interactions — Suite 4"
+    tasks:
+      - "Create widecorp-projects-filtered-active.json and widecorp-projects-grouped-status.json fixtures"
+      - "Add Suite 4 DC-B0 through B10 and CI-B1 through B8 tests"
+  - id: p5
+    name: "Clipboard + Row Expansion + Gantt + Export — Suite 5"
+    tasks:
+      - "Add Suite 5 CB, RE, GN, EX test blocks"
+  - id: p6
+    name: "Cross-Cutting — Permissions, Org Isolation, Edge Cases — Suite 6"
+    tasks:
+      - "Add Suite 6 CC-1 through CC-5 tests (viewer, admin, DEB, empty state, large dataset)"
 ---
 
 # VIbeGrid Eval System — Playwright-based ground truth tests (151 behaviors)
