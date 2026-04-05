@@ -318,10 +318,10 @@ interface EntityListViewProps {
  * Entity List View Component
  * Fetches and displays entity records in a grid
  */
-export const EntityListView = observer(function EntityListView(props: EntityListViewProps) {
+export const EntityListView = observer(function EntityListView(props: EntityListViewProps): React.JSX.Element | null {
   // Use prop if provided, otherwise read from route params
-  const params = useParams({ strict: false })
-  const entityName = props.entityName ?? (params as { entityName?: string }).entityName
+  const params = useParams({ strict: false }) as { entityName?: string }
+  const entityName = props.entityName ?? params.entityName
   const navigate = useNavigate()
   const organizationStore = useOrganization()
   const orgId = organizationStore.activeOrganizationId || ''
