@@ -224,25 +224,7 @@ export async function generateColumnsFromEntitySchema<T = any>(
   //   return enrichColumnsWithFieldTypes(rfiModuleItemColumns) as any
   // }
 
-  // Special case: BidPackage (custom schema with vendor/code counts from relationships)
-  if (entityType === 'BidPackage') {
-    fileLog.debug('📦 Using bid package schema (GC entity with relationship counts)', {
-      entityType,
-    })
-    const { bidPackageColumns } = await import('@/features/bid-mail/schemas/bid-package-schema')
-    // Pass through enrichColumnsWithFieldTypes for compatibility
-    return enrichColumnsWithFieldTypes(bidPackageColumns) as any
-  }
-
-  // Special case: GlobalBidPackage (global bids view with project name column)
-  if (entityType === 'GlobalBidPackage') {
-    fileLog.debug('🌐 Using global bid package schema (cross-project view)', {
-      entityType,
-    })
-    const { globalBidPackageColumns } = await import('@/features/bid-mail/schemas/global-bid-package-schema')
-    // Pass through enrichColumnsWithFieldTypes for compatibility
-    return enrichColumnsWithFieldTypes(globalBidPackageColumns) as any
-  }
+  // Note: BidPackage and GlobalBidPackage special cases removed — now standard platform entities (GH#2332)
 
   // Wait for schema registry to be ready (with timeout)
   // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
