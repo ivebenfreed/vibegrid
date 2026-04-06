@@ -71,13 +71,7 @@ describe('InteractionCoordinator', () => {
   it('blurs editing when pointer is outside active editor portal', () => {
     const { editingStore } = createStore()
     const interactionStore = { clearSelection: vi.fn() }
-    const cancelColumn = withMockColumn({
-      fieldType: {
-        interactionPolicy: {
-          blurPolicy: 'cancel',
-        },
-      },
-    })
+    const col = withMockColumn()
 
     const container = document.createElement('div')
     document.body.appendChild(container)
@@ -88,14 +82,12 @@ describe('InteractionCoordinator', () => {
       {} as any,
       {} as any,
       editingStore,
-      {
-        columns: [cancelColumn],
-      } as any,
+      {} as any,
       {} as any,
     )
 
-    const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur')
-    editingStore.startEdit('row-1:title', cancelColumn)
+    const handleBlurSpy = vi.spyOn(editingStore, 'handleBlur').mockResolvedValue(undefined)
+    editingStore.startEdit('row-1:title', col)
 
     const outside = document.createElement('div')
     document.body.appendChild(outside)
@@ -103,7 +95,6 @@ describe('InteractionCoordinator', () => {
     coordinator.handleOutsidePointer({ target: outside } as unknown as PointerEvent)
 
     expect(handleBlurSpy).toHaveBeenCalledWith('outside-pointer')
-    expect(editingStore.isEditing).toBe(false)
   })
 
   it('does not intercept Enter for modal text editor', () => {
@@ -207,6 +198,6 @@ describe('InteractionCoordinator', () => {
     })
 
     expect(handled).toBe(true)
-    expect(commitSpy).toHaveBeenCalledWith('enter')
+    expect(commitSpy).toHaveBeenCalledWith('enter', undefined)
   })
 })

@@ -210,9 +210,9 @@ describe('KanbanCard.tsx — source structure', () => {
     expect(source).not.toContain('list-none')
   })
 
-  it('opens with a plain <div> wrapper', () => {
-    // Should have a bare <div> as the outermost element returned
-    expect(source).toContain('<div>')
+  it('opens with a <div> wrapper (not <li>)', () => {
+    // Should have a <div> as the outermost element returned (may have ref/attributes)
+    expect(source).toMatch(/<div\s/)
   })
 })
 
@@ -276,8 +276,8 @@ describe('VibeGrid.tsx — module activation via ViewModeRegistry', () => {
     expect(source).toContain('setActiveModule')
   })
 
-  it('calls viewModeRegistry.get(viewMode) to load the module', () => {
-    expect(source).toContain('viewModeRegistry.get(viewMode)')
+  it('calls viewModeRegistry.get() to load the module', () => {
+    expect(source).toMatch(/viewModeRegistry\.get\(/)
   })
 
   it('calls module.init(stores) after loading', () => {

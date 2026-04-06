@@ -1,3 +1,5 @@
+/* @vitest-environment jsdom */
+
 /**
  * Tests for useViewUrlSync serialization helpers (GH#1570)
  *

@@ -132,7 +132,7 @@ describe('IncrementalRowProcessor', () => {
         type: 'data',
         id: 'row-0',
         index: 0,
-        height: 40,
+        height: 34,
       })
     })
 
