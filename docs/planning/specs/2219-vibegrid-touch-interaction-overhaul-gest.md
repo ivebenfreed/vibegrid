@@ -2,7 +2,7 @@
 initiative: GH#2219-vibegrid-touch-interaction-overhaul-gest
 type: feature
 issue_type: feature
-status: approved
+status: completed
 priority: medium
 roadmap: null
 owner: null
