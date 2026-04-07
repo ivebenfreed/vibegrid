@@ -55,9 +55,52 @@ class UserReferenceCellRenderer implements CellRenderer {
       return container
     }
 
-    // Unresolved UUID - show truncated "User xxxx"
-    const userId = String(value)
-    container.textContent = `User ${userId.slice(-4)}`
+    // Unresolved UUID - try async resolution via TableCoreStore (GH#2439 B11)
+    const tableCoreStore = (context as Record<string, any>).tableCoreStore as
+      | {
+          getEntityReferenceRecord: (t: string, id: string) => any
+          ensureEntityReferenceRecord: (t: string, id: string) => Promise<any>
+        }
+      | undefined
+
+    if (tableCoreStore) {
+      // Check synchronous cache first
+      const cached = tableCoreStore.getEntityReferenceRecord('User', rawUserId)
+      if (cached) {
+        const name = cached.name || cached.title || `User ${rawUserId.slice(-4)}`
+        container.innerHTML = this.createUserBadgeFromName(String(name), rawUserId)
+        this.applyNavigableAffordance(container, isEditable)
+        return container
+      }
+
+      // Async resolve — show placeholder, update when data arrives
+      container.textContent = 'Loading...'
+      container.style.opacity = '0.6'
+
+      tableCoreStore
+        .ensureEntityReferenceRecord('User', rawUserId)
+        .then((record: any) => {
+          if (record) {
+            const name = record.name || record.title || `User ${rawUserId.slice(-4)}`
+            container.innerHTML = this.createUserBadgeFromName(String(name), rawUserId)
+            this.applyNavigableAffordance(container, isEditable)
+            container.style.opacity = '1'
+          } else {
+            container.textContent = `User ${rawUserId.slice(-4)}`
+            container.style.opacity = '0.6'
+            container.style.fontStyle = 'italic'
+          }
+        })
+        .catch(() => {
+          container.textContent = `User ${rawUserId.slice(-4)}`
+          container.style.opacity = '0.6'
+          container.style.fontStyle = 'italic'
+        })
+      return container
+    }
+
+    // No store available — show truncated "User xxxx"
+    container.textContent = `User ${rawUserId.slice(-4)}`
     container.style.opacity = '0.6'
     container.style.fontStyle = 'italic'
     applyAffordanceAttrs(container, this, isEditable)

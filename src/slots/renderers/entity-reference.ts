@@ -190,17 +190,57 @@ class EntityReferenceCellRenderer implements CellRenderer {
     const BATCH_SIZE = 20
     let renderedCount = 0
 
+    // Per-entity name resolution for multi-value (GH#2439 B12)
+    const tableCoreStore = (context as Record<string, any>).tableCoreStore as
+      | {
+          getEntityReferenceRecord: (t: string, id: string) => any
+          ensureEntityReferenceRecord: (t: string, id: string) => Promise<any>
+        }
+      | undefined
+    const targetEntity =
+      (column as any).relationshipConfig?.targetEntityType ||
+      (column as any).relationshipTargetEntity ||
+      (column as any).targetEntityType ||
+      null
+
+    const resolveEntityName = (entityId: string): string => {
+      // Try rowData _name field for first entity only (backend only resolves single-value)
+      if (rowData) {
+        const nameKey = `${column.id}_name`
+        const nameFromData = rowData[nameKey]
+        // Only use rowData name for the first entity (it's a single value, not per-entity)
+        if (nameFromData && entityId === firstId) return String(nameFromData)
+      }
+      // Try tableCoreStore cache
+      if (tableCoreStore && targetEntity) {
+        const cached = tableCoreStore.getEntityReferenceRecord(targetEntity, entityId)
+        if (cached) return cached.name || cached.title || entityId.slice(-4)
+      }
+      return entityId.slice(-4)
+    }
+
     const renderBatch = (pop: HTMLElement, count: number): void => {
-      const rowData = (context as Record<string, unknown>).rowData as Record<string, unknown> | undefined
       const end = Math.min(renderedCount + count, values.length)
       for (let i = renderedCount; i < end; i++) {
         const eid = String(values[i])
-        const resolvedName = getResolvedDisplayName(rowData, column, context as Record<string, unknown>)
-        const displayName = resolvedName ?? eid.slice(-4)
+        const displayName = resolveEntityName(eid)
         const wrapper = document.createElement('div')
         wrapper.innerHTML = this.createEntityBadge(displayName, column, eid)
         const badge = wrapper.firstElementChild as HTMLElement
-        if (badge) pop.appendChild(badge)
+        if (badge) {
+          pop.appendChild(badge)
+          // Trigger async resolution for cache misses
+          if (tableCoreStore && targetEntity && displayName === eid.slice(-4)) {
+            tableCoreStore.ensureEntityReferenceRecord(targetEntity, eid).then((record: any) => {
+              if (record && badge) {
+                const name = record.name || record.title || eid.slice(-4)
+                const nameEl = badge.querySelector('.vibegridx-entity-name')
+                if (nameEl) nameEl.textContent = name
+                badge.title = name
+              }
+            }).catch(() => { /* graceful degradation */ })
+          }
+        }
       }
       renderedCount = end
     }
