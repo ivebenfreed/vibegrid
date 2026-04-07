@@ -56,6 +56,8 @@ All stores are instance-scoped per grid. Key stores:
 | `KanbanViewStore` | Kanban grouping field, column ordering, card drag |
 | `InlineCreationStore` | Ghost row inline creation within groups |
 | `HierarchyStore` | Tree/master-detail hierarchy state |
+| `FilterBuilderStore` | Advanced filter builder UI state |
+| `MenuStateStore` | Context menu and header menu state |
 | `DebugStore` | Performance metrics (enable via `localStorage.vibegrid_debug=true`) |
 
 Bundle type: `VibeGridStores` in `stores/context.tsx`.
