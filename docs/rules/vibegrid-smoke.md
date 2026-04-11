@@ -9,15 +9,13 @@ phases:
   - id: p0
     name: Setup
     stage: setup
+    skill: vibegrid-smoke
     task_config:
       title: "P0: Setup - auth, dev server, read feature docs, build test plan"
-      labels: [setup]
+      labels: [phase, setup]
     steps:
       - id: start-dev-server
         $ref: start-dev-server
-      - id: setup-and-plan
-        title: "Setup environment and build test plan from feature docs"
-        skill: vibegrid-smoke
 
   - id: p1
     name: Execute & Fix
@@ -26,7 +24,7 @@ phases:
     skill: vibegrid-smoke
     task_config:
       title: "P1: Work - test every behavior, fix failures"
-      labels: [execution, work]
+      labels: [phase, work]
       depends_on: [p0]
     agent_protocol:
       max_tasks: 100
@@ -35,14 +33,12 @@ phases:
   - id: p2
     name: Report
     stage: close
+    skill: vibegrid-smoke
     task_config:
       title: "P2: Close - compile coverage matrix, commit evidence"
-      labels: [evidence, close]
+      labels: [phase, close]
       depends_on: [p1]
     steps:
-      - id: compile-and-compare
-        title: "Compile results and regression diff"
-        skill: vibegrid-smoke
       - id: commit-push
         $ref: commit-push
 

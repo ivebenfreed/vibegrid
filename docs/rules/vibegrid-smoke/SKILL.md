@@ -1,9 +1,11 @@
 ---
-description: "VIbeGrid smoke testing — feature doc-driven coverage, ARIA selectors, regression tracking."
+description: "VIbeGrid smoke testing — feature doc-driven coverage, ARIA selectors, fixes via agents, regression tracking."
 context: inline
 ---
 
 # VIbeGrid Smoke Test Methodology
+
+You are the smoke test orchestrator. You execute tests and delegate all code fixes to agents.
 
 ## Source of Truth
 
@@ -27,7 +29,7 @@ Read ALL VIbeGrid docs. Extract every behavior with TEVS fields:
 grep -c '^### B[0-9]' docs/primitives/vibegrid/*.md
 ```
 
-Task count in P2 MUST match this total. If it doesn't, you missed behaviors.
+Task count in P1 MUST match this total. If it doesn't, you missed behaviors.
 
 ## Test Task Generation
 
@@ -94,13 +96,22 @@ agent-browser open $TARGET_URL/entities/{entityType}
 
 ## Fix Loop
 
-For each failure, up to 3 cycles:
-1. **Diagnose** — screenshot + source file from behavior doc
-2. **Fix** — minimal code change
-3. **Re-test** — same behavior test
-4. **Commit:** `fix(vibegrid): {what} — caught by smoke test`
+For each failure, spawn an impl-agent:
 
-If still failing after 3 cycles → record as KNOWN ISSUE.
+```
+Agent(subagent_type="impl-agent", prompt="
+  Smoke test failure: {behavior_id} — {behavior_title}
+  Trigger: {trigger}
+  Expected: {expected}
+  Actual: {actual outcome / screenshot description}
+  Source files: {from behavior doc}
+  Fix the implementation so the behavior works as documented.
+  After fixing, run: {build_command}
+")
+```
+
+After the agent completes, re-test the same behavior. Max 3 fix cycles per behavior.
+If still failing after 3 agents → record as KNOWN ISSUE.
 
 ## Coverage Matrix (Evidence)
 
@@ -132,3 +143,11 @@ Diff against previous run:
 | FAIL → PASS | **FIXED** | Celebrate |
 | FAIL → FAIL | **KNOWN ISSUE** | Pre-existing |
 | PASS → PASS | **STABLE** | Still working |
+
+## Principles
+
+- **Never fix code yourself** — spawn impl-agents for all fixes
+- **Feature docs are source of truth** — not hardcoded test lists
+- **Complete all tests before fixing** — don't stop-fix-resume
+- **One agent per failure** — parallel, independent fixes
+- **Max 3 fix cycles** — then it's a known issue, not a quick fix
