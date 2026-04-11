@@ -143,7 +143,7 @@ export const ViewPicker = observer(function ViewPicker({
     setIsLoading(true)
     setError(null)
     try {
-      const result = await orpcClient.dataforge.views.list({ entity_type: entityType })
+      const result = await orpcClient.dataforge.views.list({ entityName: entityType })
       const fetchedViews = Array.isArray(result.views) ? (result.views as EntityViewRow[]) : []
       const fetchedPins = Array.isArray(result.pins) ? (result.pins as EntityViewPinRow[]) : []
       setViews(fetchedViews)
@@ -220,7 +220,7 @@ export const ViewPicker = observer(function ViewPicker({
   const handleSetDefault = useCallback(
     async (viewId: string) => {
       try {
-        await orpcClient.dataforge.views.setDefault({ view_id: viewId, entity_type: entityType })
+        await orpcClient.dataforge.views.setDefault({ view_id: viewId, entityName: entityType })
         toast.success('Default view updated')
         // Refresh list to get updated is_default flags
         fetchViews()
@@ -240,7 +240,7 @@ export const ViewPicker = observer(function ViewPicker({
         // Default: create a personal copy via API
         try {
           await orpcClient.dataforge.views.create({
-            entity_type: view.entity_type,
+            entityName: view.entity_type,
             name: `${view.name} (copy)`,
             visibility: 'personal',
             config: view.config as Record<string, unknown>,

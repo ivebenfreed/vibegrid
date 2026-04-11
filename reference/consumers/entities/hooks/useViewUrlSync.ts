@@ -334,7 +334,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
     const loadDefault = async (): Promise<void> => {
       try {
-        const result = await orpcClient.dataforge.views.list({ entity_type: entityType })
+        const result = await orpcClient.dataforge.views.list({ entityName: entityType })
         if (cancelled) return
 
         const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default)

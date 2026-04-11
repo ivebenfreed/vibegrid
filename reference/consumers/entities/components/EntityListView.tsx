@@ -111,7 +111,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     async (view: { entity_type: string; name: string; config: Record<string, unknown> }) => {
       try {
         await orpcClient.dataforge.views.create({
-          entity_type: entityName,
+          entityName,
           name: `${view.name} (copy)`,
           visibility: 'personal',
           config: view.config,
@@ -160,7 +160,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       }
 
       await orpcClient.dataforge.views.create({
-        entity_type: entityName,
+        entityName,
         name,
         visibility,
         config,
