@@ -15,7 +15,8 @@ phases:
       labels: [phase, setup]
     steps:
       - id: start-dev-server
-        $ref: start-dev-server
+        title: "Start dev server and confirm health"
+        instruction: "Follow ceremony.md § Starting Dev Server"
 
   - id: p1
     name: Execute & Fix
@@ -40,7 +41,8 @@ phases:
       depends_on: [p1]
     steps:
       - id: commit-push
-        $ref: commit-push
+        title: "Commit and push"
+        instruction: "Follow ceremony.md § Committing and Pushing"
 
 global_conditions:
   - changes_committed
