@@ -83,7 +83,7 @@ const KanbanCardInner = observer(function KanbanCard({ card, enableDragAndDrop =
           <span className="text-sm font-medium leading-tight line-clamp-2">{card.title}</span>
         </CardHeader>
         <CardContent className="p-3 pt-1 space-y-1">
-          {card.status && <span className="text-xs text-muted-foreground capitalize">{card.status}</span>}
+          {card.status && <span className="text-xs text-muted-foreground">{card.statusLabel ?? card.status}</span>}
           {/* Smart fields (GH#2139) — only fields with values render */}
           {hasSmartFields && (
             <div className="flex flex-col gap-1 pt-0.5">

@@ -51,6 +51,7 @@ export interface KanbanCard {
   id: string
   title: string
   status: string | null
+  statusLabel: string | null
   columnId: string
   data: Record<string, unknown>
   smartFields?: KanbanCardSmartFields
@@ -201,6 +202,21 @@ export class KanbanViewStore implements IStore {
   private get dataRows(): any[] {
     if (!this.tableCoreStore) return []
     return this.tableCoreStore.processedRows.filter((row) => !row.type || row.type === 'data')
+  }
+
+  /**
+   * Resolve the display label for a normalized status value.
+   * Uses statusColorMap first, then falls back to humanizing snake_case.
+   */
+  private resolveStatusLabel(normalizedValue: string | null): string | null {
+    if (normalizedValue === null) return null
+    const colorOption = this.statusColorMap.get(normalizedValue)
+    if (colorOption) return colorOption.label
+    // Humanize snake_case as fallback
+    if (normalizedValue.includes('_')) {
+      return normalizedValue.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+    }
+    return normalizedValue.charAt(0).toUpperCase() + normalizedValue.slice(1)
   }
 
   /**
@@ -414,6 +430,7 @@ export class KanbanViewStore implements IStore {
         id: row.id,
         title: String(rowData[this.titleField] || rowData.name || row.id),
         status: normalizedStatus,
+        statusLabel: this.resolveStatusLabel(normalizedStatus),
         columnId: normalizedStatus || '__no_status__',
         data: rowData,
         smartFields: this.detectSmartFields(rowData),
