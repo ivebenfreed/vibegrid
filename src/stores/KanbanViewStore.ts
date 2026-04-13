@@ -266,10 +266,10 @@ export class KanbanViewStore implements IStore {
       // Add any data-discovered values not in the color map
       for (const value of uniqueValues) {
         if (!this.statusColorMap.has(value)) {
-          // Humanize snake_case slug as fallback
+          // Humanize snake_case slug as fallback, capitalize plain words
           const humanized = value.includes('_')
             ? value.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-            : value
+            : value.charAt(0).toUpperCase() + value.slice(1)
           columnsFromMap.push({
             id: value,
             label: humanized,
