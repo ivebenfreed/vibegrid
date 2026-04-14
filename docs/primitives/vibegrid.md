@@ -28,7 +28,7 @@ not_built:
 
 > High-performance data grid — column types, filters, view modes, row expansion, and bulk actions.
 
-For the theory behind data grids, see [Three-View Model](../theory/experience.md#three-view-model) (Records view) and [Domains: Capabilities](../theory/domains.md#capabilities) (module capabilities).
+For the theory behind data grids, see [Entity-Centric Views](../theory/experience.md#entity-centric-views) (entity list views) and [Domains: Capabilities](../theory/domains.md#capabilities) (entity type capabilities).
 
 For implementation details (file paths, imports, API), see [Rules: VibeGrid](../../.claude/rules/vibegrid.md).
 
@@ -230,7 +230,7 @@ For implementation details (file paths, format specifics), see [Rules: VibeGrid]
 
 ## Relationships
 
-- [View Shell: Records View](view-shell.md#records--show-me-everything) — layout context for the grid
-- [Experience: Three-View Model](../theory/experience.md#three-view-model) — theory behind Records as exhaustive view
-- [Domains: Capabilities](../theory/domains.md#capabilities) — module declaration of grid capabilities
+- [Workspace Shell: Entity List](workspace-shell.md#entity-list--show-me-everything) — layout context for the grid
+- [Experience: Entity-Centric Views](../theory/experience.md#entity-centric-views) — theory behind entity list views
+- [Domains: Capabilities](../theory/domains.md#capabilities) — entity type declaration of grid capabilities
 - [Rules: VibeGrid](../../.claude/rules/vibegrid.md) — code-level implementation details
