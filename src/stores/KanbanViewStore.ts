@@ -362,20 +362,6 @@ export class KanbanViewStore implements IStore {
       const value = data[col.id]
       if (value == null) continue
 
-      // Assignee: first user_reference field with a value
-      if (!smart.assignee && colType === 'user_reference') {
-        const ref = value as Record<string, unknown>
-        const displayName = (ref.display_name as string) || (ref.name as string) || (ref.full_name as string)
-        if (displayName) {
-          smart.assignee = {
-            userId: String(ref.id ?? ''),
-            displayName,
-            avatarUrl: (ref.avatar_url as string) || undefined,
-          }
-          hasAny = true
-        }
-      }
-
       // Due date: date/datetime field with slug matching common patterns
       if (
         !smart.dueDate &&

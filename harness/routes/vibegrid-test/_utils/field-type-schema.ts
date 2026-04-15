@@ -207,18 +207,18 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
     // ============================================
     {
       name: 'assigned_to',
-      type: 'user_reference',
+      type: 'person',
       label: 'Assignee',
       required: false,
-      description: 'User reference with badge display',
+      description: 'Person reference with badge display',
       display: { width: 140 },
     },
     {
       name: 'related_project',
-      type: 'entity_reference',
+      type: 'reference-select',
       label: 'Project',
       required: false,
-      description: 'Entity reference with badge display',
+      description: 'Reference select with badge display',
       display: { width: 140 },
       relationshipConfig: {
         targetEntityType: 'Project',

@@ -517,7 +517,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Reactive bridge: entity reference target collections → tableCoreStore.entityReferenceData
   // Renders one invisible bridge component per target entity type (e.g., Company, Vendor)
-  // so that entity_reference cells update automatically when target entities change
+  // so that reference-select cells update automatically when target entities change
   const entityRefBridges = useEntityReferenceData(tableCoreStore)
 
   // Set TanStack DB collection on InteractionStore for entity mutations

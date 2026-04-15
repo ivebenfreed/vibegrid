@@ -16,7 +16,7 @@ interface PickerEntityEditorProps {
 export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCancel }: PickerEntityEditorProps) {
   const [hasCommitted, setHasCommitted] = React.useState(false)
   const cellType = (column.cellType || column.type) as CellType
-  const isUserReference = cellType === 'user_reference'
+  const isUserReference = false // Legacy user_reference removed; person field handles user references
 
   const targetEntityType =
     (column as any).relationshipConfig?.targetEntityType ||

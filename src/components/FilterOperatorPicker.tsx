@@ -80,11 +80,6 @@ export function getOperatorsForFieldType(cellType: string): FilterOperator[] {
     case 'multi_select':
       return [...ENUM_OPERATORS]
 
-    // Relationship types
-    case 'user_reference':
-    case 'entity_reference':
-      return [...RELATIONSHIP_OPERATORS]
-
     // Computed decision table types
     case 'computed_decision_table':
       return [...DECISION_TABLE_OPERATORS]

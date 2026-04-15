@@ -367,7 +367,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         searchFields: string[]
       } | null = null
 
-      if (cellType.includes('entity_reference')) {
+      if (cellType === 'reference-select' || cellType === 'reference-multi') {
         const targetEntityType =
           safeFieldDef.relationshipTable ||
           safeFieldDef.targetEntityType ||
@@ -383,7 +383,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
           searchFields,
         }
 
-        fileLog.debug('[COLUMN-GEN] Entity reference field detected', {
+        fileLog.debug('[COLUMN-GEN] Reference field detected', {
           entityType,
           fieldName,
           fieldType,
@@ -586,12 +586,6 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
       return 'multi-select'
     case 'custom_option_reference': // ← KEY FIX: Map to select for badges
       return 'select'
-
-    // Reference types (stored as relationships)
-    case 'user_reference':
-      return 'user_reference'
-    case 'entity_reference':
-      return 'entity_reference'
 
     // Rollup types
     case 'rollup_count':

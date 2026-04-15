@@ -58,7 +58,7 @@ export function registerBuiltInModules(): void {
       canHandle: (props: GridModuleRenderProps) => {
         if (!props.schemaFields?.length) return true // graceful fallback
         const GROUPABLE = ['status_set', 'single-select', 'multi-select', 'priority']
-        return props.schemaFields.some((f) => GROUPABLE.includes(f.fieldType) || f.fieldType === 'entity_reference')
+        return props.schemaFields.some((f) => GROUPABLE.includes(f.fieldType))
       },
       isEnabled: () => true, // Always enabled for built-in modules
     },

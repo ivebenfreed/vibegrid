@@ -62,8 +62,6 @@ export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number
 
   // Reference types
   'reference-select': { width: 160, minWidth: 120, maxWidth: 300 },
-  user_reference: { width: 180, minWidth: 140, maxWidth: 300 },
-  entity_reference: { width: 180, minWidth: 140, maxWidth: 300 },
 
   // Computed/rollup types
   rollup_count: { width: 100, minWidth: 80, maxWidth: 150 },

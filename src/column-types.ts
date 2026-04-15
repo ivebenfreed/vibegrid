@@ -121,8 +121,6 @@ export type CellType =
   | 'discussion_type_option'
   // Reference types
   | 'reference-select'
-  | 'user_reference'
-  | 'entity_reference'
   // Computed/rollup types
   | 'rollup_count'
   | 'rollup_sum'

@@ -33,17 +33,11 @@ export function normalizeValue(column: Column, value: any): any {
   const cellType = column.cellType as string
 
   // UNIVERSAL OBJECT-WITH-ID NORMALIZATION
-  // Catches: status, select, option, user_reference, entity_reference, etc.
+  // Catches: status, select, option, reference-select, etc.
   // This handles both string IDs (optimistic) and resolved objects (server echo)
   // By normalizing {id: "x", name: "...", ...} to just "x", we ensure consistent hashing
   if (typeof value === 'object' && !Array.isArray(value) && value.id) {
     return value.id
-  }
-
-  // Reference fields: already handles objects above, this catches string IDs
-  if (cellType === 'user_reference' || cellType === 'entity_reference') {
-    if (typeof value === 'string') return value
-    return null
   }
 
   // Status/Option fields: already handles objects above, this catches string IDs

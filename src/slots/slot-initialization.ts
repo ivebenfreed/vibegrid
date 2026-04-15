@@ -29,8 +29,6 @@ import {
   markdownCellRenderer,
   entityNameCellRenderer,
   rowExpandCellRenderer,
-  entityReferenceCellRenderer,
-  userReferenceCellRenderer,
   computedExpressionCellRenderer,
   computedFormulaCellRenderer,
   computedDecisionTableCellRenderer,
@@ -146,21 +144,7 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   // --- 17. Row Expand ---
   registry.register({ id: 'row-expand', priority: 0, renderer: () => rowExpandCellRenderer })
 
-  // --- 18. Entity Reference ---
-  registry.register({
-    id: 'entity_reference',
-    priority: 0,
-    renderer: () => entityReferenceCellRenderer,
-  })
-
-  // --- 19. User Reference ---
-  registry.register({
-    id: 'user_reference',
-    priority: 0,
-    renderer: () => userReferenceCellRenderer,
-  })
-
-  // --- 20. Computed Expression ---
+  // --- 18. Computed Expression ---
   registry.register({
     id: 'computed_expression',
     priority: 0,

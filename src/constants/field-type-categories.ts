@@ -72,8 +72,6 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldTypeCategory> = {
   // as a special case using the same isTagsLikeField() check from createEditor.
 
   // Relationship dropdowns
-  entity_reference: 'dropdown',
-  user_reference: 'dropdown',
   'reference-select': 'dropdown',
   'reference-multi': 'dropdown',
 

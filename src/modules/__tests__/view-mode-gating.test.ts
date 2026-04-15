@@ -6,7 +6,7 @@
  * based on schema field descriptors.
  *
  * Key behaviors:
- * - Kanban: requires groupable fields (status_set, single-select, priority, entity_reference)
+ * - Kanban: requires groupable fields (status_set, single-select, multi-select, priority)
  * - Kanban: graceful fallback (returns true) when schemaFields is undefined or empty
  * - Gantt: always returns true (works without date fields, just won't show bars)
  * - Table: always returns true (default view, always available)
@@ -102,14 +102,14 @@ describe('Kanban canHandle predicate', () => {
     expect(result).toBe(true)
   })
 
-  it('returns true when schema has an entity_reference field', () => {
+  it('returns false when schema has only entity_reference (removed field type)', () => {
     const meta = viewModeRegistry.getMetadata('kanban')
 
     const result = meta!.canHandle!(
       makeProps([field('text', 'name'), field('entity_reference', 'assignee')]),
       mockStores,
     )
-    expect(result).toBe(true)
+    expect(result).toBe(false)
   })
 
   it('returns false when schema has only text and number fields', () => {

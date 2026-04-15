@@ -173,9 +173,6 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'phone':
       return <TextEditor {...props} />
 
-    case 'entity_reference':
-      return <PickerEntityEditor {...props} />
-
     case 'reference-select':
       fileLog.debug('createEditor: Creating PickerEntityEditor for reference-select')
       return <PickerEntityEditor {...props} />
@@ -191,11 +188,6 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'task_type_option':
       fileLog.debug('createEditor: Creating PickerEnumEditor for system option type', { cellType })
       return <PickerEnumEditor {...props} />
-
-    // User reference type - use dedicated PickerEntityEditor
-    case 'user_reference':
-      fileLog.debug('createEditor: Creating PickerEntityEditor for user reference', { cellType })
-      return <PickerEntityEditor {...props} />
 
     default:
       // Default to text editor for unknown types

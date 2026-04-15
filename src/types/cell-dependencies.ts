@@ -78,23 +78,6 @@ export const CELL_TYPE_DEPENDENCIES: Record<string, Partial<CellRenderDependenci
     formatting: true, // Needs formatters for date display
   },
 
-  // Relationship cells - require resolved relationship data
-  entity_reference: {
-    schema: true,
-    data: true,
-    relationships: [], // Will be populated dynamically based on column
-    computed: [],
-    formatting: true,
-  },
-
-  user_reference: {
-    schema: true,
-    data: true,
-    relationships: [], // Will be populated dynamically based on column
-    computed: [],
-    formatting: true,
-  },
-
   // Enum/select cells - require formatting for proper badge styling
   enum: {
     schema: true,

@@ -588,7 +588,7 @@ export class GroupProcessor {
   /**
    * Relationship field types that require entity name resolution.
    */
-  private static readonly RELATIONSHIP_FIELD_TYPES = ['user_reference', 'entity_reference']
+  private static readonly RELATIONSHIP_FIELD_TYPES = ['reference-select', 'reference-multi']
 
   /**
    * Check if a column is a relationship field.
@@ -602,12 +602,7 @@ export class GroupProcessor {
    * Get the target entity type for a relationship field.
    */
   private static getTargetEntityType(column: Column): string {
-    const cellType = column.cellType as string
-    // For user references, target is always 'PlatformUser'
-    if (cellType === 'user_reference') {
-      return 'PlatformUser'
-    }
-    // For entity references, get from column metadata
+    // Get target entity type from column metadata
     return column.relationshipEntityType || column.meta?.targetEntity || 'Entity'
   }
 

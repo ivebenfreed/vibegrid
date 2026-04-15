@@ -98,7 +98,7 @@ export class SchemaAdapter {
    * Check if column is a relationship field
    */
   static isRelationshipField(column: Column): boolean {
-    const relationshipTypes = ['user_reference', 'entity_reference', 'reference-select', 'reference-multi']
+    const relationshipTypes = ['reference-select', 'reference-multi']
     const type = column.cellType || column.type || ''
     return relationshipTypes.includes(type)
   }
@@ -400,9 +400,6 @@ export class SchemaAdapter {
       case 'file':
       case 'image':
         return 'file'
-      case 'user_reference':
-      case 'entity_reference':
-        return 'relationship-select'
       case 'rollup_count':
       case 'rollup_sum':
       case 'rollup_average':

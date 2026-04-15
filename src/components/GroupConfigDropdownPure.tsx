@@ -169,8 +169,6 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
         'select',
         'single-select',
         'reference-select',
-        'user_reference',
-        'entity_reference',
         'priority_option',
         'status_option',
         'category_option',
@@ -307,11 +305,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
               const cellType = column.cellType || column.type || 'select'
               let typeLabel = 'Select'
 
-              if (cellType === 'user_reference') {
-                typeLabel = 'User'
-              } else if (cellType === 'entity_reference') {
-                typeLabel = 'Relationship'
-              } else if ((cellType as string) === 'priority_option') {
+              if ((cellType as string) === 'priority_option') {
                 typeLabel = 'Priority'
               } else if ((cellType as string) === 'status_option' || (cellType as string) === 'status') {
                 typeLabel = 'Status'

@@ -61,7 +61,7 @@ const COLOR_PALETTE = [
 ]
 
 /**
- * Mock users for user_reference field testing
+ * Mock users for person/reference field testing
  * These simulate resolved user data for E2E tests
  */
 export const MOCK_USERS = [
@@ -73,7 +73,7 @@ export const MOCK_USERS = [
 ] as const
 
 /**
- * Mock projects for entity_reference field testing
+ * Mock projects for reference-select field testing
  */
 export const MOCK_PROJECTS = [
   { id: 'proj-001', name: 'Alpha Project' },

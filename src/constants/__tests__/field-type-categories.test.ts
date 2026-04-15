@@ -51,8 +51,6 @@ describe('FIELD_TYPE_CATEGORIES', () => {
       'multi-select',
       'multiselect',
       'tags',
-      'entity_reference',
-      'user_reference',
       'reference-select',
       'reference-multi',
       'priority_option',
@@ -135,7 +133,7 @@ describe('isDropdownPositioned', () => {
   it('returns true for dropdown types', () => {
     expect(isDropdownPositioned('select')).toBe(true)
     expect(isDropdownPositioned('date')).toBe(true)
-    expect(isDropdownPositioned('entity_reference')).toBe(true)
+    expect(isDropdownPositioned('reference-select')).toBe(true)
   })
 
   it('returns true for boolean types (positioned as dropdown)', () => {
@@ -172,15 +170,13 @@ describe('isModalTextType', () => {
   })
 })
 
-describe('GH#1906: collapsed reference field types', () => {
-  it('maps only canonical reference types to dropdown', () => {
-    expect(FIELD_TYPE_CATEGORIES.entity_reference).toBe('dropdown')
-    expect(FIELD_TYPE_CATEGORIES.user_reference).toBe('dropdown')
-  })
-
+describe('GH#2552: removed legacy reference field types', () => {
   it('does not map removed reference type aliases', () => {
-    // These were removed in GH#1906 — they should not exist in the category map
+    // entity_reference and user_reference were removed in GH#2552
+    // along with older aliases removed in GH#1906
     const removedTypes = [
+      'entity_reference',
+      'user_reference',
       'custom_entity_reference',
       'custom_user_reference',
       'relationship-single',

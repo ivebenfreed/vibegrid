@@ -111,7 +111,7 @@ describe('FilterValueInput behavior', () => {
     const relationshipColumn = makeColumn({
       id: 'assignee',
       field: 'assignee',
-      cellType: 'user_reference',
+      cellType: 'reference-select',
     })
 
     render(
