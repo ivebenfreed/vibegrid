@@ -128,7 +128,7 @@ function ChildTabEntry({ index, entry, entitySchemas, onUpdate, onRemove }: Chil
             id={`child-entity-type-${index}`}
             value={entry.childEntityType}
             onChange={(e) => onUpdate(index, { ...entry, childEntityType: e.target.value })}
-            placeholder="e.g., GCCOICoverage"
+            placeholder="e.g., Photo"
             data-testid={`child-entity-type-input-${index}`}
           />
         )}
