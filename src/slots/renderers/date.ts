@@ -2,6 +2,7 @@
  * Date cell renderer
  */
 
+import { parseAsLocalDate } from '@/shared/lib/format-date'
 import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
@@ -95,17 +96,8 @@ class DateCellRenderer implements CellRenderer {
   }
 
   private basicFormat(value: unknown, cellType: string): string {
-    let dateObj: Date
-    // Date-only strings (YYYY-MM-DD) are parsed as UTC by new Date(),
-    // which shifts the date back one day in western timezones.
-    // Parse as local date instead to display the correct calendar date.
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [y, m, d] = value.split('-').map(Number)
-      dateObj = new Date(y, m - 1, d)
-    } else {
-      dateObj = value instanceof Date ? value : new Date(value as string | number)
-    }
-    if (Number.isNaN(dateObj.getTime())) return String(value)
+    const dateObj = parseAsLocalDate(value)
+    if (!dateObj) return String(value ?? '')
 
     switch (cellType) {
       case 'time':

@@ -4,6 +4,7 @@
 // Processes raw entity data into grouped virtual rows
 // Handles hierarchical grouping and aggregations
 
+import { formatDate } from '@/shared/lib/format-date'
 import { getLogger } from '@/shared/lib/logging'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 import type { Column, GroupAggregation, GroupConfig, GroupNode, TableRow, VirtualRow, VirtualRowType } from '../types'
@@ -644,7 +645,7 @@ export class GroupProcessor {
     }
 
     if (column?.cellType === 'date' && value instanceof Date) {
-      return value.toLocaleDateString()
+      return formatDate(value)
     }
 
     if (column?.cellType === 'boolean') {
