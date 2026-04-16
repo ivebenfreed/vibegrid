@@ -1,7 +1,7 @@
 /**
  * GCFileBrowser - Unified file browser for GC projects using VibeGrid
  *
- * Displays all file-type entities (GCFile, GCDrawing, GCPhoto) for a project
+ * Displays all file-type entities (File, Drawing, Photo) for a project
  * in a single unified grid. Uses the `files.listByProject` oRPC endpoint to
  * fetch all three entity types and pushes data directly to VibeGrid stores.
  *
@@ -53,7 +53,7 @@ import { FileViewerModal } from './FileViewerModal'
 import { canvasViewportStore } from '@/systems/vibecanvas/stores/ViewportStore'
 import { resolveFileUrl } from '../types'
 import { Loader2, Files, Eye, Download, Upload, Trash2 } from 'lucide-react'
-import type { GCFile } from '../types'
+import type { File as FileEntity } from '../types'
 
 interface GCFileBrowserProps {
   projectId: string
@@ -119,7 +119,7 @@ function downloadFile(file: { id: string; file_path?: string; file_url?: string;
  */
 let _pendingDelete: {
   fileId: string
-  entityType: 'GCFile' | 'GCPhoto' | 'GCDrawing'
+  entityType: 'File' | 'Photo' | 'Drawing'
   fileName: string
 } | null = null
 let _setDeleteOpen: ((open: boolean) => void) | null = null
@@ -134,7 +134,7 @@ const FILE_ROW_ACTIONS: RowAction[] = [
     label: 'Preview',
     icon: Eye,
     onClick: (rowData) => {
-      canvasViewportStore.openFile(rowData as GCFile)
+      canvasViewportStore.openFile(rowData as FileEntity)
     },
   },
   {
@@ -154,7 +154,7 @@ const FILE_ROW_ACTIONS: RowAction[] = [
       const row = rowData as { id: string; entity_type?: string; name?: string }
       _pendingDelete = {
         fileId: row.id,
-        entityType: (row.entity_type as 'GCFile' | 'GCPhoto' | 'GCDrawing') || 'GCFile',
+        entityType: (row.entity_type as 'File' | 'Photo' | 'Drawing') || 'File',
         fileName: row.name || 'Untitled',
       }
       _setDeleteOpen?.(true)
@@ -344,7 +344,7 @@ interface DeleteFileDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   fileId: string
-  entityType: 'GCFile' | 'GCPhoto' | 'GCDrawing'
+  entityType: 'File' | 'Photo' | 'Drawing'
   fileName: string
 }
 
@@ -423,7 +423,7 @@ const DeleteFileDialog = observer(function DeleteFileDialog({
  * Follows the same pattern as COIListInner (GH#1076):
  * - Use skipDataFetching={true} to bypass VibeGrid auto-fetch
  * - Push data to tableCoreStore.setRows() directly
- * - Use entityType="GCFile" for column schema (all file types share similar fields)
+ * - Use entityType="File" for column schema (all file types share similar fields)
  */
 const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: string; projectId: string }) {
   const stores = useVibeGridStores()
@@ -506,7 +506,7 @@ const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: s
 
   const handleCellClick = useCallback(
     (rowId: string, _columnId: string) => {
-      const rowData = data?.items.find((item) => item.id === rowId) as GCFile | undefined
+      const rowData = data?.items.find((item) => item.id === rowId) as FileEntity | undefined
       if (rowData) {
         canvasViewportStore.openFile(rowData)
       }
@@ -517,7 +517,7 @@ const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: s
   return (
     <VibeGrid
       tableId={tableId}
-      entityType="GCFile"
+      entityType="File"
       height="100%"
       enableSelectionColumn={true}
       enableGrouping={true}
@@ -538,7 +538,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({ projectId, projec
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{
     fileId: string
-    entityType: 'GCFile' | 'GCPhoto' | 'GCDrawing'
+    entityType: 'File' | 'Photo' | 'Drawing'
     fileName: string
   } | null>(null)
 
@@ -559,7 +559,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({ projectId, projec
   }, [])
 
   // Fetch project to get external_id for filtering
-  const { record: project, isReady: projectReady } = useEntityRecord('GCProject', projectId)
+  const { record: project, isReady: projectReady } = useEntityRecord('Project', projectId)
 
   // Update scope context
   useEffect(() => {
@@ -625,7 +625,7 @@ export const GCFileBrowser = observer(function GCFileBrowser({ projectId, projec
             </div>
           </div>
           <div className="flex-1 w-full min-h-[400px]">
-            <VibeGridStoreProvider tableId={tableId} entityType="GCFile">
+            <VibeGridStoreProvider tableId={tableId} entityType="File">
               <FileGrid tableId={tableId} projectId={projectId} />
             </VibeGridStoreProvider>
           </div>

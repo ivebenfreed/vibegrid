@@ -279,7 +279,7 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     return getBasicColumns<T>()
   }
 
-  // Read primaryField from schema businessMetadata (e.g., 'subject' for GCRFI)
+  // Read primaryField from schema businessMetadata (e.g., 'subject' for RFI)
   // When set, the matching column gets isPrimaryField: true → entity-name renderer with nav affordance
   const primaryFieldName: string | undefined = entitySchema.businessMetadata?.primaryField ?? entitySchema.primaryField
 

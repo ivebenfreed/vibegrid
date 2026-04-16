@@ -74,7 +74,7 @@ export interface RowAction {
 interface VibeGridProps<_T = any> {
   tableId: string // Unique identifier for this table instance
   entityType: string // Entity type (determines data source)
-  entityDisplayName?: string // User-friendly display name for the entity (e.g., "Document" instead of "GCFile")
+  entityDisplayName?: string // User-friendly display name for the entity (e.g., "Document" instead of "File")
   orgId?: string // Organization ID for multi-tenant support
 
   // Common options

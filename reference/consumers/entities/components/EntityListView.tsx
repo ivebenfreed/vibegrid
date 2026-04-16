@@ -224,7 +224,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   return (
     <>
       {/* GH#1693: Compliance summary banner for COI entity type */}
-      {entityName === 'GCCertificateOfInsurance' && <ComplianceSummaryBanner />}
+      {entityName === 'CertificateOfInsurance' && <ComplianceSummaryBanner />}
 
       <VibeGrid
         tableId={`entity-list-${entityName}`}
