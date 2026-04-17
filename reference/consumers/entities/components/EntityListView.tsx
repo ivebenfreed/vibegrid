@@ -571,15 +571,32 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
       {/* Main Content — compact layout: title merged into grid toolbar */}
       <Main fluid className="flex flex-col gap-0 px-4 py-3">
-        {/* Review queue banner — GH#1534 */}
+        {/* Review queue banner — clickable, opens all pending records in batch (GH#1534) */}
         {reviewCount > 0 && (
-          <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-sm dark:border-amber-800 dark:bg-amber-950/30">
+          <button
+            type="button"
+            onClick={() => {
+              // Open the review overlay with every pending entity as a batch.
+              // reviewQueueResult.entities already holds the rows from the
+              // /review/list endpoint, each with a top-level id — no need to
+              // round-trip through the grid's row selection.
+              const ids = reviewQueueResult.entities.map((e) => e.id).filter(Boolean).join(',')
+              if (!ids) return
+              navigate({
+                search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: ids }),
+              } as any)
+            }}
+            disabled={reviewQueueResult.isLoading || reviewQueueResult.entities.length === 0}
+            className="flex w-full items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-left text-sm transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
+            aria-label={`Review ${reviewCount} ${reviewCount === 1 ? 'record' : 'records'} pending`}
+            data-testid="review-queue-banner"
+          >
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-            <span>
-              {reviewCount} {reviewCount === 1 ? 'record' : 'records'} need review — select them in the grid below and
-              click Review
+            <span className="font-medium">
+              Review {reviewCount} {reviewCount === 1 ? 'record' : 'records'}
             </span>
-          </div>
+            <span className="text-muted-foreground">— click to open</span>
+          </button>
         )}
 
         {/* Vibegrid Container — position:relative anchors QuickCreatePanel */}
