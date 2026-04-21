@@ -25,6 +25,7 @@ import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { VibeGrid } from '@/systems/vibegrid'
+import { GRID_DIMENSIONS } from '@/systems/vibegrid/constants/grid-dimensions'
 import type { SchemaFieldDescriptor } from '@/systems/vibegrid/modules/GridModule'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
@@ -310,7 +311,14 @@ export function ChildEntitySection({
                   tableId={`child-${childEntityType}-${parentRecordId}`}
                   entityType={childEntityType}
                   entityDisplayName={displayName}
-                  height={Math.min(64 + childRecords.length * 40, 400)}
+                  height={Math.min(
+                    // Chrome above data rows: view-mode tabs + toolbar (filter/column picker)
+                    // + grid header row + a little breathing room below.
+                    // Previously 64 + 40/row, which under-allocated — single-row grids
+                    // clipped the first data row.
+                    112 + GRID_DIMENSIONS.HEADER_HEIGHT + childRecords.length * GRID_DIMENSIONS.ROW_HEIGHT + 16,
+                    500,
+                  )}
                   enableSelectionColumn={false}
                   enableGrouping={false}
                   enableFiltering={false}
