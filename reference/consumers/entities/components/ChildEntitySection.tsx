@@ -65,6 +65,10 @@ export function ChildEntitySection({
   })
 
   const displayName = EntityNameUtils.toDisplayFormat(childEntityType)
+  // GH#2599: honor the admin-configured `label` override from
+  // entity_views.config.childEntityTabs as the CardTitle. Falls back to
+  // the derived "<entity> Records" when no override is set.
+  const sectionTitle = childEntityConfig.label ?? `${displayName} Records`
 
   // GH#1861: Linked field enrichment for relationship archetypes
   const { enrichedRecords, linkedColumns } = useLinkedFieldEnrichment({
@@ -229,7 +233,7 @@ export function ChildEntitySection({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">{displayName} Records</CardTitle>
+          <CardTitle className="text-sm font-semibold">{sectionTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -251,7 +255,7 @@ export function ChildEntitySection({
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">{displayName} Records</CardTitle>
+          <CardTitle className="text-sm font-semibold">{sectionTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -271,7 +275,7 @@ export function ChildEntitySection({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-sm font-semibold">{displayName} Records</CardTitle>
+              <CardTitle className="text-sm font-semibold">{sectionTitle}</CardTitle>
               <Badge variant="secondary" className="text-xs font-normal">
                 {childRecords.length}
               </Badge>
