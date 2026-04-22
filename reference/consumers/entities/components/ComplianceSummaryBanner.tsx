@@ -86,8 +86,8 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
       if (check.status === 'pass') {
         passing++
 
-        // Check whether the cert is expiring within 30 days
-        const expiryRaw = record.expiration_date as string | null | undefined
+        // Check whether the cert is expiring within 30 days (GH#2600: uses earliest_expiration_date, B2 computed_formula)
+        const expiryRaw = record.earliest_expiration_date as string | null | undefined
 
         if (expiryRaw) {
           // Date-only strings (YYYY-MM-DD) must be parsed as local dates,
