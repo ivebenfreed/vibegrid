@@ -40,6 +40,9 @@ import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialo
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
+// GH#2641: side-effect import registers built-in list widgets + overview components
+import '../lib/register-view-components'
+import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
@@ -49,7 +52,6 @@ import { EntityListError } from './EntityListError'
 import { EntityListSkeleton } from './EntityListSkeleton'
 import { EntityNotFound } from './EntityNotFound'
 import { EntityUploadDropzone } from './EntityUploadDropzone'
-import { ComplianceSummaryBanner } from './ComplianceSummaryBanner'
 import { EntityDrawer } from './EntityDrawer'
 import { QuickCreatePanel } from './QuickCreatePanel'
 
@@ -92,6 +94,26 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     orgId,
     stores,
   })
+
+  // GH#2641: Load the active view's config so we can render config-driven
+  // widgets above the grid (listWidgets). Mirrors EntityDetailTabView's pattern.
+  const [activeViewConfig, setActiveViewConfig] = useState<Record<string, unknown> | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    orpcClient.dataforge.views
+      .list({ entityName })
+      .then((result) => {
+        if (cancelled) return
+        const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default) ?? result.views[0] ?? null
+        setActiveViewConfig(defaultView?.config ?? null)
+      })
+      .catch(() => {
+        // Non-critical: widgets just won't render
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [entityName])
 
   // GH#2139: Wire viewModeStore to VibeGrid props for view switching
   const { viewModeStore } = stores
@@ -221,10 +243,31 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     allRowActions.push(startCycleAction, exportWaiversAction)
   }
 
+  // GH#2641: Render widgets above the grid driven by entity_views.config.listWidgets.
+  // Unknown widget keys are skipped with a console.warn — never break the page.
+  const listWidgets = Array.isArray((activeViewConfig as any)?.listWidgets)
+    ? ((activeViewConfig as any).listWidgets as Array<{ widget: string; props?: Record<string, unknown> }>)
+    : []
+
   return (
     <>
-      {/* GH#1693: Compliance summary banner for COI entity type */}
-      {entityName === 'CertificateOfInsurance' && <ComplianceSummaryBanner />}
+      {listWidgets.map((entry, idx) => {
+        const Widget = getListWidget(entry.widget)
+        if (!Widget) {
+          logger.warn('Unknown list widget in view config', { widget: entry.widget, entityName })
+          return null
+        }
+        const ctx: ListWidgetContext = {
+          entityName,
+          organizationId: orgId,
+          props: entry.props,
+        }
+        return (
+          <div key={`${entry.widget}-${idx}`} data-testid={`list-widget-${entry.widget}`}>
+            <Widget {...ctx} />
+          </div>
+        )
+      })}
 
       <VibeGrid
         tableId={`entity-list-${entityName}`}
