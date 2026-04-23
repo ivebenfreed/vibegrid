@@ -359,7 +359,12 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       const fieldType = String(safeFieldDef.type || 'text').toLowerCase()
 
       // Map DataForge field types to VibeGrid cell types
-      const cellType = mapFieldTypeToVibeGridCellType(fieldType, fieldName)
+      // Override to badge-list for relationship-injected fields (source: 'relationship')
+      // These are auto-projected display fields populated by server-side URS enrichment
+      const isRelationshipProjection = (safeFieldDef as any).source === 'relationship'
+      const cellType = isRelationshipProjection
+        ? 'badge-list'
+        : mapFieldTypeToVibeGridCellType(fieldType, fieldName)
 
       let relationshipMetadata: {
         targetEntityType: string | null
