@@ -5,35 +5,136 @@
 import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
+import { getOptionIconDisplay } from '../../utils/icon-mapping'
+
+// ============================================================
+// Option-set helpers — scalar computed fields that carry an
+// `optionSet` (resolved server-side into `column.options`) render
+// as colored badges identical to SelectCellRenderer.
+// ============================================================
+
+interface ComputedOption {
+  value: string
+  label: string
+  color?: string
+  backgroundColor?: string
+  icon?: string
+}
+
+function getColumnOptions(column: Column): ComputedOption[] {
+  if (column.options && Array.isArray(column.options)) {
+    return column.options.map((opt: unknown) =>
+      typeof opt === 'string' ? { value: opt, label: opt } : (opt as ComputedOption),
+    )
+  }
+  if (column.validation?.enum && Array.isArray(column.validation.enum)) {
+    return column.validation.enum.map((val: unknown) => ({ value: String(val), label: String(val) }))
+  }
+  if (column.editor?.options && Array.isArray(column.editor.options)) {
+    return column.editor.options.map((opt: unknown) =>
+      typeof opt === 'string' ? { value: opt, label: opt } : (opt as ComputedOption),
+    )
+  }
+  return []
+}
+
+function findOption(value: unknown, options: ComputedOption[]): ComputedOption | null {
+  const s = String(value)
+  return (
+    options.find((opt) => opt.value === s) ??
+    options.find((opt) => opt.value.toLowerCase() === s.toLowerCase()) ??
+    null
+  )
+}
+
+function buildOptionBadge(option: ComputedOption): HTMLElement {
+  const badge = document.createElement('span')
+  badge.className = 'vibegridx-enum-badge'
+  badge.textContent = option.label
+  badge.style.cssText = `
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    background-color: ${option.backgroundColor || '#f3f4f6'};
+    color: ${option.color || '#374151'};
+    border: 1px solid ${option.backgroundColor ? 'transparent' : '#d1d5db'};
+  `
+  if (option.icon) {
+    const iconSymbol = getOptionIconDisplay(option.icon)
+    if (iconSymbol) {
+      const iconEl = document.createElement('span')
+      iconEl.textContent = iconSymbol
+      iconEl.style.fontSize = '10px'
+      badge.insertBefore(iconEl, badge.firstChild)
+    }
+  }
+  return badge
+}
+
+/**
+ * If `column` has options (from an `optionSet`) and `value` maps to one,
+ * return a badge element; otherwise return null so the caller falls back
+ * to plain-text rendering.
+ */
+function tryRenderOptionBadge(value: unknown, column: Column): HTMLElement | null {
+  if (value == null || value === '') return null
+  const options = getColumnOptions(column)
+  if (options.length === 0) return null
+  const match = findOption(value, options)
+  return match ? buildOptionBadge(match) : null
+}
+
+/**
+ * Plain string rendering for computed scalars without an option-set.
+ * Numbers and other primitives pass through via String().
+ */
+function formatComputedValue(value: unknown): string {
+  if (value == null) return ''
+  return String(value)
+}
 
 // ============================================================
 // COMPUTED EXPRESSION
 // ============================================================
 
 class ComputedExpressionCellRenderer implements CellRenderer {
-  render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
+  render(value: unknown, column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-computed'
     container.style.cssText = 'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
-
-    const valueSpan = document.createElement('span')
-    valueSpan.textContent = String(value ?? '')
-    valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
 
     const indicator = document.createElement('span')
     indicator.textContent = 'f(x)'
     indicator.title = 'Computed expression'
     indicator.style.cssText = 'font-size: 10px; opacity: 0.7; font-weight: bold;'
 
-    container.appendChild(valueSpan)
+    const badge = tryRenderOptionBadge(value, column)
+    if (badge) {
+      container.appendChild(badge)
+    } else {
+      const valueSpan = document.createElement('span')
+      valueSpan.textContent = formatComputedValue(value)
+      valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
+      container.appendChild(valueSpan)
+    }
     container.appendChild(indicator)
 
     applyAffordanceAttrs(container, this, false)
     return container
   }
 
-  format(value: unknown, _column: Column, _context: CellRendererContext): string {
-    return String(value ?? '')
+  format(value: unknown, column: Column, _context: CellRendererContext): string {
+    const options = getColumnOptions(column)
+    if (options.length > 0) {
+      const match = findOption(value, options)
+      if (match) return match.label
+    }
+    return formatComputedValue(value)
   }
 
   validate(_value: unknown, _column: Column, _context: CellRendererContext): string | null {
@@ -71,29 +172,38 @@ class ComputedExpressionCellRenderer implements CellRenderer {
 // ============================================================
 
 class ComputedFormulaCellRenderer implements CellRenderer {
-  render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
+  render(value: unknown, column: Column, _context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.className = 'vibegridx-cell-computed'
     container.style.cssText = 'display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums;'
-
-    const valueSpan = document.createElement('span')
-    valueSpan.textContent = String(value ?? '')
-    valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
 
     const indicator = document.createElement('span')
     indicator.textContent = '\u03A3f'
     indicator.title = 'Computed formula'
     indicator.style.cssText = 'font-size: 10px; opacity: 0.7; font-weight: bold;'
 
-    container.appendChild(valueSpan)
+    const badge = tryRenderOptionBadge(value, column)
+    if (badge) {
+      container.appendChild(badge)
+    } else {
+      const valueSpan = document.createElement('span')
+      valueSpan.textContent = formatComputedValue(value)
+      valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
+      container.appendChild(valueSpan)
+    }
     container.appendChild(indicator)
 
     applyAffordanceAttrs(container, this, false)
     return container
   }
 
-  format(value: unknown, _column: Column, _context: CellRendererContext): string {
-    return String(value ?? '')
+  format(value: unknown, column: Column, _context: CellRendererContext): string {
+    const options = getColumnOptions(column)
+    if (options.length > 0) {
+      const match = findOption(value, options)
+      if (match) return match.label
+    }
+    return formatComputedValue(value)
   }
 
   validate(_value: unknown, _column: Column, _context: CellRendererContext): string | null {
