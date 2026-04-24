@@ -34,6 +34,16 @@ class DateCellRenderer implements CellRenderer {
     const displayValue = this.formatDateValue(value, cellType, column)
     const affordance = isEditable ? 'edit' : 'none'
 
+    // Only expiration-type columns get the red-when-past treatment. Gating on
+    // the column identifier keeps arbitrary date columns (due dates, end dates,
+    // etc.) in the default blue until we decide to broaden the convention.
+    const isExpirationColumn = this.isExpirationColumn(column)
+    const isPast = isExpirationColumn && this.isDateInPast(value, cellType)
+
+    const badgeBg = isPast ? '#fef2f2' : '#eff6ff'
+    const badgeFg = isPast ? '#991b1b' : '#1e40af'
+    const badgeBorder = isPast ? '#fecaca' : '#bfdbfe'
+
     el.innerHTML = `
       <div data-action="${affordance}" data-affordance-role="badge" style="
         display: inline-flex;
@@ -43,9 +53,9 @@ class DateCellRenderer implements CellRenderer {
         font-size: 0.75rem;
         font-weight: 500;
         white-space: nowrap;
-        background-color: #eff6ff;
-        color: #1e40af;
-        border: 1px solid #bfdbfe;
+        background-color: ${badgeBg};
+        color: ${badgeFg};
+        border: 1px solid ${badgeBorder};
         max-width: 100%;
         min-width: 0;
         font-variant-numeric: tabular-nums;
@@ -93,6 +103,36 @@ class DateCellRenderer implements CellRenderer {
       // Fall through to basic formatting
     }
     return this.basicFormat(value, cellType)
+  }
+
+  /**
+   * Heuristic: a column represents an expiration date if "expir" appears in
+   * its id, field, name, or label. Catches `earliest_expiration_date`,
+   * `gl_expiration_date`, `Expiration Date`, etc.
+   */
+  private isExpirationColumn(column: Column): boolean {
+    const candidates = [column.id, column.field, column.name, column.label]
+    return candidates.some(
+      (v) => typeof v === 'string' && v.toLowerCase().includes('expir'),
+    )
+  }
+
+  /**
+   * Returns true when the value parses to a calendar date/time strictly before
+   * "now". For date-only cells ('date') we compare at day granularity (today is
+   * NOT past); for datetime/time cells we compare at instant granularity.
+   */
+  private isDateInPast(value: unknown, cellType: string): boolean {
+    const dateObj = parseAsLocalDate(value)
+    if (!dateObj || Number.isNaN(dateObj.getTime())) return false
+
+    const now = new Date()
+    if (cellType === 'datetime' || cellType === 'datetime-local' || cellType === 'timestamp' || cellType === 'timestamptz' || cellType === 'time') {
+      return dateObj.getTime() < now.getTime()
+    }
+    // Date-only: compare at day granularity in local time.
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    return dateObj.getTime() < startOfToday.getTime()
   }
 
   private basicFormat(value: unknown, cellType: string): string {
