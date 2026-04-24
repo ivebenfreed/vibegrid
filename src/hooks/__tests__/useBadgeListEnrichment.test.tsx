@@ -76,6 +76,7 @@ import { useBadgeListEnrichment } from '../useBadgeListEnrichment'
 
 function makeStore() {
   const badges = new Map<string, string[]>()
+  const readySet = new Set<string>()
   const store = {
     columns: [
       {
@@ -103,8 +104,19 @@ function makeStore() {
       const key = `${relationshipEntity.toLowerCase()}:${direction}:${anchorId}`
       return badges.get(key)
     },
+    markRelationshipBadgesReady: vi.fn(
+      (relationshipEntity: string, direction: 'source' | 'target') => {
+        readySet.add(`${relationshipEntity.toLowerCase()}:${direction}`)
+      },
+    ),
+    isRelationshipBadgesReady: (relationshipEntity: string, direction: 'source' | 'target') => {
+      return readySet.has(`${relationshipEntity.toLowerCase()}:${direction}`)
+    },
   }
-  return store as unknown as TableCoreStore & { setRelationshipBadges: ReturnType<typeof vi.fn> }
+  return store as unknown as TableCoreStore & {
+    setRelationshipBadges: ReturnType<typeof vi.fn>
+    markRelationshipBadgesReady: ReturnType<typeof vi.fn>
+  }
 }
 
 function Harness({ store }: { store: TableCoreStore | null }) {
@@ -226,6 +238,21 @@ describe('useBadgeListEnrichment', () => {
       'project-1',
     )
     expect(names).toEqual(['DEB Construction LLC', 'Acme Plumbing Inc'])
+  })
+
+  it('marks bridge as ready after first pass (empty edges still marks ready)', () => {
+    const store = makeStore()
+    liveQueryState.edges = []
+    liveQueryState.targets = []
+
+    render(<Harness store={store} />)
+
+    // Even with zero edges, the bridge should mark itself as ready
+    // so the renderer shows '—' instead of '…'
+    expect(store.markRelationshipBadgesReady).toHaveBeenCalledWith(
+      'Rel_CertificateOfInsurance_Project_belongs_to',
+      'target',
+    )
   })
 
   it('total edge deletion: clears stale anchor badges to empty array', () => {

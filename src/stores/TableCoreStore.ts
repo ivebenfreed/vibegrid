@@ -289,6 +289,11 @@ export class TableCoreStore implements IStore {
   // badge-list-live DOM renderer.
   @observable relationshipBadgeData: ObservableMap<string, string[]> = observable.map<string, string[]>()
 
+  // GH#2651: Tracks which (relationshipEntity:direction) pairs have completed
+  // their first bridge pass. Allows the renderer to distinguish "not loaded yet"
+  // (show '…') from "loaded but no edges for this anchor" (show '—').
+  @observable relationshipBadgeReady: Set<string> = observable.set<string>()
+
   // ====================================
   // CHANGE DETECTION (Cell-level updates)
   // ====================================
@@ -833,6 +838,27 @@ export class TableCoreStore implements IStore {
   ): void {
     const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
     this.relationshipBadgeData.set(key, names)
+  }
+
+  /**
+   * GH#2651: Mark a (relationshipEntity, direction) pair as ready — the bridge
+   * has completed at least one pass. Anchors not in relationshipBadgeData after
+   * this point genuinely have zero edges (render '—') rather than being
+   * "still loading" (render '…').
+   */
+  @action
+  markRelationshipBadgesReady(relationshipEntity: string, direction: 'source' | 'target'): void {
+    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}`
+    this.relationshipBadgeReady.add(key)
+  }
+
+  /**
+   * GH#2651: Check if a (relationshipEntity, direction) pair has completed
+   * its initial bridge pass.
+   */
+  isRelationshipBadgesReady(relationshipEntity: string, direction: 'source' | 'target'): boolean {
+    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}`
+    return this.relationshipBadgeReady.has(key)
   }
 
   async ensureEntityReferenceRecord(targetEntity: string, entityId: string, loader?: () => Promise<any>): Promise<any> {
@@ -1977,6 +2003,7 @@ export class TableCoreStore implements IStore {
     this.entityReferenceData.clear()
     this.pendingEntityReferenceLoads.clear()
     this.relationshipBadgeData.clear()
+    this.relationshipBadgeReady.clear()
 
     // Clear change detection state
     this.previousRowsSnapshot.clear()

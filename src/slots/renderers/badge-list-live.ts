@@ -38,6 +38,10 @@ class BadgeListLiveCellRenderer implements CellRenderer {
             direction: 'source' | 'target',
             anchorId: string,
           ) => string[] | undefined
+          isRelationshipBadgesReady: (
+            relationshipEntity: string,
+            direction: 'source' | 'target',
+          ) => boolean
         }
       | undefined
 
@@ -54,9 +58,22 @@ class BadgeListLiveCellRenderer implements CellRenderer {
       anchorId,
     )
 
-    // Cache miss: show a dimmed ellipsis placeholder. The MobX reaction on the
-    // observable map will re-render this cell once the bridge writes names.
+    // Cache miss: distinguish "still loading" from "loaded but no edges".
+    // If the bridge has completed its first pass (ready=true) and there's no
+    // entry for this anchor, the anchor genuinely has zero edges → show dash.
+    // If the bridge hasn't completed yet, show '…' placeholder.
     if (cached === undefined) {
+      const isReady = tableCoreStore.isRelationshipBadgesReady?.(
+        relCfg.relationshipEntity,
+        relCfg.direction,
+      )
+      if (isReady) {
+        // Bridge has loaded — this anchor has no edges. Show empty dash.
+        container.textContent = '\u2014'
+        container.style.opacity = '0.5'
+        return container
+      }
+      // Bridge still loading — show dimmed ellipsis placeholder.
       const placeholder = this.badge('\u2026')
       placeholder.style.opacity = '0.5'
       container.appendChild(placeholder)

@@ -134,6 +134,11 @@ function RelationshipBadgeBridge({
     }
     prevAnchorsRef.current = new Set(byAnchor.keys())
 
+    // Signal that this (relationshipEntity, direction) has completed its first
+    // pass. The renderer uses this to show '—' (empty) instead of '…' (loading)
+    // for anchors with zero edges.
+    tableCoreStore.markRelationshipBadgesReady(relationshipEntity, direction)
+
     logger.debug('Badge-list enrichment synced', {
       relationshipEntity,
       direction,
