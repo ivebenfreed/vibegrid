@@ -206,6 +206,28 @@ describe('useBadgeListEnrichment', () => {
     ).toEqual(['Acme COI'])
   })
 
+  it('display_name fallback: resolves targets with display_name when name is null', () => {
+    const store = makeStore()
+    liveQueryState.edges = [
+      { id: 'e1', source_entity_id: 'company-a', target_entity_id: 'project-1' },
+      { id: 'e2', source_entity_id: 'company-b', target_entity_id: 'project-1' },
+    ]
+    liveQueryState.targets = [
+      // Company entities have name:null but display_name populated
+      { id: 'company-a', name: null, display_name: 'DEB Construction LLC' },
+      { id: 'company-b', display_name: 'Acme Plumbing Inc' },
+    ]
+
+    render(<Harness store={store} />)
+
+    const names = store.getRelationshipBadges(
+      'Rel_CertificateOfInsurance_Project_belongs_to',
+      'target',
+      'project-1',
+    )
+    expect(names).toEqual(['DEB Construction LLC', 'Acme Plumbing Inc'])
+  })
+
   it('total edge deletion: clears stale anchor badges to empty array', () => {
     const store = makeStore()
     liveQueryState.edges = [

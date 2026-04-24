@@ -88,11 +88,15 @@ function RelationshipBadgeBridge({
     for (const record of targetRecords as Array<Record<string, unknown>>) {
       const id = record?.id as string | undefined
       if (!id) continue
+      // Resolve display name using the same fallback chain as getRecordDisplayName
+      // (entity-name-utils.ts). Entity types vary: Company/Project use display_name,
+      // Submittal/RFI use title, File/Drawing use name.
       const name =
+        (record.display_name as string | undefined) ??
         (record.name as string | undefined) ??
         (record.title as string | undefined) ??
         null
-      if (name != null) {
+      if (name != null && String(name).trim()) {
         nameById.set(id, String(name))
       }
     }
