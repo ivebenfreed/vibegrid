@@ -358,12 +358,14 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         fieldDef && typeof fieldDef === 'object' ? { ...fieldDef, name: fieldName } : { name: fieldName, type: 'text' }
       const fieldType = String(safeFieldDef.type || 'text').toLowerCase()
 
-      // Map DataForge field types to VibeGrid cell types
-      // Override to badge-list for relationship-injected fields (source: 'relationship')
-      // These are auto-projected display fields populated by server-side URS enrichment
+      // Map DataForge field types to VibeGrid cell types.
+      // GH#2651 P1.3: Relationship-injected fields (source: 'relationship') now
+      // route to the client-side `badge-list-live` renderer which pulls names
+      // from TanStack DB collections via useBadgeListEnrichment rather than
+      // from server-side rel__ projections on the list response.
       const isRelationshipProjection = (safeFieldDef as any).source === 'relationship'
       const cellType = isRelationshipProjection
-        ? 'badge-list'
+        ? 'badge-list-live'
         : mapFieldTypeToVibeGridCellType(fieldType, fieldName)
 
       let relationshipMetadata: {
@@ -372,7 +374,16 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         searchFields: string[]
       } | null = null
 
-      if (cellType === 'reference-select' || cellType === 'reference-multi') {
+      // badge-list-live columns also need relationshipConfig so the DOM
+      // renderer can look up (relationshipEntity, direction, anchorId) in the
+      // MobX cache at render time. Falls through to the same metadata/config
+      // builder used by reference-select — the existing `isRelationshipInjected`
+      // branch at the end attaches relationshipEntity + direction.
+      if (
+        cellType === 'reference-select' ||
+        cellType === 'reference-multi' ||
+        cellType === 'badge-list-live'
+      ) {
         const targetEntityType =
           safeFieldDef.relationshipTable ||
           safeFieldDef.targetEntityType ||

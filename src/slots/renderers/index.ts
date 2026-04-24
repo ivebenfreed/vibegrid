@@ -32,3 +32,4 @@ export {
 export { entityReferenceCellRenderer } from './entity-reference'
 export { userReferenceCellRenderer } from './user-reference'
 export { badgeListCellRenderer } from './badge-list'
+export { badgeListLiveCellRenderer } from './badge-list-live'
