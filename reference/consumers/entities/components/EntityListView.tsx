@@ -89,35 +89,11 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const stores = useVibeGridStores()
   const authStore = useAuth()
 
-  const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView } = useViewUrlSync({
+  const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView, defaultViewConfig: activeViewConfig } = useViewUrlSync({
     entityType: entityName,
     orgId,
     stores,
   })
-
-  // GH#2641: Load the active view's config so we can render config-driven
-  // widgets above the grid (listWidgets). Ref guard prevents duplicate fetches
-  // when the effect re-fires during route transitions.
-  const [activeViewConfig, setActiveViewConfig] = useState<Record<string, unknown> | null>(null)
-  const viewsFetchedRef = useRef<string | null>(null)
-  useEffect(() => {
-    if (!entityName || viewsFetchedRef.current === entityName) return
-    viewsFetchedRef.current = entityName
-    let cancelled = false
-    orpcClient.dataforge.views
-      .list({ entityName })
-      .then((result) => {
-        if (cancelled) return
-        const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default) ?? result.views[0] ?? null
-        setActiveViewConfig(defaultView?.config ?? null)
-      })
-      .catch(() => {
-        // Non-critical: widgets just won't render
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [entityName])
 
   // GH#2139: Wire viewModeStore to VibeGrid props for view switching
   const { viewModeStore } = stores

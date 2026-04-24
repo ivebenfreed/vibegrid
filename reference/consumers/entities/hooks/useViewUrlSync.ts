@@ -48,6 +48,8 @@ export interface UseViewUrlSyncResult {
   selectView: (view: EntityViewRow) => void
   /** Clear active view, reverting to unsaved localStorage state (GH#1570 P2.3) */
   clearView: () => void
+  /** Default view config from the views.list response (for widget rendering, GH#2641) */
+  defaultViewConfig: Record<string, unknown> | null
 }
 
 // ====================================
@@ -128,6 +130,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
   const [isLoading, setIsLoading] = useState(true)
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [defaultViewConfig, setDefaultViewConfig] = useState<Record<string, unknown> | null>(null)
 
   // Ref to suppress URL updates when we're applying URL -> Store
   const suppressUrlUpdateRef = useRef(false)
@@ -338,6 +341,11 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
         if (cancelled) return
 
         const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default)
+        // Expose the default view config so callers can read it without a
+        // second views.list fetch (GH#2641 widget config).
+        const resolvedView = defaultView ?? result.views[0] ?? null
+        setDefaultViewConfig(resolvedView?.config ?? null)
+
         if (defaultView && !cancelled) {
           logger.info('Loading default view', {
             viewId: defaultView.id,
@@ -466,6 +474,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       copyLink,
       selectView,
       clearView,
+      defaultViewConfig: null,
     }
   }
 
@@ -476,5 +485,6 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
     copyLink,
     selectView,
     clearView,
+    defaultViewConfig,
   }
 }
