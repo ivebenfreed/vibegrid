@@ -15,7 +15,7 @@ interface PickerEntityEditorProps {
 
 export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCancel }: PickerEntityEditorProps) {
   const [hasCommitted, setHasCommitted] = React.useState(false)
-  const cellType = (column.cellType || column.type) as CellType
+  const _cellType = (column.cellType || column.type) as CellType
   const isUserReference = false // Legacy user_reference removed; person field handles user references
 
   const targetEntityType =
@@ -89,7 +89,9 @@ export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCan
     )
   }
 
-  // For relationship archetypes, EntityPicker already loads the actual target entity
+  // For relationship archetypes, EntityPicker already loads the actual target entity.
+  // allowCreate enables the "+ Create {text}" affordance (GH#2668). The commit path
+  // in handleValueChange fires when the picker selects the newly-created record.
   return (
     <EntityPicker
       entityType={targetEntityType || ''}
@@ -100,6 +102,7 @@ export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCan
       nullable
       onCancel={handleCancel}
       fieldId={column.id}
+      allowCreate
     />
   )
 }
