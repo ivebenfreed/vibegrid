@@ -171,6 +171,7 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | `slots/SlotRegistry.ts` | Unified cell renderer resolution (instance-scoped) |
 | `slots/slot-initialization.ts` | All 27+ built-in CellRenderer registrations |
 | `stores/context.tsx` | `VibeGridStores` bundle + `useVibeGridStores()` hook |
+| `stores/column-generation.ts` | Schema→column mapping, label resolution, relationship label derivation |
 | `stores/TableCoreStore.ts` | Data state (rows, sort, filter, group, processedRows) |
 | `stores/VisualStateStore.ts` | Column layout, geometry, visual config |
 | `stores/InteractionStore.ts` | UI state (selection, menus, expansion) |
@@ -179,3 +180,13 @@ VibeGrid registers as an undo-capable surface via `FocusAwareUndoRouter`. When t
 | `stores/InitStore.ts` | Grid initialization coordinator |
 | `utils/csv-export.ts` | CSV export utilities |
 | `utils/cascade-scheduler.ts` | Date cascading |
+
+## Column Label Resolution
+
+Column display names resolve in priority order:
+
+1. **`display.label`** — explicit label from schema field definition (set by server for relationship fields via `RelationshipLinkService.deriveLabel()`)
+2. **`deriveRelationshipLabel()`** — client-side fallback for `source: 'relationship'` fields missing `display.label` (uses `{semantic, targetEntityType, cardinality}` metadata)
+3. **`formatFieldName()`** — generic snake_case/PascalCase → "Title Case" conversion
+
+See `dataforge-relationships.md` for the full label derivation table.
