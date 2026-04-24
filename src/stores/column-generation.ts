@@ -421,10 +421,22 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       // Use options from schema (backend already provides colored options)
       const options = safeFieldDef.editor?.options || []
 
+      // Derive a clean display name:
+      // 1. Explicit display.label (set by server for new relationship fields)
+      // 2. Client-side derivation for relationship fields lacking a label (existing data)
+      // 3. Generic formatFieldName fallback
+      let columnName = safeFieldDef.display?.label as string | undefined
+      if (!columnName && isRelationshipProjection) {
+        columnName = deriveRelationshipLabel(safeFieldDef)
+      }
+      if (!columnName) {
+        columnName = formatFieldName(fieldName)
+      }
+
       const column: Column<T> = {
         id: fieldName,
         field: fieldName as keyof T & string,
-        name: formatFieldName(fieldName),
+        name: columnName,
         cellType: cellType as any,
         type: fieldType,
         width,
@@ -655,6 +667,74 @@ function formatFieldName(fieldName: string): string {
   }
 
   return formatted
+}
+
+/**
+ * Derive a clean label for relationship-injected fields from their metadata.
+ * Client-side fallback for fields injected before the server started setting display.label.
+ *
+ * Uses {relationshipType (semantic), targetEntityType, cardinality} already present on the field.
+ */
+function deriveRelationshipLabel(fieldDef: Record<string, any>): string | undefined {
+  const semantic = fieldDef.relationshipType as string | undefined
+  const target = fieldDef.targetEntityType as string | undefined
+  if (!semantic || !target) return undefined
+
+  const cardinality = (fieldDef.cardinality as string) || 'many'
+
+  // PascalCase → display: "CertificateOfInsurance" → "Certificate Of Insurance"
+  const targetDisplay = target
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
+
+  const pluralTarget = simplePluralLabel(targetDisplay)
+
+  switch (semantic) {
+    case 'relates_to':
+    case 'belongs_to':
+      return cardinality === 'many' ? pluralTarget : targetDisplay
+
+    case 'created_by':
+      return 'Created By'
+    case 'updated_by':
+      return 'Updated By'
+    case 'owned_by':
+      return cardinality === 'many' ? 'Owners' : 'Owner'
+    case 'assigned_to':
+      return cardinality === 'many' ? 'Assignees' : 'Assignee'
+    case 'reviewed_by':
+      return cardinality === 'many' ? 'Reviewers' : 'Reviewer'
+    case 'approved_by':
+    case 'requires_approval_from':
+      return cardinality === 'many' ? 'Approvers' : 'Approver'
+    case 'requested_from':
+      return 'Requested From'
+    case 'depends_on':
+      return 'Depends On'
+    case 'contributes_to':
+      return 'Contributes To'
+    case 'child_of':
+      return 'Parent'
+    case 'parent_of':
+      return cardinality === 'many' ? 'Children' : 'Child'
+
+    default: {
+      const verb = semantic
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+      return `${verb} ${targetDisplay}`
+    }
+  }
+}
+
+function simplePluralLabel(name: string): string {
+  if (name.endsWith('s') || name.endsWith('x') || name.endsWith('sh') || name.endsWith('ch')) {
+    return `${name}es`
+  }
+  if (name.endsWith('y') && !/[aeiou]y$/i.test(name)) {
+    return `${name.slice(0, -1)}ies`
+  }
+  return `${name}s`
 }
 
 // Note: Fallback columns removed - schema must provide entity definitions
