@@ -374,16 +374,10 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         searchFields: string[]
       } | null = null
 
-      // badge-list-live columns also need relationshipConfig so the DOM
+      // badge-list-live columns need relationshipConfig so the DOM
       // renderer can look up (relationshipEntity, direction, anchorId) in the
-      // MobX cache at render time. Falls through to the same metadata/config
-      // builder used by reference-select — the existing `isRelationshipInjected`
-      // branch at the end attaches relationshipEntity + direction.
-      if (
-        cellType === 'reference-select' ||
-        cellType === 'reference-multi' ||
-        cellType === 'badge-list-live'
-      ) {
+      // MobX cache at render time, and the editor can open the right picker.
+      if (cellType === 'badge-list-live') {
         const targetEntityType =
           safeFieldDef.relationshipTable ||
           safeFieldDef.targetEntityType ||
@@ -639,10 +633,6 @@ function mapFieldTypeToVibeGridCellType(fieldType: string, fieldName?: string): 
       return 'select'
     case 'select':
       return 'select'
-    case 'reference-select':
-    case 'reference_select':
-      return 'reference-select'
-
     default:
       return 'text'
   }

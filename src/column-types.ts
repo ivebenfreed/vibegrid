@@ -119,8 +119,8 @@ export type CellType =
   | 'category_option'
   | 'task_type_option'
   | 'discussion_type_option'
-  // Reference types
-  | 'reference-select'
+  // Relationship types (URS)
+  | 'badge-list-live'
   // Computed/rollup types
   | 'rollup_count'
   | 'rollup_sum'
@@ -147,7 +147,6 @@ export const SELECT_CELL_TYPES = new Set<CellType>([
   'single-select',
   'select-multi',
   'multi-select',
-  'reference-select',
 ] as const)
 
 /** @deprecated Use isDropdownPositioned() from './constants/field-type-categories' instead */

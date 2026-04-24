@@ -22,14 +22,14 @@ describe('GroupProcessor', () => {
         id: 'assigned_to',
         field: 'assigned_to',
         name: 'Assigned To',
-        cellType: 'reference-select' as any,
+        cellType: 'badge-list-live' as any,
         relationshipEntityType: 'PlatformUser',
       },
       {
         id: 'project',
         field: 'project',
         name: 'Project',
-        cellType: 'reference-select' as any,
+        cellType: 'badge-list-live' as any,
         relationshipEntityType: 'Project',
       },
     ]

@@ -46,7 +46,7 @@ export function GroupConfigPanel({ columns, groupConfig, onGroupConfigChange, cl
       const isSelectType =
         (cellType as string) === 'select' ||
         (cellType as string) === 'select-multi' ||
-        (cellType as string) === 'reference-select'
+        (cellType as string) === 'badge-list-live'
 
       // Include if it's explicitly a select type OR has options (indicating enum values)
       return isSelectType || hasOptions

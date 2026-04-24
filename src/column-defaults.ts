@@ -60,8 +60,8 @@ export const COLUMN_DEFAULTS: Record<CellType, { width: number; minWidth: number
   task_type_option: { width: 140, minWidth: 100, maxWidth: 200 },
   discussion_type_option: { width: 160, minWidth: 120, maxWidth: 220 },
 
-  // Reference types
-  'reference-select': { width: 160, minWidth: 120, maxWidth: 300 },
+  // Relationship types (URS)
+  'badge-list-live': { width: 250, minWidth: 150, maxWidth: 400 },
 
   // Computed/rollup types
   rollup_count: { width: 100, minWidth: 80, maxWidth: 150 },

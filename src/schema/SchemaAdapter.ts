@@ -98,7 +98,7 @@ export class SchemaAdapter {
    * Check if column is a relationship field
    */
   static isRelationshipField(column: Column): boolean {
-    const relationshipTypes = ['reference-select', 'reference-multi']
+    const relationshipTypes = ['badge-list-live']
     const type = column.cellType || column.type || ''
     return relationshipTypes.includes(type)
   }

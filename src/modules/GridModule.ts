@@ -15,7 +15,7 @@ import type { SlotRegistry } from '../slots/SlotRegistry'
 /** Schema field descriptor for canHandle() predicates (GH#2139) */
 export interface SchemaFieldDescriptor {
   fieldId: string
-  fieldType: string // 'status_set' | 'select' | 'date' | 'datetime' | 'reference-select' | etc.
+  fieldType: string // 'status_set' | 'select' | 'date' | 'datetime' | 'badge-list-live' | etc.
   label: string
   slug: string
   cardinality?: 'one-to-one' | 'many-to-one' | 'one-to-many' | 'many-to-many'

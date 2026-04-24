@@ -589,7 +589,7 @@ export class GroupProcessor {
   /**
    * Relationship field types that require entity name resolution.
    */
-  private static readonly RELATIONSHIP_FIELD_TYPES = ['reference-select', 'reference-multi']
+  private static readonly RELATIONSHIP_FIELD_TYPES = ['badge-list-live']
 
   /**
    * Check if a column is a relationship field.

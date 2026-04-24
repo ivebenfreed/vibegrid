@@ -151,8 +151,8 @@ export function formatCellValue(
         .join(', ')
     }
 
-    // Reference — use display value as-is
-    case 'reference-select':
+    // Relationship — use display value as-is
+    case 'badge-list-live':
       return String(value)
 
     // Computed — raw string

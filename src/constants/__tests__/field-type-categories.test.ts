@@ -51,8 +51,7 @@ describe('FIELD_TYPE_CATEGORIES', () => {
       'multi-select',
       'multiselect',
       'tags',
-      'reference-select',
-      'reference-multi',
+      'badge-list-live',
       'priority_option',
       'status_option',
       'category_option',
@@ -133,7 +132,7 @@ describe('isDropdownPositioned', () => {
   it('returns true for dropdown types', () => {
     expect(isDropdownPositioned('select')).toBe(true)
     expect(isDropdownPositioned('date')).toBe(true)
-    expect(isDropdownPositioned('reference-select')).toBe(true)
+    expect(isDropdownPositioned('badge-list-live')).toBe(true)
   })
 
   it('returns true for boolean types (positioned as dropdown)', () => {

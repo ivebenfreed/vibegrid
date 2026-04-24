@@ -54,7 +54,7 @@ const mockColumns = [
   { id: 'priority', name: 'Priority', cellType: 'number' },
   { id: 'due_date', name: 'Due Date', cellType: 'date' },
   { id: 'completed', name: 'Completed', cellType: 'boolean' },
-  { id: 'assignee', name: 'Assignee', cellType: 'reference-select' },
+  { id: 'assignee', name: 'Assignee', cellType: 'badge-list-live' },
 ]
 
 // ====================================
@@ -367,8 +367,8 @@ describe('FilterOperatorPicker Operators by Field Type', () => {
     if (!componentExists(FILTER_OPERATOR_PICKER_PATH)) {
       throw new Error('FilterOperatorPicker.tsx does not exist yet')
     }
-    // Relationship fields (reference-select, reference-multi) should support same as status: equals, not_equals, in, not_in, is_empty, is_not_empty
-    expect(sourceCode).toMatch(/reference-select|reference-multi|relationship/i)
+    // Relationship fields (badge-list-live) should support same as status: equals, not_equals, in, not_in, is_empty, is_not_empty
+    expect(sourceCode).toMatch(/badge-list-live|relationship/i)
   })
 
   it('should have getOperatorsForFieldType function or similar', () => {

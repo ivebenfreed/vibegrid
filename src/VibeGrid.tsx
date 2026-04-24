@@ -518,7 +518,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Reactive bridge: entity reference target collections → tableCoreStore.entityReferenceData
   // Renders one invisible bridge component per target entity type (e.g., Company, Vendor)
-  // so that reference-select cells update automatically when target entities change
+  // so that badge-list-live cells update automatically when target entities change
   const entityRefBridges = useEntityReferenceData(tableCoreStore)
 
   // GH#2651 P1.3: Reactive bridge for badge-list-live cells.

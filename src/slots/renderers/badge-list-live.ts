@@ -139,16 +139,16 @@ class BadgeListLiveCellRenderer implements CellRenderer {
   affordances = {
     sortable: false,
     filterable: false,
-    editable: false,
+    editable: true,
     resizable: true,
     reorderable: true,
     groupable: false,
   }
 
   interactionPolicy = {
-    defaultAction: 'custom' as const,
-    editTrigger: 'none' as const,
-    blurPolicy: 'cancel' as const,
+    defaultAction: 'edit' as const,
+    editTrigger: 'content-click' as const,
+    blurPolicy: 'commit' as const,
   }
 
   affordanceGroup = { group: 'editable-badge', whenNotEditable: 'readonly-badge' }

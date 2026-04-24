@@ -3,14 +3,12 @@
  *
  * Relationship Field Navigation Tests (GH#1843)
  *
- * NOTE: entity_reference and user_reference field types were removed in GH#2552.
- * Relationships are now managed through URS (UnifiedRelationshipService),
- * not field-level references. The reference-select and reference-multi types
- * handle relationship display in the grid.
+ * NOTE: entity_reference, user_reference, reference-select, reference-multi
+ * field types were all removed. Relationships are now managed through URS
+ * (UnifiedRelationshipService) — the sole relationship cellType is badge-list-live.
  *
- * The original EntityReferenceCellRenderer and UserReferenceCellRenderer
- * slot registrations have been removed from slot-initialization.ts.
- * This test file now verifies that the removed types are no longer registered.
+ * The EntityReferenceCellRenderer and UserReferenceCellRenderer renderer
+ * files have been deleted. This test verifies the removed types are not registered.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'

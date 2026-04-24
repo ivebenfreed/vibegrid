@@ -111,7 +111,7 @@ describe('FilterValueInput behavior', () => {
     const relationshipColumn = makeColumn({
       id: 'assignee',
       field: 'assignee',
-      cellType: 'reference-select',
+      cellType: 'badge-list-live',
     })
 
     render(

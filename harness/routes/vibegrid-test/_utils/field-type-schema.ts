@@ -215,10 +215,11 @@ export const FIELD_TYPE_TEST_SCHEMA: EntitySchema = {
     },
     {
       name: 'related_project',
-      type: 'reference-select',
+      type: 'text',
+      source: 'relationship',
       label: 'Project',
       required: false,
-      description: 'Reference select with badge display',
+      description: 'Relationship badge display (URS)',
       display: { width: 140 },
       relationshipConfig: {
         targetEntityType: 'Project',

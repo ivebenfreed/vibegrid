@@ -173,13 +173,9 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'phone':
       return <TextEditor {...props} />
 
-    case 'reference-select':
-      fileLog.debug('createEditor: Creating PickerEntityEditor for reference-select')
+    case 'badge-list-live':
+      fileLog.debug('createEditor: Creating PickerEntityEditor for badge-list-live (URS relationship)')
       return <PickerEntityEditor {...props} />
-
-    case 'reference-multi':
-      fileLog.debug('createEditor: Creating PickerMultiEditor for reference-multi')
-      return <PickerMultiEditor {...props} />
 
     // System option reference types
     case 'priority_option':

@@ -168,7 +168,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
       const singleSelectTypes = [
         'select',
         'single-select',
-        'reference-select',
+        'badge-list-live',
         'priority_option',
         'status_option',
         'category_option',
@@ -313,7 +313,7 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
                 typeLabel = 'Category'
               } else if ((cellType as string) === 'task_type_option') {
                 typeLabel = 'Type'
-              } else if (['select', 'single-select', 'reference-select'].includes(cellType as string)) {
+              } else if (['select', 'single-select', 'badge-list-live'].includes(cellType as string)) {
                 typeLabel = 'Select'
               }
 

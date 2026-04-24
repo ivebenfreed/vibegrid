@@ -71,9 +71,8 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldTypeCategory> = {
   // The positioning must match the editor chosen, so EditingOverlay handles json/jsonb
   // as a special case using the same isTagsLikeField() check from createEditor.
 
-  // Relationship dropdowns
-  'reference-select': 'dropdown',
-  'reference-multi': 'dropdown',
+  // Relationship dropdowns (URS — badge-list-live is the sole relationship cellType)
+  'badge-list-live': 'dropdown',
 
   // System option dropdowns
   priority_option: 'dropdown',

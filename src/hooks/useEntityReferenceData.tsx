@@ -2,15 +2,15 @@
  * useEntityReferenceData - Reactive bridge for entity reference display data
  *
  * Bridges TanStack DB entity collections → tableCoreStore.entityReferenceData (MobX)
- * so that reference-select cells update reactively
+ * so that badge-list-live cells update reactively
  * when target entity data changes (via table_change events → collection sync → liveQuery).
  *
  * Architecture:
- * - Scans grid columns for reference-select types
+ * - Scans grid columns for badge-list-live types
  * - For each unique target entity type, renders an EntityReferenceDataBridge component
  * - Each bridge uses useEntityCollection + useLiveQuery to reactively read records
  * - Pushes results into tableCoreStore.entityReferenceData
- * - Existing MobX reactions in EntityReferenceRenderer pick up changes automatically
+ * - Existing MobX reactions pick up changes automatically
  */
 
 import React, { useEffect, useMemo } from 'react'
@@ -67,14 +67,14 @@ function EntityReferenceDataBridge({
 const MemoizedBridge = React.memo(EntityReferenceDataBridge)
 
 /**
- * Extract unique target entity types from reference-select columns.
+ * Extract unique target entity types from badge-list-live columns.
  */
 function getEntityReferenceTargets(columns: Column[]): string[] {
   const targets = new Set<string>()
 
   for (const col of columns) {
     const cellType = (col.cellType || (col as any).type) as string
-    if (cellType === 'reference-select' || cellType === 'reference-multi') {
+    if (cellType === 'badge-list-live') {
       const target =
         (col as any).relationshipConfig?.targetEntityType ||
         (col as any).targetEntityType ||
