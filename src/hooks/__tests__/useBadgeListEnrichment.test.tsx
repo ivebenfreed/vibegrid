@@ -46,12 +46,16 @@ vi.mock('@tanstack/react-db', () => ({
   // return from liveQueryState.
   useLiveQuery: (cb: (q: any) => any) => {
     let kind: 'edges' | 'targets' | null = null
+    const selectObj = {
+      select: (_sel: (row: any) => any) => ({}),
+    }
     const q = {
       from: (entry: Record<string, any>) => {
         const coll = Object.values(entry)[0] as any
         kind = coll?.__kind ?? null
         return {
-          select: (_sel: (row: any) => any) => ({}),
+          where: (_pred: any) => selectObj,
+          select: selectObj.select,
         }
       },
     }

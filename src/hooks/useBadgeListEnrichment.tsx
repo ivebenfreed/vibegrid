@@ -72,14 +72,31 @@ function RelationshipBadgeBridge({
     [edgeCollection],
   )
 
-  // Read all target records reactively so we can resolve ids → names.
-  // We don't filter here — the target collection is shared across many edges.
+  // Extract the set of target IDs we actually need from the edges.
+  // This prevents materializing the entire target collection (e.g., 263K File records)
+  // into JS objects — we only need the handful referenced by relationship edges.
+  const selectKey = direction === 'source' ? 'target_entity_id' : 'source_entity_id'
+  const neededTargetIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const edge of edges as Array<Record<string, unknown>>) {
+      const id = edge?.[selectKey] as string | undefined
+      if (id) ids.add(id)
+    }
+    return ids
+  }, [edges, selectKey])
+
+  // Read only the target records whose IDs appear in the edges.
+  // CRITICAL: Without this filter, collections like File (263K records) are fully
+  // materialized into JS arrays on every change event, causing Chrome tab crashes.
   const { data: targetRecords = [] } = useLiveQuery(
     (q: any) => {
-      if (!targetCollection) return undefined
-      return q.from({ entity: targetCollection }).select(({ entity }: any) => ({ ...entity }))
+      if (!targetCollection || neededTargetIds.size === 0) return undefined
+      return q
+        .from({ entity: targetCollection })
+        .where(({ entity }: any) => neededTargetIds.has(entity.id))
+        .select(({ entity }: any) => ({ ...entity }))
     },
-    [targetCollection],
+    [targetCollection, neededTargetIds],
   )
 
   useEffect(() => {
@@ -103,7 +120,6 @@ function RelationshipBadgeBridge({
 
     // Group edges by anchor id (the side that matches the grid row id).
     const filterKey = direction === 'source' ? 'source_entity_id' : 'target_entity_id'
-    const selectKey = direction === 'source' ? 'target_entity_id' : 'source_entity_id'
 
     const byAnchor = new Map<string, string[]>()
 
@@ -147,7 +163,7 @@ function RelationshipBadgeBridge({
       anchorCount: byAnchor.size,
       targetCount: targetRecords.length,
     })
-  }, [edges, targetRecords, direction, relationshipEntity, targetEntityType, tableCoreStore])
+  }, [edges, targetRecords, direction, selectKey, relationshipEntity, targetEntityType, tableCoreStore])
 
   return null
 }
