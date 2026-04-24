@@ -313,6 +313,7 @@ export class TableCoreStore implements IStore {
   @observable dataVersion: number = 0 // Increments on cell value changes
   @observable configVersion: number = 0 // Increments on sort/filter/group changes
   @observable structureVersion: number = 0 // Increments on add/remove/reorder rows
+  @observable badgeDataVersion: number = 0 // Increments on relationship badge data changes (GH#2651)
 
   // Change metadata for renderer routing
   @observable lastChangeMetadata: ChangeMetadata | null = null
@@ -838,6 +839,7 @@ export class TableCoreStore implements IStore {
   ): void {
     const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
     this.relationshipBadgeData.set(key, names)
+    this.badgeDataVersion++
   }
 
   /**
@@ -850,6 +852,7 @@ export class TableCoreStore implements IStore {
   markRelationshipBadgesReady(relationshipEntity: string, direction: 'source' | 'target'): void {
     const key = `${(relationshipEntity || '').toLowerCase()}:${direction}`
     this.relationshipBadgeReady.add(key)
+    this.badgeDataVersion++
   }
 
   /**
@@ -2013,6 +2016,7 @@ export class TableCoreStore implements IStore {
     this.dataVersion = 0
     this.configVersion = 0
     this.structureVersion = 0
+    this.badgeDataVersion = 0
     this.lastChangeMetadata = null
 
     // Reset searchable columns (GH#1391)

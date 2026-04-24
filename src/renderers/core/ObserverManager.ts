@@ -222,6 +222,7 @@ export class ObserverManager {
           dataVersion: tableCoreStore.dataVersion,
           configVersion: tableCoreStore.configVersion,
           structureVersion: tableCoreStore.structureVersion,
+          badgeDataVersion: tableCoreStore.badgeDataVersion,
           lastChangeMetadata: tableCoreStore.lastChangeMetadata,
         }
       },
