@@ -48,15 +48,13 @@ vi.mock('@tanstack/react-db', () => ({
     let kind: 'edges' | 'targets' | null = null
     const selectObj = {
       select: (_sel: (row: any) => any) => ({}),
+      where: (_pred: any): any => selectObj,
     }
     const q = {
       from: (entry: Record<string, any>) => {
         const coll = Object.values(entry)[0] as any
         kind = coll?.__kind ?? null
-        return {
-          where: (_pred: any) => selectObj,
-          select: selectObj.select,
-        }
+        return selectObj
       },
     }
     // Invoke the callback so the hook exercises the select path.

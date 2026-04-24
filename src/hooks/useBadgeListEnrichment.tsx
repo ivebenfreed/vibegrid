@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { eq, or } from '@tanstack/db'
 import { useLiveQuery } from '@tanstack/react-db'
 import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
@@ -88,12 +89,24 @@ function RelationshipBadgeBridge({
   // Read only the target records whose IDs appear in the edges.
   // CRITICAL: Without this filter, collections like File (263K records) are fully
   // materialized into JS arrays on every change event, causing Chrome tab crashes.
+  // Uses TanStack DB query builder (eq/or) — raw JS booleans are rejected by .where().
   const { data: targetRecords = [] } = useLiveQuery(
     (q: any) => {
       if (!targetCollection || neededTargetIds.size === 0) return undefined
-      return q
-        .from({ entity: targetCollection })
-        .where(({ entity }: any) => neededTargetIds.has(entity.id))
+      const ids = Array.from(neededTargetIds)
+      const query = q.from({ entity: targetCollection })
+      // Build or(eq(id, x), eq(id, y), ...) filter for only the IDs we need
+      if (ids.length === 1) {
+        return query
+          .where(({ entity }: any) => eq(entity.id, ids[0]))
+          .select(({ entity }: any) => ({ ...entity }))
+      }
+      // or() requires 2+ args; build the chain from the eq() expressions
+      return query
+        .where(({ entity }: any) => {
+          const conds = ids.map((id) => eq(entity.id, id))
+          return or(conds[0], conds[1], ...conds.slice(2))
+        })
         .select(({ entity }: any) => ({ ...entity }))
     },
     [targetCollection, neededTargetIds],
