@@ -99,6 +99,59 @@ function formatComputedValue(value: unknown): string {
 }
 
 // ============================================================
+// Expiration-date red styling (parallel to date.ts convention)
+// Applies to computed scalars whose column id/field/name/label
+// contains "expir" AND whose value parses as a date strictly
+// before today. Lets `earliest_expiration` render past dates in
+// red despite being a computed formula (not a date cell).
+// ============================================================
+
+function columnIsExpiration(column: Column): boolean {
+  const candidates = [column.id, column.field, column.name, column.label]
+  return candidates.some(
+    (v) => typeof v === 'string' && v.toLowerCase().includes('expir'),
+  )
+}
+
+/**
+ * Parse a date-only ("YYYY-MM-DD") string as a local date (no UTC shift),
+ * or fall back to Date parsing. Returns null for unparseable input.
+ */
+function parseComputedDate(value: unknown): Date | null {
+  if (value == null || value === '') return null
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+  const s = String(value).trim()
+  if (!s) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number)
+    const local = new Date(y, m - 1, d)
+    return Number.isNaN(local.getTime()) ? null : local
+  }
+  const parsed = new Date(s)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function valueIsPastDate(value: unknown): boolean {
+  const d = parseComputedDate(value)
+  if (!d) return false
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return d.getTime() < startOfToday.getTime()
+}
+
+/** Default green for computed scalar text. */
+const COMPUTED_VALUE_COLOR = '#059669'
+/** Red for past expiration dates (matches date.ts red-800). */
+const COMPUTED_PAST_EXPIRATION_COLOR = '#991b1b'
+
+function computedValueColor(value: unknown, column: Column): string {
+  if (columnIsExpiration(column) && valueIsPastDate(value)) {
+    return COMPUTED_PAST_EXPIRATION_COLOR
+  }
+  return COMPUTED_VALUE_COLOR
+}
+
+// ============================================================
 // COMPUTED EXPRESSION
 // ============================================================
 
@@ -119,7 +172,7 @@ class ComputedExpressionCellRenderer implements CellRenderer {
     } else {
       const valueSpan = document.createElement('span')
       valueSpan.textContent = formatComputedValue(value)
-      valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
+      valueSpan.style.cssText = `font-weight: 500; color: ${computedValueColor(value, column)};`
       container.appendChild(valueSpan)
     }
     container.appendChild(indicator)
@@ -188,7 +241,7 @@ class ComputedFormulaCellRenderer implements CellRenderer {
     } else {
       const valueSpan = document.createElement('span')
       valueSpan.textContent = formatComputedValue(value)
-      valueSpan.style.cssText = 'font-weight: 500; color: #059669;'
+      valueSpan.style.cssText = `font-weight: 500; color: ${computedValueColor(value, column)};`
       container.appendChild(valueSpan)
     }
     container.appendChild(indicator)
