@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { AlertTriangle, ClipboardCheck, Download, Loader2, Play } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
@@ -96,24 +96,18 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   })
 
   // GH#2641: Load the active view's config so we can render config-driven
-  // widgets above the grid (listWidgets). Mirrors EntityDetailTabView's pattern.
-  const [activeViewConfig, setActiveViewConfig] = useState<Record<string, unknown> | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    orpcClient.dataforge.views
-      .list({ entityName })
-      .then((result) => {
-        if (cancelled) return
-        const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default) ?? result.views[0] ?? null
-        setActiveViewConfig(defaultView?.config ?? null)
-      })
-      .catch(() => {
-        // Non-critical: widgets just won't render
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [entityName])
+  // widgets above the grid (listWidgets). useQuery deduplicates in-flight requests.
+  const viewsQuery = useQuery({
+    queryKey: ['views', 'list', entityName],
+    queryFn: () => orpcClient.dataforge.views.list({ entityName }),
+    staleTime: 5 * 60 * 1000,
+    enabled: !!entityName,
+  })
+  const activeViewConfig = useMemo(() => {
+    if (!viewsQuery.data) return null
+    const defaultView = viewsQuery.data.views.find((v: { is_default: boolean }) => v.is_default) ?? viewsQuery.data.views[0] ?? null
+    return defaultView?.config ?? null
+  }, [viewsQuery.data])
 
   // GH#2139: Wire viewModeStore to VibeGrid props for view switching
   const { viewModeStore } = stores
