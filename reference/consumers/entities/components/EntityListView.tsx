@@ -249,75 +249,80 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         )
       })}
 
-      <VibeGrid
-        tableId={`entity-list-${entityName}`}
-        entityType={entityName}
-        schemaFields={schemaFields}
-        height="100%"
-        viewMode={currentViewMode}
-        onViewModeChange={handleViewModeChange}
-        enableSelectionColumn={true}
-        enableGrouping={true}
-        enableFiltering={true}
-        enableSorting={true}
-        readOnly={!hasWriteAccess}
-        enableDragAndDrop={hasWriteAccess}
-        enableDelete={hasWriteAccess}
-        enableExport={true}
-        enableInlineCreation={enableInlineCreation}
-        onInlineCreate={onInlineCreate}
-        onEscalate={onEscalate}
-        onCellClick={onCellClick}
-        onCopyLink={copyLink}
-        viewPickerProps={viewPickerProps}
-        toolbarLeading={toolbarLeading}
-        toolbarTrailing={toolbarTrailing}
-        rowActions={allRowActions}
-        onRowAction={(actionId, rowIds, rowsData) => {
-          if (actionId === 'review-selected') {
-            onOpenReview(rowIds, rowsData)
-          }
-          // GH#1926: Lien waiver cycle actions trigger workflows
-          if (actionId === 'start-cycle' && rowIds.length > 0) {
-            // Trigger lien-waiver-start-cycle workflow via status change to in_progress
-            const record = rowsData[0]?.data ?? rowsData[0]
-            const recordId = record?.id ?? rowIds[0]
-            if (recordId) {
-              orpcClient.dataforge.data
-                .update({
-                  entityName: 'LienWaiverCycle',
-                  recordId,
-                  data: { status: 'in_progress' },
-                })
-                .then(() => {
-                  toast.success('Cycle started — waiver requests are being created')
-                })
-                .catch((err: Error) => {
-                  toast.error(`Failed to start cycle: ${err.message}`)
-                })
+      {/* Wrap VibeGrid in a flex-1 min-h-0 sizing box so its height="100%" resolves to
+          the remaining space after listWidgets — not 100% of the parent container, which
+          would cause the grid (and its absolutely-positioned ActionsBar) to overflow. */}
+      <div className="relative flex-1 min-h-0">
+        <VibeGrid
+          tableId={`entity-list-${entityName}`}
+          entityType={entityName}
+          schemaFields={schemaFields}
+          height="100%"
+          viewMode={currentViewMode}
+          onViewModeChange={handleViewModeChange}
+          enableSelectionColumn={true}
+          enableGrouping={true}
+          enableFiltering={true}
+          enableSorting={true}
+          readOnly={!hasWriteAccess}
+          enableDragAndDrop={hasWriteAccess}
+          enableDelete={hasWriteAccess}
+          enableExport={true}
+          enableInlineCreation={enableInlineCreation}
+          onInlineCreate={onInlineCreate}
+          onEscalate={onEscalate}
+          onCellClick={onCellClick}
+          onCopyLink={copyLink}
+          viewPickerProps={viewPickerProps}
+          toolbarLeading={toolbarLeading}
+          toolbarTrailing={toolbarTrailing}
+          rowActions={allRowActions}
+          onRowAction={(actionId, rowIds, rowsData) => {
+            if (actionId === 'review-selected') {
+              onOpenReview(rowIds, rowsData)
             }
-          }
-          if (actionId === 'export-waivers' && rowIds.length > 0) {
-            // Trigger export by changing status to closed (fires lien-waiver-export workflow)
-            const record = rowsData[0]?.data ?? rowsData[0]
-            const recordId = record?.id ?? rowIds[0]
-            if (recordId) {
-              orpcClient.dataforge.data
-                .update({
-                  entityName: 'LienWaiverCycle',
-                  recordId,
-                  data: { status: 'closed' },
-                })
-                .then(() => {
-                  toast.success('Export started — document will be available shortly')
-                })
-                .catch((err: Error) => {
-                  toast.error(`Failed to export waivers: ${err.message}`)
-                })
+            // GH#1926: Lien waiver cycle actions trigger workflows
+            if (actionId === 'start-cycle' && rowIds.length > 0) {
+              // Trigger lien-waiver-start-cycle workflow via status change to in_progress
+              const record = rowsData[0]?.data ?? rowsData[0]
+              const recordId = record?.id ?? rowIds[0]
+              if (recordId) {
+                orpcClient.dataforge.data
+                  .update({
+                    entityName: 'LienWaiverCycle',
+                    recordId,
+                    data: { status: 'in_progress' },
+                  })
+                  .then(() => {
+                    toast.success('Cycle started — waiver requests are being created')
+                  })
+                  .catch((err: Error) => {
+                    toast.error(`Failed to start cycle: ${err.message}`)
+                  })
+              }
             }
-          }
-        }}
-      />
+            if (actionId === 'export-waivers' && rowIds.length > 0) {
+              // Trigger export by changing status to closed (fires lien-waiver-export workflow)
+              const record = rowsData[0]?.data ?? rowsData[0]
+              const recordId = record?.id ?? rowIds[0]
+              if (recordId) {
+                orpcClient.dataforge.data
+                  .update({
+                    entityName: 'LienWaiverCycle',
+                    recordId,
+                    data: { status: 'closed' },
+                  })
+                  .then(() => {
+                    toast.success('Export started — document will be available shortly')
+                  })
+                  .catch((err: Error) => {
+                    toast.error(`Failed to export waivers: ${err.message}`)
+                  })
+              }
+            }
+          }}
+        />
+      </div>
       <ReorderConfirmationDialog />
 
       {/* SaveViewDialog (GH#1570 P2.3) */}
@@ -623,7 +628,10 @@ export const EntityListView = observer(function EntityListView(props: EntityList
         )}
 
         {/* Vibegrid Container — position:relative anchors QuickCreatePanel */}
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        {/* flex flex-col: ensures list widgets + grid stack properly so VibeGrid consumes
+            remaining space (not 100% of parent) — otherwise the grid overflows below the
+            parent by the list-widget height, which pushes the ActionsBar off-screen. */}
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <VibeGridStoreProvider tableId={`entity-list-${entityName}`} entityType={entityName}>
             <EntityListViewUrlSync
               entityName={entityName}
