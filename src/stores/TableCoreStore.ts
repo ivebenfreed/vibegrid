@@ -829,6 +829,12 @@ export class TableCoreStore implements IStore {
   /**
    * GH#2651 P1.3: Write relationship badge names from the React bridge.
    * MobX observable update triggers DOM renderer re-render via reaction.
+   *
+   * NOTE: Prefer setRelationshipBadgesBulk for multi-anchor writes (GH#2758).
+   * Each call here bumps badgeDataVersion, which triggers a full grid repaint
+   * via ObserverManager.createDataObserver — calling this in a loop produces N
+   * full repaints. Single-key callers (real-time edits) can use this safely;
+   * bridge fan-out must batch.
    */
   @action
   setRelationshipBadges(
@@ -840,6 +846,38 @@ export class TableCoreStore implements IStore {
     const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
     this.relationshipBadgeData.set(key, names)
     this.badgeDataVersion++
+  }
+
+  /**
+   * GH#2758: Batched relationship badge writes — one MobX transaction, one
+   * badgeDataVersion bump regardless of how many anchors are written.
+   *
+   * Use this from the bridge effect when populating dozens-to-thousands of
+   * anchors per pass. Without batching, each per-anchor write triggers a full
+   * grid repaint reaction (ObserverManager.createDataObserver observes
+   * badgeDataVersion), producing main-thread saturation that surfaces as the
+   * Chrome "Page Unresponsive" dialog on wide DEB Project grids.
+   *
+   * @param entries Iterable of { relationshipEntity, direction, anchorId, names }
+   */
+  @action
+  setRelationshipBadgesBulk(
+    entries: Iterable<{
+      relationshipEntity: string
+      direction: 'source' | 'target'
+      anchorId: string
+      names: string[]
+    }>,
+  ): void {
+    let touched = 0
+    for (const { relationshipEntity, direction, anchorId, names } of entries) {
+      const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
+      this.relationshipBadgeData.set(key, names)
+      touched++
+    }
+    if (touched > 0) {
+      this.badgeDataVersion++
+    }
   }
 
   /**
