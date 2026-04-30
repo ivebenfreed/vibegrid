@@ -326,23 +326,65 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
   }, [isEnabled, entityType, stores])
 
   // ====================================
-  // DEFAULT VIEW LOADING (on mount, when no ?view= in URL)
+  // ACTIVE VIEW CONFIG LOADING (on mount)
+  //
+  // Always fetch the views list so we can populate `defaultViewConfig`
+  // (consumed as `activeViewConfig` for `listWidgets` GH#2641 and
+  // `listExtraTabs` GH#2689 B7 — the rendering surfaces depend on the
+  // resolved view's config, not on whether the URL named one).
+  //
+  // Two cases:
+  //   - URL has `?view=<id>` (deep-link or post-refresh): resolve config
+  //     from that view, but DO NOT call `selectView` — the URL→Store
+  //     effect above has already applied any layered sort/filter/group
+  //     overrides from the URL, and re-applying the saved view would
+  //     clobber them. Track activeViewId via setActiveViewId so the
+  //     unsaved-changes reaction can wire up.
+  //   - URL has no `?view=`: pick the default view, expose its config,
+  //     and call selectView to apply it (the original behavior).
+  //
+  // Bug fix (GH#2689 B7 partial-state): the previous early-return when
+  // `?view=` was present left `defaultViewConfig` permanently null, so
+  // the list-view tab strip ("Grid" + "Scan Runs") disappeared on
+  // browser refresh — the URL had been mutated by the first nav's
+  // selectView() call, and the loader skipped on subsequent mounts.
   // ====================================
 
   useEffect(() => {
     if (!isEnabled) return
-    if (initialSearchRef.current.view) return // URL already has a view
 
     let cancelled = false
 
-    const loadDefault = async (): Promise<void> => {
+    const loadViews = async (): Promise<void> => {
       try {
         const result = await orpcClient.dataforge.views.list({ entityName: entityType })
         if (cancelled) return
 
-        const defaultView = result.views.find((v: { is_default: boolean }) => v.is_default)
-        // Expose the default view config so callers can read it without a
-        // second views.list fetch (GH#2641 widget config).
+        const initialViewId = initialSearchRef.current.view
+
+        if (initialViewId) {
+          // URL named a view — resolve config from it without re-applying.
+          const activeView = result.views.find(
+            (v: { id: string }) => v.id === initialViewId,
+          )
+          const resolved =
+            activeView ??
+            result.views.find((v: { is_default: boolean }) => v.is_default) ??
+            result.views[0] ??
+            null
+          setDefaultViewConfig(resolved?.config ?? null)
+          if (activeView) {
+            // Ensure activeViewId state matches the URL even if the
+            // URL→Store effect already set it; harmless re-set.
+            setActiveViewId(activeView.id)
+          }
+          return
+        }
+
+        // No ?view= in URL — load default and apply it.
+        const defaultView = result.views.find(
+          (v: { is_default: boolean }) => v.is_default,
+        )
         const resolvedView = defaultView ?? result.views[0] ?? null
         setDefaultViewConfig(resolvedView?.config ?? null)
 
@@ -354,13 +396,13 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           selectView(defaultView as EntityViewRow)
         }
       } catch (err) {
-        logger.warn('Failed to load default view', {
+        logger.warn('Failed to load views', {
           error: err instanceof Error ? err.message : String(err),
         })
       }
     }
 
-    loadDefault()
+    loadViews()
     return () => {
       cancelled = true
     }

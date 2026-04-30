@@ -1,19 +1,44 @@
-/* @vitest-environment jsdom */
+/* @vitest-environment node */
 
 /**
  * Tests for useViewUrlSync serialization helpers (GH#1570)
  *
- * Tests the pure serialization/deserialization functions that convert
+ * Pure-function + source-text analysis tests — no DOM needed, so we
+ * run in the node environment to keep node:fs / node:path imports
+ * usable (the default would inherit jsdom and externalize node
+ * built-ins for browser compatibility).
+ *
+ * Pure serialization/deserialization functions that convert
  * between URL search params and VibeGrid store state.
  *
  * Also includes source-code analysis tests for:
  * - P2.5: Default view loading when no ?view= in URL
+ * - GH#2689 B7: Active view config loading when ?view= IS in URL
+ *   (regression test for partial-state bug where the list-view tab
+ *   strip disappeared on browser refresh because the loader early-
+ *   returned and never populated `defaultViewConfig`)
  */
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { describe, expect, it, beforeEach } from 'vitest'
-import { serializeSort, deserializeSort, serializeFilters, deserializeFilters, serializeGroup } from '../useViewUrlSync'
+import { describe, expect, it, beforeEach, vi } from 'vitest'
+
+// Mock `@/app/stores` BEFORE importing the hook module — importing
+// useViewUrlSync transitively pulls in RootStore which constructs
+// FocusAwareUndoRouter and touches `document` at module-eval time.
+// We don't exercise the hook here (only its pure helpers and source
+// text), so we replace the store module with no-op stubs.
+vi.mock('@/app/stores', () => ({
+  useFeatureFlags: () => ({ isEnabled: () => false }),
+}))
+
+import {
+  serializeSort,
+  deserializeSort,
+  serializeFilters,
+  deserializeFilters,
+  serializeGroup,
+} from '../useViewUrlSync'
 
 const HOOK_PATH = join(__dirname, '../useViewUrlSync.ts')
 
@@ -233,9 +258,20 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
     expect(source).toContain('selectView(defaultView')
   })
 
-  it('should NOT load default view when URL has ?view= param', () => {
-    // The effect should return early when initialSearchRef.current.view is set
-    expect(source).toContain('if (initialSearchRef.current.view) return')
+  it('should NOT call selectView when URL has ?view= param', () => {
+    // Regression: the prior implementation early-returned the entire
+    // effect when `?view=` was set, which dropped `defaultViewConfig`
+    // population on the floor (GH#2689 B7). The fix still loads the
+    // views list when `?view=` is set, but skips the selectView call
+    // — re-applying the saved view's config would clobber any
+    // URL-layered sort/filter/group overrides applied by the
+    // URL→Store effect.
+    //
+    // Assert the new control-flow shape: when initialViewId is set,
+    // we set defaultViewConfig from the matched view and `return`
+    // BEFORE the selectView branch.
+    expect(source).toMatch(/if\s*\(\s*initialViewId\s*\)/)
+    expect(source).toMatch(/setDefaultViewConfig\(\s*resolved\?\.config[^)]*\)\s*[;\n][^]*?\breturn\b/)
   })
 
   it('should handle cancellation with cleanup function', () => {
@@ -247,12 +283,89 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
     expect(source).toContain('Loading default view')
   })
 
-  it('should warn on failure to load default view', () => {
-    expect(source).toContain('Failed to load default view')
+  it('should warn on failure to load views', () => {
+    // Renamed message to reflect the loader's broader scope (loads
+    // views regardless of whether `?view=` is in the URL).
+    expect(source).toContain('Failed to load views')
   })
 
   it('should include selectView in useEffect dependencies', () => {
-    // The default-loading useEffect should depend on selectView
+    // The view-loading useEffect should depend on selectView
     expect(source).toContain('selectView]')
+  })
+})
+
+// ====================================
+// GH#2689 B7 regression: active view config must populate even when
+// ?view= is in the URL (e.g., after browser refresh)
+// ====================================
+
+describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  it('should NOT have a top-level early return when initialSearchRef.current.view is set', () => {
+    // The pre-fix shape was:
+    //   if (!isEnabled) return
+    //   if (initialSearchRef.current.view) return // URL already has a view
+    //
+    // That second guard caused the bug: when the URL named a view
+    // (e.g., right after a hard refresh, since the prior selectView
+    // call had mutated the URL via `replace: true`), the loader
+    // never ran, so `defaultViewConfig` stayed null and consumers
+    // like `listExtraTabs` and `listWidgets` rendered nothing.
+    expect(source).not.toMatch(
+      /if\s*\(\s*initialSearchRef\.current\.view\s*\)\s*return\s*\/\/\s*URL already has a view/,
+    )
+  })
+
+  it('should resolve activeViewId from URL when ?view= is set', () => {
+    // The fix branches on `initialViewId` and finds the matching
+    // view by id so `defaultViewConfig` (consumed as
+    // `activeViewConfig` for tab-strip + widget rendering) is
+    // populated from the correct view.
+    expect(source).toMatch(/const initialViewId = initialSearchRef\.current\.view/)
+    expect(source).toMatch(/result\.views\.find\([\s\S]*?v\.id === initialViewId/)
+  })
+
+  it('should call setDefaultViewConfig in the ?view= branch', () => {
+    // This is the concrete bug fix: previously this assignment never
+    // ran when the URL had a view id, so `listExtraTabs` resolved to
+    // an empty array and the tab strip disappeared on refresh.
+    // Match: inside the `if (initialViewId) { ... }` block, we call
+    // setDefaultViewConfig before returning.
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    expect(block).not.toBeNull()
+    expect(block![1]).toContain('setDefaultViewConfig(')
+  })
+
+  it('should NOT call selectView when URL already has ?view=', () => {
+    // selectView would clobber URL-layered sort/filter overrides on
+    // a deep-link, since the URL→Store effect has already applied
+    // them. Only call selectView in the default-view branch.
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    expect(block).not.toBeNull()
+    expect(block![1]).not.toContain('selectView(')
+  })
+
+  it('should still call selectView in the no-?view= default branch', () => {
+    // The default-view path is unchanged — pick is_default, set
+    // config, apply via selectView (which mutates the URL to add
+    // `?view=<id>`).
+    expect(source).toContain('selectView(defaultView')
+  })
+
+  it('should handle missing matched view gracefully (no orphan selectView)', () => {
+    // If the URL names a view that no longer exists (deleted, stale
+    // bookmark), fall back to the default view's config so widgets
+    // and tabs still render. The fix uses chained `??` to fall back
+    // through (matched view → default view → first view → null).
+    expect(source).toMatch(/activeView\s*\?\?[\s\S]*?is_default[\s\S]*?\?\?[\s\S]*?result\.views\[0\]/)
   })
 })
