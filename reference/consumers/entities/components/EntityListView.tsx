@@ -12,8 +12,8 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, Loader2, Play } from 'lucide-react'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
+import { AlertTriangle, ClipboardCheck, Download, Loader2, Play, PlayCircle } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -28,6 +28,7 @@ import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
+import { cn } from '@/shared/lib/utils'
 
 import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
 import type { EntityRecord } from '@/shared/types/dataforge'
@@ -42,6 +43,8 @@ import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
 // GH#2641: side-effect import registers built-in list widgets + overview components
 import '../lib/register-view-components'
+// GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
+import { getListTab } from '../lib/list-tab-registry'
 import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
@@ -88,6 +91,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
+  const navigate = useNavigate()
 
   const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView, defaultViewConfig: activeViewConfig } = useViewUrlSync({
     entityType: entityName,
@@ -229,8 +233,70 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     ? ((activeViewConfig as any).listWidgets as Array<{ widget: string; props?: Record<string, unknown> }>)
     : []
 
+  // GH#2689 B7: Render the list-view tab strip when entity_views.config.listExtraTabs is present.
+  // Default tab is the grid; selecting a non-grid tab replaces the VibeGrid pane with the
+  // registered list-tab component. Tab id syncs to URL via `?tab=<id>` (TanStack Router search
+  // params validated by route schema), so reload + deep-link preserve state.
+  const listExtraTabs: Array<{ id: string; label: string; icon?: string; componentSlug?: string }> = Array.isArray(
+    (activeViewConfig as any)?.listExtraTabs,
+  )
+    ? ((activeViewConfig as any).listExtraTabs as Array<{
+        id: string
+        label: string
+        icon?: string
+        componentSlug?: string
+      }>)
+    : []
+  const search = useSearch({ strict: false }) as { tab?: string }
+  const requestedTab = typeof search?.tab === 'string' ? search.tab : 'grid'
+  const knownTabIds = ['grid', ...listExtraTabs.map((t) => t.id)]
+  // Fall back to grid when the URL contains an unknown tab id (stale config, deleted tab, etc.)
+  const activeTab = knownTabIds.includes(requestedTab) ? requestedTab : 'grid'
+  const setActiveTab = useCallback(
+    (next: string) => {
+      // Use replace so tab switching doesn't pollute the back stack — matches the
+      // detail-view tab pattern in EntityDetailTabShell.
+      navigate({
+        search: (prev: any) => ({ ...prev, tab: next === 'grid' ? undefined : next }),
+        replace: true,
+      } as any)
+    },
+    [navigate],
+  )
+  const activeListTabEntry = listExtraTabs.find((t) => t.id === activeTab)
+  const ActiveListTabComponent =
+    activeTab !== 'grid' && activeListTabEntry?.componentSlug
+      ? getListTab(activeListTabEntry.componentSlug)
+      : undefined
+
   return (
     <>
+      {listExtraTabs.length > 0 && (
+        <div
+          data-testid="list-tab-strip"
+          role="tablist"
+          aria-label="List view tabs"
+          className="flex items-center gap-1 border-b bg-background px-3"
+        >
+          <ListTabButton
+            id="grid"
+            label="Grid"
+            active={activeTab === 'grid'}
+            onSelect={setActiveTab}
+          />
+          {listExtraTabs.map((tab) => (
+            <ListTabButton
+              key={tab.id}
+              id={tab.id}
+              label={tab.label}
+              icon={tab.icon}
+              active={activeTab === tab.id}
+              onSelect={setActiveTab}
+            />
+          ))}
+        </div>
+      )}
+
       {listWidgets.map((entry, idx) => {
         const Widget = getListWidget(entry.widget)
         if (!Widget) {
@@ -249,10 +315,38 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         )
       })}
 
+      {/* GH#2689 B7: when a non-grid list-view tab is active, swap the VibeGrid pane out
+          for the registered tab component. The tab content occupies the same flex-1 box. */}
+      {activeTab !== 'grid' && ActiveListTabComponent && (
+        <div
+          data-testid={`list-tab-${activeTab}`}
+          className="flex-1 min-h-0 overflow-auto"
+          role="tabpanel"
+          aria-label={activeListTabEntry?.label ?? activeTab}
+        >
+          <ActiveListTabComponent entityName={entityName} organizationId={orgId} />
+        </div>
+      )}
+      {activeTab !== 'grid' && !ActiveListTabComponent && (
+        <div
+          data-testid={`list-tab-${activeTab}`}
+          className="flex-1 min-h-0 overflow-auto p-6 text-sm text-muted-foreground"
+          role="tabpanel"
+        >
+          <p>
+            Tab "{activeListTabEntry?.label ?? activeTab}" is configured but its component is not
+            registered. This is likely a stale config — falling back to the grid is recommended.
+          </p>
+        </div>
+      )}
+
       {/* Wrap VibeGrid in a flex-1 min-h-0 sizing box so its height="100%" resolves to
           the remaining space after listWidgets — not 100% of the parent container, which
           would cause the grid (and its absolutely-positioned ActionsBar) to overflow. */}
-      <div className="relative flex-1 min-h-0">
+      <div
+        data-testid="list-tab-grid"
+        className={cn('relative flex-1 min-h-0', activeTab !== 'grid' && 'hidden')}
+      >
         <VibeGrid
           tableId={`entity-list-${entityName}`}
           entityType={entityName}
@@ -802,5 +896,46 @@ function RelatedEntityDrawer({
       onOpenChange={onOpenChange}
       onNavigate={onNavigate}
     />
+  )
+}
+
+/**
+ * GH#2689 B7: List-view tab strip button. Stateless presentational component;
+ * the active-tab state and URL sync are managed by the parent.
+ */
+function ListTabButton({
+  id,
+  label,
+  icon,
+  active,
+  onSelect,
+}: {
+  id: string
+  label: string
+  icon?: string
+  active: boolean
+  onSelect: (id: string) => void
+}) {
+  // Icon-name → Lucide component lookup. Keep narrow; matches the
+  // `extraTabs` icon contract from `archetype-tab-defaults.ts`.
+  // Currently the only declared icon is 'PlayCircle' (Scan Runs).
+  const IconComponent = icon === 'PlayCircle' ? PlayCircle : null
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      data-testid={`list-tab-${id}`}
+      onClick={() => onSelect(id)}
+      className={cn(
+        'inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+        active
+          ? 'border-primary text-foreground'
+          : 'border-transparent text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {IconComponent && <IconComponent aria-hidden="true" className="h-3.5 w-3.5" />}
+      <span>{label}</span>
+    </button>
   )
 }
