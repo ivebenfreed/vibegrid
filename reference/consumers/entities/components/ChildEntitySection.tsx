@@ -29,6 +29,7 @@ import { GRID_DIMENSIONS } from '@/systems/vibegrid/constants/grid-dimensions'
 import type { SchemaFieldDescriptor } from '@/systems/vibegrid/modules/GridModule'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
 import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
+import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import type { ChildEntityConfig } from '../hooks/useChildEntityData'
 import { useChildEntityData } from '../hooks/useChildEntityData'
 import { useLinkedFieldEnrichment } from '../hooks/useLinkedFieldEnrichment'
@@ -42,6 +43,43 @@ import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/Ent
 import type { EntityRecord } from '@/shared/types/dataforge'
 
 const logger = getLogger(['entities', 'ChildEntitySection'])
+
+/**
+ * GH#2786 (F') P4 helper — find the forward-direction relationship-source
+ * field on a schema for a given (relationshipType, targetEntityType) pair.
+ *
+ * Used by `handleCreateSuccess` to resolve the field name to write via
+ * `data.update` dispatch when linking a newly-created child to its
+ * parent. Returns `undefined` when no matching field is on the schema
+ * (e.g. legacy generic 'entity' relType, or a Rel_* schema that was
+ * never injected).
+ */
+function findForwardRelationshipField(
+  schema: { fields?: ReadonlyArray<unknown> } | null | undefined,
+  relationshipType: string,
+  targetEntityType: string,
+): string | undefined {
+  // Schemas come in with typed FieldDefinition[]; coerce each entry to
+  // a structural record so we can read the relationship-injected props
+  // without depending on the FieldDefinition type from another package.
+  const fields = schema?.fields ?? []
+  for (const raw of fields) {
+    const f = raw as Record<string, unknown> | null | undefined
+    if (
+      f &&
+      f.source === 'relationship' &&
+      f.relationshipType === relationshipType &&
+      f.targetEntityType === targetEntityType &&
+      (f.direction === 'source' || f.direction === undefined) &&
+      f.inline_ids !== false &&
+      !f.deleted &&
+      typeof f.name === 'string'
+    ) {
+      return f.name as string
+    }
+  }
+  return undefined
+}
 
 export interface ChildEntitySectionProps {
   parentEntityType: string
@@ -63,6 +101,14 @@ export function ChildEntitySection({
     parentRecordId,
     childEntityConfig,
   })
+
+  // GH#2786 (F') P4: parent schema needed for outgoing-direction
+  // dispatch (parent is the source row of the Rel_* edge, so the
+  // forward-direction relationship-source field lives on the parent).
+  // useEntitySchema reads from the cached schemas query — no extra
+  // network call when the parent schema is already loaded by the
+  // route's data dependencies.
+  const parentSchema = useEntitySchema(parentEntityType)
 
   const displayName = EntityNameUtils.toDisplayFormat(childEntityType)
   // GH#2599: honor the admin-configured `label` override from
@@ -167,37 +213,100 @@ export function ChildEntitySection({
     }
   }, [childEntityType, childRecords])
 
-  // Create child record and link to parent
+  // GH#2786 (F') P4: Create child record and link to parent via the
+  // schema-aware data.update dispatch (replaces the previous direct
+  // `urs.create` call). The dispatch routes the relationship-source
+  // field write through URS in the same Tx and (P2 dual-write) updates
+  // the source row's inline target IDs JSONB. There is no urs.* call
+  // from this component anymore.
+  //
+  // Branching:
+  // - If the child is the SOURCE side of the relationship (incoming
+  //   direction), `data.update` the child with the full target-ID
+  //   array — single ID since cardinality on the child side is 'one'.
+  // - If the parent is the SOURCE side (outgoing direction), `data.get`
+  //   the parent's current children-array, append the new child ID,
+  //   and `data.update` the parent with the full new array. This is
+  //   the LWW-on-full-array contract from spec B3.
+  //
+  // Field-name resolution: scan the source schema for a relationship-
+  // source field matching (relationshipType, targetEntityType,
+  // direction === 'source'). When no typed Rel_* schema exists for
+  // this child config (e.g. legacy 'entity' fallback), linking is
+  // skipped with a warning toast — the previous urs.create call would
+  // have thrown `UnknownRelationshipTypeError` on the same input.
   const handleCreateSuccess = async (recordId: string): Promise<void> => {
-    // After creating the child record, create the relationship to the parent
     try {
-      const semanticProps = semanticTag ? { semantic: semanticTag } : undefined
-      const relType = resolvedRelationshipType ?? 'entity'
-      const relInput =
-        derivedDirection === 'incoming'
-          ? {
-              sourceEntityType: childEntityType,
-              sourceEntityId: recordId,
-              targetEntityType: parentEntityType,
-              targetEntityId: parentRecordId,
-              relationshipType: relType,
-              properties: semanticProps,
-            }
-          : {
-              sourceEntityType: parentEntityType,
-              sourceEntityId: parentRecordId,
-              targetEntityType: childEntityType,
-              targetEntityId: recordId,
-              relationshipType: relType,
-              properties: semanticProps,
-            }
+      const relType = resolvedRelationshipType
+      if (!relType) {
+        // Generic 'entity' fallback path was non-functional under URS
+        // type validation. Surface this clearly rather than silently
+        // creating an unlinked record.
+        logger.warn('No relationshipType resolved for child entity config; skipping parent link', {
+          recordId,
+          parentRecordId,
+          childEntityType,
+        })
+        toast.success(`${displayName} added (not linked — config missing relationshipType)`)
+        setCreateOpen(false)
+        return
+      }
 
-      await orpcClient.dataforge.relationships.create(relInput)
-      toast.success(`${displayName} added`)
-      // Trigger a refresh of child data by retrying
+      if (derivedDirection === 'incoming') {
+        // Child is the SOURCE of Rel_<Child>_<Parent>_<relType>.
+        // The child schema has the forward-direction field — find it.
+        const childField = findForwardRelationshipField(childSchema, relType, parentEntityType)
+        if (!childField) {
+          logger.warn(
+            'Could not resolve child-side relationship field; child created but not linked',
+            { recordId, childEntityType, relType, parentEntityType },
+          )
+          toast.success(`${displayName} added (link field not found on child schema)`)
+        } else {
+          await orpcClient.dataforge.data.update({
+            entityName: childEntityType,
+            recordId,
+            data: { [childField]: [parentRecordId] },
+          })
+          toast.success(`${displayName} added`)
+        }
+      } else {
+        // Parent is the SOURCE. The parent schema is loaded above via
+        // useEntitySchema (cached). Find the forward field name there.
+        const parentField = findForwardRelationshipField(parentSchema, relType, childEntityType)
+        if (!parentField) {
+          logger.warn(
+            'Could not resolve parent-side relationship field; child created but not linked',
+            { recordId, parentEntityType, relType, childEntityType },
+          )
+          toast.success(`${displayName} added (link field not found on parent schema)`)
+        } else {
+          // Read current children array — LWW on full array per spec B3.
+          const parentRecord = await orpcClient.dataforge.data.get({
+            entityName: parentEntityType,
+            recordId: parentRecordId,
+          })
+          const parentData = ((parentRecord as { record?: Record<string, unknown> })?.record ?? {}) as Record<
+            string,
+            unknown
+          >
+          const currentArr = Array.isArray(parentData[parentField])
+            ? (parentData[parentField] as string[])
+            : []
+          // Idempotency: don't add a duplicate ID if it's somehow already there.
+          const newArr = currentArr.includes(recordId) ? currentArr : [...currentArr, recordId]
+          await orpcClient.dataforge.data.update({
+            entityName: parentEntityType,
+            recordId: parentRecordId,
+            data: { [parentField]: newArr },
+          })
+          toast.success(`${displayName} added`)
+        }
+      }
+      // Trigger a refresh of child data
       retry()
     } catch (err) {
-      logger.error('Failed to create parent relationship after child record creation', {
+      logger.error('Failed to link child to parent via data.update dispatch', {
         error: err instanceof Error ? err.message : err,
         recordId,
         parentRecordId,

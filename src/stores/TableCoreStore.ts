@@ -283,16 +283,10 @@ export class TableCoreStore implements IStore {
   // Track in-flight entity reference loads to avoid duplicate network calls
   private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
-  // GH#2651 P1.3: Cached relationship badge names keyed by
-  // `${relationshipEntity}:${direction}:${anchorId}` → string[]
-  // Populated by useBadgeListEnrichment React bridge; read synchronously by
-  // badge-list-live DOM renderer.
-  @observable relationshipBadgeData: ObservableMap<string, string[]> = observable.map<string, string[]>()
-
-  // GH#2651: Tracks which (relationshipEntity:direction) pairs have completed
-  // their first bridge pass. Allows the renderer to distinguish "not loaded yet"
-  // (show '…') from "loaded but no edges for this anchor" (show '—').
-  @observable relationshipBadgeReady: Set<string> = observable.set<string>()
+  // GH#2786 (F') P6a: relationshipBadgeData / relationshipBadgeReady
+  // are gone. The static badge-list renderer now reads source-row inline
+  // IDs from the row record and resolves names locally from the synced
+  // target collection — no MobX-cached badge map.
 
   // ====================================
   // CHANGE DETECTION (Cell-level updates)
@@ -313,7 +307,6 @@ export class TableCoreStore implements IStore {
   @observable dataVersion: number = 0 // Increments on cell value changes
   @observable configVersion: number = 0 // Increments on sort/filter/group changes
   @observable structureVersion: number = 0 // Increments on add/remove/reorder rows
-  @observable badgeDataVersion: number = 0 // Increments on relationship badge data changes (GH#2651)
 
   // Change metadata for renderer routing
   @observable lastChangeMetadata: ChangeMetadata | null = null
@@ -814,93 +807,11 @@ export class TableCoreStore implements IStore {
   }
 
   /**
-   * GH#2651 P1.3: Read cached relationship badge names for a given anchor.
-   * Returns `undefined` on cache miss (renderer shows loading placeholder).
+   * GH#2786 (F') P6a: relationship-badge cache + bulk-write methods deleted.
+   * Replaced by source-row inline IDs (P2 dual-write) plus client-side
+   * resolution from the synced target entity collection — see
+   * `slots/renderers/badge-list.ts`.
    */
-  getRelationshipBadges(
-    relationshipEntity: string,
-    direction: 'source' | 'target',
-    anchorId: string,
-  ): string[] | undefined {
-    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
-    return this.relationshipBadgeData.get(key)
-  }
-
-  /**
-   * GH#2651 P1.3: Write relationship badge names from the React bridge.
-   * MobX observable update triggers DOM renderer re-render via reaction.
-   *
-   * NOTE: Prefer setRelationshipBadgesBulk for multi-anchor writes (GH#2758).
-   * Each call here bumps badgeDataVersion, which triggers a full grid repaint
-   * via ObserverManager.createDataObserver — calling this in a loop produces N
-   * full repaints. Single-key callers (real-time edits) can use this safely;
-   * bridge fan-out must batch.
-   */
-  @action
-  setRelationshipBadges(
-    relationshipEntity: string,
-    direction: 'source' | 'target',
-    anchorId: string,
-    names: string[],
-  ): void {
-    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
-    this.relationshipBadgeData.set(key, names)
-    this.badgeDataVersion++
-  }
-
-  /**
-   * GH#2758: Batched relationship badge writes — one MobX transaction, one
-   * badgeDataVersion bump regardless of how many anchors are written.
-   *
-   * Use this from the bridge effect when populating dozens-to-thousands of
-   * anchors per pass. Without batching, each per-anchor write triggers a full
-   * grid repaint reaction (ObserverManager.createDataObserver observes
-   * badgeDataVersion), producing main-thread saturation that surfaces as the
-   * Chrome "Page Unresponsive" dialog on wide DEB Project grids.
-   *
-   * @param entries Iterable of { relationshipEntity, direction, anchorId, names }
-   */
-  @action
-  setRelationshipBadgesBulk(
-    entries: Iterable<{
-      relationshipEntity: string
-      direction: 'source' | 'target'
-      anchorId: string
-      names: string[]
-    }>,
-  ): void {
-    let touched = 0
-    for (const { relationshipEntity, direction, anchorId, names } of entries) {
-      const key = `${(relationshipEntity || '').toLowerCase()}:${direction}:${anchorId}`
-      this.relationshipBadgeData.set(key, names)
-      touched++
-    }
-    if (touched > 0) {
-      this.badgeDataVersion++
-    }
-  }
-
-  /**
-   * GH#2651: Mark a (relationshipEntity, direction) pair as ready — the bridge
-   * has completed at least one pass. Anchors not in relationshipBadgeData after
-   * this point genuinely have zero edges (render '—') rather than being
-   * "still loading" (render '…').
-   */
-  @action
-  markRelationshipBadgesReady(relationshipEntity: string, direction: 'source' | 'target'): void {
-    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}`
-    this.relationshipBadgeReady.add(key)
-    this.badgeDataVersion++
-  }
-
-  /**
-   * GH#2651: Check if a (relationshipEntity, direction) pair has completed
-   * its initial bridge pass.
-   */
-  isRelationshipBadgesReady(relationshipEntity: string, direction: 'source' | 'target'): boolean {
-    const key = `${(relationshipEntity || '').toLowerCase()}:${direction}`
-    return this.relationshipBadgeReady.has(key)
-  }
 
   async ensureEntityReferenceRecord(targetEntity: string, entityId: string, loader?: () => Promise<any>): Promise<any> {
     const map = this.getOrCreateEntityReferenceMap(targetEntity)
@@ -2043,8 +1954,8 @@ export class TableCoreStore implements IStore {
     this.membersData.clear()
     this.entityReferenceData.clear()
     this.pendingEntityReferenceLoads.clear()
-    this.relationshipBadgeData.clear()
-    this.relationshipBadgeReady.clear()
+    // GH#2786 (F') P6a: relationshipBadgeData / relationshipBadgeReady reset
+    // dropped — those observables were deleted alongside the bridge.
 
     // Clear change detection state
     this.previousRowsSnapshot.clear()
@@ -2054,7 +1965,7 @@ export class TableCoreStore implements IStore {
     this.dataVersion = 0
     this.configVersion = 0
     this.structureVersion = 0
-    this.badgeDataVersion = 0
+    // GH#2786 (F') P6a: badgeDataVersion deleted with the bridge.
     this.lastChangeMetadata = null
 
     // Reset searchable columns (GH#1391)

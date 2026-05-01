@@ -359,13 +359,15 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       const fieldType = String(safeFieldDef.type || 'text').toLowerCase()
 
       // Map DataForge field types to VibeGrid cell types.
-      // GH#2651 P1.3: Relationship-injected fields (source: 'relationship') now
-      // route to the client-side `badge-list-live` renderer which pulls names
-      // from TanStack DB collections via useBadgeListEnrichment rather than
-      // from server-side rel__ projections on the list response.
+      // GH#2786 (F') P6a: Relationship-source fields route to the static
+      // `badge-list` renderer. The renderer reads `record[fieldName]`
+      // (array of target IDs from the source-row JSONB written by P2's
+      // dual-write path) and resolves display names against the
+      // already-synced target entity collection. No bridge, no
+      // useBadgeListEnrichment, no Rel_* client materialization.
       const isRelationshipProjection = (safeFieldDef as any).source === 'relationship'
       const cellType = isRelationshipProjection
-        ? 'badge-list-live'
+        ? 'badge-list'
         : mapFieldTypeToVibeGridCellType(fieldType, fieldName)
 
       let relationshipMetadata: {
@@ -374,10 +376,10 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         searchFields: string[]
       } | null = null
 
-      // badge-list-live columns need relationshipConfig so the DOM
-      // renderer can look up (relationshipEntity, direction, anchorId) in the
-      // MobX cache at render time, and the editor can open the right picker.
-      if (cellType === 'badge-list-live') {
+      // Relationship-source columns need relationshipConfig on the column
+      // so the renderer can look up the target entity collection and the
+      // editor can open the right picker.
+      if (isRelationshipProjection) {
         const targetEntityType =
           safeFieldDef.relationshipTable ||
           safeFieldDef.targetEntityType ||

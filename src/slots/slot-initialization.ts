@@ -37,7 +37,6 @@ import {
   rollupAverageCellRenderer,
   rollupConcatCellRenderer,
   badgeListCellRenderer,
-  badgeListLiveCellRenderer,
 } from './renderers'
 
 const logger = getLogger(['vibegrid', 'slots', 'slot-initialization'])
@@ -195,10 +194,11 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   })
 
   // --- 27. Badge List ---
+  // GH#2786 (F') P6a: badge-list-live + useBadgeListEnrichment bridge
+  // are gone. The static badge-list renderer reads target IDs from
+  // `record[fieldName]` (source-row JSONB written by the URS dual-write
+  // path) and resolves names locally from the synced target collection.
   registry.register({ id: 'badge-list', priority: 0, renderer: () => badgeListCellRenderer })
-  // GH#2651 P1.3: badge-list-live renders via TanStack DB liveQuery join
-  // (see useBadgeListEnrichment + badge-list-live.ts)
-  registry.register({ id: 'badge-list-live', priority: 0, renderer: () => badgeListLiveCellRenderer })
 
   logger.debug('Default slots registered', {
     slotCount: registry.getRegisteredIds().length,

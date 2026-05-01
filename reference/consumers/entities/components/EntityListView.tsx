@@ -21,7 +21,7 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { useStreamingEntityListData } from '@/shared/data/db/hooks/useStreamingEntityListData'
+import { useEntityListData } from '@/shared/data/db/hooks/useEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -472,10 +472,15 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const schema = useEntitySchema(resolvedName)
   const [isTransitionPending, startTransition] = useTransition()
 
-  const listResult = useStreamingEntityListData(resolvedName, {
+  // GH#2786 (F') P6b: useStreamingEntityListData replaced with the
+  // standard useEntityListData. Streaming was needed for client-side
+  // Rel_* materialization which F' eliminates — entity collections no
+  // longer balloon past the 5k cap that used to gate streaming. The
+  // `orderBy` / `orderDirection` config options are gone too: the
+  // standard hook reads from the SQLite-backed collection and the row
+  // order is determined by the grid's view config (sort/filter/group).
+  const listResult = useEntityListData(resolvedName, {
     pagination: { pageIndex: 0, pageSize: 1000 },
-    orderBy: 'created_at',
-    orderDirection: 'desc',
   })
 
   // Fetch creation mode configuration for this entity type
@@ -741,7 +746,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                   <h1 className="text-sm font-semibold whitespace-nowrap">{entityTitle}</h1>
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {listResult.pagination.total}
-                    {listResult.isStreaming && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}
                   </span>
                 </div>
               }

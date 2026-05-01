@@ -222,7 +222,9 @@ export class ObserverManager {
           dataVersion: tableCoreStore.dataVersion,
           configVersion: tableCoreStore.configVersion,
           structureVersion: tableCoreStore.structureVersion,
-          badgeDataVersion: tableCoreStore.badgeDataVersion,
+          // GH#2786 (F') P6a: badgeDataVersion dropped — relationship
+          // badges now derive from row dataVersion via inline IDs, no
+          // separate version counter needed.
           lastChangeMetadata: tableCoreStore.lastChangeMetadata,
         }
       },

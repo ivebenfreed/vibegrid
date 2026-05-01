@@ -33,7 +33,6 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useEntityReferenceData } from './hooks/useEntityReferenceData'
-import { useBadgeListEnrichment } from './hooks/useBadgeListEnrichment'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
@@ -521,11 +520,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // so that badge-list-live cells update automatically when target entities change
   const entityRefBridges = useEntityReferenceData(tableCoreStore)
 
-  // GH#2651 P1.3: Reactive bridge for badge-list-live cells.
-  // Joins Rel_* edges × target-entity names → tableCoreStore.relationshipBadgeData
-  // so relationship badges render client-side from TanStack DB collections
-  // without server enrichment on list queries.
-  const badgeListBridges = useBadgeListEnrichment(tableCoreStore)
+  // GH#2786 (F') P6a: badge-list-live + useBadgeListEnrichment bridge
+  // are deleted. Relationship badges now render via the static
+  // badge-list renderer reading source-row inline IDs (P2 dual-write)
+  // and resolving names locally from synced target collections.
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
@@ -1120,7 +1118,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Invisible data bridges for reactive entity reference resolution */}
       {entityRefBridges}
-      {badgeListBridges}
 
       {/* Header with menu components - Show as soon as columns are ready */}
       {shouldShowHeader && (

@@ -1,7 +1,27 @@
 /**
  * Badge list cell renderer
+ *
+ * Renders an array of values as inline badges with `+N` overflow.
+ *
+ * Two value-shape paths supported:
+ *
+ * 1. **Pre-resolved names** (legacy): `value` is `string[]` of display
+ *    names. Renders directly as badges. No collection lookup.
+ *
+ * 2. **F' source-row inline IDs** (GH#2786): `value` is `string[]` of
+ *    target entity IDs and the column carries a `relationshipTargetEntity`
+ *    pointing at the target entity_type. The renderer resolves each ID
+ *    to a display name from the already-synced TanStack DB collection
+ *    (`getExistingEntityCollection`) and renders the names. IDs that
+ *    don't resolve fall through to the raw ID string \u2014 re-rendering
+ *    happens automatically when the target collection's MobX/observable
+ *    state updates (TanStack DB reactivity).
+ *
+ * Pre-F' (badge-list-live + bridge) is gone (P6a deletion); this is the
+ * only badge-list renderer post-cutover.
  */
 
+import { getExistingEntityCollection } from '@/shared/data/db/collections/registry'
 import type { Column } from '../../types'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
@@ -9,11 +29,11 @@ import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 const BADGE_LIST_MAX_VISIBLE = 3
 
 class BadgeListCellRenderer implements CellRenderer {
-  render(value: unknown, _column: Column, _context: CellRendererContext): HTMLElement {
+  render(value: unknown, column: Column, context: CellRendererContext): HTMLElement {
     const container = document.createElement('div')
     container.style.cssText = 'display:flex;flex-wrap:nowrap;gap:4px;align-items:center;overflow:hidden;'
 
-    const items = this.normalize(value)
+    const items = this.normalize(value, column, context)
     if (items.length === 0) {
       container.textContent = '\u2014'
       container.style.opacity = '0.5'
@@ -39,8 +59,8 @@ class BadgeListCellRenderer implements CellRenderer {
     return container
   }
 
-  format(value: unknown): string {
-    const items = this.normalize(value)
+  format(value: unknown, column: Column, context: CellRendererContext): string {
+    const items = this.normalize(value, column, context)
     return items.join(', ')
   }
 
@@ -66,11 +86,46 @@ class BadgeListCellRenderer implements CellRenderer {
   affordanceGroup = { group: 'editable-badge', whenNotEditable: 'readonly-badge' }
   metadata = { category: 'basic' as const, description: 'Badge list with +N overflow' }
 
-  private normalize(value: unknown): string[] {
+  /**
+   * Coerce the cell value to a `string[]` of display labels, resolving
+   * F' inline IDs against the target entity collection when the column
+   * carries `relationshipTargetEntity`.
+   */
+  private normalize(value: unknown, column: Column, context: CellRendererContext): string[] {
     if (!value || !Array.isArray(value)) return []
-    return value.map((v: unknown) =>
-      typeof v === 'string' ? v : (((v as Record<string, unknown>)?.name as string) ?? String(v)),
-    )
+    const targetEntityType = (column as { relationshipTargetEntity?: string | null }).relationshipTargetEntity
+    const displayField =
+      ((column as { relationshipDisplayField?: string }).relationshipDisplayField as string) || 'name'
+    const orgId = context.organizationId
+
+    let resolver: ((id: string) => string | undefined) | null = null
+    if (targetEntityType && orgId) {
+      const coll = getExistingEntityCollection(targetEntityType, orgId) as
+        | { get?: (id: string) => unknown }
+        | null
+      if (coll && typeof coll.get === 'function') {
+        resolver = (id: string) => {
+          const rec = coll.get!(id) as Record<string, unknown> | undefined
+          if (!rec) return undefined
+          // Try the configured display field, then 'name', then 'title'.
+          const v = rec[displayField] ?? rec.name ?? rec.title
+          return typeof v === 'string' && v.length > 0 ? v : undefined
+        }
+      }
+    }
+
+    return value.map((v: unknown) => {
+      if (typeof v !== 'string') {
+        return ((v as Record<string, unknown>)?.name as string) ?? String(v)
+      }
+      if (resolver) {
+        const resolved = resolver(v)
+        if (resolved) return resolved
+      }
+      // Fallback: render raw value (could be an unresolved ID \u2014 the row
+      // re-renders when the target collection's records arrive).
+      return v
+    })
   }
 
   private badge(label: string): HTMLElement {
