@@ -354,6 +354,20 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         return null
       }
 
+      // GH#2798: Skip target-direction relationship-source fields. These are
+      // inverse-fan-in projections (e.g. children pointing at this parent —
+      // Files, Photos, Daily Logs, Submittals on a Project). They produce
+      // 50+ junk columns on parent list views; children are accessed via the
+      // parent's detail tabs, not the parent's grid. Source-direction
+      // relationship fields (e.g. sponsor, created_by) still get columns.
+      if (
+        (fieldDef as any)?.source === 'relationship' &&
+        (fieldDef as any)?.direction === 'target'
+      ) {
+        fileLog.debug('⏭️ Skipping target-direction relationship field (GH#2798)', { fieldName })
+        return null
+      }
+
       const safeFieldDef: EntityField =
         fieldDef && typeof fieldDef === 'object' ? { ...fieldDef, name: fieldName } : { name: fieldName, type: 'text' }
       const fieldType = String(safeFieldDef.type || 'text').toLowerCase()
