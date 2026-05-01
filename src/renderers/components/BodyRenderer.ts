@@ -784,6 +784,7 @@ export class BodyRenderer {
         const context: CellRendererContext = {
           viewMode: 'table',
           entityType: this.tableCoreStore?.entityType,
+          organizationId: this.visualStateStore?.orgId,
           rowData,
           tableCoreStore: this.tableCoreStore,
           searchText: this.visualStateStore?.globalSearchText || '',
@@ -1263,6 +1264,7 @@ export class BodyRenderer {
         const context: CellRendererContext = {
           viewMode: 'table',
           entityType: this.tableCoreStore?.entityType,
+          organizationId: this.visualStateStore?.orgId,
           rowData,
           tableCoreStore: this.tableCoreStore,
           searchText: this.visualStateStore?.globalSearchText || '',
@@ -1578,6 +1580,7 @@ export class BodyRenderer {
             const context: CellRendererContext = {
               viewMode: 'table',
               entityType: this.tableCoreStore?.entityType,
+              organizationId: this.visualStateStore?.orgId,
               rowData,
               tableCoreStore: this.tableCoreStore,
             }
