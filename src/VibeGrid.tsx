@@ -33,6 +33,7 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useEntityReferenceData } from './hooks/useEntityReferenceData'
+import { useRelationshipTargetCollections } from './hooks/useRelationshipTargetCollections'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
@@ -524,6 +525,12 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // are deleted. Relationship badges now render via the static
   // badge-list renderer reading source-row inline IDs (P2 dual-write)
   // and resolving names locally from synced target collections.
+  //
+  // GH#2786 follow-up: ensure every relationship column's target entity
+  // collection is registered so the renderer can resolve names instead of
+  // falling through to raw UUIDs. Idempotent — only the first call per
+  // (entityType, orgId) triggers a fetch.
+  useRelationshipTargetCollections(tableCoreStore?.columns)
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
