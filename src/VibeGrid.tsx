@@ -33,7 +33,6 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useEntityReferenceData } from './hooks/useEntityReferenceData'
-import { useRelationshipTargetCollections } from './hooks/useRelationshipTargetCollections'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
@@ -525,14 +524,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // are deleted. Relationship badges now render via the static
   // badge-list renderer reading source-row inline IDs (P2 dual-write)
   // and resolving names locally from synced target collections.
-  //
-  // GH#2786 follow-up: render one invisible bridge per unique
-  // relationshipTargetEntity so each target collection is registered AND
-  // subscribed (subscription is what triggers TanStack DB's data fetch).
-  // When the first batch lands, the bridge bumps configVersion so the
-  // static renderer re-runs and resolves IDs to names instead of falling
-  // through to raw UUIDs.
-  const relationshipTargetBridges = useRelationshipTargetCollections(tableCoreStore)
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
@@ -1127,11 +1118,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Invisible data bridges for reactive entity reference resolution */}
       {entityRefBridges}
-
-      {/* GH#2786 follow-up: invisible bridges that subscribe relationship
-          target entity collections so the static badge-list renderer can
-          resolve target IDs to display names. */}
-      {relationshipTargetBridges}
 
       {/* Header with menu components - Show as soon as columns are ready */}
       {shouldShowHeader && (

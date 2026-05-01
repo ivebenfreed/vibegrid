@@ -23,7 +23,6 @@
 
 import { getExistingEntityCollection } from '@/shared/data/db/collections/registry'
 import type { Column } from '../../types'
-import { getCachedName } from '../../utils/relationshipNameCache'
 import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 
@@ -123,16 +122,8 @@ class BadgeListCellRenderer implements CellRenderer {
         const resolved = resolver(v)
         if (resolved) return resolved
       }
-      // GH#2786 follow-up: fall back to the scoped relationship name cache,
-      // populated by the by-ID batch fetch in `useRelationshipTargetCollections`.
-      // This covers high-cardinality target types (User, Drawing, File, ...) for
-      // which we never warm a full entity collection.
-      if (targetEntityType && orgId) {
-        const cached = getCachedName(orgId, targetEntityType, v)
-        if (cached) return cached
-      }
       // Fallback: render raw value (could be an unresolved ID \u2014 the row
-      // re-renders when the target collection's records or scoped name cache arrive).
+      // re-renders when the target collection's records arrive).
       return v
     })
   }
