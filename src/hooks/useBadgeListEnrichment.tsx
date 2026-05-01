@@ -272,6 +272,13 @@ function getBadgeListLiveSpecs(columns: Column[]): BadgeBridgeSpec[] {
 /**
  * Hook that returns bridge elements for all badge-list-live columns in the grid.
  * Call in VibeGrid and render the returned ReactNode in the JSX tree.
+ *
+ * GH#2770 diagnostic: when `localStorage.debug_2770_disable_bridge === 'true'`,
+ * the bridge returns `null` immediately. This lets us isolate whether the
+ * Projects-view reload wedge originates inside the bridge (badge enrichment)
+ * or upstream/downstream (collection bootstrap, MobX reactions, grid repaints).
+ * Toggle in the browser console:
+ *   localStorage.setItem('debug_2770_disable_bridge', 'true'); location.reload();
  */
 export function useBadgeListEnrichment(tableCoreStore: TableCoreStore | null): ReactNode {
   const columns = tableCoreStore?.columns ?? []
@@ -287,6 +294,11 @@ export function useBadgeListEnrichment(tableCoreStore: TableCoreStore | null): R
       })
     }
   }, [specs, columns.length])
+
+  // GH#2770 hypothesis isolation — runtime kill switch for the bridge.
+  if (typeof window !== 'undefined' && window.localStorage?.getItem('debug_2770_disable_bridge') === 'true') {
+    return null
+  }
 
   if (!tableCoreStore || specs.length === 0) {
     return null
