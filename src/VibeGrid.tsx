@@ -33,6 +33,7 @@ import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
 import { useEntityReferenceData } from './hooks/useEntityReferenceData'
+import { useRelationshipTargetCollections } from './hooks/useRelationshipTargetCollections'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
 import { useRowExpansion } from './hooks/useRowExpansion'
@@ -524,6 +525,14 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // are deleted. Relationship badges now render via the static
   // badge-list renderer reading source-row inline IDs (P2 dual-write)
   // and resolving names locally from synced target collections.
+  //
+  // GH#2786 follow-up: route cross-entity name resolution through the
+  // SharedWorker priority queue (GH#2692). The hook below registers each
+  // relationship target's collection on the *background* lane (so the
+  // page's own entity preempts) and bulk-fetches visible-cell ids via
+  // client.fetchEntityByIds. badge-list.ts continues to read names via
+  // getExistingEntityCollection() — it doesn't need to know about this hook.
+  const relationshipTargetSlots = useRelationshipTargetCollections(tableCoreStore)
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {
@@ -1118,6 +1127,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Invisible data bridges for reactive entity reference resolution */}
       {entityRefBridges}
+
+      {/* GH#2786 follow-up: relationship target collection slots — register
+          target collections on the background priority-queue lane so name
+          resolution works without preempting the page's own entity bootstrap. */}
+      {relationshipTargetSlots}
 
       {/* Header with menu components - Show as soon as columns are ready */}
       {shouldShowHeader && (
