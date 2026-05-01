@@ -1,39 +1,39 @@
 /**
  * Scoped relationship target fetch
  *
- * Batch-fetches relationship target entities by ID and writes the results
- * directly into the target entity's TanStack DB collection so the
+ * Batch-fetches relationship target entities by ID and writes the resolved
+ * (id → display name) pairs into the scoped `relationshipNameCache` so the
  * `badge-list` static renderer (`slots/renderers/badge-list.ts`) can resolve
- * IDs to display names via `getExistingEntityCollection().get(id)`.
+ * IDs to display names without subscribing the full target collection.
  *
  * GH#2786 follow-up: replaces the prior "subscribe-all" bridge that triggered
  * full collection bootstraps via `useLiveQuery`. On cross-entity grids
- * (e.g. `/entities/RFI` referencing Project @ 3k + Drawings @ 41k), the
- * subscribe-all path tripped the 50k bootstrap cap on every cross-reference
+ * (e.g. `/entities/RFI` referencing Project @ 3k + Drawings @ 41k + User @ N),
+ * the subscribe-all path tripped the 50k bootstrap cap on every cross-reference
  * and OOM'd the tab. This util fetches *only* the IDs that actually appear
- * in the visible cells.
+ * in the visible cells and stores names in a tiny per-(org, type) Map —
+ * never touches the entity collection factory, never warms SQLite.
  *
  * Public API:
  *   - `collectTargetIds(rows, columns)` — pure: walk current rows + relationship
- *     columns, return a Map<targetEntityType, Set<id>>.
- *   - `fetchAndCacheTargets({ targets, orgId, knownIds })` — batched data.query
- *     calls (≤500 IDs per request) that upsert into the target collection's
- *     `utils.writeBatch / writeUpsert`. Returns the count of newly-cached
- *     records per target type.
+ *     columns, return a `Map<targetEntityType, Set<id>>`.
+ *   - `fetchAndCacheTargets({ targets, orgId })` — batched `data.query`
+ *     calls (≤500 IDs per request) that store names via `setCachedNames`.
+ *     Returns the count of newly-cached records per target type.
  */
 
-import type { Collection } from '@tanstack/db'
 import { orpcClient } from '@/shared/data/orpc/client'
-import { getExistingEntityCollection } from '@/shared/data/db/collections/registry'
 import { getLogger } from '@/shared/lib/logging'
 import type { Column } from '../types'
+import { getCachedName, setCachedNames } from '../utils/relationshipNameCache'
 
 const logger = getLogger(['vibegrid', 'hooks', 'scopedRelationshipFetch'])
 
 /**
  * System entities that have separate factory paths and are intentionally
  * excluded from the by-ID batch fetcher. The Member collection (org members,
- * naturally bounded) is handled via a dedicated subscription in the bridge.
+ * naturally bounded) is handled via existing factory paths and looked up
+ * directly through the collection.
  */
 export const SYSTEM_ENTITY_EXCLUSIONS = new Set(['Member', 'PlatformUser', 'PlatformOrganization'])
 
@@ -99,14 +99,8 @@ export function collectTargetIds(rows: RowLike[], columns: Column[]): Map<string
 interface FetchAndCacheArgs {
   /** Per-entity-type set of IDs collected from the current rows. */
   targets: Map<string, Set<string>>
-  /** Active organization ID — required to look up the singleton collection. */
+  /** Active organization ID — required to scope the name cache. */
   orgId: string
-  /**
-   * Callback that returns the collection for a given target entity type.
-   * Caller controls registration so the collection's hooks remain in React land.
-   * If the callback returns `null`, the target is skipped.
-   */
-  getCollection: (entityType: string) => Collection<any, any, any, any, any> | null
 }
 
 interface FetchAndCacheResult {
@@ -119,36 +113,24 @@ interface FetchAndCacheResult {
 /**
  * For each entry in `targets`, drop IDs that are already cached, then page
  * through the remainder in batches of `MAX_IDS_PER_BATCH` calling
- * `data.query` with `whereAst.in`. Successful pages are written into the
- * matching collection via `utils.writeBatch / writeUpsert`.
+ * `data.query` with `whereAst.in`. Successful pages are stored in the
+ * scoped name cache via `setCachedNames`.
  *
  * Network failures per target are logged and isolated — one failure does
- * not abort other targets.
+ * not abort other targets. Empty server responses (rare-or-deleted records)
+ * are tolerated: `setCachedNames([])` returns 0.
  */
 export async function fetchAndCacheTargets(args: FetchAndCacheArgs): Promise<FetchAndCacheResult> {
-  const { targets, orgId, getCollection } = args
+  const { targets, orgId } = args
   const perTarget: FetchAndCacheResult['perTarget'] = []
   let totalUpserted = 0
 
   for (const [entityType, idSet] of targets.entries()) {
     if (idSet.size === 0) continue
 
-    const collection = getCollection(entityType)
-    if (!collection) {
-      logger.debug('Skipping fetchAndCacheTargets: no collection ref', { entityType })
-      continue
-    }
-
-    // Resolve the cache view through the registry. This is the same lookup
-    // the badge-list renderer performs at render time, so anything already
-    // present is a guaranteed hit on next paint.
-    const existingColl = getExistingEntityCollection(entityType, orgId) as
-      | { get?: (id: string) => unknown }
-      | null
-
     const missingIds: string[] = []
     for (const id of idSet) {
-      if (existingColl?.get?.(id)) continue
+      if (getCachedName(orgId, entityType, id)) continue
       missingIds.push(id)
     }
 
@@ -164,10 +146,7 @@ export async function fetchAndCacheTargets(args: FetchAndCacheArgs): Promise<Fet
         const response = await orpcClient.dataforge.data.query({
           entityName: entityType,
           whereAst: { op: 'in', field: 'id', value: batch },
-          // The batch-fetch path requests only by ID, but we can't restrict
-          // the column list via this client surface — the worker returns full
-          // records. That's fine: writes go straight into the collection,
-          // and the badge renderer reads only `name` / `display_name`.
+          // Server returns full records; we extract only display name fields.
           limit: batch.length,
         })
 
@@ -179,21 +158,21 @@ export async function fetchAndCacheTargets(args: FetchAndCacheArgs): Promise<Fet
           continue
         }
 
-        const records = (response.data ?? []) as Array<Record<string, unknown> & { id?: string }>
-        const utils = (collection as { utils?: { writeBatch?: (fn: () => void) => void; writeUpsert?: (rec: any) => void } }).utils
-        if (!utils?.writeBatch || !utils.writeUpsert) {
-          logger.warn('Collection has no writeBatch/writeUpsert utils', { entityType })
-          continue
-        }
-
-        utils.writeBatch(() => {
-          for (const rec of records) {
-            if (rec && typeof rec === 'object' && typeof rec.id === 'string') {
-              utils.writeUpsert!(rec)
-              upsertedForTarget += 1
-            }
+        const records = (response.data ?? []) as Array<
+          Record<string, unknown> & { id?: string }
+        >
+        const valid: Array<{
+          id: string
+          name?: string | null
+          title?: string | null
+          display_name?: string | null
+        }> = []
+        for (const rec of records) {
+          if (rec && typeof rec === 'object' && typeof rec.id === 'string') {
+            valid.push(rec as { id: string; name?: string; title?: string; display_name?: string })
           }
-        })
+        }
+        upsertedForTarget += setCachedNames(orgId, entityType, valid)
       } catch (err) {
         logger.warn('Scoped relationship fetch threw', {
           entityType,

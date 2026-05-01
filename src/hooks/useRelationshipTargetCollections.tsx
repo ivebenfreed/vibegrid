@@ -1,38 +1,34 @@
 /**
- * useRelationshipTargetCollections — Scoped by-ID fetch for relationship target collections
+ * useRelationshipTargetCollections — Scoped by-ID name fetch for relationship cells
  *
- * The static `badge-list` renderer (`slots/renderers/badge-list.ts`) calls
- * `getExistingEntityCollection(target, orgId).get(id)` to resolve target
- * IDs to display names. The lookup is read-only: it returns `null`/`undefined`
- * if the record isn't cached.
- *
- * Earlier follow-ups attempted to populate the cache by subscribing the
- * entire target collection via `useLiveQuery`. That subscription triggers
- * the generic collection bootstrap (up to 50,000 records — see
+ * The static `badge-list` renderer (`slots/renderers/badge-list.ts`) needs
+ * (id → display name) for every relationship target ID it renders. Earlier
+ * attempts populated names by subscribing the entire target collection via
+ * `useEntityCollection` / `useLiveQuery`, which triggers the generic
+ * collection bootstrap (up to 50,000 records — see
  * `entity-collections.ts:ENTITY_COLLECTION_MAX_INITIAL_RECORDS`). On
- * cross-entity grids like `/entities/RFI` referencing Project (~3k) AND
- * Drawings (~42k) AND others, the bootstrap OOMs the tab.
+ * cross-entity grids like `/entities/Project` referencing User AND Company
+ * AND others, the bootstrap OOMs the tab.
  *
- * This bridge instead fetches **only the IDs that actually appear in the
- * current rows** via `data.query` with `whereAst.in`, then writes them into
- * the target collection via `utils.writeBatch / writeUpsert`. Once the
- * records are in the cache, `getExistingEntityCollection().get(id)` returns
- * them and the badge-list renderer's existing lookup works unchanged.
+ * GH#2786 follow-up: this bridge fetches **only the IDs that actually appear
+ * in the current rows** via `data.query` with `whereAst.in`, then writes
+ * them into a tiny per-(orgId, entityType) name cache
+ * (`utils/relationshipNameCache.ts`). The badge-list renderer reads from
+ * that cache as a fallback when the entity collection lookup fails. We
+ * NEVER call the entity collection factory — no SQLite warmup, no JS-heap
+ * blowout.
  *
  * The fetch is debounced so multiple cell render passes coalesce, and is
  * driven by a MobX reaction on `tableCoreStore.processedRows` so it re-runs
  * when filtering/sorting/pagination changes the visible row set.
  *
- * Member is a system entity with a separate factory path; we don't use the
- * by-ID batch path for it (it's naturally org-scoped and small) but we
- * still need to register its collection so the renderer can look it up.
- * Same for PlatformUser / PlatformOrganization.
+ * Member / PlatformUser / PlatformOrganization remain on their existing
+ * factory paths (those are naturally org-scoped and small).
  */
 
-import React, { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { reaction } from 'mobx'
 import { useOrganization } from '@/app/stores'
-import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { Column } from '../types'
@@ -47,70 +43,36 @@ const logger = getLogger(['vibegrid', 'hooks', 'useRelationshipTargetCollections
 const FETCH_DEBOUNCE_MS = 100
 
 /**
- * Bridge component: registers the target collection (idempotent) so the
- * registry has it for `getExistingEntityCollection` lookups, and exposes the
- * collection ref via a callback so the parent hook can write into it.
- *
- * Renders nothing — purely a registration bridge. We do NOT subscribe via
- * `useLiveQuery` here; that would re-trigger the full collection bootstrap.
- */
-function RelationshipTargetRegistration({
-  targetEntityType,
-  onCollectionReady,
-}: {
-  targetEntityType: string
-  onCollectionReady: (entityType: string, collection: ReturnType<typeof useEntityCollection> | null) => void
-}) {
-  const collection = useEntityCollection(targetEntityType)
-
-  useEffect(() => {
-    onCollectionReady(targetEntityType, collection)
-  }, [targetEntityType, collection, onCollectionReady])
-
-  return null
-}
-
-const MemoizedRegistration = React.memo(RelationshipTargetRegistration)
-
-/**
  * Extract unique `relationshipTargetEntity` names from the current column
- * set. Empty entries are skipped.
+ * set. System exclusions are skipped (they have separate factory paths).
  */
 function getTargetEntityTypes(columns: Column[]): string[] {
   const targets = new Set<string>()
 
   for (const col of columns) {
     const target = (col as { relationshipTargetEntity?: string | null }).relationshipTargetEntity
-    if (typeof target === 'string' && target.length > 0) {
-      targets.add(target)
-    }
+    if (typeof target !== 'string' || target.length === 0) continue
+    if (SYSTEM_ENTITY_EXCLUSIONS.has(target)) continue
+    targets.add(target)
   }
 
   return Array.from(targets).sort()
 }
 
 /**
- * Hook that returns invisible bridge elements for every relationship target
- * entity referenced by the supplied tableCoreStore's columns. Render the
- * returned ReactNode in the JSX tree. When called with no columns or no
- * tableCoreStore the hook returns null.
+ * Hook that drives the scoped by-ID name fetch for every relationship target
+ * entity referenced by the supplied tableCoreStore's columns. Returns `null`
+ * — there are no JSX bridges to render. Side-effect only.
+ *
+ * Returning a ReactNode (rather than `void`) preserves the existing call
+ * site shape in `VibeGrid.tsx` so the diff stays minimal.
  */
-export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore | null): React.ReactNode {
+export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore | null): null {
   const orgStore = useOrganization()
   const orgId = orgStore.activeOrganizationId
 
   const columns = tableCoreStore?.columns ?? []
   const targetEntityTypes = useMemo(() => getTargetEntityTypes(columns), [columns])
-
-  // Map of entityType → collection ref, populated by registration bridges.
-  const collectionsRef = useRef(new Map<string, ReturnType<typeof useEntityCollection> | null>())
-
-  const handleCollectionReady = React.useCallback(
-    (entityType: string, collection: ReturnType<typeof useEntityCollection> | null) => {
-      collectionsRef.current.set(entityType, collection)
-    },
-    [],
-  )
 
   // Drive the by-ID fetch off a MobX reaction on processedRows. We debounce
   // so a flurry of recomputes (sort + filter + scroll) coalesces into one
@@ -124,16 +86,17 @@ export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore 
       const rows = tableCoreStore.processedRows
       if (!rows || rows.length === 0) return
       const cols = tableCoreStore.columns ?? []
-      const targets = collectTargetIds(rows as Array<{ type?: string; data?: Record<string, unknown> }>, cols)
+      const targets = collectTargetIds(
+        rows as Array<{ type?: string; data?: Record<string, unknown> }>,
+        cols,
+      )
       if (targets.size === 0) return
 
-      // Filter out targets we don't have a collection for yet (registration
-      // bridge hasn't mounted) and system exclusions (we don't try to batch
-      // those — let the existing factory paths handle them).
+      // System exclusions are stripped during column scan, but defense-in-depth
+      // here too in case future callers rely on direct collectTargetIds shape.
       const filtered = new Map<string, Set<string>>()
       for (const [entityType, ids] of targets) {
         if (SYSTEM_ENTITY_EXCLUSIONS.has(entityType)) continue
-        if (!collectionsRef.current.has(entityType)) continue
         filtered.set(entityType, ids)
       }
       if (filtered.size === 0) return
@@ -141,11 +104,10 @@ export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore 
       void fetchAndCacheTargets({
         targets: filtered,
         orgId,
-        getCollection: (entityType) => collectionsRef.current.get(entityType) ?? null,
       })
         .then((result) => {
           if (result.upserted > 0) {
-            logger.debug('Scoped relationship fetch upserted records', {
+            logger.debug('Scoped relationship name fetch upserted records', {
               upserted: result.upserted,
               perTarget: result.perTarget,
             })
@@ -153,7 +115,7 @@ export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore 
           }
         })
         .catch((err) => {
-          logger.warn('Scoped relationship fetch errored', {
+          logger.warn('Scoped relationship name fetch errored', {
             error: err instanceof Error ? err.message : String(err),
           })
         })
@@ -188,26 +150,12 @@ export function useRelationshipTargetCollections(tableCoreStore: TableCoreStore 
 
   useEffect(() => {
     if (targetEntityTypes.length > 0) {
-      logger.info('Relationship target registration bridges active', {
+      logger.info('Relationship target name fetcher active', {
         targetEntityTypes,
         columnCount: columns.length,
       })
     }
   }, [targetEntityTypes, columns.length])
 
-  if (!tableCoreStore || targetEntityTypes.length === 0) {
-    return null
-  }
-
-  return (
-    <>
-      {targetEntityTypes.map((entityType) => (
-        <MemoizedRegistration
-          key={entityType}
-          targetEntityType={entityType}
-          onCollectionReady={handleCollectionReady}
-        />
-      ))}
-    </>
-  )
+  return null
 }
