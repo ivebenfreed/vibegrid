@@ -70,9 +70,19 @@ function getRelationshipTargets(columns: Column[]): string[] {
 
 /**
  * Per-target slot: registers the entity collection in `collectionsCache`
- * (so `getExistingEntityCollection` resolves) and queues the bootstrap
- * warmup on the SharedWorker's **background** priority queue lane. Releases
- * the priority-queue refcount on unmount.
+ * (so `getExistingEntityCollection` resolves), queues the bootstrap warmup
+ * on the SharedWorker's **background** priority queue lane, and bridges
+ * SharedWorker `entityBatch` events directly into the collection via
+ * `collection.utils.writeBatch` / `writeUpsert`.
+ *
+ * Why direct bridging? `sqliteCollectionOptions` only populates the
+ * collection's in-memory record map from inside its queryFn (sqliteQueryFn),
+ * which doubles as a network refresh — i.e., subscribing via `useLiveQuery`
+ * triggers the up-to-50k oRPC fetch we're trying to avoid. The SharedWorker
+ * already wrote our by-id batches to SQLite and emitted entityBatch events;
+ * we just need to land them in the in-memory map without the network refresh.
+ *
+ * Releases the priority-queue refcount on unmount; SQLite rows persist.
  */
 function RelationshipTargetSlotBase({
   targetEntityType,
@@ -82,7 +92,57 @@ function RelationshipTargetSlotBase({
   orgId: string
 }): null {
   // Background lane: the page's own foreground entity bootstrap preempts.
-  useEntityCollection(targetEntityType, { priority: 'background' })
+  const collection = useEntityCollection(targetEntityType, { priority: 'background' })
+
+  // Bridge SharedWorker entityBatch events into the collection. The collection
+  // factory's queryFn populates the in-memory map only from inside its
+  // network refresh, but we don't want to trigger that network path. Instead
+  // we listen for entityBatch events emitted by warmEntity / fetchEntityByIds
+  // and write them straight into the collection.
+  useEffect(() => {
+    if (!collection) return
+
+    const client = getSQLiteClient()
+    if (!client.initialized) return
+
+    const utils = (collection as { utils?: { writeBatch?: (fn: () => void) => void; writeUpsert?: (record: unknown) => void; writeDelete?: (key: string) => void } }).utils
+    const writeBatch = utils?.writeBatch
+    const writeUpsert = utils?.writeUpsert
+    const writeDelete = utils?.writeDelete
+    if (!writeBatch || !writeUpsert) return
+
+    const unsub = client.onEntityBatch((batch) => {
+      if (batch.entityName !== targetEntityType) return
+      const upserts = batch.upserts ?? []
+      const deletes = batch.deletes ?? []
+      if (upserts.length === 0 && deletes.length === 0) return
+
+      writeBatch(() => {
+        for (const record of upserts) {
+          try {
+            writeUpsert(record)
+          } catch (err) {
+            // Skip malformed records — don't break the batch
+            logger.debug('writeUpsert failed for relationship target record', {
+              targetEntityType,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+        }
+        if (writeDelete) {
+          for (const id of deletes) {
+            try {
+              writeDelete(id)
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+      })
+    })
+
+    return () => unsub()
+  }, [collection, targetEntityType])
 
   useEffect(() => {
     return () => {
