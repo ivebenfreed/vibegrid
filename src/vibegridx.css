@@ -587,7 +587,7 @@ body.vibegridx-dragging-active * {
    - On row hover: swap to checkbox
    - When checkbox is checked (row selected): keep checkbox visible
    NOTE: Uses opacity:0 (not display:none) so checkbox remains in the
-   accessibility tree for screen readers and agent-browser snapshot.
+   accessibility tree for screen readers and chrome-devtools-axi snapshot.
    display:none removes elements from the a11y tree entirely. */
 .vibegridx-row-header-cell .vibegridx-row-number {
   display: block;

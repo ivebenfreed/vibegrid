@@ -85,7 +85,8 @@ Grid uses the **Pointer Events API** (not MouseEvent) for unified mouse + touch 
 
 ## Accessibility & Browser Automation
 
-VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
+VIbeGrid emits ARIA attributes that `chrome-devtools-axi`'s `snapshot` reads
+natively (via `pnpm ab snapshot`):
 
 | Attribute | Element | Purpose |
 |-----------|---------|---------|
@@ -100,11 +101,11 @@ VIbeGrid emits ARIA attributes that agent-browser's `snapshot` reads natively:
 **Programmatic column scroll:**
 ```bash
 # Scroll to column by ID (centers in viewport, syncs header)
-agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("column_id")'
+pnpm ab eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("column_id")'
 # Instant (no animation): scrollToColumn("column_id", "instant")
 ```
 
-**Hiding pattern:** Use `opacity: 0` + `pointer-events: none` (NOT `display: none`) for hover-to-reveal elements. `display: none` removes elements from Chrome's accessibility tree entirely, breaking screen readers and agent-browser snapshot. `visibility: hidden` also hides from the a11y tree. Only `opacity: 0` keeps elements discoverable.
+**Hiding pattern:** Use `opacity: 0` + `pointer-events: none` (NOT `display: none`) for hover-to-reveal elements. `display: none` removes elements from Chrome's accessibility tree entirely, breaking screen readers and chrome-devtools-axi snapshot. `visibility: hidden` also hides from the a11y tree. Only `opacity: 0` keeps elements discoverable.
 
 ```css
 /* CORRECT — stays in ARIA tree */

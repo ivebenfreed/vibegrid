@@ -63,34 +63,35 @@ For each behavior:
 
 ```bash
 # Grid overview
-agent-browser snapshot -i -s "[role=grid]"
+pnpm ab snapshot      # then filter for [role=grid] in the output
 
-# Row (1-based, header=1, first data=2)
-agent-browser snapshot -i -s "[aria-rowindex='2']"
+# Row (1-based, header=1, first data=2) — find @uid in `pnpm ab snapshot` output
+pnpm ab eval "document.querySelector('[aria-rowindex=\"2\"]')?.outerHTML"
 
 # Cell by test ID
-agent-browser snapshot -i -s "[data-testid='cell-{rowId}-{colId}']"
+pnpm ab eval "document.querySelector('[data-testid=\"cell-{rowId}-{colId}\"]')?.outerHTML"
 
 # Editable cells
-agent-browser snapshot -i -s "[data-affordance='edit']"
+pnpm ab eval "Array.from(document.querySelectorAll('[data-affordance=\"edit\"]')).length"
 
 # Column header sort
-agent-browser click "[role='columnheader'][aria-colindex='2']"
+pnpm ab eval "document.querySelector('[role=\"columnheader\"][aria-colindex=\"2\"]')?.click()"
 
 # Scroll to column (MUST use .vibegridx-viewport, NOT .vibegridx-header-clip)
-agent-browser eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_currency", "instant")'
+pnpm ab eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_currency", "instant")'
 
-# Row checkbox (hover to reveal)
-agent-browser hover "[aria-rowindex='3']"
-agent-browser click "[aria-rowindex='3'] .vibegridx-row-checkbox"
+# Row checkbox (hover to reveal) — use snapshot uids for hover/click
+pnpm ab snapshot               # Locate the row's @uid
+pnpm ab hover @<uid>
+pnpm ab click @<checkbox-uid>
 ```
 
 ## Multi-Persona Testing
 
 Switch users for permission tests:
 ```bash
-agent-browser eval "window.__auth.signIn('viewer').then(r => JSON.stringify(r))"
-agent-browser open $TARGET_URL/entities/{entityType}
+pnpm ab auth login viewer
+pnpm ab open $TARGET_URL/entities/{entityType}
 # Verify: no edit affordances, no create button
 ```
 

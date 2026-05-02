@@ -860,7 +860,7 @@ export class BodyRenderer {
     // Set test ID for automated testing
     cellElement.setAttribute('data-testid', `cell-${row.id}-${column.id}`)
 
-    // Set aria-label for accessibility and agent-browser snapshot visibility
+    // Set aria-label for accessibility and chrome-devtools-axi snapshot visibility
     const cellText = cellElement.textContent?.trim()
     if (cellText && column.name) {
       cellElement.setAttribute('aria-label', `${column.name}: ${cellText}`)
