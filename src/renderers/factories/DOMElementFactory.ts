@@ -179,6 +179,8 @@ export class DOMElementFactory {
         margin: 0;
       `
       checkbox.dataset.rowId = row.id
+      // GH#2804 p3: testid for verification step 11.
+      checkbox.dataset.testid = 'row-checkbox'
 
       // Add change handler
       checkbox.addEventListener('change', (e) => {
@@ -246,6 +248,8 @@ export class DOMElementFactory {
         margin: 0;
       `
       selectAllCheckbox.title = 'Select all rows'
+      // GH#2804 p3: testid for verification step 10.
+      selectAllCheckbox.dataset.testid = 'vibegrid-select-all'
 
       cornerCell.appendChild(selectAllCheckbox)
     }
@@ -259,6 +263,10 @@ export class DOMElementFactory {
   createHeaderCell(column: any, width: number): HTMLElement {
     const headerCell = this.createElement('div', 'vibegridx-header-cell')
     headerCell.dataset.field = column.id // Add field ID for sort updates
+    // GH#2804 p3: testid for verification — column-menu is the header cell
+    // (menu opens via right-click on the header today; future per-column
+    // menus should attach here so this selector keeps working).
+    headerCell.dataset.testid = 'column-menu'
     const isNarrowIndicator = width <= 50 && !(column.label || column.name)
     if (isNarrowIndicator) {
       headerCell.classList.add('vibegridx-narrow-indicator')

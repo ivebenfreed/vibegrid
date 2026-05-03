@@ -30,6 +30,26 @@ import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import type { FilterConfig, SortConfig } from '../types'
 import { useMobxSnapshot } from './useMobxSnapshot'
+// GH#2804 — when ?ff=substrate is on for a substrate-owned entity, VibeGrid
+// sources rows from the substrate Query directly. Production
+// useEntityCollection/useLiveQuery path is short-circuited so the data
+// layer is genuinely swapped (not run alongside).
+import {
+  isSubstrateEnabled,
+  isSubstrateOwnedEntity,
+} from '@/shared/data/query/feature-flag'
+// GH#2812 A1: in substrate mode the TanStack DB collection is empty, so
+// collection.insert/update/delete throws or no-ops. Route mutations through
+// oRPC and let queryDelta + setSparseRows reconcile.
+import {
+  shouldUseSubstrateWrite,
+  substrateCreate,
+  substrateDelete,
+  substrateUpdate,
+} from '@/shared/data/query/substrate-mutations'
+import { useSubstrateGridRows } from '@/shared/data/query/use-substrate-grid-rows'
+import { useOrganization } from '@/app/stores'
+import { useVibeGridStores } from '../stores/context'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
@@ -219,6 +239,32 @@ export function useVibeGridData(
   const skip = options?.skip ?? false
   const collectionOverride = options?.collectionOverride
   const systemPredicate = options?.systemPredicate
+
+  // GH#2804 — substrate-owned entity short-circuit. When the flag is on
+  // AND the entity is owned by the substrate, source rows from the Query
+  // class directly. Skip the entire TanStack DB path. Production grid
+  // chrome (sort/filter/group/virtualization) keeps working because it
+  // operates on tableCoreStore.setRows() output regardless of source.
+  const orgId = useOrganization()?.activeOrganizationId ?? null
+  const useSubstrate = isSubstrateEnabled() && isSubstrateOwnedEntity(entityType) && !skip && !collectionOverride
+  // GH#2804 B5: thread viewportStore through so the substrate hook can
+  // publish `query.count` to `viewportStore.serverTotalRows`. This decouples
+  // VibeGrid's totalRows-derived UI (GridLineCanvas, "X of Y" labels) from
+  // the windowed `rawRows.length` once cursor-bounded mode lands in p4/p5.
+  const { viewportStore } = useVibeGridStores()
+  const substrateState = useSubstrateGridRows(
+    useSubstrate ? entityType : '',
+    useSubstrate ? orgId : null,
+    useSubstrate ? viewportStore : null,
+    // GH#2804 p4: thread tableCoreStore through so the substrate hook
+    // delivers rows via `setSparseRows()`. The hook writes directly; this
+    // hook's `setRows` push path is skipped via the `bounded` flag below.
+    useSubstrate ? tableCoreStore : null,
+    // GH#2804 p5 (B11): thread visualStateStore so the substrate hook can
+    // push VibeGrid sort/filter changes through to SQL via query.patch.
+    useSubstrate ? visualStateStore : null,
+  )
+
   // Get TanStack DB collection (shared singleton) or use override for mock testing
   const apiCollection = useEntityCollection(entityType)
   const collection = collectionOverride ?? apiCollection
@@ -252,8 +298,13 @@ export function useVibeGridData(
       // Start with base query
       let query = q.from({ entity: collection })
 
-      // Apply filters
-      if (filterSnapshot.length > 0) {
+      // Apply filters. GH#2804 p5 (B11): for substrate-owned entities, the
+      // filter is pushed to SQL via `query.patch({filter})` (see
+      // `useSubstrateGridRows`). The TanStack DB path's filtered result is
+      // unused for substrate-owned entities (sourceRows comes from
+      // substrateState) — skip to avoid double-processing.
+      const skipJsFilter = useSubstrate && isSubstrateOwnedEntity(entityType)
+      if (filterSnapshot.length > 0 && !skipJsFilter) {
         query = applyAllFilters(query, filterSnapshot, 'entity')
       }
 
@@ -264,12 +315,19 @@ export function useVibeGridData(
     [skip, collection, filterSnapshot, sortSnapshot],
   )
 
-  // Apply client-side sorting to results
+  // Apply client-side sorting to results.
+  // GH#2804 p5 (B11): for substrate-owned entities, sort is pushed to SQL
+  // via `query.patch({sort})`. The TanStack DB path is unused (sourceRows
+  // comes from substrateState below) but useLiveQuery still runs — skip
+  // the JS sort to save work and avoid double-processing semantics drift.
   const sortedRows = useMemo(() => {
     if (!rawRows) return []
     const filtered = systemPredicate ? rawRows.filter(systemPredicate) : rawRows
+    if (useSubstrate && isSubstrateOwnedEntity(entityType)) {
+      return filtered
+    }
     return applySortingToRows(filtered, sortSnapshot)
-  }, [rawRows, sortSnapshot, systemPredicate])
+  }, [rawRows, sortSnapshot, systemPredicate, useSubstrate, entityType])
 
   // ====================================
   // PUSH DATA DIRECTLY TO MOBX STORE
@@ -304,21 +362,55 @@ export function useVibeGridData(
     // (collectionOverride is handled by the effect above)
     if (skip) return
 
-    // Don't push data while loading
-    if (queryLoading) return
+    // GH#2804 — substrate path: bypass TanStack DB sortedRows entirely and
+    // push the substrate Query's rows. Filter + sort apply to substrate
+    // rows the same way (plain objects with the entity's data shape).
+    const sourceRows = useSubstrate ? substrateState.rows : sortedRows
+    const sourceLoading = useSubstrate ? !substrateState.isReady : queryLoading
 
-    // OPTIMIZATION: Skip if rows array reference is the same (TanStack stable refs)
-    // This prevents duplicate updates when server echo returns same data
-    if (sortedRows === prevRowsRef.current) {
+    // GH#2804 p4: in cursor-bounded mode the substrate hook writes rows
+    // directly via `setSparseRows()` (with placeholders for unloaded
+    // indices). Calling `setRows()` here would clobber the sparse window
+    // with a dense windowed array. Mark hydrated and bail.
+    if (useSubstrate && substrateState.bounded) {
+      if (!initStore.hydrationState.entityDataLoaded && substrateState.isReady && substrateState.count > 0) {
+        if (emptyCollectionTimerRef.current) {
+          clearTimeout(emptyCollectionTimerRef.current)
+          emptyCollectionTimerRef.current = null
+        }
+        initStore.markReady('entityDataLoaded')
+      }
+      return
+    }
+
+    // Don't push data while loading
+    if (sourceLoading) return
+
+    // OPTIMIZATION: Skip if rows array reference is the same (stable refs)
+    if (sourceRows === prevRowsRef.current) {
       logger.debug('[useVibeGridData] ⏭️ Skipping setRows - same reference')
       return
     }
-    prevRowsRef.current = sortedRows
+    prevRowsRef.current = sourceRows
+
+    // Apply systemPredicate and sort for substrate rows (TanStack DB path
+    // already did this via sortedRows).
+    //
+    // GH#2804 p5 (B11): for substrate-owned entities, sort+filter are pushed
+    // to SQL via `query.patch({sort, filter})`. JS-side `applySortingToRows`
+    // would double-process already-server-sorted rows. Skip it.
+    let pushRows = sourceRows
+    if (useSubstrate) {
+      const filtered = systemPredicate ? sourceRows.filter(systemPredicate) : sourceRows
+      pushRows = isSubstrateOwnedEntity(entityType)
+        ? filtered
+        : applySortingToRows(filtered, sortSnapshot)
+    }
 
     // Push rows directly to MobX store
     // The store's setRows() has hash-based change detection that will
     // skip redundant updates (e.g., server echo after optimistic update)
-    tableCoreStore.setRows(sortedRows)
+    tableCoreStore.setRows(pushRows)
 
     // Mark entity data as loaded on first push with actual data.
     // Don't mark on empty results - TanStack DB's useLiveQuery resolves the local
@@ -326,7 +418,7 @@ export function useVibeGridData(
     // Marking entityDataLoaded here would cause isFullyHydrated → true → skeleton
     // disappears while the grid body is still empty. (GH#1413)
     if (!initStore.hydrationState.entityDataLoaded) {
-      if (sortedRows.length > 0) {
+      if (pushRows.length > 0) {
         // Clear the empty-collection fallback timer since we got real data
         if (emptyCollectionTimerRef.current) {
           clearTimeout(emptyCollectionTimerRef.current)
@@ -346,7 +438,26 @@ export function useVibeGridData(
         rowCount: sortedRows.length,
       })
     }
-  }, [skip, sortedRows, queryLoading, tableCoreStore, initStore, entityType])
+  }, [
+    skip,
+    sortedRows,
+    queryLoading,
+    tableCoreStore,
+    initStore,
+    entityType,
+    sortSnapshot,
+    systemPredicate,
+    // GH#2804 — when substrate is the source, deps must observe its rows +
+    // isReady so the push effect fires on each delta replace.
+    useSubstrate,
+    substrateState.rows,
+    substrateState.isReady,
+    // GH#2804 p4: bounded-mode delivery happens inside useSubstrateGridRows.
+    // Re-evaluate this push effect when bounded state flips (e.g., flag
+    // change on URL navigation) so we don't incorrectly call setRows.
+    substrateState.bounded,
+    substrateState.count,
+  ])
 
   // Fallback: For legitimately empty collections, mark entityDataLoaded after a delay.
   // When the server returns 0 records, sortedRows stays [] and the condition above
@@ -377,6 +488,27 @@ export function useVibeGridData(
 
   const createEntity = useMemo(() => {
     return (data: Record<string, any>) => {
+      // GH#2812 A1: substrate-owned entities have an empty TanStack DB
+      // collection. Route through oRPC; the substrate reconciles via
+      // queryDelta events.
+      if (shouldUseSubstrateWrite(entityType)) {
+        substrateCreate(entityType, data)
+          .then((result) => {
+            if (!result.success) {
+              logger.error('Entity create failed (substrate)', { entityType, error: result.error })
+              return
+            }
+            logger.info('Entity create persisted (substrate)', { entityType })
+          })
+          .catch((err: any) => {
+            logger.error('Entity create threw (substrate)', {
+              entityType,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+        return
+      }
+
       if (!collection) {
         logger.error('Cannot create: collection not loaded', { entityType })
         return
@@ -404,6 +536,27 @@ export function useVibeGridData(
 
   const updateEntity = useMemo(() => {
     return (id: string, updates: Record<string, any>) => {
+      // GH#2812 A1: substrate-owned entities — go through oRPC, not
+      // collection.update (collection is empty in bounded substrate mode).
+      if (shouldUseSubstrateWrite(entityType)) {
+        substrateUpdate(entityType, String(id), updates)
+          .then((result) => {
+            if (!result.success) {
+              logger.error('Entity update failed (substrate)', { entityType, id, error: result.error })
+              return
+            }
+            logger.info('Entity update persisted (substrate)', { entityType, id })
+          })
+          .catch((err: any) => {
+            logger.error('Entity update threw (substrate)', {
+              entityType,
+              id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+        return
+      }
+
       if (!collection) {
         logger.error('Cannot update: collection not loaded', { entityType })
         return
@@ -428,6 +581,27 @@ export function useVibeGridData(
 
   const deleteEntity = useMemo(() => {
     return (id: string) => {
+      // GH#2812 A1: substrate-owned entities — go through oRPC, not
+      // collection.delete (collection is empty in bounded substrate mode).
+      if (shouldUseSubstrateWrite(entityType)) {
+        substrateDelete(entityType, String(id))
+          .then((result) => {
+            if (!result.success) {
+              logger.error('Entity delete failed (substrate)', { entityType, id, error: result.error })
+              return
+            }
+            logger.info('Entity delete persisted (substrate)', { entityType, id })
+          })
+          .catch((err: any) => {
+            logger.error('Entity delete threw (substrate)', {
+              entityType,
+              id,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+        return
+      }
+
       if (!collection) {
         logger.error('Cannot delete: collection not loaded', { entityType })
         return

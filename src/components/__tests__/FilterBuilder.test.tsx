@@ -110,11 +110,12 @@ describe('FilterBuilder Toolbar Button', () => {
     sourceCode = getFilterBuilderSource()
   })
 
-  it('should render a filter button with data-testid="vibegrid-filter-btn"', () => {
+  it('should render a filter button with data-testid="filter-trigger"', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
-    expect(sourceCode).toContain('data-testid="vibegrid-filter-btn"')
+    // GH#2804 p3: testid renamed from `vibegrid-filter-btn` → `filter-trigger`.
+    expect(sourceCode).toContain('data-testid="filter-trigger"')
   })
 
   it('should display "Filters" text on button', () => {
@@ -265,11 +266,12 @@ describe('FilterBuilder Apply and Clear Buttons', () => {
     sourceCode = getFilterBuilderSource()
   })
 
-  it('should have Apply button with data-testid="vibegrid-filter-apply"', () => {
+  it('should have Apply button with data-testid="filter-apply"', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
-    expect(sourceCode).toContain('data-testid="vibegrid-filter-apply"')
+    // GH#2804 p3: testid renamed from `vibegrid-filter-apply` → `filter-apply`.
+    expect(sourceCode).toContain('data-testid="filter-apply"')
   })
 
   it('should have Clear button with data-testid="vibegrid-filter-clear"', () => {

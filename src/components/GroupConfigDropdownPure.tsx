@@ -29,6 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/components/ui/dropdown-menu'
+import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import { formatFieldName } from '../column-defaults'
 import type { VibeGridStores } from '../stores/context'
 import type { GroupConfig, GroupField } from '../types'
@@ -246,6 +247,12 @@ export const GroupConfigDropdownPure = observer(function GroupConfigDropdownPure
 
   const hasActiveGrouping = groupConfig && groupConfig.fields.length > 0
   const activeGroupCount = groupConfig?.fields.length || 0
+
+  // GH#2804 B12: hide group-by UI for substrate-owned entities.
+  // Placed AFTER hooks so hook order stays stable.
+  if (isSubstrateOwnedEntity(tableCoreStore.entityType)) {
+    return null
+  }
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>

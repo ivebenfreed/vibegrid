@@ -273,6 +273,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     editingStore,
     initStore,
     viewModeStore,
+    viewportStore,
     ganttViewStore,
     kanbanViewStore,
     hierarchyStore,
@@ -282,6 +283,44 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
   // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
+
+  // GH#2804 p3: expose `window.__vibegrid_debug` global on the active grid
+  // when `?debug=vibegrid` is set on the URL. Used by verification steps
+  // 7/8/10/11/13 to read live store state. `lastCursor` and `lastQuery`
+  // are nullable placeholders here — p4 wires the cursor side and p5 wires
+  // the query side.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const search = new URLSearchParams(window.location.search)
+    if (search.get('debug') !== 'vibegrid') return
+
+    const debugApi = {
+      viewportStore,
+      tableCoreStore,
+      interactionStore,
+      // GH#2804 round-5 follow-up: expose editingStore + visualStateStore for
+      // verification of B11 (filter pushdown via setFilters) and edit-parity
+      // tests on substrate-bounded grids. Reading-only — agents call methods
+      // on these stores to drive the same flows the UI does.
+      editingStore,
+      visualStateStore,
+      // p4 will populate via reaction in useSubstrateGridRows.
+      lastCursor: null as { start: number; size: number } | null,
+      // p5 will populate when SQL pushdown lands.
+      lastQuery: null as string | null,
+      // Selection shape will change in wave 3b. Until then, expose
+      // whatever's on InteractionStore via a getter so verification
+      // step 10/11 keeps reading the latest shape.
+      get selection() {
+        const i = interactionStore as unknown as Record<string, unknown>
+        return i.selection ?? i.selectedCells ?? null
+      },
+    }
+    ;(window as unknown as { __vibegrid_debug?: unknown }).__vibegrid_debug = debugApi
+    return () => {
+      delete (window as unknown as { __vibegrid_debug?: unknown }).__vibegrid_debug
+    }
+  }, [viewportStore, tableCoreStore, interactionStore, editingStore, visualStateStore])
 
   const cutoffWidth = viewModeStore.cutoffWidth
 
@@ -910,7 +949,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
   // Helper function to get row data by ID
   const getRowData = (rowId: string) => {
-    return tableCoreStore.processedRows.find((row) => row.id === rowId)
+    // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+    return tableCoreStore.processedRows.find((row) => row && row.id === rowId)
   }
 
   // GH#1551: CSV export helpers
@@ -924,6 +964,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
   }, [])
 
   const getExportRows = useCallback(() => {
+    // GH#2812: Array.prototype.map skips holes per ECMA-262 §22.1.3.21, so
+    // unloaded sparse indices are naturally excluded from the export rows.
     return tableCoreStore.processedRows.map((row) => ({
       id: row.id,
       type: row.type,
@@ -963,7 +1005,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
         if (tableCoreStore.isIncrementalProcessing) return
         // Export only the selected rows
         const rows = rowIds.map((id) => {
-          const vrow = tableCoreStore.processedRows.find((r) => r.id === id)
+          // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+          const vrow = tableCoreStore.processedRows.find((r) => r && r.id === id)
           return {
             id,
             type: 'data' as const,

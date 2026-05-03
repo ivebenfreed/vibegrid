@@ -6,8 +6,11 @@
  */
 
 import { runInAction } from 'mobx'
+import { toast } from 'sonner'
 import { getLogger } from '@/shared/lib/logging'
+import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import type { InteractionStore } from '../../stores/InteractionStore'
+import { isSparsePlaceholder } from '../../stores/TableCoreStore'
 
 const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'modules', 'SelectionController.ts'])
 
@@ -16,12 +19,20 @@ export interface SelectionControllerOptions {
   getProcessedRows: () => any[]
   getVisibleColumns: () => any[]
   bodyRenderer?: any // For updating checkbox visual state
+  /**
+   * GH#2804 B10: optional entity-name accessor used at select-all time to
+   * decide whether to enter marker mode. Returns the canonical entity type
+   * (e.g. 'RFI', 'Project'). When omitted, select-all always uses the legacy
+   * O(N) Set-population path.
+   */
+  getEntityName?: () => string | null
 }
 
 export class SelectionController {
   private interactionStore: InteractionStore
   private getProcessedRows: () => any[]
   private getVisibleColumns: () => any[]
+  private getEntityName: () => string | null
   public bodyRenderer?: any // Public to allow SimplePassiveRenderer to set it
   private lastSelectedRowId: string | null = null
 
@@ -29,6 +40,7 @@ export class SelectionController {
     this.interactionStore = options.interactionStore
     this.getProcessedRows = options.getProcessedRows
     this.getVisibleColumns = options.getVisibleColumns
+    this.getEntityName = options.getEntityName ?? (() => null)
     this.bodyRenderer = options.bodyRenderer
   }
 
@@ -40,7 +52,11 @@ export class SelectionController {
     const visibleColumns = this.getVisibleColumns()
     const selectedCells = new Set<string>()
 
+    // GH#2812 sparse guard: for-of on a sparse array yields undefined for
+    // holes (ECMA-262 §22.1.5). Skip holes + sparse placeholders so unloaded
+    // rows are not added to the selection.
     for (const row of processedRows) {
+      if (!row || isSparsePlaceholder(row)) continue
       for (const column of visibleColumns) {
         if (column.id === 'selection') continue
         selectedCells.add(`${row.id}:${column.id}`)
@@ -117,16 +133,25 @@ export class SelectionController {
     const processedRows = this.getProcessedRows()
     const visibleColumns = this.getVisibleColumns()
 
-    const startRowIndex = processedRows.findIndex((r) => r.id === startRowId)
-    const endRowIndex = processedRows.findIndex((r) => r.id === endRowId)
+    // GH#2812 sparse guard: findIndex visits holes as undefined per
+    // ECMA-262 §22.1.3.10, so we must guard `r` before accessing `.id`.
+    const startRowIndex = processedRows.findIndex((r) => r && r.id === startRowId)
+    const endRowIndex = processedRows.findIndex((r) => r && r.id === endRowId)
 
+    // GH#2804 B7 sparse guard: when start or end is in an unloaded window,
+    // findIndex returns -1 (placeholders share an id). The previous fallback
+    // selected ALL loaded rows, which is wrong — that silently selects rows
+    // outside the user's intended range.
+    // GH#2804 review fix: refuse the operation, leave selection unchanged,
+    // and surface a transient toast asking the user to scroll first.
     if (startRowIndex === -1 || endRowIndex === -1) {
-      fileLog.warn('Could not find row indices for range selection', {
+      fileLog.warn('Range select start/end not loaded — refusing to select', {
         startRowId,
         endRowId,
         startRowIndex,
         endRowIndex,
       })
+      toast.message('Range select unavailable — endpoint rows not loaded. Scroll to load them and try again.')
       return
     }
 
@@ -134,13 +159,27 @@ export class SelectionController {
     const maxRowIndex = Math.max(startRowIndex, endRowIndex)
 
     const selectedCells = new Set<string>()
+    let loadedInRange = 0
+    let sparseInRange = 0
 
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = processedRows[r]
+      // GH#2804 B7 sparse guard: skip placeholder rows; their shared id
+      // would collapse the selection set + bulk actions can't operate on them.
+      if (!row || isSparsePlaceholder(row)) {
+        sparseInRange++
+        continue
+      }
+      loadedInRange++
       for (const column of visibleColumns) {
         if (column.id === 'selection') continue
         selectedCells.add(`${row.id}:${column.id}`)
       }
+    }
+
+    if (sparseInRange > 0) {
+      const requested = maxRowIndex - minRowIndex + 1
+      toast.message(`Selected ${loadedInRange} of ${requested} rows in range — scroll to load more.`)
     }
 
     runInAction(() => {
@@ -173,12 +212,24 @@ export class SelectionController {
     const processedRows = this.getProcessedRows()
     const visibleColumns = this.getVisibleColumns()
 
-    const startRowIndex = processedRows.findIndex((r) => r.id === startRowId)
-    const endRowIndex = processedRows.findIndex((r) => r.id === endRowId)
+    // GH#2812 sparse guard: findIndex visits holes as undefined per
+    // ECMA-262 §22.1.3.10, so we must guard `r` before accessing `.id`.
+    const startRowIndex = processedRows.findIndex((r) => r && r.id === startRowId)
+    const endRowIndex = processedRows.findIndex((r) => r && r.id === endRowId)
     const startColIndex = visibleColumns.findIndex((c) => c.id === startColumnId)
     const endColIndex = visibleColumns.findIndex((c) => c.id === endColumnId)
 
-    if (startRowIndex === -1 || endRowIndex === -1 || startColIndex === -1 || endColIndex === -1) {
+    if (startColIndex === -1 || endColIndex === -1) {
+      return
+    }
+
+    // GH#2804 B7 sparse guard: when start or end row is unloaded, the previous
+    // fallback selected ALL loaded rows — which silently selects rows outside
+    // the user's intended range.
+    // GH#2804 review fix: refuse the operation, leave selection unchanged,
+    // and surface a transient toast asking the user to scroll first.
+    if (startRowIndex === -1 || endRowIndex === -1) {
+      toast.message('Range select unavailable — endpoint rows not loaded. Scroll to load them and try again.')
       return
     }
 
@@ -188,15 +239,29 @@ export class SelectionController {
     const maxColIndex = Math.max(startColIndex, endColIndex)
 
     const selectedCells = new Set<string>()
+    let sparseInRange = 0
+    let loadedInRange = 0
 
     for (let r = minRowIndex; r <= maxRowIndex; r++) {
       const row = processedRows[r]
+      // GH#2804 B7 sparse guard: no-op on sparse placeholder; never add
+      // `__sparse__:column` entries to the selection set.
+      if (!row || isSparsePlaceholder(row)) {
+        sparseInRange++
+        continue
+      }
+      loadedInRange++
       for (let c = minColIndex; c <= maxColIndex; c++) {
         const column = visibleColumns[c]
         if (column.id !== 'selection') {
           selectedCells.add(`${row.id}:${column.id}`)
         }
       }
+    }
+
+    if (sparseInRange > 0) {
+      const requested = maxRowIndex - minRowIndex + 1
+      toast.message(`Selected ${loadedInRange} of ${requested} rows in range — scroll to load more.`)
     }
 
     runInAction(() => {
@@ -223,26 +288,51 @@ export class SelectionController {
 
   /**
    * Select all cells in the table (for select all checkbox)
+   *
+   * GH#2804 B10: substrate-owned entities use the marker-model select-all
+   * (O(1) — set selectionMarkerMode to 'all-with-exclusions') so 100k-row
+   * grids don't materialize a 100k-element Set. Non-substrate entities keep
+   * today's O(N) behavior.
    */
   handleSelectAllToggle(): void {
-    const selectedCells = this.interactionStore.selectedCells
+    const interaction = this.interactionStore
+    const isMarkerActive = interaction.selectionMarkerMode === 'all-with-exclusions'
+    const selectedCells = interaction.selectedCells
     const processedRows = this.getProcessedRows()
     const visibleColumns = this.getVisibleColumns()
+    const entityName = this.getEntityName()
+    const useMarkerMode = entityName ? isSubstrateOwnedEntity(entityName) : false
 
     fileLog.debug('🎯 Select all checkbox toggled', {
       currentSelection: selectedCells.size,
       totalRows: processedRows.length,
       totalColumns: visibleColumns.length,
+      entityName,
+      useMarkerMode,
+      isMarkerActive,
     })
 
-    if (selectedCells.size === 0) {
-      // No selection - select all cells via interaction store
-      this.interactionStore.selectAll({
-        rows: processedRows,
-        columns: visibleColumns,
-        columnVisibility: this.getColumnVisibility(),
-      })
-      fileLog.debug('✅ Select all triggered via SelectionController')
+    // If marker mode is currently active, "select all" toggle = deselect
+    // (clear marker + selections). Bypasses the legacy `selectedCells.size === 0`
+    // branch which would otherwise re-select.
+    if (isMarkerActive) {
+      this.interactionStore.clearSelection()
+      fileLog.debug('✅ Marker mode cleared via SelectionController')
+    } else if (selectedCells.size === 0) {
+      if (useMarkerMode) {
+        // GH#2804 B10: O(1) select-all via marker mode. NO Set populated with
+        // 100k ids. Bulk actions iterate via iterateSelectedRowIds().
+        this.interactionStore.setSelectionMode('all-with-exclusions')
+        fileLog.debug('✅ Marker-mode select-all triggered (substrate-owned)', { entityName })
+      } else {
+        // Legacy path: populate selectedCells Set with all visible-row × visible-column ids.
+        this.interactionStore.selectAll({
+          rows: processedRows,
+          columns: visibleColumns,
+          columnVisibility: this.getColumnVisibility(),
+        })
+        fileLog.debug('✅ Legacy select-all triggered via SelectionController')
+      }
     } else {
       // Has selection - clear all via interaction store
       this.interactionStore.clearSelection()
@@ -310,10 +400,15 @@ export class SelectionController {
     // Use reactive checkbox states from interaction store
     const checkboxStates = this.interactionStore.getRowCheckboxStates(processedRows, visibleColumns)
 
-    const totalRows = processedRows.length
+    // GH#2812 sparse guard: for-of yields undefined for holes (ECMA-262
+    // §22.1.5). Count loaded rows separately so the "all selected" comparison
+    // doesn't include unloaded sparse indices.
+    let totalRows = 0
     let selectedRowCount = 0
 
     for (const row of processedRows) {
+      if (!row || isSparsePlaceholder(row)) continue
+      totalRows++
       if (checkboxStates.get(row.id)) {
         selectedRowCount++
       }

@@ -9,6 +9,12 @@ import { runInAction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 import type { EditingStore } from '../../stores/EditingStore'
 import type { InteractionStore } from '../../stores/InteractionStore'
+import type { TableCoreStore } from '../../stores/TableCoreStore'
+import {
+  isSparsePlaceholder,
+  nextLoadedRowIndex as nextLoadedRowIndexInWindow,
+  previousLoadedRowIndex as previousLoadedRowIndexInWindow,
+} from '../../stores/TableCoreStore'
 import type { SelectionController } from './SelectionController'
 
 const logger = getLogger('components/custom/vibegrid/renderers/modules/KeyboardNavigationController.ts')
@@ -20,6 +26,14 @@ export interface KeyboardNavigationOptions {
   getProcessedRows: () => any[]
   getVisibleColumns: () => any[]
   container: HTMLElement
+  /**
+   * GH#2804 round-3 review fix: optional TableCoreStore reference. When
+   * provided, sparse-row scans use the O(1) window-based helpers
+   * (`nextLoadedRowIndex` / `previousLoadedRowIndex`) instead of the
+   * file-local linear scan. At 100k rows with a small loaded window,
+   * PageUp/PageDown previously scanned ~99,900 placeholders linearly.
+   */
+  tableCoreStore?: TableCoreStore
 }
 
 export class KeyboardNavigationController {
@@ -29,6 +43,7 @@ export class KeyboardNavigationController {
   private getProcessedRows: () => any[]
   private getVisibleColumns: () => any[]
   private container: HTMLElement
+  private tableCoreStore?: TableCoreStore
 
   constructor(options: KeyboardNavigationOptions) {
     this.interactionStore = options.interactionStore
@@ -37,6 +52,71 @@ export class KeyboardNavigationController {
     this.getProcessedRows = options.getProcessedRows
     this.getVisibleColumns = options.getVisibleColumns
     this.container = options.container
+    this.tableCoreStore = options.tableCoreStore
+  }
+
+  /**
+   * GH#2804 round-3 review fix: sparse-aware "next loaded index" lookup.
+   *
+   * When `processedRows.length` matches the TableCoreStore's full sparse
+   * array length (i.e., `processedRows[i]` and `rawRows[i]` share the same
+   * indexing — the unsliced/wrapped path), use the O(1) window-based
+   * helper. This avoids scanning ~99,900 placeholders linearly on a 100k
+   * row table where only a small window is loaded.
+   *
+   * When indices don't align (e.g., `baseRows` returned a slice of just the
+   * loaded window, so processedRows.length = window size << totalCount),
+   * fall back to the linear scan — it's O(window size) which is small.
+   *
+   * The window-based helper degenerates correctly on dense data: when
+   * loadedWindowEnd === processedRows.length, every index in [0, end) is
+   * loaded, so it always returns the requested index.
+   */
+  private nextLoadedIndex(rows: any[], start: number): number {
+    const store = this.tableCoreStore
+    if (store && this.isWindowAlignedWithProcessedRows(rows.length)) {
+      return nextLoadedRowIndexInWindow(
+        Math.max(0, start),
+        store.loadedWindowStart,
+        store.loadedWindowEnd,
+        rows.length,
+      )
+    }
+    return findNextLoadedIndex(rows, start)
+  }
+
+  private previousLoadedIndex(rows: any[], start: number): number {
+    const store = this.tableCoreStore
+    if (store && this.isWindowAlignedWithProcessedRows(rows.length)) {
+      const clampedStart = Math.min(
+        Math.max(0, start),
+        Math.max(0, rows.length - 1),
+      )
+      return previousLoadedRowIndexInWindow(
+        clampedStart,
+        store.loadedWindowStart,
+        store.loadedWindowEnd,
+      )
+    }
+    return findPreviousLoadedIndex(rows, start)
+  }
+
+  /**
+   * The O(1) helpers index into `rawRows` (length=totalCount). They are
+   * only safe when `processedRows` has the same length and indexing — i.e.
+   * either no sparse window is active (dense path: window covers full
+   * array) or the array was wrapped without slicing.
+   */
+  private isWindowAlignedWithProcessedRows(processedRowsLength: number): boolean {
+    const store = this.tableCoreStore
+    if (!store) return false
+    // Dense (no sparse window) — both window helpers degenerate to identity.
+    if (store.loadedWindowEnd === processedRowsLength && store.loadedWindowStart === 0) {
+      return true
+    }
+    // Sparse: window indices align with processedRows when the array was
+    // not sliced (length matches the rawRows allocation).
+    return processedRowsLength >= store.loadedWindowEnd
   }
 
   /**
@@ -59,7 +139,11 @@ export class KeyboardNavigationController {
 
     // If no focused cell, focus the first cell
     if (!focusedCell) {
-      const firstRow = processedRows[0]
+      // GH#2804 B7 sparse guard: skip past unloaded rows when looking for the
+      // first focusable row — focusing a placeholder would NPE on `.id`.
+      const firstLoadedIdx = this.nextLoadedIndex(processedRows, 0)
+      if (firstLoadedIdx === -1) return
+      const firstRow = processedRows[firstLoadedIdx]
       const firstColumn = visibleColumns.find((c) => c.id !== 'selection') || visibleColumns[0]
       const firstCellId = `${firstRow.id}:${firstColumn.id}`
       this.interactionStore.setFocusedCell(firstCellId)
@@ -69,8 +153,10 @@ export class KeyboardNavigationController {
 
     // PHASE 5: FOCUS VALIDATION
     // Validate that focused cell still exists in current rows/columns
+    // GH#2812 sparse guard: findIndex visits holes as undefined per
+    // ECMA-262 §22.1.3.10, so we must guard `r` before accessing `.id`.
     const [currentRowId, currentColumnId] = focusedCell.split(':')
-    const currentRowIndex = processedRows.findIndex((r) => r.id === currentRowId)
+    const currentRowIndex = processedRows.findIndex((r) => r && r.id === currentRowId)
     const currentColIndex = visibleColumns.findIndex((c) => c.id === currentColumnId)
 
     // PHASE 5: FOCUS RECOVERY
@@ -113,7 +199,22 @@ export class KeyboardNavigationController {
         break
     }
 
-    const newRow = processedRows[newRowIndex]
+    // GH#2804 B7 sparse guard: when the target row is a sparse placeholder,
+    // skip forward (down/right) or backward (up/left) to the next loaded
+    // row. If none exists in that direction, no-op rather than crash.
+    let resolvedRowIndex = newRowIndex
+    if (direction === 'up' || direction === 'left') {
+      const prev = this.previousLoadedIndex(processedRows, resolvedRowIndex)
+      if (prev !== -1) resolvedRowIndex = prev
+    } else {
+      const next = this.nextLoadedIndex(processedRows, resolvedRowIndex)
+      if (next !== -1) resolvedRowIndex = next
+    }
+    const newRow = processedRows[resolvedRowIndex]
+    if (!newRow || isSparsePlaceholder(newRow)) {
+      logger.debug('Arrow nav: no loaded row reachable, no-op', { direction, resolvedRowIndex })
+      return
+    }
     const newColumn = visibleColumns[newColIndex]
     const newCellId = `${newRow.id}:${newColumn.id}`
 
@@ -366,8 +467,14 @@ export class KeyboardNavigationController {
       return
     }
 
-    // Focus first visible cell (skip selection column)
-    const firstRow = processedRows[0]
+    // GH#2804 B7 sparse guard: anchor recovery falls back to the first
+    // loaded row id when the saved index points into a sparse range.
+    const firstLoadedIdx = this.nextLoadedIndex(processedRows, 0)
+    if (firstLoadedIdx === -1) {
+      logger.warn('Cannot recover focus - no loaded rows in viewport')
+      return
+    }
+    const firstRow = processedRows[firstLoadedIdx]
     const firstCol = visibleColumns.find((c) => c.id !== 'selection') || visibleColumns[0]
     const firstCellId = `${firstRow.id}:${firstCol.id}`
 
@@ -380,4 +487,30 @@ export class KeyboardNavigationController {
     this.interactionStore.setFocusedCell(firstCellId)
     this.interactionStore.selectCell(firstCellId, false)
   }
+}
+
+/**
+ * GH#2804 B7 sparse guard helper: scan forward from `start` for the first
+ * row that is not a sparse placeholder. Returns -1 if none found.
+ *
+ * Exported for direct unit tests; controller methods use it internally.
+ */
+export function findNextLoadedIndex(rows: any[], start: number): number {
+  for (let i = Math.max(0, start); i < rows.length; i++) {
+    const r = rows[i]
+    if (r && !isSparsePlaceholder(r)) return i
+  }
+  return -1
+}
+
+/**
+ * GH#2804 B7 sparse guard helper: scan backward from `start` for the first
+ * row that is not a sparse placeholder. Returns -1 if none found.
+ */
+export function findPreviousLoadedIndex(rows: any[], start: number): number {
+  for (let i = Math.min(rows.length - 1, start); i >= 0; i--) {
+    const r = rows[i]
+    if (r && !isSparsePlaceholder(r)) return i
+  }
+  return -1
 }

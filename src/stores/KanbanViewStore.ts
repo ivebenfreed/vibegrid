@@ -540,7 +540,8 @@ export class KanbanViewStore implements IStore {
     // Persist via CommandBus (undoable) or direct fallback
     if (this.collection) {
       try {
-        const row = this.tableCoreStore?.processedRows.find((r) => (r.data?.id || r.id) === cardId)
+        // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+        const row = this.tableCoreStore?.processedRows.find((r) => r && (r.data?.id || r.id) === cardId)
         const previousValue = (row?.data || row)?.[this.groupByField] ?? null
         const entityName = this.tableCoreStore?.entityType ?? 'unknown'
 

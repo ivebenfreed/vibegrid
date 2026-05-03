@@ -1,5 +1,6 @@
 import { GRID_DIMENSIONS } from '../constants/grid-dimensions'
 import type { CoordinateMapping } from '../coordinates/VibeGridXCoordinateManager'
+import { isSparsePlaceholder } from '../stores/TableCoreStore'
 import type { ViewportInfo } from '../types'
 import type { VisualCellPosition } from './OverlayTypes'
 
@@ -410,17 +411,46 @@ export class FillHandleLayerDOM {
       const boundaryRow = fillDown ? bounds.maxRowIndex : bounds.minRowIndex
       const boundaryRowData = processedRows[boundaryRow]
 
+      // GH#2804 B7 / GH#2812 sparse guard: if the fill anchor itself is a
+      // sparse placeholder OR a hole (undefined — see TableCoreStore.setSparseRows
+      // post-GH#2812), don't extend the fill at all. Tooltip surfaced via
+      // showFillBoundaryTooltip below.
+      if (!boundaryRowData || isSparsePlaceholder(boundaryRowData)) {
+        this.showSparseFillTooltip()
+        return previewCells
+      }
+
       // Check if the boundary row is a data row with group information
-      if (boundaryRowData && 'parentGroupId' in boundaryRowData && boundaryRowData.type === 'data') {
+      if ('parentGroupId' in boundaryRowData && boundaryRowData.type === 'data') {
         const startGroupId = boundaryRowData.parentGroupId
 
         // Find the last row in the same group when filling down/up
         for (let rowIdx = startRow; fillDown ? rowIdx <= endRow : rowIdx >= endRow; fillDown ? rowIdx++ : rowIdx--) {
           const currentRow = processedRows[rowIdx]
 
-          // Stop if we hit a different group or a non-data row
-          if (currentRow && (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId)) {
+          // GH#2804 B7 / GH#2812 sparse guard: fill stops at first sparse
+          // placeholder or array hole. Treats sparse rows as a hard boundary
+          // — same as a different group.
+          if (!currentRow || isSparsePlaceholder(currentRow)) {
             endRow = fillDown ? rowIdx - 1 : rowIdx + 1
+            this.showSparseFillTooltip()
+            break
+          }
+
+          // Stop if we hit a different group or a non-data row
+          if (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId) {
+            endRow = fillDown ? rowIdx - 1 : rowIdx + 1
+            break
+          }
+        }
+      } else {
+        // No group context — still want to stop the fill at the first sparse
+        // placeholder/hole so we don't synthesize cell ids against `__sparse__`.
+        for (let rowIdx = startRow; fillDown ? rowIdx <= endRow : rowIdx >= endRow; fillDown ? rowIdx++ : rowIdx--) {
+          const currentRow = processedRows[rowIdx]
+          if (!currentRow || isSparsePlaceholder(currentRow)) {
+            endRow = fillDown ? rowIdx - 1 : rowIdx + 1
+            this.showSparseFillTooltip()
             break
           }
         }
@@ -667,10 +697,52 @@ export class FillHandleLayerDOM {
   }
 
   /**
+   * GH#2804 B7 sparse guard: ephemeral tooltip explaining that fill stopped
+   * at the first unloaded row. Reuses the existing fill-handle container as
+   * an anchor — a transient text node rendered above the handle for ~2s.
+   */
+  private sparseTooltipEl: HTMLElement | null = null
+  private sparseTooltipTimer: ReturnType<typeof setTimeout> | null = null
+
+  private showSparseFillTooltip(): void {
+    const anchor = this.fillHandle ?? this.fillHandleContainer ?? this.container
+    if (!anchor) return
+    if (this.sparseTooltipTimer) clearTimeout(this.sparseTooltipTimer)
+    if (!this.sparseTooltipEl) {
+      const el = document.createElement('div')
+      el.className = 'vibegridx-fill-sparse-tooltip'
+      el.style.cssText =
+        'position:absolute;background:rgba(20,20,20,0.92);color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;z-index:1000;pointer-events:none;white-space:nowrap;'
+      el.textContent = 'Fill stops at unloaded rows — scroll to load more'
+      this.container.appendChild(el)
+      this.sparseTooltipEl = el
+    }
+    // Anchor near the fill handle (top-right of the container as a fallback)
+    const anchorRect = anchor.getBoundingClientRect()
+    const containerRect = this.container.getBoundingClientRect()
+    this.sparseTooltipEl.style.left = `${Math.max(0, anchorRect.left - containerRect.left)}px`
+    this.sparseTooltipEl.style.top = `${Math.max(0, anchorRect.top - containerRect.top - 24)}px`
+    this.sparseTooltipEl.style.opacity = '1'
+    this.sparseTooltipTimer = setTimeout(() => {
+      if (this.sparseTooltipEl) {
+        this.sparseTooltipEl.style.opacity = '0'
+      }
+    }, 2000)
+  }
+
+  /**
    * Destroy the layer and clean up
    */
   destroy(): void {
     this.hideFillHandle()
+    if (this.sparseTooltipTimer) {
+      clearTimeout(this.sparseTooltipTimer)
+      this.sparseTooltipTimer = null
+    }
+    if (this.sparseTooltipEl) {
+      this.sparseTooltipEl.remove()
+      this.sparseTooltipEl = null
+    }
 
     if (this.fillHandle) {
       this.fillHandle.remove()

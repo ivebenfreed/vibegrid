@@ -30,3 +30,4 @@ export {
   rollupConcatCellRenderer,
 } from './rollup'
 export { badgeListCellRenderer } from './badge-list'
+export { sparseSkeletonCellRenderer, SPARSE_SKELETON_SLOT_ID } from './sparse-skeleton'

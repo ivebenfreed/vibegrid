@@ -110,7 +110,8 @@ export const ExpandedContentPortals = observer(function ExpandedContentPortals({
         if (!parentRowId) return
 
         // Find the parent row data
-        const parentRow = tableCoreStore.processedRows.find((row: any) => row.id === parentRowId)
+        // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+        const parentRow = tableCoreStore.processedRows.find((row: any) => row && row.id === parentRowId)
         if (!parentRow) return
 
         // Get expanded state from interaction store

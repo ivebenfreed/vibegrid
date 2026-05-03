@@ -24,8 +24,10 @@ import type { Collection } from '@tanstack/db'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
+import { isSparsePlaceholder } from './TableCoreStore'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
+import type { SelectionState } from '../types'
 
 const logger = getLogger(['vibegrid', 'stores', 'InteractionStore'])
 
@@ -119,6 +121,30 @@ export class InteractionStore implements IStore {
   @observable selectionMode: 'cell' | 'row' | 'range' | 'multi' = 'cell'
   @observable isSelecting: boolean = false
   @observable lastBulkSelectionTime: number = 0
+
+  /**
+   * GH#2804 B10: marker-model select-all support.
+   *
+   * `selectionMarkerMode === 'explicit'` (default) means selection lives
+   * entirely in `selectedCells` / `selectedRows` Sets — today's behavior, no
+   * change for the 95% case.
+   *
+   * `selectionMarkerMode === 'all-with-exclusions'` means "every row in the
+   * current query is selected, MINUS these specific ids in `selectionExclusions`".
+   * Activated by `setSelectionMode('all-with-exclusions')` after a select-all
+   * on a substrate-owned entity. Toggling a row off adds to exclusions; the
+   * legacy `selectedCells` / `selectedRows` Sets stay empty so no 100k Set is
+   * materialized.
+   *
+   * Read access via `selection` (computed) returns a discriminated union for
+   * mode-aware consumers (ActionsBar, iterateSelectedRowIds). Legacy consumers
+   * continue to read selectedCells / selectedRows directly and see empty Sets
+   * in marker mode — they MUST migrate to `selection` if they need to support
+   * marker-mode selections.
+   */
+  @observable selectionMarkerMode: 'explicit' | 'all-with-exclusions' = 'explicit'
+  @observable selectionExclusions: Set<string> = new Set()
+  @observable selectionExplicitCells: Set<string> = new Set()
 
   // Version tracking for selection state changes (used by OverlayManager for efficient change detection)
   @observable selectionVersion: number = 0
@@ -285,6 +311,10 @@ export class InteractionStore implements IStore {
     this.selectionMode = 'cell'
     this.isSelecting = false
     this.lastBulkSelectionTime = 0
+    // GH#2804 B10: reset marker-model state
+    this.selectionMarkerMode = 'explicit'
+    this.selectionExclusions = new Set()
+    this.selectionExplicitCells = new Set()
     // Editing state moved to EditingStore
     this.focusedCell = null
     this.activeLayout = 'grid'
@@ -552,6 +582,8 @@ export class InteractionStore implements IStore {
   /**
    * Clear all selection and focus state
    * 🔧 Also clear focus/hover to avoid stale cell references after layout changes
+   *
+   * GH#2804 B10: also resets marker-model state to `explicit` mode.
    */
   @action
   clearSelection(): void {
@@ -561,11 +593,140 @@ export class InteractionStore implements IStore {
     this.focusedCell = null
     this.hoveredCell = null
     this.hoveredRow = null
+    // GH#2804 B10: reset marker-model state to explicit/empty
+    this.selectionMarkerMode = 'explicit'
+    this.selectionExclusions = new Set()
+    this.selectionExplicitCells = new Set()
 
     // Increment version to trigger overlay updates
     this.selectionVersion++
 
     logger.info('Selection and focus cleared')
+  }
+
+  // ====================================
+  // GH#2804 B10: SELECTION MARKER MODEL
+  // ====================================
+
+  /**
+   * Discriminated selection state. Computed from the legacy Sets in explicit
+   * mode and from selectionExclusions / selectionExplicitCells in marker mode.
+   *
+   * Bulk-action consumers should read `selection` and dispatch on `mode`,
+   * passing it to `iterateSelectedRowIds()` which handles both modes without
+   * materializing a 100k Set.
+   */
+  @computed get selection(): SelectionState {
+    if (this.selectionMarkerMode === 'all-with-exclusions') {
+      return {
+        mode: 'all-with-exclusions',
+        exclusions: this.selectionExclusions,
+        explicitCells: this.selectionExplicitCells,
+      }
+    }
+    return {
+      mode: 'explicit',
+      cells: this.selectedCells,
+      rows: this.selectedRows,
+    }
+  }
+
+  /**
+   * Switch the selection-marker mode. `'all-with-exclusions'` resets to an
+   * empty marker (no exclusions yet — entire query selected). `'explicit'`
+   * resets to empty Sets. Either path bumps selectionVersion so overlays
+   * recompute.
+   */
+  @action
+  setSelectionMode(mode: 'explicit' | 'all-with-exclusions'): void {
+    if (this.selectionMarkerMode === mode) {
+      // Already in this mode — but caller likely wants a reset. Re-empty the
+      // mode-specific state.
+      if (mode === 'all-with-exclusions') {
+        this.selectionExclusions = new Set()
+        this.selectionExplicitCells = new Set()
+      } else {
+        this.selectedCells = new Set()
+        this.selectedRows = new Set()
+      }
+    } else {
+      this.selectionMarkerMode = mode
+      // Always reset both stores when switching mode so neither stale legacy
+      // Sets nor stale exclusions leak across modes.
+      this.selectedCells = new Set()
+      this.selectedRows = new Set()
+      this.selectionExclusions = new Set()
+      this.selectionExplicitCells = new Set()
+    }
+    this.selectionVersion++
+    logger.info('Selection marker mode set', { mode })
+  }
+
+  /**
+   * Mode-aware row toggle.
+   *
+   * - explicit mode: add/remove from `selectedRows` (today's semantics).
+   * - all-with-exclusions mode: add/remove from `selectionExclusions`. A row
+   *   id present in exclusions means "selected-all, but NOT this row".
+   *
+   * Note: this is a row-only marker (selectedCells is unaffected). The legacy
+   * `selectRow` / `toggleRowCells` actions still drive the per-cell-of-row
+   * selection used by overlays. This action is intended for the new
+   * row-checkbox column path under marker mode.
+   */
+  @action
+  toggleRowSelection(rowId: string): void {
+    if (this.selectionMarkerMode === 'all-with-exclusions') {
+      const next = new Set(this.selectionExclusions)
+      if (next.has(rowId)) {
+        next.delete(rowId)
+      } else {
+        next.add(rowId)
+      }
+      this.selectionExclusions = next
+    } else {
+      const next = new Set(this.selectedRows)
+      if (next.has(rowId)) {
+        next.delete(rowId)
+      } else {
+        next.add(rowId)
+      }
+      this.selectedRows = next
+    }
+    this.selectionVersion++
+  }
+
+  /**
+   * Mode-aware cell toggle.
+   *
+   * - explicit mode: add/remove from `selectedCells` (today's semantics).
+   * - all-with-exclusions mode: add/remove from `selectionExplicitCells`.
+   *   This is the "cmd-click on a marker-selected grid still adds explicit
+   *   cells" path, retained for parity with legacy multi-select behavior.
+   */
+  @action
+  toggleCellSelection2(cellId: string): void {
+    // Note: named toggleCellSelection2 to avoid collision with the existing
+    // legacy toggleCellSelection(rowId, columnId, ...) signature. New consumers
+    // should use this single-cell-id signature.
+    if (this.selectionMarkerMode === 'all-with-exclusions') {
+      const next = new Set(this.selectionExplicitCells)
+      if (next.has(cellId)) {
+        next.delete(cellId)
+      } else {
+        next.add(cellId)
+      }
+      this.selectionExplicitCells = next
+    } else {
+      const next = new Set(this.selectedCells)
+      if (next.has(cellId)) {
+        next.delete(cellId)
+      } else {
+        next.add(cellId)
+      }
+      this.selectedCells = next
+    }
+    this.selectionVersion++
   }
 
   /**
@@ -653,8 +814,10 @@ export class InteractionStore implements IStore {
     const visibleColumns = this.visualStateStore.visibleOrderedColumns
 
     // Get row and column indices
-    const startRowIndex = rows.findIndex((row: any) => row.id === startRowId)
-    const endRowIndex = rows.findIndex((row: any) => row.id === endRowId)
+    // GH#2812 sparse guard: findIndex visits holes as undefined per
+    // ECMA-262 §22.1.3.10, so we must guard `row` before accessing `.id`.
+    const startRowIndex = rows.findIndex((row: any) => row && row.id === startRowId)
+    const endRowIndex = rows.findIndex((row: any) => row && row.id === endRowId)
     const startColIndex = visibleColumns.findIndex((col: any) => col.id === startColId)
     const endColIndex = visibleColumns.findIndex((col: any) => col.id === endColId)
 
@@ -699,8 +862,10 @@ export class InteractionStore implements IStore {
       for (let rowIndex = minRowIndex + 1; rowIndex <= maxRowIndex; rowIndex++) {
         const currentRow = rows[rowIndex]
 
-        // Stop if we hit a different group or a group header
-        if (currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId) {
+        // GH#2812 sparse guard: hole (undefined) terminates the group span the
+        // same way a different group would. setSparseRows post-GH#2812 leaves
+        // unloaded indices as array holes, not placeholder objects.
+        if (!currentRow || currentRow.type !== 'data' || currentRow.parentGroupId !== startGroupId) {
           maxRowIndex = rowIndex - 1
           logger.info('Selection constrained to group boundary', {
             originalMaxRow: Math.max(startRowIndex, endRowIndex),
@@ -716,6 +881,9 @@ export class InteractionStore implements IStore {
     const newSelection = new Set<string>()
     for (let rowIndex = minRowIndex; rowIndex <= maxRowIndex; rowIndex++) {
       const row = rows[rowIndex]
+      // GH#2812 sparse guard: skip holes (undefined) — unloaded rows can't
+      // be added to the selection set since they have no real id.
+      if (!row) continue
       if (row.type && row.type !== 'data') continue
       for (let colIndex = minColIndex; colIndex <= maxColIndex; colIndex++) {
         const rowId = row.id
@@ -777,12 +945,21 @@ export class InteractionStore implements IStore {
     this.selectedCells = new Set()
 
     const selectedCells = new Set<string>()
+    // GH#2812 sparse guard: for-of on a sparse array yields undefined for
+    // holes (ECMA-262 §22.1.5 — Array iterator visits every index from 0 to
+    // length-1 regardless of presence). Skip holes and sparse placeholders
+    // so we never add `__sparse__:column` to the selection set.
     for (const row of processedRows) {
+      if (!row || isSparsePlaceholder(row)) continue
       selectedCells.add(`${row.id}:${columnId}`)
     }
 
     this.selectedCells = selectedCells
-    this.anchorCell = `${processedRows[0]?.id}:${columnId}`
+    // GH#2804 B7 sparse guard: when row 0 is a sparse placeholder, fall back
+    // to the first loaded row id (or null if none loaded) so anchorCell isn't
+    // set to `__sparse__:column`.
+    const anchorRow = processedRows.find((r) => r && !isSparsePlaceholder(r))
+    this.anchorCell = anchorRow ? `${anchorRow.id}:${columnId}` : null
     this.lastBulkSelectionTime = Date.now()
 
     // Increment version to trigger overlay updates

@@ -145,11 +145,15 @@ export const FilterValueInput = observer(function FilterValueInput({
     )
   }
 
-  // Default: Text input (also handles relationship fields for now)
+  // Default: Text input (also handles relationship fields for now).
+  // GH#2804 p3: `filter-value` is the spec-aligned shorthand testid; the
+  // existing index-scoped testid is preserved on a sibling attribute so
+  // existing tests keep working.
   return (
     <Input
       type="text"
-      data-testid={`vibegrid-filter-value-${index}`}
+      data-testid="filter-value"
+      data-testid-indexed={`vibegrid-filter-value-${index}`}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Enter value..."

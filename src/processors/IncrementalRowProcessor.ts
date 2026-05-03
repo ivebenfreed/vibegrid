@@ -525,14 +525,24 @@ export class IncrementalRowProcessor {
   }
 
   private wrapInVirtualRows(rows: any[], startIndex: number = 0): VirtualRow[] {
-    return rows.map((row, index) => ({
-      type: 'data' as const,
-      id: row.id,
-      index: startIndex + index,
-      dataIndex: startIndex + index,
-      height: row.height || GRID_DIMENSIONS.ROW_HEIGHT,
-      data: row,
-    }))
+    // GH#2804 review fix: propagate `__sparse: true` onto the VirtualRow
+    // wrapper so isSparsePlaceholder(virtualRow) returns true for unloaded
+    // rows. The marker lives on `row.data` after wrapping; lifting it onto
+    // the wrapper keeps existing guards (BodyRenderer, SelectionController,
+    // KeyboardNavigationController) functional.
+    return rows.map((row, index) => {
+      const isSparse =
+        typeof row === 'object' && row !== null && (row as { __sparse?: unknown }).__sparse === true
+      return {
+        type: 'data' as const,
+        id: row.id,
+        index: startIndex + index,
+        dataIndex: startIndex + index,
+        height: row.height || GRID_DIMENSIONS.ROW_HEIGHT,
+        data: row,
+        ...(isSparse ? { __sparse: true as const } : {}),
+      } as VirtualRow
+    })
   }
 
   // ====================================

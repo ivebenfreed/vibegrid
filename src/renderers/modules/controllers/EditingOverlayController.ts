@@ -268,7 +268,8 @@ export class EditingOverlayController extends OverlayController {
       totalRows: processedRows?.length || 0,
     })
 
-    const row = processedRows.find((r: any) => r.id === rowId)
+    // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+    const row = processedRows.find((r: any) => r && r.id === rowId)
 
     if (!row) {
       fileLog.debug('getCellValue: Row not found', { targetRowId: rowId })

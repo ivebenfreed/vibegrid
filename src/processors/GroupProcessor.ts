@@ -6,6 +6,7 @@
 
 import { formatDate } from '@/shared/lib/format-date'
 import { getLogger } from '@/shared/lib/logging'
+import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 import type { Column, GroupAggregation, GroupConfig, GroupNode, TableRow, VirtualRow, VirtualRowType } from '../types'
 
@@ -46,13 +47,23 @@ export class GroupProcessor {
     columns: Column[],
     config: GroupConfig,
     groupRowOrders?: Record<string, GroupRowOrderConfig>,
+    entityName?: string,
   ): GroupTree {
     fileLog.debug('GroupProcessor: processData called', {
       rowCount: rows.length,
       columnCount: columns.length,
       groupFieldCount: config.fields.length,
       hasAggregations: config.aggregations.length > 0,
+      entityName,
     })
+
+    // GH#2804 B12: substrate-owned entities don't support group-by.
+    // Early-return as if there were no grouping configured — saves the
+    // O(n) row iteration cost on 100k-row datasets.
+    if (entityName && isSubstrateOwnedEntity(entityName)) {
+      fileLog.debug('GroupProcessor: substrate-owned entity, skipping grouping', { entityName })
+      return GroupProcessor.createFlatVirtualRows(rows)
+    }
 
     if (config.fields.length === 0) {
       // No grouping - return flat virtual rows

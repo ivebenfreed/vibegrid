@@ -404,7 +404,8 @@ export class InteractionCoordinator {
   private getCellData(rowId: string, columnId: string): CellData {
     return untracked(() => {
       const processedRows = this.tableCoreStore.processedRows || []
-      const row = processedRows.find((r: any) => r.id === rowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const row = processedRows.find((r: any) => r && r.id === rowId)
       const value = row ? row[columnId] : null
 
       return { row, value }

@@ -783,7 +783,8 @@ export class ClipboardManager {
 
         try {
           const processedValue = this.processValueForColumn(singleCellValue, column)
-          const originalValue = processedRows.find((r: any) => r.id === rowId)?.[columnId]
+          // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+          const originalValue = processedRows.find((r: any) => r && r.id === rowId)?.[columnId]
 
           // Group by row
           if (!updatesByRow.has(rowId)) {
@@ -926,8 +927,10 @@ export class ClipboardManager {
     })
 
     const sortedRows = Array.from(cellsByRow.keys()).sort((a, b) => {
-      const indexA = processedRows.findIndex((row: any) => row.id === a)
-      const indexB = processedRows.findIndex((row: any) => row.id === b)
+      // GH#2812 sparse guard: findIndex visits holes as undefined per
+      // ECMA-262 §22.1.3.10, so we must guard `row` before accessing `.id`.
+      const indexA = processedRows.findIndex((row: any) => row && row.id === a)
+      const indexB = processedRows.findIndex((row: any) => row && row.id === b)
       return indexA - indexB
     })
 
@@ -1020,7 +1023,8 @@ export class ClipboardManager {
 
         try {
           const processedValue = this.processValueForColumn(rawValue, column)
-          const originalValue = processedRows.find((r: any) => r.id === rowId)?.[columnId]
+          // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+          const originalValue = processedRows.find((r: any) => r && r.id === rowId)?.[columnId]
 
           if (this.onEntityUpdate) {
             await this.onEntityUpdate(rowId, { [columnId]: processedValue })

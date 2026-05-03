@@ -48,8 +48,13 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     isExportDisabled,
   } = props
 
-  const { interactionStore, visualStateStore } = useVibeGridStores()
+  const { interactionStore, visualStateStore, viewportStore } = useVibeGridStores()
   const { selectedCells } = interactionStore
+  // GH#2804 B10: read marker-model state to render select-all-minus-exclusions
+  // count without materializing a 100k Set.
+  const isMarkerSelection = interactionStore.selectionMarkerMode === 'all-with-exclusions'
+  const markerExclusionCount = interactionStore.selectionExclusions.size
+  const serverTotalRows = viewportStore.totalRows ?? 0
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(null)
@@ -61,6 +66,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   // and useMemo's dependency comparison doesn't work reliably with MobX observables.
   // This caused a race condition where clicking Delete captured stale selectedRowIds.
   const selectedRowIds = (() => {
+    // GH#2804 B10: marker mode — selectedRowIds is not materialized here.
+    // Bulk actions in marker mode dispatch via iterateSelectedRowIds() (TODO
+    // wave 3b follow-up) instead of populating this array.
+    if (isMarkerSelection) return []
     if (selectedCells.size === 0) return []
 
     const rowCellCounts = new Map<string, { selected: number; total: number }>()
@@ -93,7 +102,11 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   // Also compute fresh - same reason as selectedRowIds above
   const selectedRowsData = selectedRowIds.map(getRowData).filter(Boolean)
 
-  const selectedCount = selectedRowIds.length
+  // GH#2804 B10: marker mode count = serverTotalRows - exclusions.size.
+  // Explicit mode count = selectedRowIds.length (today's behavior).
+  const selectedCount = isMarkerSelection
+    ? Math.max(0, serverTotalRows - markerExclusionCount)
+    : selectedRowIds.length
 
   const handleActionClick = async (action: RowAction, e?: React.MouseEvent) => {
     // Stop propagation to prevent MouseController's global click handler from interfering
@@ -185,7 +198,10 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     return true
   })
 
-  // Don't show if no rows selected (check AFTER all hooks)
+  // Don't show if no rows selected (check AFTER all hooks).
+  // GH#2804 B10: in marker mode, selectedCount is computed from
+  // serverTotalRows - exclusions, so the bar shows immediately after
+  // select-all on a substrate-owned grid.
   if (selectedCount === 0) {
     return null
   }
@@ -225,7 +241,13 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
             {visibleActions.map((action) => {
               const Icon = action.icon
               const isExportAction = action.id === 'export-csv'
-              const disabled = isProcessing || (isExportAction && isExportDisabled)
+              // GH#2804 B10: marker-mode bulk actions iterate via
+              // iterateSelectedRowIds(), which is not yet implemented for
+              // marker mode (Query lacks a paged-id-scan API). Disable
+              // bulk actions until the follow-up lands; the user can still
+              // toggle individual rows off (which doesn't require iteration).
+              const disabled =
+                isProcessing || (isExportAction && isExportDisabled) || isMarkerSelection
               return (
                 <Button
                   key={action.id}
@@ -233,7 +255,13 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
                   size="sm"
                   onClick={(e) => handleActionClick(action, e)}
                   disabled={disabled}
-                  title={isExportAction && isExportDisabled ? 'Processing data...' : undefined}
+                  title={
+                    isMarkerSelection
+                      ? 'Bulk actions on select-all coming soon — use the row checkbox to make an explicit selection.'
+                      : isExportAction && isExportDisabled
+                        ? 'Processing data...'
+                        : undefined
+                  }
                   data-testid={`action-${action.id}`}
                 >
                   {Icon && <Icon className="h-4 w-4 mr-2" />}
@@ -247,7 +275,12 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
                 variant="destructive"
                 size="sm"
                 onClick={handleDeleteClick}
-                disabled={isProcessing}
+                disabled={isProcessing || isMarkerSelection}
+                title={
+                  isMarkerSelection
+                    ? 'Bulk delete on select-all coming soon — use the row checkbox to make an explicit selection.'
+                    : undefined
+                }
                 data-testid="action-delete"
               >
                 <Trash2 className="h-4 w-4 mr-2" />

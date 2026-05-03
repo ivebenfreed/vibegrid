@@ -301,6 +301,9 @@ export class SimplePassiveRenderer {
 
         return visibleColumns
       },
+      // GH#2804 B10: expose entity name so select-all can route substrate-owned
+      // entities through the O(1) marker-mode path (no 100k Set materialization).
+      getEntityName: () => this.tableCoreStore.entityType ?? null,
       bodyRenderer: null,
     })
 
@@ -309,6 +312,10 @@ export class SimplePassiveRenderer {
       interactionStore: this.interactionStore,
       editingStore: this.editingStore,
       selectionController: this.selectionController,
+      // GH#2804 round-3 review fix: hand the store through so sparse-row
+      // navigation uses the O(1) window-based helpers instead of a linear
+      // scan over `processedRows` (~99,900 placeholders at 100k).
+      tableCoreStore: this.tableCoreStore,
       getProcessedRows: () => this.tableCoreStore.processedRows,
       getVisibleColumns: () => {
         const columns = this.visualStateStore.columns
@@ -390,7 +397,8 @@ export class SimplePassiveRenderer {
         fileLog.debug('🎯 Row moved', { draggedRowId, targetGroupId, newIndex })
         // Get current group structure to determine the source group
         const processedRows = this.tableCoreStore.processedRows
-        const draggedRow = processedRows.find((r) => r.id === draggedRowId)
+        // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+        const draggedRow = processedRows.find((r) => r && r.id === draggedRowId)
         if (!draggedRow || draggedRow.type !== 'data') {
           fileLog.error('❌ Invalid dragged row or not a data row', { draggedRowId })
           return false
@@ -917,7 +925,8 @@ export class SimplePassiveRenderer {
 
     // GH#1240: Handle expanded content rows
     if (row.type === 'expanded-content' && this.bodyRenderer) {
-      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r.id === row.parentRowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r && r.id === row.parentRowId)
       return this.bodyRenderer.createExpandedContentRowElement(row, rowIndex, parentRow)
     }
 
@@ -1704,7 +1713,32 @@ export class SimplePassiveRenderer {
 
     // Update content dimensions in visual state
     // Calculate total height by summing individual row heights (groups/data may differ)
-    const totalHeight = rows.reduce((sum: number, row: any) => sum + (row.height || ROW_HEIGHT), 0)
+    //
+    // GH#2804 B5 / GH#2812 perf fix: in substrate cursor-bounded mode the
+    // rows array here is the FULL sparse array (length=totalCount with holes
+    // outside the loaded window — see TableCoreStore.setSparseRows). Per
+    // ECMA-262 §22.1.3, `Array.prototype.reduce` skips holes, so reducing
+    // `rows` with `(sum, row) => sum + (row.height || ROW_HEIGHT)` only sums
+    // the loaded window's heights, not the unloaded indices. Compute the
+    // total height as: loaded heights summed + ROW_HEIGHT for every hole. We
+    // derive the loaded count by `forEach` (also skips holes) — `rows.length`
+    // is the total slot count including holes.
+    const viewportStore = this.stores.viewportStore
+    let loadedHeightSum = 0
+    let loadedCount = 0
+    rows.forEach((row: any) => {
+      loadedHeightSum += row.height || ROW_HEIGHT
+      loadedCount++
+    })
+    const holeCount = rows.length - loadedCount
+    const summedHeight = loadedHeightSum + holeCount * ROW_HEIGHT
+    const serverTotal = viewportStore?.totalRows ?? 0
+    // When server reports a larger total (e.g., processedRows hasn't grown to
+    // match yet), keep the legacy behavior of padding to serverTotal.
+    const totalHeight =
+      serverTotal > rows.length
+        ? summedHeight + (serverTotal - rows.length) * ROW_HEIGHT
+        : summedHeight
     runInAction(() => {
       this.visualStateStore.rowCount = rows.length // Use processedRows length (includes groups)
     })
@@ -1733,16 +1767,13 @@ export class SimplePassiveRenderer {
     const visibleRange = visualState.geometry.visibleRowRange
     const startIndex = Math.max(0, visibleRange.start)
     const endIndex = Math.min(rows.length, visibleRange.end)
-    const visibleRows = rows.slice(startIndex, endIndex)
 
     fileLog.info('🎨 ROW 16 DEBUG - Body rendering range', {
       totalRows: rows.length,
       visibleRangeRaw: visibleRange,
       startIndex,
       endIndex,
-      sliceArgs: `slice(${startIndex}, ${endIndex})`,
-      rendering: visibleRows.length,
-      renderedRowIds: visibleRows.map((r: any) => r.id),
+      rendering: endIndex - startIndex,
       totalColumns: visualState.visibleColumns.length,
     })
 
@@ -1780,9 +1811,28 @@ export class SimplePassiveRenderer {
       totalWidth: visualState.geometry.totalWidth,
     }
 
-    // Render only visible rows using RowRenderer
-    visibleRows.forEach((row, visibleIndex) => {
-      const actualRowIndex = startIndex + visibleIndex
+    // Render only visible rows using RowRenderer.
+    //
+    // GH#2812 perf fix: use a `for` loop (not forEach + slice) so we visit
+    // sparse-array holes inside the visible range. After GH#2812 setSparseRows
+    // leaves indices outside the loaded window as genuine holes (no
+    // placeholder object), so `Array.prototype.forEach` would skip them
+    // entirely and leave the DOM blank for those rows. We synthesize a
+    // VirtualRow placeholder on the fly for unloaded indices so the renderer
+    // paints a skeleton row at the correct y-offset.
+    for (let actualRowIndex = startIndex; actualRowIndex < endIndex; actualRowIndex++) {
+      let row = rows[actualRowIndex]
+      if (row === undefined) {
+        row = {
+          type: 'data' as const,
+          id: `__sparse_${actualRowIndex}__`,
+          index: actualRowIndex,
+          dataIndex: actualRowIndex,
+          height: ROW_HEIGHT,
+          data: { __sparse: true, id: '__sparse__' },
+          __sparse: true,
+        }
+      }
 
       let rowElement: HTMLElement
 
@@ -1816,7 +1866,7 @@ export class SimplePassiveRenderer {
 
       // PERFORMANCE FIX: Append to DocumentFragment instead of directly to DOM
       fragment.appendChild(rowElement)
-    })
+    }
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
@@ -2156,7 +2206,9 @@ export class SimplePassiveRenderer {
     const processedRows = this.tableCoreStore.processedRows
     let currentGroupId: string | null = null
 
+    // GH#2812 sparse guard: for-of yields undefined for holes (ECMA-262 §22.1.5).
     for (const row of processedRows) {
+      if (!row) continue
       if (row.type === 'group') {
         currentGroupId = row.id
       } else if (row.type === 'data' && row.id === rowId) {

@@ -7,6 +7,36 @@ export type SortConfig = {
 }
 
 /**
+ * GH#2804 B10: discriminated selection state.
+ *
+ * `explicit` mode (default, all entities, today's behavior):
+ *   selection.cells / selection.rows hold the selected ids directly.
+ *   Population scales O(N) with selection size — fine for small grids.
+ *
+ * `all-with-exclusions` mode (substrate-owned entities, post select-all):
+ *   selection represents "every row is selected, MINUS these specific ids".
+ *   Toggling a row off adds its id to exclusions. UI displays
+ *   serverTotalRows - exclusions.size as the selected count.
+ *   Bulk actions iterate query results via iterateSelectedRowIds() instead
+ *   of materializing a 100k Set.
+ *
+ * Backward-compat: today's consumers that read InteractionStore.selectedCells
+ * and InteractionStore.selectedRows continue to work in explicit mode (those
+ * Sets remain the source of truth). Marker mode is opt-in via
+ * setSelectionMode('all-with-exclusions') and only activates for entities in
+ * SUBSTRATE_OWNED_ENTITIES at select-all time.
+ */
+export type SelectionState =
+  | { mode: 'explicit'; cells: Set<string>; rows: Set<string> }
+  | {
+      mode: 'all-with-exclusions'
+      /** Row ids the user toggled OFF after select-all. */
+      exclusions: Set<string>
+      /** Cells explicitly cmd-clicked ON TOP of the marker. Rare; cell-level marker. */
+      explicitCells: Set<string>
+    }
+
+/**
  * Union of possible filter values across all filter operators.
  * Covers string, number, boolean, date, array (for 'in'/'not_in'), and null.
  */
@@ -406,6 +436,10 @@ export interface VirtualRow {
   expandedData?: unknown[] | null // Loaded data for expanded content
   isLoading?: boolean // Whether expanded data is loading
   error?: Error | null // Error from loading expanded data
+  // GH#2804 review fix: propagated from sparse-placeholder raw rows so that
+  // isSparsePlaceholder(virtualRow) correctly identifies unloaded rows
+  // (cursor-bounded substrate mode). Buried on row.data without this lift.
+  __sparse?: true
 }
 
 // Group aggregation configuration and results

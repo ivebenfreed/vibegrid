@@ -407,7 +407,8 @@ export const GanttTimeline = observer(function GanttTimeline({ className, onBarC
         {/* Render bars */}
         {barPositions.map((bar) => {
           // Get row data for dynamic shape lookup
-          const row = tableCoreStore.processedRows.find((r) => r.id === bar.rowId)
+          // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+          const row = tableCoreStore.processedRows.find((r) => r && r.id === bar.rowId)
           const rowData = row?.data || row || {}
           const shape = ganttViewStore.getBarShapeForRow(rowData as Record<string, unknown>)
           const isDragging = dragState.isDragging && dragState.barId === bar.rowId

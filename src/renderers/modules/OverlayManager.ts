@@ -252,7 +252,8 @@ export class OverlayManager {
       },
       getRowData: (rowId: string) => {
         const processedRows = this.getProcessedRows()
-        return processedRows.find((row: any) => row.id === rowId) || null
+        // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+        return processedRows.find((row: any) => row && row.id === rowId) || null
       },
     })
 

@@ -27,6 +27,10 @@ import { getLogger } from '@/shared/lib/logging'
 import { isModalTextType } from '../constants/field-type-categories'
 import type { CommandBus } from '@/systems/commands/CommandBus'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
+// GH#2812 A1: substrate write path. In bounded substrate mode the TanStack
+// DB collection is empty; mutations must go through oRPC and let the
+// SharedWorker reconcile via queryDelta events.
+import { shouldUseSubstrateWrite, substrateUpdate } from '@/shared/data/query/substrate-mutations'
 import type { SlotRegistry } from '../slots/SlotRegistry'
 import type { TableCoreStore } from './TableCoreStore'
 import type { VisualStateStore } from './VisualStateStore'
@@ -283,7 +287,8 @@ export class EditingStore implements IStore {
       dataField,
     } = untracked(() => {
       const processedRows = this.tableCoreStore.processedRows || []
-      const foundRow = processedRows.find((r: any) => r.id === rowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const foundRow = processedRows.find((r: any) => r && r.id === rowId)
       const field = column.field || columnId
       const data = foundRow?.data || foundRow
       const value = data ? data[field] : ''
@@ -661,6 +666,63 @@ export class EditingStore implements IStore {
 
     // Get field name from column
     const field = session.column.field || columnId
+
+    // GH#2812 A1: substrate-owned entities (RFI, Project under
+    // ?ff=substrate) keep rows in the SharedWorker SQLite substrate, NOT
+    // in the TanStack DB collection. The collection has zero entries, so
+    // collection.get/update would return undefined / throw "key not found".
+    // Route the mutation through oRPC; the substrate observes the change
+    // via server-emitted DataForge events and applies it through
+    // queryDelta → setSparseRows().
+    //
+    // NOTE: undo/redo for substrate writes is NOT integrated yet — the
+    // CommandBus path below operates on the TanStack DB collection.
+    // Substrate-write undo/redo is a GH#2812 follow-up.
+    const entityType = this.tableCoreStore.entityType
+    if (shouldUseSubstrateWrite(entityType)) {
+      // OPTIMIZATION: skip save if value hasn't changed. Use the session's
+      // originalValue since the collection is empty in substrate mode.
+      if (originalValue === finalValue) {
+        fileLog.info('Skipping save - value unchanged (substrate)', {
+          rowId,
+          field,
+          value: finalValue,
+        })
+        return
+      }
+
+      const startTime = performance.now()
+      try {
+        const result = await substrateUpdate(entityType, String(rowId), { [field]: finalValue })
+        const duration = performance.now() - startTime
+        if (!result.success) {
+          fileLog.error('Substrate update failed', {
+            rowId,
+            field,
+            cellId,
+            error: result.error,
+            duration: `${duration.toFixed(1)}ms`,
+          })
+          return
+        }
+        fileLog.info('Edit saved via substrate', {
+          rowId,
+          field,
+          finalValue,
+          cellId,
+          duration: `${duration.toFixed(1)}ms`,
+          note: 'Substrate will reconcile via queryDelta + setSparseRows',
+        })
+      } catch (err) {
+        fileLog.error('Substrate update threw', {
+          rowId,
+          field,
+          cellId,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+      return
+    }
 
     // Check if collection available
     if (!this.collection) {

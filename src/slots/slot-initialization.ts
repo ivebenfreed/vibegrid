@@ -37,6 +37,8 @@ import {
   rollupAverageCellRenderer,
   rollupConcatCellRenderer,
   badgeListCellRenderer,
+  sparseSkeletonCellRenderer,
+  SPARSE_SKELETON_SLOT_ID,
 } from './renderers'
 
 const logger = getLogger(['vibegrid', 'slots', 'slot-initialization'])
@@ -191,6 +193,18 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
     id: 'rollup_concat',
     priority: 0,
     renderer: () => rollupConcatCellRenderer,
+  })
+
+  // --- GH#2804 B8: Sparse-row skeleton ---
+  // Reachable only by id (BodyRenderer short-circuits to this slot when
+  // it sees `row.__sparse === true`). Not matched by any cellType — the
+  // SlotRegistry's resolve() never picks this slot through the normal
+  // column-type dispatch.
+  registry.register({
+    id: SPARSE_SKELETON_SLOT_ID,
+    priority: 0,
+    canHandle: () => false,
+    renderer: () => sparseSkeletonCellRenderer,
   })
 
   // --- 27. Badge List ---

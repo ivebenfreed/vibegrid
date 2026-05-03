@@ -65,6 +65,19 @@ export class ViewportStore implements IStore {
    */
   @observable rowOffsets: number[] | null = null
 
+  /**
+   * GH#2804 B5: server-authoritative total row count, decoupled from
+   * `rawRows.length`. When set (substrate cursor-bounded path), `totalRows`
+   * returns this value instead of deriving from rowOffsets / totalContentHeight.
+   *
+   * When `null` (TanStack DB path or production paginator), falls back to the
+   * existing derivation so non-substrate grids see no behavior change.
+   *
+   * Distinct from `0`: `0` means "server reports zero rows" (valid count);
+   * `null` means "no server count yet, use fallback".
+   */
+  @observable serverTotalRows: number | null = null
+
   // ====================================
   // DEPENDENCIES
   // ====================================
@@ -179,6 +192,17 @@ export class ViewportStore implements IStore {
     this.rowOffsets = null
   }
 
+  /**
+   * GH#2804 B5: set server-authoritative total row count.
+   * Pass `null` to revert to fallback derivation (TanStack DB / production
+   * paginator path). Substrate cursor-bounded path calls this on every
+   * delta with `query.count`.
+   */
+  @action
+  setServerTotalRows(n: number | null): void {
+    this.serverTotalRows = n
+  }
+
   // ====================================
   // COMPUTED (Visible Ranges)
   // ====================================
@@ -187,10 +211,39 @@ export class ViewportStore implements IStore {
    * Visible row range based on scroll position and viewport height.
    * Handles both fixed and variable row heights.
    * INCLUDES BUFFER_ROWS for smooth scrolling.
+   *
+   * GH#2808 S1: in substrate cursor-bounded mode, `serverTotalRows` is set
+   * to the full dataset size while `processedRows` only contains the loaded
+   * window slice (see TableCoreStore.baseRows GH#2804 B7 sparse guard at
+   * line 1165). That means `tableCoreStore.findRowAtScrollPosition` and
+   * `this.rowOffsets` (synced from `tableCoreStore.rowOffsets`) only span
+   * the loaded window — querying scrollTop=17000 against an offset array
+   * that ends at ~4000 saturates at the last loaded index (~120) instead
+   * of returning the logical row 500.
+   *
+   * The cursor reaction in `use-substrate-grid-rows.ts` reads
+   * `visibleRowRange` to compute the next cursor window — so it must
+   * receive *logical* row indices, not windowed ones. Since bounded mode
+   * uses uniform ROW_HEIGHT for placeholder rows, fall back to
+   * scrollTop / ROW_HEIGHT math against `serverTotalRows` whenever it is
+   * set. Non-substrate paths (TanStack DB, production paginator) keep
+   * `serverTotalRows = null` and take the original branch.
    */
   @computed
   get visibleRowRange(): { start: number; end: number } {
     const buffer = GRID_DIMENSIONS.BUFFER_ROWS
+
+    // GH#2808 S1: substrate cursor-bounded mode — derive logical row
+    // indices from scrollTop directly, bypassing the windowed offsets.
+    if (this.serverTotalRows !== null) {
+      const visibleStart = Math.floor(this.scrollTop / ROW_HEIGHT)
+      const visibleEnd = Math.ceil((this.scrollTop + Math.max(this.viewportHeight, 400)) / ROW_HEIGHT) + 1
+
+      return {
+        start: Math.max(0, visibleStart - buffer),
+        end: Math.min(this.serverTotalRows, visibleEnd + buffer),
+      }
+    }
 
     // Use offset-based calculation for variable-height rows if available
     if (this.tableCoreStore?.findRowAtScrollPosition) {
@@ -227,10 +280,22 @@ export class ViewportStore implements IStore {
   }
 
   /**
-   * Total number of rows based on offsets or content height
+   * Total number of rows.
+   *
+   * GH#2804 B5: When `serverTotalRows` is set (substrate cursor-bounded path),
+   * returns the server-authoritative count so downstream consumers
+   * (GridLineCanvas bounds, RowPreRenderBuffer validity, "Showing X of Y" UI)
+   * see the full dataset size rather than the windowed `rawRows.length`.
+   *
+   * Falls back to the original derivation (rowOffsets length, then content
+   * height / ROW_HEIGHT) so TanStack DB / production paginator paths see no
+   * behavior change.
    */
   @computed
   get totalRows(): number {
+    if (this.serverTotalRows !== null) {
+      return this.serverTotalRows
+    }
     if (this.rowOffsets) {
       return this.rowOffsets.length - 1
     }
@@ -324,6 +389,7 @@ export class ViewportStore implements IStore {
     this.totalContentWidth = 0
     this.totalContentHeight = 0
     this.rowOffsets = null
+    this.serverTotalRows = null
     logger.debug('ViewportStore reset')
   }
 

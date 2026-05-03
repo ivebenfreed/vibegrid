@@ -18,6 +18,8 @@ import type { InteractionStore } from '../../stores/InteractionStore'
 import type { TableCoreStore } from '../../stores/TableCoreStore'
 import { DragDropManager } from '../../utils/drag-drop-handlers'
 import type { SlotRegistry, CellRendererContext } from '../../slots/SlotRegistry'
+import { sparseSkeletonCellRenderer } from '../../slots/renderers'
+import { isSparsePlaceholder } from '../../stores/TableCoreStore'
 import type { DOMElementFactory } from '../factories/DOMElementFactory'
 import type { KeyboardNavigationController } from '../modules/KeyboardNavigationController'
 import type { SelectionController } from '../modules/SelectionController'
@@ -220,7 +222,8 @@ export class BodyRenderer {
 
     // GH#1240: Handle expanded-content rows specially
     if (row.type === 'expanded-content') {
-      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r.id === row.parentRowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const parentRow = this.tableCoreStore.processedRows.find((r: any) => r && r.id === row.parentRowId)
       return this.createExpandedContentRowElement(row, rowIndex, parentRow)
     }
 
@@ -790,7 +793,12 @@ export class BodyRenderer {
           searchText: this.visualStateStore?.globalSearchText || '',
         }
 
-        const renderer = this.slotRegistry.resolve(column, context)
+        // GH#2804 B8: when this row is a sparse placeholder (cursor-bounded
+        // substrate mode), short-circuit the column-type dispatch and render
+        // the skeleton cell. The skeleton ignores `value` (which is undefined
+        // for sparse rows) and only consumes the column width from `column`.
+        const isSparseRow = isSparsePlaceholder(row)
+        const renderer = isSparseRow ? sparseSkeletonCellRenderer : this.slotRegistry.resolve(column, context)
 
         let cellElement: HTMLElement
         if (renderer) {
@@ -818,15 +826,19 @@ export class BodyRenderer {
         cellElement.setAttribute('role', 'gridcell')
         cellElement.setAttribute('aria-colindex', String(colIndex + 1))
 
-        // Selection state
-        const cellId = `${row.id}:${column.id}`
-        if (this.interactionStore.selectedCells.has(cellId)) {
-          cellElement.classList.add('vibegridx-selected')
-          cellElement.setAttribute('aria-selected', 'true')
-        }
+        // Selection state — skip for sparse placeholders (their id is the
+        // shared `__sparse__` sentinel; no real selection state to read).
+        if (!isSparseRow) {
+          const cellId = `${row.id}:${column.id}`
+          if (this.interactionStore.selectedCells.has(cellId)) {
+            cellElement.classList.add('vibegridx-selected')
+            cellElement.setAttribute('aria-selected', 'true')
+          }
 
-        // Interaction handlers
-        this.addCellInteractionHandlers(cellElement, row, column, value)
+          // Interaction handlers — only on real rows; sparse placeholders are
+          // non-interactive and ignore clicks/edits.
+          this.addCellInteractionHandlers(cellElement, row, column, value)
+        }
 
         return cellElement
       } catch (error) {
@@ -970,7 +982,8 @@ export class BodyRenderer {
 
         // Get current group structure to determine the source group
         const processedRows = this.tableCoreStore.processedRows
-        const draggedRow = processedRows.find((r) => r.id === draggedRowId)
+        // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+        const draggedRow = processedRows.find((r) => r && r.id === draggedRowId)
         if (!draggedRow || draggedRow.type !== 'data') {
           fileLog.error('❌ Invalid dragged row or not a data row', { draggedRowId })
           return false
@@ -1059,7 +1072,9 @@ export class BodyRenderer {
     const processedRows = this.tableCoreStore.processedRows
     let currentGroupId: string | null = null
 
+    // GH#2812 sparse guard: for-of yields undefined for holes (ECMA-262 §22.1.5).
     for (const row of processedRows) {
+      if (!row) continue
       if (row.type === 'group') {
         currentGroupId = row.id
       } else if (row.type === 'data' && row.id === rowId) {
@@ -1081,7 +1096,8 @@ export class BodyRenderer {
     }
 
     this.activeRows.forEach((rowElement, rowId) => {
-      const row = this.tableCoreStore.processedRows.find((r) => r.id === rowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const row = this.tableCoreStore.processedRows.find((r) => r && r.id === rowId)
       if (row && row.type === 'data') {
         this.dragDropManager!.setupRowForDragDrop(rowElement, row)
       }
@@ -1322,7 +1338,8 @@ export class BodyRenderer {
     const visibleColumnIds = new Set(this.visualStateStore.visibleColumns.map((c) => c.id))
 
     changedCells.forEach((columnIds, rowId) => {
-      const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
+      // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+      const row = this.tableCoreStore.processedRows.find((r: any) => r && r.id === rowId)
       if (!row) {
         fileLog.warn('Row not found for batch update', { rowId })
         failCount++
@@ -1371,7 +1388,8 @@ export class BodyRenderer {
    * Update entire row element (fallback for multi-cell changes)
    */
   updateRowElement(rowId: string, rowIndex: number): boolean {
-    const row = this.tableCoreStore.processedRows.find((r: any) => r.id === rowId)
+    // GH#2812 sparse guard: find visits holes as undefined per ECMA-262 §22.1.3.9.
+    const row = this.tableCoreStore.processedRows.find((r: any) => r && r.id === rowId)
     const oldRowElement = this.activeRows.get(rowId)
 
     if (!oldRowElement || !row) {

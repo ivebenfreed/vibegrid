@@ -22,6 +22,10 @@ import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
 import { useEntityListData } from '@/shared/data/db/hooks/useEntityListData'
+// GH#2804 — when ?ff=substrate is on for substrate-owned entities, skip the
+// empty-state short-circuit so VibeGrid mounts and useVibeGridData can
+// source rows from the substrate Query.
+import { isSubstrateEnabled, isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -649,8 +653,13 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     logger.debug('Sample row loaded', { row: rows[0] })
   }
 
+  // GH#2804 — substrate-owned entities feed rows through useVibeGridData
+  // not useEntityListData. Skip the empty-state short-circuit so VibeGrid
+  // mounts and the substrate hook can populate tableCoreStore.
+  const skipEmptyShortCircuit = isSubstrateEnabled() && isSubstrateOwnedEntity(resolvedName)
+
   // Empty state - no records yet
-  if (rows.length === 0) {
+  if (rows.length === 0 && !skipEmptyShortCircuit) {
     return (
       <>
         <Header>

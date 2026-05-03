@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, GripVertical, Plus, Settings2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/shared/components/ui/button'
+import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import { getLogger } from '@/shared/lib/logging'
 
 const _fileLog = getLogger(['GroupConfigPanel'])
@@ -26,11 +27,25 @@ interface GroupConfigPanelProps {
   groupConfig: GroupConfig | null
   onGroupConfigChange: (config: GroupConfig | null) => void
   className?: string
+  /**
+   * GH#2804 B12: optional entity name. When set and the entity is in
+   * SUBSTRATE_OWNED_ENTITIES, the panel renders nothing (group-by disabled).
+   */
+  entityName?: string
 }
 
-export function GroupConfigPanel({ columns, groupConfig, onGroupConfigChange, className = '' }: GroupConfigPanelProps) {
+export function GroupConfigPanel({
+  columns,
+  groupConfig,
+  onGroupConfigChange,
+  className = '',
+  entityName,
+}: GroupConfigPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [showAggregations, setShowAggregations] = useState(false)
+
+  // GH#2804 B12: hide group-by UI for substrate-owned entities.
+  const groupByDisabled = entityName !== undefined && isSubstrateOwnedEntity(entityName)
 
   // Available columns for grouping (only select/enum fields suitable for grouping)
   const availableColumns = useMemo(() => {
@@ -174,6 +189,10 @@ export function GroupConfigPanel({ columns, groupConfig, onGroupConfigChange, cl
 
   const handleClearGrouping = () => {
     onGroupConfigChange(null)
+  }
+
+  if (groupByDisabled) {
+    return null
   }
 
   return (

@@ -722,6 +722,20 @@ export class InitStore implements IStore {
     const totalRowsReaction = reaction(
       () => tableCoreStore.processedRows.length,
       (rowCount) => {
+        // GH#2804 B5: when serverTotalRows is set (substrate cursor-bounded
+        // path), the server is authoritative for total row count. Skipping
+        // the recomputation prevents totalContentHeight from being driven by
+        // the windowed processedRows.length (e.g. 200) instead of the full
+        // server count (e.g. 100_000).
+        if (viewportStore.serverTotalRows !== null) {
+          logger.debug('Skipping content size update — serverTotalRows set', {
+            tableId: this.tableId,
+            rowCount,
+            serverTotalRows: viewportStore.serverTotalRows,
+          })
+          return
+        }
+
         const totalHeight = rowCount * GRID_DIMENSIONS.ROW_HEIGHT
         viewportStore.updateContentSize(viewportStore.totalContentWidth, totalHeight)
 
@@ -735,6 +749,35 @@ export class InitStore implements IStore {
     )
 
     this.disposers.add(totalRowsReaction)
+
+    // GH#2804 B5 round-5 fix: companion reaction for the substrate cursor-bounded
+    // path. The reaction above bails out when serverTotalRows is non-null because
+    // processedRows.length is the WINDOWED count (e.g. 127 real rows out of 1000
+    // server count — the sparse placeholders are filtered out by processedRows'
+    // filter/sort pipeline, even though TableCoreStore.rawRows is sparse-padded
+    // to the full count by setSparseRows). Without this reaction the body
+    // container's `style.height = totalHeight` ends up at 0 (or the rowCount * RH
+    // of the windowed result), so the inner scroll canvas only grows to that
+    // small height — the page can't scroll past the loaded window and the
+    // viewport→cursor patch reaction never sees a visibleRowRange.start > 0.
+    // Drive totalContentHeight directly from `viewportStore.totalRows` (which
+    // already returns serverTotalRows when set, falling back to derivation).
+    const serverTotalRowsReaction = reaction(
+      () => viewportStore.totalRows,
+      (totalRows) => {
+        if (viewportStore.serverTotalRows === null) return
+        const totalHeight = totalRows * GRID_DIMENSIONS.ROW_HEIGHT
+        viewportStore.updateContentSize(viewportStore.totalContentWidth, totalHeight)
+        logger.debug('Updated ViewportStore content size from serverTotalRows', {
+          tableId: this.tableId,
+          totalRows,
+          totalHeight,
+        })
+      },
+      { fireImmediately: true },
+    )
+
+    this.disposers.add(serverTotalRowsReaction)
   }
 
   /**

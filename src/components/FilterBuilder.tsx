@@ -119,7 +119,9 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
     <DropdownMenu open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" size="sm" data-testid="vibegrid-filter-btn" className={className} title="Filters" />
+          // GH#2804 p3: testid renamed from `vibegrid-filter-btn` → `filter-trigger`
+          // for verification step 12. Tests in FilterBuilder.test.tsx updated accordingly.
+          <Button variant="outline" size="sm" data-testid="filter-trigger" className={className} title="Filters" />
         }
       >
         <Filter className="h-4 w-4" />
@@ -171,7 +173,8 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
           <Button variant="ghost" size="sm" data-testid="vibegrid-filter-clear" onClick={handleClear}>
             Clear
           </Button>
-          <Button size="sm" data-testid="vibegrid-filter-apply" disabled={hasValidationErrors} onClick={handleApply}>
+          {/* GH#2804 p3: testid renamed from `vibegrid-filter-apply` → `filter-apply`. */}
+          <Button size="sm" data-testid="filter-apply" disabled={hasValidationErrors} onClick={handleApply}>
             Apply
           </Button>
         </div>
