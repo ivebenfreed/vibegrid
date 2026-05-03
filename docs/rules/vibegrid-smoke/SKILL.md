@@ -77,13 +77,19 @@ pnpm ab eval "Array.from(document.querySelectorAll('[data-affordance=\"edit\"]')
 # Column header sort
 pnpm ab eval "document.querySelector('[role=\"columnheader\"][aria-colindex=\"2\"]')?.click()"
 
-# Scroll to column (MUST use .vibegridx-viewport, NOT .vibegridx-header-clip)
+# Scroll to column (canonical helper — wraps the .vibegridx-viewport.scrollToColumn() pattern)
+pnpm ab grid scroll-to test_currency
+# Or raw eval if you need finer control:
 pnpm ab eval 'document.querySelector(".vibegridx-viewport").scrollToColumn("test_currency", "instant")'
 
-# Row checkbox (hover to reveal) — use snapshot uids for hover/click
-pnpm ab snapshot               # Locate the row's @uid
-pnpm ab hover @<uid>
-pnpm ab click @<checkbox-uid>
+# Row checkbox (hover to reveal) — canonical helper
+pnpm ab grid select-row <rowId>
+
+# Wait until a known number of rows have rendered
+pnpm ab grid wait-rows 50
+
+# Dump visible cell uids + aria-labels
+pnpm ab grid uids
 ```
 
 ## Multi-Persona Testing
