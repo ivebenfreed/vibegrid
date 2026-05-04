@@ -26,12 +26,10 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { isModalTextType } from '../constants/field-type-categories'
 import type { CommandBus } from '@/systems/commands/CommandBus'
-import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
-// GH#2812 A1: substrate write path. In bounded substrate mode the TanStack
-// DB collection is empty; mutations must go through oRPC and let the
-// SharedWorker reconcile via queryDelta events.
+// GH#2806 P8: substrate is the unconditional write path. Mutations route
+// through oRPC; the SharedWorker reconciles via queryDelta events. The
+// legacy TanStack DB collection.update fallback has been removed.
 import {
-  shouldUseSubstrateWrite,
   substrateCreate,
   substrateDelete,
   substrateUpdate,
@@ -1153,9 +1151,15 @@ export class EditingStore implements IStore {
   // ====================================
 
   /**
-   * Save edit to database using TanStack DB collection
+   * Save edit to database via the substrate write path.
    *
-   * Implements optimistic updates with automatic rollback on error.
+   * GH#2806 P8: substrate is the unconditional write path for VibeGrid.
+   * Rows live in the SharedWorker SQLite substrate; mutations go through
+   * oRPC and the substrate reconciles via queryDelta events. The legacy
+   * TanStack DB collection.update fallback has been removed.
+   *
+   * Optimistic updates are applied locally first via commitSubstrateUpdate,
+   * which returns a SubstrateTransaction with isPersisted promise.
    *
    * @param session Edit session to save
    * @param finalValue Value to save
@@ -1167,64 +1171,10 @@ export class EditingStore implements IStore {
     // Get field name from column
     const field = session.column.field || columnId
 
-    // GH#2812 A1: substrate-owned entities (RFI, Project under
-    // ?ff=substrate) keep rows in the SharedWorker SQLite substrate, NOT
-    // in the TanStack DB collection. The collection has zero entries, so
-    // collection.get/update would return undefined / throw "key not found".
-    // Route the mutation through oRPC; the substrate observes the change
-    // via server-emitted DataForge events and applies it through
-    // queryDelta → setSparseRows().
-    //
-    // NOTE: undo/redo for substrate writes is NOT integrated yet — the
-    // CommandBus path below operates on the TanStack DB collection.
-    // Substrate-write undo/redo is a GH#2812 follow-up.
-    const entityType = this.tableCoreStore.entityType
-    if (shouldUseSubstrateWrite(entityType)) {
-      // OPTIMIZATION: skip save if value hasn't changed. Use the session's
-      // originalValue since the collection is empty in substrate mode.
-      if (originalValue === finalValue) {
-        fileLog.info('Skipping save - value unchanged (substrate)', {
-          rowId,
-          field,
-          value: finalValue,
-        })
-        return
-      }
-
-      // GH#2806 P5: optimistic update path. Apply locally first, then issue
-      // oRPC; revert on failure. Returns a SubstrateTransaction the caller
-      // can await via `tx.isPersisted.promise` (we currently don't expose
-      // this through the legacy commitEdit() return type; callers that
-      // need it should call `commitSubstrateUpdate` directly). Attach a
-      // best-effort .catch so legacy callers (which don't await the
-      // returned transaction) don't trip Node's unhandled-rejection
-      // warning. The error has already been logged + toasted by the
-      // failure path.
-      const tx = this.commitSubstrateUpdate(String(rowId), field, finalValue)
-      tx.isPersisted.promise.catch(() => {
-        /* legacy call site — failure is surfaced via toast + log */
-      })
-      return
-    }
-
-    // Check if collection available
-    if (!this.collection) {
-      fileLog.error('Cannot save: TanStack DB collection not set', {
-        cellId,
-        rowId,
-        field,
-        hint: 'Call setCollection() before editing',
-      })
-      return
-    }
-
-    // Get current data to check for changes
-    const currentData = this.collection.get(String(rowId))
-    const currentValue = currentData?.[field]
-
-    // OPTIMIZATION: Skip update if value hasn't changed
-    if (currentValue === finalValue) {
-      fileLog.info('Skipping save - value unchanged', {
+    // OPTIMIZATION: skip save if value hasn't changed. Use the session's
+    // originalValue (rows live in the substrate, not in a local collection).
+    if (originalValue === finalValue) {
+      fileLog.info('Skipping save - value unchanged (substrate)', {
         rowId,
         field,
         value: finalValue,
@@ -1232,87 +1182,19 @@ export class EditingStore implements IStore {
       return
     }
 
-    // Route through CommandBus if available (enables undo/redo tracking)
-    if (this.commandBus) {
-      try {
-        const command = new UpdateEntityRecordCommand()
-        const result = await this.commandBus.execute(command, {
-          collection: this.collection,
-          entityName: this.tableCoreStore.entityType,
-          recordId: String(rowId),
-          field,
-          newValue: finalValue,
-          previousValue: originalValue,
-        })
-
-        if (result.success) {
-          fileLog.info('Edit saved via CommandBus', {
-            rowId,
-            field,
-            finalValue,
-            cellId,
-            note: 'Command tracked in history for undo/redo',
-          })
-          return
-        }
-        fileLog.error('CommandBus execute failed, falling back to direct update', {
-          rowId,
-          field,
-          error: result.error?.message,
-        })
-      } catch (err) {
-        fileLog.error('CommandBus execute threw, falling back to direct update', {
-          rowId,
-          field,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
-      // Fall through to direct collection update below
-    }
-
-    // Fallback: Direct collection update (no undo tracking)
-    const startTime = performance.now()
-    try {
-      const tx = this.collection.update(String(rowId), (draft: any) => {
-        draft[field] = finalValue
-        draft.updated_at = new Date().toISOString()
-      })
-
-      const localDuration = performance.now() - startTime
-      fileLog.info('Optimistic edit applied to collection (no CommandBus)', {
-        rowId,
-        field,
-        finalValue,
-        localDuration: `${localDuration.toFixed(1)}ms`,
-        cellId,
-        note: 'Table will react automatically via useVibeGridData hook',
-      })
-
-      // Monitor persistence status
-      tx.isPersisted.promise
-        .then(() => {
-          const totalDuration = performance.now() - startTime
-          fileLog.info('Edit persisted to server', {
-            rowId,
-            field,
-            finalValue,
-            localDuration: `${localDuration.toFixed(1)}ms`,
-            totalDuration: `${totalDuration.toFixed(1)}ms`,
-            networkDuration: `${(totalDuration - localDuration).toFixed(1)}ms`,
-            note: 'Optimistic update confirmed',
-          })
-        })
-        .catch((error: any) => {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          fileLog.error('Edit persistence failed - TanStack DB auto-rollback', {
-            rowId,
-            field,
-            finalValue,
-            error: errorMessage,
-            note: 'Collection automatically rolled back, table will react via hook',
-          })
-        })
-    } catch (_err) {}
+    // GH#2806 P5: optimistic update path. Apply locally first, then issue
+    // oRPC; revert on failure. Returns a SubstrateTransaction the caller
+    // can await via `tx.isPersisted.promise` (we currently don't expose
+    // this through the legacy commitEdit() return type; callers that
+    // need it should call `commitSubstrateUpdate` directly). Attach a
+    // best-effort .catch so legacy callers (which don't await the
+    // returned transaction) don't trip Node's unhandled-rejection
+    // warning. The error has already been logged + toasted by the
+    // failure path.
+    const tx = this.commitSubstrateUpdate(String(rowId), field, finalValue)
+    tx.isPersisted.promise.catch(() => {
+      /* legacy call site — failure is surfaced via toast + log */
+    })
   }
 
   // ====================================

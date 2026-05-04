@@ -17,7 +17,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/shared/data/query/substrate-mutations', () => ({
-  shouldUseSubstrateWrite: vi.fn(),
   substrateUpdate: vi.fn(),
   substrateCreate: vi.fn(),
   substrateDelete: vi.fn(),
@@ -33,7 +32,6 @@ vi.mock('sonner', () => ({
 import { EditingStore } from '../EditingStore'
 import { TableCoreStore } from '../TableCoreStore'
 import {
-  shouldUseSubstrateWrite,
   substrateCreate,
   substrateDelete,
   substrateUpdate,
@@ -41,7 +39,6 @@ import {
 import { toast } from 'sonner'
 import { applyQueryDeltaDedup } from '@/shared/data/query/query-delta-dedup'
 
-const mockedShouldUseSubstrateWrite = vi.mocked(shouldUseSubstrateWrite)
 const mockedSubstrateUpdate = vi.mocked(substrateUpdate)
 const mockedSubstrateCreate = vi.mocked(substrateCreate)
 const mockedSubstrateDelete = vi.mocked(substrateDelete)
@@ -85,7 +82,8 @@ function makeStore(opts: {
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockedShouldUseSubstrateWrite.mockReturnValue(true)
+  // GH#2806 P8: substrate is the unconditional VibeGrid write path; no
+  // shouldUseSubstrateWrite predicate to seed in tests.
 })
 
 afterEach(() => {
