@@ -30,15 +30,15 @@ import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import type { FilterConfig, SortConfig } from '../types'
 import { useMobxSnapshot } from './useMobxSnapshot'
-// GH#2804 — when ?ff=substrate is on for a substrate-owned entity, VibeGrid
-// sources rows from the substrate Query directly. Production
+// When ?ff=substrate is on for a substrate-owned entity, VibeGrid sources
+// rows from the substrate Query directly. Production
 // useEntityCollection/useLiveQuery path is short-circuited so the data
 // layer is genuinely swapped (not run alongside).
 import {
   isSubstrateEnabled,
   isSubstrateOwnedEntity,
 } from '@/shared/data/query/feature-flag'
-// GH#2812 A1: in substrate mode the TanStack DB collection is empty, so
+// In substrate mode the TanStack DB collection is empty, so
 // collection.insert/update/delete throws or no-ops. Route mutations through
 // oRPC and let queryDelta + setSparseRows reconcile.
 import {
@@ -240,28 +240,28 @@ export function useVibeGridData(
   const collectionOverride = options?.collectionOverride
   const systemPredicate = options?.systemPredicate
 
-  // GH#2804 — substrate-owned entity short-circuit. When the flag is on
-  // AND the entity is owned by the substrate, source rows from the Query
-  // class directly. Skip the entire TanStack DB path. Production grid
-  // chrome (sort/filter/group/virtualization) keeps working because it
-  // operates on tableCoreStore.setRows() output regardless of source.
+  // Substrate-owned entity short-circuit. When the flag is on AND the entity
+  // is owned by the substrate, source rows from the Query class directly.
+  // Skip the entire TanStack DB path. Production grid chrome
+  // (sort/filter/group/virtualization) keeps working because it operates on
+  // tableCoreStore.setRows() output regardless of source.
   const orgId = useOrganization()?.activeOrganizationId ?? null
   const useSubstrate = isSubstrateEnabled() && isSubstrateOwnedEntity(entityType) && !skip && !collectionOverride
-  // GH#2804 B5: thread viewportStore through so the substrate hook can
-  // publish `query.count` to `viewportStore.serverTotalRows`. This decouples
+  // Thread viewportStore through so the substrate hook can publish
+  // `query.count` to `viewportStore.serverTotalRows`. This decouples
   // VibeGrid's totalRows-derived UI (GridLineCanvas, "X of Y" labels) from
-  // the windowed `rawRows.length` once cursor-bounded mode lands in p4/p5.
+  // the windowed `rawRows.length` in cursor-bounded mode.
   const { viewportStore } = useVibeGridStores()
   const substrateState = useSubstrateGridRows(
     useSubstrate ? entityType : '',
     useSubstrate ? orgId : null,
     useSubstrate ? viewportStore : null,
-    // GH#2804 p4: thread tableCoreStore through so the substrate hook
-    // delivers rows via `setSparseRows()`. The hook writes directly; this
-    // hook's `setRows` push path is skipped via the `bounded` flag below.
+    // Thread tableCoreStore through so the substrate hook delivers rows via
+    // `setSparseRows()`. The hook writes directly; this hook's `setRows`
+    // push path is skipped via the `bounded` flag below.
     useSubstrate ? tableCoreStore : null,
-    // GH#2804 p5 (B11): thread visualStateStore so the substrate hook can
-    // push VibeGrid sort/filter changes through to SQL via query.patch.
+    // Thread visualStateStore so the substrate hook can push VibeGrid
+    // sort/filter changes through to SQL via query.patch.
     useSubstrate ? visualStateStore : null,
   )
 
@@ -298,11 +298,11 @@ export function useVibeGridData(
       // Start with base query
       let query = q.from({ entity: collection })
 
-      // Apply filters. GH#2804 p5 (B11): for substrate-owned entities, the
-      // filter is pushed to SQL via `query.patch({filter})` (see
-      // `useSubstrateGridRows`). The TanStack DB path's filtered result is
-      // unused for substrate-owned entities (sourceRows comes from
-      // substrateState) — skip to avoid double-processing.
+      // Apply filters. For substrate-owned entities, the filter is pushed to
+      // SQL via `query.patch({filter})` (see `useSubstrateGridRows`). The
+      // TanStack DB path's filtered result is unused for substrate-owned
+      // entities (sourceRows comes from substrateState) — skip to avoid
+      // double-processing.
       const skipJsFilter = useSubstrate && isSubstrateOwnedEntity(entityType)
       if (filterSnapshot.length > 0 && !skipJsFilter) {
         query = applyAllFilters(query, filterSnapshot, 'entity')
@@ -316,8 +316,8 @@ export function useVibeGridData(
   )
 
   // Apply client-side sorting to results.
-  // GH#2804 p5 (B11): for substrate-owned entities, sort is pushed to SQL
-  // via `query.patch({sort})`. The TanStack DB path is unused (sourceRows
+  // For substrate-owned entities, sort is pushed to SQL via
+  // `query.patch({sort})`. The TanStack DB path is unused (sourceRows
   // comes from substrateState below) but useLiveQuery still runs — skip
   // the JS sort to save work and avoid double-processing semantics drift.
   const sortedRows = useMemo(() => {
@@ -362,16 +362,16 @@ export function useVibeGridData(
     // (collectionOverride is handled by the effect above)
     if (skip) return
 
-    // GH#2804 — substrate path: bypass TanStack DB sortedRows entirely and
-    // push the substrate Query's rows. Filter + sort apply to substrate
-    // rows the same way (plain objects with the entity's data shape).
+    // Substrate path: bypass TanStack DB sortedRows entirely and push the
+    // substrate Query's rows. Filter + sort apply to substrate rows the same
+    // way (plain objects with the entity's data shape).
     const sourceRows = useSubstrate ? substrateState.rows : sortedRows
     const sourceLoading = useSubstrate ? !substrateState.isReady : queryLoading
 
-    // GH#2804 p4: in cursor-bounded mode the substrate hook writes rows
-    // directly via `setSparseRows()` (with placeholders for unloaded
-    // indices). Calling `setRows()` here would clobber the sparse window
-    // with a dense windowed array. Mark hydrated and bail.
+    // In cursor-bounded mode the substrate hook writes rows directly via
+    // `setSparseRows()` (with placeholders for unloaded indices). Calling
+    // `setRows()` here would clobber the sparse window with a dense
+    // windowed array. Mark hydrated and bail.
     if (useSubstrate && substrateState.bounded) {
       if (!initStore.hydrationState.entityDataLoaded && substrateState.isReady && substrateState.count > 0) {
         if (emptyCollectionTimerRef.current) {
@@ -396,9 +396,9 @@ export function useVibeGridData(
     // Apply systemPredicate and sort for substrate rows (TanStack DB path
     // already did this via sortedRows).
     //
-    // GH#2804 p5 (B11): for substrate-owned entities, sort+filter are pushed
-    // to SQL via `query.patch({sort, filter})`. JS-side `applySortingToRows`
-    // would double-process already-server-sorted rows. Skip it.
+    // For substrate-owned entities, sort+filter are pushed to SQL via
+    // `query.patch({sort, filter})`. JS-side `applySortingToRows` would
+    // double-process already-server-sorted rows. Skip it.
     let pushRows = sourceRows
     if (useSubstrate) {
       const filtered = systemPredicate ? sourceRows.filter(systemPredicate) : sourceRows
@@ -447,12 +447,12 @@ export function useVibeGridData(
     entityType,
     sortSnapshot,
     systemPredicate,
-    // GH#2804 — when substrate is the source, deps must observe its rows +
-    // isReady so the push effect fires on each delta replace.
+    // When substrate is the source, deps must observe its rows + isReady
+    // so the push effect fires on each delta replace.
     useSubstrate,
     substrateState.rows,
     substrateState.isReady,
-    // GH#2804 p4: bounded-mode delivery happens inside useSubstrateGridRows.
+    // Bounded-mode delivery happens inside useSubstrateGridRows.
     // Re-evaluate this push effect when bounded state flips (e.g., flag
     // change on URL navigation) so we don't incorrectly call setRows.
     substrateState.bounded,
@@ -488,9 +488,8 @@ export function useVibeGridData(
 
   const createEntity = useMemo(() => {
     return (data: Record<string, any>) => {
-      // GH#2812 A1: substrate-owned entities have an empty TanStack DB
-      // collection. Route through oRPC; the substrate reconciles via
-      // queryDelta events.
+      // Substrate-owned entities have an empty TanStack DB collection.
+      // Route through oRPC; the substrate reconciles via queryDelta events.
       if (shouldUseSubstrateWrite(entityType)) {
         substrateCreate(entityType, data)
           .then((result) => {
@@ -536,8 +535,8 @@ export function useVibeGridData(
 
   const updateEntity = useMemo(() => {
     return (id: string, updates: Record<string, any>) => {
-      // GH#2812 A1: substrate-owned entities — go through oRPC, not
-      // collection.update (collection is empty in bounded substrate mode).
+      // Substrate-owned entities — go through oRPC, not collection.update
+      // (collection is empty in bounded substrate mode).
       if (shouldUseSubstrateWrite(entityType)) {
         substrateUpdate(entityType, String(id), updates)
           .then((result) => {
@@ -581,8 +580,8 @@ export function useVibeGridData(
 
   const deleteEntity = useMemo(() => {
     return (id: string) => {
-      // GH#2812 A1: substrate-owned entities — go through oRPC, not
-      // collection.delete (collection is empty in bounded substrate mode).
+      // Substrate-owned entities — go through oRPC, not collection.delete
+      // (collection is empty in bounded substrate mode).
       if (shouldUseSubstrateWrite(entityType)) {
         substrateDelete(entityType, String(id))
           .then((result) => {
