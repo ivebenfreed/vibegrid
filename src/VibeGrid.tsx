@@ -18,6 +18,8 @@ import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCommandBus, useUndoRouter } from '@/app/stores'
 import { useDependencyCollection, useMembersCollection } from '@/shared/data/db/hooks/useEntityCollection'
+import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
+import { getLegacyMigrationDiagnostics } from '@/shared/data/db/sqlite/migration'
 import { getLogger } from '@/shared/lib/logging'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import { BatchUpdateEntityRecordsCommand } from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
@@ -284,11 +286,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
   // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
 
-  // GH#2804 p3: expose `window.__vibegrid_debug` global on the active grid
-  // when `?debug=vibegrid` is set on the URL. Used by verification steps
-  // 7/8/10/11/13 to read live store state. `lastCursor` and `lastQuery`
-  // are nullable placeholders here — p4 wires the cursor side and p5 wires
-  // the query side.
+  // Expose `window.__vibegrid_debug` global on the active grid when
+  // `?debug=vibegrid` is set on the URL. Verification harnesses read this
+  // to inspect live store state, the active substrate cursor + query, and
+  // the SharedWorker SQLite client. The `lastCursor` / `lastQuery` slots
+  // are populated by `useSubstrateGridRows` once the substrate query
+  // initializes; the boot-side migration diagnostics are sourced from the
+  // module-local state in `migration.ts` (GH#2806 P1.5).
   useEffect(() => {
     if (typeof window === 'undefined') return
     const search = new URLSearchParams(window.location.search)
@@ -298,19 +302,33 @@ function VibeGridInnerBase(props: VibeGridProps) {
       viewportStore,
       tableCoreStore,
       interactionStore,
-      // GH#2804 round-5 follow-up: expose editingStore + visualStateStore for
-      // verification of B11 (filter pushdown via setFilters) and edit-parity
-      // tests on substrate-bounded grids. Reading-only — agents call methods
-      // on these stores to drive the same flows the UI does.
+      // editingStore + visualStateStore are exposed for verification of B11
+      // (filter pushdown via setFilters) and edit-parity tests on
+      // substrate-bounded grids. Reading-only — harnesses call methods on
+      // these stores to drive the same flows the UI does.
       editingStore,
       visualStateStore,
-      // p4 will populate via reaction in useSubstrateGridRows.
+      // SharedWorker-backed SQLite client. Verification reads
+      // `sqliteClient.isLeader`, broadcast-channel state, and connection
+      // status to assert multi-tab fanout (GH#2806 B4).
+      sqliteClient: getSQLiteClient(),
+      // Populated via reaction in `useSubstrateGridRows` whenever a new
+      // cursor is sent to the worker.
       lastCursor: null as { start: number; size: number } | null,
-      // p5 will populate when SQL pushdown lands.
-      lastQuery: null as string | null,
+      // Populated by `useSubstrateGridRows` once the substrate Query is
+      // initialized; the verification harness reads `lastQuery.shape` and
+      // calls `lastQuery.patch({filter})` directly to drive SQL pushdown.
+      lastQuery: null as unknown,
+      // Boot diagnostics for the legacy OPFS table migration (GH#2806 P1.5).
+      // Returns `{ lastResult, ranAt }` from the most recent
+      // `migrateLegacyEntityTables` call, or null if migration hasn't fired
+      // in this session.
+      get boot() {
+        return { legacyMigration: getLegacyMigrationDiagnostics() }
+      },
       // Selection shape will change in wave 3b. Until then, expose
       // whatever's on InteractionStore via a getter so verification
-      // step 10/11 keeps reading the latest shape.
+      // keeps reading the latest shape.
       get selection() {
         const i = interactionStore as unknown as Record<string, unknown>
         return i.selection ?? i.selectedCells ?? null
