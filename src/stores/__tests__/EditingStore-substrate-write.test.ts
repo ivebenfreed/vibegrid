@@ -29,9 +29,17 @@ const mockedShouldUseSubstrateWrite = vi.mocked(shouldUseSubstrateWrite)
 const mockedSubstrateUpdate = vi.mocked(substrateUpdate)
 
 function createStore(entityType: string) {
+  // GH#2806 P5: substrate write path now applies optimistic updates via
+  // `tableCoreStore.patchRowOptimistic` / `revertRowOptimistic`. The test
+  // mock stubs those out — the substrate-write tests don't assert on
+  // optimistic state, only that the right oRPC path is hit.
   const tableCoreStore = {
     entityType,
     processedRows: [{ id: 'row-1', data: { title: 'Initial value' } }],
+    patchRowOptimistic: vi.fn().mockReturnValue([
+      { rowId: 'row-1', field: 'title', preEditValue: 'Initial value', applied: true },
+    ]),
+    revertRowOptimistic: vi.fn(),
   } as any
   const visualStateStore = {} as any
 

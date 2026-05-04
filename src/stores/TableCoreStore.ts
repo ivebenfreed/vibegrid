@@ -816,6 +816,173 @@ export class TableCoreStore implements IStore {
   }
 
   /**
+   * GH#2806 P5: Optimistic field patch.
+   *
+   * Mutates `rawRows[index].data[field] = newValue` in place for every (rowId,
+   * field, value) tuple in `patches`, stamps the row with `optimisticVersion`,
+   * and bumps `dataVersion` so renderers re-evaluate. Pure substrate flow —
+   * the change is local-only; `EditingStore.saveToDatabase()` issues the oRPC
+   * write in parallel, then either lets the server-side queryDelta confirm
+   * or calls `revertRowOptimistic` on failure.
+   *
+   * Returns the pre-edit value(s) so the caller can stash them for revert.
+   * If the row is missing or sparse, the patch is a no-op for that row.
+   */
+  @action
+  patchRowOptimistic(
+    patches: Array<{ rowId: string; field: string; newValue: unknown }>,
+    optimisticVersion: number,
+  ): Array<{ rowId: string; field: string; preEditValue: unknown; applied: boolean }> {
+    const out: Array<{ rowId: string; field: string; preEditValue: unknown; applied: boolean }> = []
+    const idx = this.getRawRowsIndexMap()
+    for (const p of patches) {
+      const i = idx.get(p.rowId)
+      if (i === undefined) {
+        out.push({ rowId: p.rowId, field: p.field, preEditValue: undefined, applied: false })
+        continue
+      }
+      const row = this.rawRows[i] as any
+      if (!row || isSparsePlaceholder(row)) {
+        out.push({ rowId: p.rowId, field: p.field, preEditValue: undefined, applied: false })
+        continue
+      }
+      // Mutate `data[field]` in place. EntityRow's `data` is a plain object;
+      // dataVersion bump below triggers re-render.
+      if (!row.data) row.data = {}
+      const preEditValue = row.data[p.field]
+      row.data[p.field] = p.newValue
+      row.optimisticVersion = optimisticVersion
+      out.push({ rowId: p.rowId, field: p.field, preEditValue, applied: true })
+    }
+    this.dataVersion++
+    return out
+  }
+
+  /**
+   * GH#2806 P5: Revert an optimistic field patch using the captured pre-edit
+   * value. Mirrors `patchRowOptimistic` but writes the previous value back.
+   * Bumps `dataVersion` so renderers re-evaluate.
+   */
+  @action
+  revertRowOptimistic(
+    reverts: Array<{ rowId: string; field: string; preEditValue: unknown }>,
+  ): void {
+    const idx = this.getRawRowsIndexMap()
+    for (const r of reverts) {
+      const i = idx.get(r.rowId)
+      if (i === undefined) continue
+      const row = this.rawRows[i] as any
+      if (!row || isSparsePlaceholder(row)) continue
+      if (!row.data) row.data = {}
+      row.data[r.field] = r.preEditValue
+      // Leave `optimisticVersion` stamped so subsequent dedup decisions can
+      // still recognize a recently-touched row. The next successful write
+      // will bump it; failure paths leave it as-is.
+    }
+    this.dataVersion++
+  }
+
+  /**
+   * GH#2806 P5: Optimistic insert. Appends `row` to the loaded window with
+   * the supplied temporary id (typically `optimistic-<uuid>`), allocates a
+   * new array reference (because rawRows is `@observable.ref`), and bumps
+   * `dataVersion`. The caller is responsible for swapping the temp id with
+   * the server-assigned id on success via `swapOptimisticId`.
+   */
+  @action
+  insertRowOptimistic(row: { id: string; data: Record<string, unknown>; optimisticVersion: number }): void {
+    // Append to the in-memory rawRows. We allocate a new array of the same
+    // length+1 (or expand) — the spec wants `serverTotalRows` to bump too,
+    // but that's owned by ViewportStore and the caller (EditingStore)
+    // should drive it.
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    // Find first hole to fill, else push.
+    next.push(row as unknown as EntityRow)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(this.loadedWindowEnd, next.length)
+    this.hasLoadedRows = true
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+  }
+
+  /**
+   * GH#2806 P5: Optimistic delete. Removes the row with `rowId` from
+   * rawRows. Returns the removed row (or undefined) so the caller can
+   * restore on failure via `restoreRow`.
+   */
+  @action
+  removeRowOptimistic(rowId: string): { row: EntityRow | undefined; index: number } {
+    const idx = this.getRawRowsIndexMap()
+    const i = idx.get(rowId)
+    if (i === undefined) {
+      return { row: undefined, index: -1 }
+    }
+    const row = this.rawRows[i] as EntityRow | undefined
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    next.splice(i, 1)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(0, this.loadedWindowEnd - 1)
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+    return { row, index: i }
+  }
+
+  /**
+   * GH#2806 P5: Restore a previously-removed row at its original index.
+   * Used by failure-revert in `EditingStore.commitDelete`.
+   */
+  @action
+  restoreRow(row: EntityRow, index: number): void {
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    const insertAt = Math.max(0, Math.min(index, next.length))
+    next.splice(insertAt, 0, row)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(this.loadedWindowEnd, next.length)
+    this.hasLoadedRows = true
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+  }
+
+  /**
+   * GH#2806 P5: Swap a temporary optimistic id (`optimistic-<uuid>`) with
+   * the server-assigned id once the create persists.
+   */
+  @action
+  swapOptimisticId(tempId: string, realId: string): boolean {
+    const idx = this.getRawRowsIndexMap()
+    const i = idx.get(tempId)
+    if (i === undefined) return false
+    const row = this.rawRows[i] as any
+    if (!row || isSparsePlaceholder(row)) return false
+    row.id = realId
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    return true
+  }
+
+  /**
+   * GH#2806 P5: id-keyed view of rawRows. Used by the queryDelta dedup
+   * module for O(1) row lookup.
+   */
+  get rawRowsById(): Map<string, EntityRow> {
+    const out = new Map<string, EntityRow>()
+    const idx = this.getRawRowsIndexMap()
+    for (const [id, i] of idx) {
+      const row = this.rawRows[i]
+      if (row && !isSparsePlaceholder(row)) {
+        out.set(id, row as EntityRow)
+      }
+    }
+    return out
+  }
+
+  /**
    * Safe positional accessor.
    * Returns the real EntityRow when `index` is within the loaded window;
    * a SparsePlaceholder when outside the loaded window but within

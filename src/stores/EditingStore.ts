@@ -30,9 +30,19 @@ import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEn
 // GH#2812 A1: substrate write path. In bounded substrate mode the TanStack
 // DB collection is empty; mutations must go through oRPC and let the
 // SharedWorker reconcile via queryDelta events.
-import { shouldUseSubstrateWrite, substrateUpdate } from '@/shared/data/query/substrate-mutations'
+import {
+  shouldUseSubstrateWrite,
+  substrateCreate,
+  substrateDelete,
+  substrateUpdate,
+} from '@/shared/data/query/substrate-mutations'
+// GH#2806 P5: optimistic write infrastructure
+import { createDeferred, type Deferred } from '@/shared/lib/deferred'
+import { mergeMutations, NO_OP, type Mutation } from './mutation-merge'
+import { toast } from 'sonner'
 import type { SlotRegistry } from '../slots/SlotRegistry'
 import type { TableCoreStore } from './TableCoreStore'
+import type { ViewportStore } from './ViewportStore'
 import type { VisualStateStore } from './VisualStateStore'
 
 const fileLog = getLogger(['vibegrid', 'stores', 'EditingStore'])
@@ -53,6 +63,39 @@ export interface EditSession {
 export interface EditValidation {
   isValid: boolean
   errors: string[]
+}
+
+/**
+ * GH#2806 P5: SubstrateTransaction returned from commitEdit / commitCreate /
+ * commitDelete on the substrate write path. Mirrors a subset of the TanStack
+ * DB Transaction shape so callers can `await tx.isPersisted.promise`.
+ */
+export type SubstrateTransactionState = 'pending' | 'persisting' | 'completed' | 'failed'
+
+export interface SubstrateTransaction {
+  state: SubstrateTransactionState
+  /** Resolves with the transaction once persisted, rejects on failure. */
+  isPersisted: Deferred<SubstrateTransaction>
+  /** The mutation kind issued. */
+  mutationKind: 'create' | 'update' | 'delete'
+  /** The row id (for update/delete) or temp id (for create). */
+  rowId: string
+}
+
+/**
+ * GH#2806 P5: in-flight optimistic write entry. Keyed by `${rowId}:${field}`
+ * for updates, `${rowId}` for create/delete (per spec line 113).
+ */
+interface InFlightEntry {
+  preEditValue: unknown
+  oRpcPromise: Promise<unknown>
+  optimisticVersion: number
+  mutationKind: 'create' | 'update' | 'delete'
+  rowId: string
+  /** Set only for `update` mutations. */
+  field?: string
+  /** The transaction handle; resolves when oRPC settles. */
+  transaction: SubstrateTransaction
 }
 
 export type CommitReason = 'enter' | 'tab' | 'blur' | 'outside-click' | 'user-action'
@@ -105,6 +148,19 @@ export class EditingStore implements IStore {
    * Incremented whenever editing state changes
    */
   @observable editingVersion: number = 0
+
+  /**
+   * GH#2806 P5: in-flight optimistic writes. Keyed per spec line 113:
+   *   - update: `${rowId}:${field}`
+   *   - create / delete: `${rowId}`
+   *
+   * Reads through a getter so the queryDelta dedup module can read a stable
+   * snapshot via `getInFlight()` without touching the private field.
+   */
+  inFlight: Map<string, InFlightEntry> = new Map()
+
+  /** Monotonic counter for stamping optimisticVersion on rows. */
+  private optimisticVersionCounter: number = 0
 
   // ====================================
   // COMPUTED STATE (Derived from currentSession)
@@ -180,6 +236,7 @@ export class EditingStore implements IStore {
   private tableCoreStore: TableCoreStore
   // biome-ignore lint/correctness/noUnusedPrivateClassMembers: Used by Phase 2+ CellRenderer context
   private visualStateStore: VisualStateStore
+  private viewportStore: ViewportStore | null = null // GH#2806 P5: optimistic create/delete needs serverTotalRows
   private collection: Collection<any, any, any, any, any> | null = null // TanStack DB collection for mutations
   private commandBus: CommandBus | null = null // CommandBus for history/undo tracking
   private disposers = new DisposerManager()
@@ -259,6 +316,16 @@ export class EditingStore implements IStore {
   setCommandBus(commandBus: CommandBus): void {
     this.commandBus = commandBus
     fileLog.debug('CommandBus set', { hasCommandBus: !!commandBus })
+  }
+
+  /**
+   * GH#2806 P5: Optional ViewportStore for substrate optimistic create/delete
+   * (those bump `serverTotalRows` so the body container resizes). Cell-edit
+   * optimistic writes don't need it.
+   */
+  setViewportStore(viewportStore: ViewportStore): void {
+    this.viewportStore = viewportStore
+    fileLog.debug('ViewportStore set', { hasViewportStore: !!viewportStore })
   }
 
   // ====================================
@@ -649,6 +716,439 @@ export class EditingStore implements IStore {
   }
 
   // ====================================
+  // SUBSTRATE OPTIMISTIC WRITES (GH#2806 P5)
+  // ====================================
+
+  /**
+   * GH#2806 P5: emit per-hop instrumentation for a substrate write.
+   * Gated behind `?debug=vibegrid` so production builds don't spam console.
+   * The OTEL span emission is best-effort — wired via the existing
+   * observability stack (`telemetry-bridge.ts`).
+   */
+  private debugVibegridFlag(): boolean {
+    if (typeof window === 'undefined') return false
+    try {
+      return new URLSearchParams(window.location.search).get('debug') === 'vibegrid'
+    } catch {
+      return false
+    }
+  }
+
+  private emitSubstrateWriteInstrumentation(
+    mutationKind: 'create' | 'update' | 'delete',
+    rowId: string,
+    timings: {
+      commitStart: number
+      optimisticApplied: number
+      oRpcSend: number
+      oRpcRecv: number
+      queryDeltaArrive?: number
+      setSparseRowsComplete?: number
+    },
+  ): void {
+    if (!this.debugVibegridFlag()) return
+    const payload = {
+      mutationKind,
+      rowId,
+      ...timings,
+      // Per-hop deltas for at-a-glance reading.
+      hop_optimistic_ms: +(timings.optimisticApplied - timings.commitStart).toFixed(2),
+      hop_oRpc_ms: +(timings.oRpcRecv - timings.oRpcSend).toFixed(2),
+    }
+    // eslint-disable-next-line no-console
+    console.debug('substrate.write', payload)
+    fileLog.debug('substrate.write per-hop', payload)
+  }
+
+  /**
+   * GH#2806 P5: optimistic substrate UPDATE. Mutates `tableCoreStore` in
+   * place, issues the oRPC call in background, reverts on failure.
+   *
+   * Mutation merge: if a same-cell write is already in flight, the new
+   * mutation is merged with the existing one and chained via .then() so
+   * order is preserved. The merged shape is what gets issued — never two
+   * parallel oRPC calls for the same (row, field).
+   *
+   * Returns a SubstrateTransaction whose `isPersisted` resolves on success
+   * and rejects on failure.
+   */
+  commitSubstrateUpdate(rowId: string, field: string, newValue: unknown): SubstrateTransaction {
+    const commitStart = performance.now()
+    const entityType = this.tableCoreStore.entityType
+    const key = `${rowId}:${field}`
+    const optimisticVersion = ++this.optimisticVersionCounter
+
+    // Build the SubstrateTransaction we'll return synchronously.
+    const isPersisted = createDeferred<SubstrateTransaction>()
+    const transaction: SubstrateTransaction = {
+      state: 'pending',
+      isPersisted,
+      mutationKind: 'update',
+      rowId,
+    }
+
+    // Mutation merge: if a same-cell write is already in flight, merge and
+    // chain. The merged shape replaces the existing entry; the chained
+    // .then() issues exactly one oRPC for the merged result.
+    const existing = this.inFlight.get(key)
+    let preEditValue: unknown
+    let mergedChanges: Record<string, unknown> = { [field]: newValue }
+    let preExistingChain: Promise<unknown> = Promise.resolve()
+
+    if (existing) {
+      const merged = mergeMutations(
+        {
+          kind: 'update',
+          rowId,
+          changes: { [field]: existing.preEditValue !== undefined ? existing.preEditValue : '' },
+        } as Mutation, // placeholder — we only care about the chain ordering
+        { kind: 'update', rowId, changes: mergedChanges } as Mutation,
+      )
+      if (merged === NO_OP) {
+        // Same-field same-value — drop the duplicate. The in-flight
+        // promise is the source of truth.
+        existing.transaction.isPersisted.promise.then(
+          (v) => isPersisted.resolve(v),
+          (e) => isPersisted.reject(e),
+        )
+        return existing.transaction
+      }
+      // Re-use the existing pre-edit value so a chain of merges can revert
+      // back to the ORIGINAL ground truth, not an intermediate optimistic value.
+      preEditValue = existing.preEditValue
+      preExistingChain = existing.oRpcPromise
+      if (merged && merged.kind === 'update') {
+        mergedChanges = merged.changes
+      }
+    }
+
+    // Apply optimistic local write inside runInAction.
+    let appliedPreEditValue: unknown = preEditValue
+    runInAction(() => {
+      const results = this.tableCoreStore.patchRowOptimistic(
+        Object.entries(mergedChanges).map(([f, v]) => ({ rowId, field: f, newValue: v })),
+        optimisticVersion,
+      )
+      // First-edit case (not previously in-flight): capture preEditValue from
+      // tableCoreStore. Subsequent merges keep the original value.
+      if (!existing) {
+        const r = results.find((r) => r.field === field)
+        appliedPreEditValue = r?.preEditValue
+      }
+    })
+    const optimisticApplied = performance.now()
+
+    // Chain onto any existing in-flight promise (rapid re-edit serializes).
+    const oRpcPromise = preExistingChain
+      .catch(() => undefined) // tolerate prior failure; we still issue the merged shape
+      .then(async () => {
+        const oRpcSend = performance.now()
+        runInAction(() => {
+          transaction.state = 'persisting'
+        })
+        try {
+          const result = await substrateUpdate(entityType, rowId, mergedChanges)
+          const oRpcRecv = performance.now()
+          this.emitSubstrateWriteInstrumentation('update', rowId, {
+            commitStart,
+            optimisticApplied,
+            oRpcSend,
+            oRpcRecv,
+          })
+          if (!result.success) {
+            this.handleSubstrateWriteFailure(
+              transaction,
+              rowId,
+              field,
+              appliedPreEditValue,
+              key,
+              new Error(result.error || 'Update failed'),
+            )
+            return
+          }
+          // Success — leave the value in place; queryDelta dedup will
+          // suppress the redundant server echo.
+          runInAction(() => {
+            transaction.state = 'completed'
+          })
+          this.inFlight.delete(key)
+          isPersisted.resolve(transaction)
+        } catch (err) {
+          this.handleSubstrateWriteFailure(
+            transaction,
+            rowId,
+            field,
+            appliedPreEditValue,
+            key,
+            err,
+          )
+        }
+      })
+
+    // Stash in-flight entry (replaces prior merged entry).
+    this.inFlight.set(key, {
+      preEditValue: appliedPreEditValue,
+      oRpcPromise,
+      optimisticVersion,
+      mutationKind: 'update',
+      rowId,
+      field,
+      transaction,
+    })
+
+    return transaction
+  }
+
+  /**
+   * GH#2806 P5: revert + toast helper used by all three substrate failure
+   * paths (update / create / delete).
+   */
+  private handleSubstrateWriteFailure(
+    transaction: SubstrateTransaction,
+    rowId: string,
+    field: string | undefined,
+    preEditValue: unknown,
+    inFlightKey: string,
+    err: unknown,
+  ): void {
+    const message = err instanceof Error ? err.message : String(err)
+    fileLog.error('Substrate write failed — reverting optimistic write', {
+      rowId,
+      field,
+      mutationKind: transaction.mutationKind,
+      error: message,
+    })
+    runInAction(() => {
+      if (transaction.mutationKind === 'update' && field) {
+        this.tableCoreStore.revertRowOptimistic([{ rowId, field, preEditValue }])
+      }
+      // create/delete revert paths happen in their own commitX wrappers
+      transaction.state = 'failed'
+    })
+    this.inFlight.delete(inFlightKey)
+    this.showSaveErrorToast(message)
+    transaction.isPersisted.reject(err instanceof Error ? err : new Error(message))
+  }
+
+  /**
+   * GH#2806 P5: surface a save-error toast.
+   * Toast string is intentionally short — `Failed to save: <message>` per
+   * spec line 110 step 2. Wrapped in try/catch so a toast failure never
+   * blocks the revert.
+   */
+  private showSaveErrorToast(message: string): void {
+    try {
+      toast.error(`Failed to save: ${message}`)
+    } catch {
+      // best effort
+    }
+  }
+
+  /**
+   * GH#2806 P5: optimistic substrate CREATE. Inserts a row with a temporary
+   * id (`optimistic-<uuid>`), issues the oRPC, swaps to the server-assigned
+   * id on success, removes the row + reverts `serverTotalRows` on failure.
+   */
+  commitCreate(data: Record<string, unknown>): SubstrateTransaction {
+    const commitStart = performance.now()
+    const entityType = this.tableCoreStore.entityType
+    const tempId = `optimistic-${Math.random().toString(36).slice(2, 11)}`
+    const optimisticVersion = ++this.optimisticVersionCounter
+    const isPersisted = createDeferred<SubstrateTransaction>()
+    const transaction: SubstrateTransaction = {
+      state: 'pending',
+      isPersisted,
+      mutationKind: 'create',
+      rowId: tempId,
+    }
+
+    const previousServerTotalRows = this.viewportStore?.serverTotalRows ?? null
+
+    runInAction(() => {
+      this.tableCoreStore.insertRowOptimistic({
+        id: tempId,
+        data: { ...data, id: tempId },
+        optimisticVersion,
+      })
+      if (this.viewportStore && previousServerTotalRows !== null) {
+        this.viewportStore.setServerTotalRows(previousServerTotalRows + 1)
+      }
+    })
+    const optimisticApplied = performance.now()
+
+    const oRpcPromise = (async () => {
+      const oRpcSend = performance.now()
+      runInAction(() => {
+        transaction.state = 'persisting'
+      })
+      try {
+        const result = await substrateCreate(entityType, data)
+        const oRpcRecv = performance.now()
+        this.emitSubstrateWriteInstrumentation('create', tempId, {
+          commitStart,
+          optimisticApplied,
+          oRpcSend,
+          oRpcRecv,
+        })
+        if (!result.success) {
+          this.revertOptimisticCreate(tempId, previousServerTotalRows)
+          runInAction(() => {
+            transaction.state = 'failed'
+          })
+          this.inFlight.delete(tempId)
+          this.showSaveErrorToast(result.error || 'Create failed')
+          isPersisted.reject(new Error(result.error || 'Create failed'))
+          return
+        }
+        // Success — swap temp id with server-assigned id if returned.
+        const serverRow = result.data as { id?: string } | undefined
+        if (serverRow?.id) {
+          runInAction(() => {
+            this.tableCoreStore.swapOptimisticId(tempId, serverRow.id!)
+          })
+        }
+        runInAction(() => {
+          transaction.state = 'completed'
+        })
+        this.inFlight.delete(tempId)
+        isPersisted.resolve(transaction)
+      } catch (err) {
+        this.revertOptimisticCreate(tempId, previousServerTotalRows)
+        runInAction(() => {
+          transaction.state = 'failed'
+        })
+        this.inFlight.delete(tempId)
+        const message = err instanceof Error ? err.message : String(err)
+        this.showSaveErrorToast(message)
+        isPersisted.reject(err instanceof Error ? err : new Error(message))
+      }
+    })()
+
+    this.inFlight.set(tempId, {
+      preEditValue: undefined,
+      oRpcPromise,
+      optimisticVersion,
+      mutationKind: 'create',
+      rowId: tempId,
+      transaction,
+    })
+
+    return transaction
+  }
+
+  private revertOptimisticCreate(tempId: string, previousServerTotalRows: number | null): void {
+    runInAction(() => {
+      this.tableCoreStore.removeRowOptimistic(tempId)
+      if (this.viewportStore && previousServerTotalRows !== null) {
+        this.viewportStore.setServerTotalRows(previousServerTotalRows)
+      }
+    })
+  }
+
+  /**
+   * GH#2806 P5: optimistic substrate DELETE. Removes the row from rawRows,
+   * decrements `serverTotalRows`, issues the oRPC, restores the row +
+   * increments `serverTotalRows` on failure.
+   */
+  commitDelete(rowId: string): SubstrateTransaction {
+    const commitStart = performance.now()
+    const entityType = this.tableCoreStore.entityType
+    const isPersisted = createDeferred<SubstrateTransaction>()
+    const transaction: SubstrateTransaction = {
+      state: 'pending',
+      isPersisted,
+      mutationKind: 'delete',
+      rowId,
+    }
+
+    const previousServerTotalRows = this.viewportStore?.serverTotalRows ?? null
+
+    let removedRow: any
+    let removedIndex = -1
+    runInAction(() => {
+      const result = this.tableCoreStore.removeRowOptimistic(rowId)
+      removedRow = result.row
+      removedIndex = result.index
+      if (this.viewportStore && previousServerTotalRows !== null) {
+        this.viewportStore.setServerTotalRows(Math.max(0, previousServerTotalRows - 1))
+      }
+    })
+    const optimisticApplied = performance.now()
+
+    const oRpcPromise = (async () => {
+      const oRpcSend = performance.now()
+      runInAction(() => {
+        transaction.state = 'persisting'
+      })
+      try {
+        const result = await substrateDelete(entityType, rowId)
+        const oRpcRecv = performance.now()
+        this.emitSubstrateWriteInstrumentation('delete', rowId, {
+          commitStart,
+          optimisticApplied,
+          oRpcSend,
+          oRpcRecv,
+        })
+        if (!result.success) {
+          this.revertOptimisticDelete(removedRow, removedIndex, previousServerTotalRows)
+          runInAction(() => {
+            transaction.state = 'failed'
+          })
+          this.inFlight.delete(rowId)
+          this.showSaveErrorToast(result.error || 'Delete failed')
+          isPersisted.reject(new Error(result.error || 'Delete failed'))
+          return
+        }
+        runInAction(() => {
+          transaction.state = 'completed'
+        })
+        this.inFlight.delete(rowId)
+        isPersisted.resolve(transaction)
+      } catch (err) {
+        this.revertOptimisticDelete(removedRow, removedIndex, previousServerTotalRows)
+        runInAction(() => {
+          transaction.state = 'failed'
+        })
+        this.inFlight.delete(rowId)
+        const message = err instanceof Error ? err.message : String(err)
+        this.showSaveErrorToast(message)
+        isPersisted.reject(err instanceof Error ? err : new Error(message))
+      }
+    })()
+
+    this.inFlight.set(rowId, {
+      preEditValue: removedRow,
+      oRpcPromise,
+      optimisticVersion: ++this.optimisticVersionCounter,
+      mutationKind: 'delete',
+      rowId,
+      transaction,
+    })
+
+    return transaction
+  }
+
+  private revertOptimisticDelete(
+    removedRow: any,
+    removedIndex: number,
+    previousServerTotalRows: number | null,
+  ): void {
+    runInAction(() => {
+      if (removedRow) {
+        this.tableCoreStore.restoreRow(removedRow, removedIndex)
+      }
+      if (this.viewportStore && previousServerTotalRows !== null) {
+        this.viewportStore.setServerTotalRows(previousServerTotalRows)
+      }
+    })
+  }
+
+  /** GH#2806 P5: read-only snapshot of the in-flight map for the dedup module. */
+  getInFlight(): Map<string, InFlightEntry> {
+    return this.inFlight
+  }
+
+  // ====================================
   // DATABASE PERSISTENCE
   // ====================================
 
@@ -691,36 +1191,19 @@ export class EditingStore implements IStore {
         return
       }
 
-      const startTime = performance.now()
-      try {
-        const result = await substrateUpdate(entityType, String(rowId), { [field]: finalValue })
-        const duration = performance.now() - startTime
-        if (!result.success) {
-          fileLog.error('Substrate update failed', {
-            rowId,
-            field,
-            cellId,
-            error: result.error,
-            duration: `${duration.toFixed(1)}ms`,
-          })
-          return
-        }
-        fileLog.info('Edit saved via substrate', {
-          rowId,
-          field,
-          finalValue,
-          cellId,
-          duration: `${duration.toFixed(1)}ms`,
-          note: 'Substrate will reconcile via queryDelta + setSparseRows',
-        })
-      } catch (err) {
-        fileLog.error('Substrate update threw', {
-          rowId,
-          field,
-          cellId,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
+      // GH#2806 P5: optimistic update path. Apply locally first, then issue
+      // oRPC; revert on failure. Returns a SubstrateTransaction the caller
+      // can await via `tx.isPersisted.promise` (we currently don't expose
+      // this through the legacy commitEdit() return type; callers that
+      // need it should call `commitSubstrateUpdate` directly). Attach a
+      // best-effort .catch so legacy callers (which don't await the
+      // returned transaction) don't trip Node's unhandled-rejection
+      // warning. The error has already been logged + toasted by the
+      // failure path.
+      const tx = this.commitSubstrateUpdate(String(rowId), field, finalValue)
+      tx.isPersisted.promise.catch(() => {
+        /* legacy call site — failure is surfaced via toast + log */
+      })
       return
     }
 
