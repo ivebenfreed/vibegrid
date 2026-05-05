@@ -1529,15 +1529,36 @@ export class TableCoreStore implements IStore {
       // BodyRenderer / SelectionController / KeyboardNavigationController)
       // correctly identify unloaded rows. Without this, the marker is buried
       // on `virtualRow.data` and every guard becomes dead code.
+      //
+      // GH#2806 ISSUE-1 fix-up: substrate-cutover rawRows now arrive WRAPPED
+      // (`{id, data: {...recordFields}, optimisticVersion?}`) per
+      // `wrapSubstrateRow` at the substrate→VibeGrid boundary. Without
+      // un-wrapping here, the VirtualRow becomes `{type, id, ..., data: {id,
+      // data: {...recordFields}}}` — a double-wrap that makes
+      // `virtualRow.data[field]` undefined for cell renderers and the
+      // verification harness alike. Detect the wrapped shape and pull
+      // `row.data` up so consumers see `virtualRow.data[field]` === recordFields[field]
+      // exactly as they did pre-cutover. Sparse placeholders never carry a
+      // `data` wrapper, so the check is safe for them.
       virtualRows = rows.map((row, index) => {
         const isSparse = isSparsePlaceholder(row)
+        const inner =
+          !isSparse &&
+          row &&
+          typeof row === 'object' &&
+          'data' in row &&
+          row.data &&
+          typeof row.data === 'object' &&
+          !Array.isArray(row.data)
+            ? (row.data as Record<string, unknown>)
+            : (row as Record<string, unknown>)
         return {
           type: 'data' as const,
           id: row.id,
           index,
           dataIndex: index, // For data-only rows, dataIndex === index (no expanded-content rows yet)
-          height: row.height || GRID_DIMENSIONS.ROW_HEIGHT, // Preserve variable row heights, default to 40
-          data: row,
+          height: (row as { height?: number }).height || GRID_DIMENSIONS.ROW_HEIGHT, // Preserve variable row heights, default to 40
+          data: inner,
           ...(isSparse ? { __sparse: true as const } : {}),
         }
       })
