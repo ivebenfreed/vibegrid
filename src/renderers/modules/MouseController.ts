@@ -235,8 +235,19 @@ export class MouseController {
 
   /**
    * Handle click events - delegate to ClickRouter
+   *
+   * Symmetric guard with onPointerDown: ignore clicks that originated outside
+   * the grid container. Without this, clicks on portaled overlays (popovers,
+   * dropdown menus) bubble to the document, and ClickRouter's elementFromPoint
+   * fallback can resolve to a grid cell underneath the overlay once the
+   * overlay closes — misrouting the click as a cell click and triggering
+   * navigation. The setPointerCapture() redirect this fallback exists for
+   * sets e.target to the container itself, which still passes contains().
    */
   private onClick(e: MouseEvent): void {
+    if (!this.container.contains(e.target as Node)) {
+      return
+    }
     this.clickRouter.routeClick(e, this.isDragging, this.justEndedDrag)
   }
 
