@@ -530,9 +530,34 @@ export class IncrementalRowProcessor {
     // rows. The marker lives on `row.data` after wrapping; lifting it onto
     // the wrapper keeps existing guards (BodyRenderer, SelectionController,
     // KeyboardNavigationController) functional.
+    //
+    // GH#2806 sparse guard: post-substrate-cutover, the input `rows` may
+    // include genuine `undefined` entries — `Array.prototype.sort` sorts
+    // holes to the end as `undefined` values per ECMA-262 §22.1.3.30, and
+    // upstream filters can also propagate undefined through. Unguarded
+    // `row.id` then throws TypeError from inside the .map() callback,
+    // tearing down the whole startIncrementalProcessing reaction. Treat
+    // undefined inputs as sparse placeholders with a stable synthetic id
+    // so positional indexing is preserved for callers that rely on
+    // `processedRows.length` (height calc, scroll geometry).
     return rows.map((row, index) => {
+      if (row == null) {
+        return {
+          type: 'data' as const,
+          id: `__sparse-${startIndex + index}`,
+          index: startIndex + index,
+          dataIndex: startIndex + index,
+          height: GRID_DIMENSIONS.ROW_HEIGHT,
+          data: { __sparse: true, id: `__sparse-${startIndex + index}` },
+          __sparse: true as const,
+          // VirtualRow.data is typed as GroupNode | TableRow | null; the
+          // sparse placeholder data shape intentionally diverges (no
+          // `metadata` / nested `data`). Cast through unknown — downstream
+          // consumers honor `__sparse` / `isSparsePlaceholder` and skip.
+        } as unknown as VirtualRow
+      }
       const isSparse =
-        typeof row === 'object' && row !== null && (row as { __sparse?: unknown }).__sparse === true
+        typeof row === 'object' && (row as { __sparse?: unknown }).__sparse === true
       return {
         type: 'data' as const,
         id: row.id,
