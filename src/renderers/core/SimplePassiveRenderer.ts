@@ -1362,10 +1362,16 @@ export class SimplePassiveRenderer {
       leaving: leaving.length,
     })
 
-    // Pre-compute lookup maps for O(1) access in the per-row loop
+    // Pre-compute lookup maps for O(1) access in the per-row loop.
+    //
+    // GH#2806 verify-loop fix: under fast scroll, processedRows can contain
+    // genuine array holes (substrate cursor offsets > 0) that
+    // Array.prototype.iteration treats as `undefined`. Filtering those
+    // before keying by `.id` avoids `Cannot read properties of undefined
+    // (reading 'id')`.
     const rowMap = new Map<string, any>()
     for (const row of this.tableCoreStore.processedRows) {
-      rowMap.set(row.id, row)
+      if (row && row.id) rowMap.set(row.id, row)
     }
     const columnMap = new Map<string, any>()
     for (const col of columns) {

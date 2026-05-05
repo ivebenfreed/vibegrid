@@ -1517,9 +1517,17 @@ export class TableCoreStore implements IStore {
     // Standard synchronous path for small datasets or when grouping/hierarchy is active
     const rows = this.groupedOrOrderedRows
 
-    // If rows are already VirtualRows (from grouping), use as-is
+    // If rows are already VirtualRows (from grouping), use as-is.
+    //
+    // GH#2806 verify-loop fix: under sustained rapid scroll, `setSparseRows`
+    // can leave `rows[0]` as a genuine array hole (substrate cursor offset
+    // > 0). The previous unguarded `'type' in rows[0]` then throws
+    // `TypeError: Cannot use 'in' operator to search for 'type' in undefined`,
+    // tearing down the renderer on every scroll tick. Probe `rows[0] != null`
+    // before the `in` check so a hole takes the wrap branch (which already
+    // handles sparse placeholders via isSparsePlaceholder).
     let virtualRows: any[]
-    if (rows.length > 0 && 'type' in rows[0]) {
+    if (rows.length > 0 && rows[0] != null && typeof rows[0] === 'object' && 'type' in rows[0]) {
       virtualRows = rows
     } else {
       // Wrap flat rows in VirtualRow structure for consistency
