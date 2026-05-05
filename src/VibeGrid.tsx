@@ -589,7 +589,19 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // page's own entity preempts) and bulk-fetches visible-cell ids via
   // client.fetchEntityByIds. badge-list.ts continues to read names via
   // getExistingEntityCollection() — it doesn't need to know about this hook.
-  const relationshipTargetSlots = useRelationshipTargetCollections(tableCoreStore)
+  //
+  // GH#2806 verify-loop short-circuit: ?no-collections=1 disables the
+  // cross-entity name-resolution collection bootstrap so we can measure
+  // the substrate's pure memory cost. Cell renderers fall back to
+  // showing raw IDs in badge cells when the target collection is absent.
+  // Hook must always be called per React rules; pass null tableCoreStore
+  // to short-circuit from inside (the hook returns null on null input).
+  const skipRelationshipCollections =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('no-collections') === '1'
+  const relationshipTargetSlots = useRelationshipTargetCollections(
+    skipRelationshipCollections ? null : tableCoreStore,
+  )
 
   // Set TanStack DB collection on InteractionStore for entity mutations
   useEffect(() => {

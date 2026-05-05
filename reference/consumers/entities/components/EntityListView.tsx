@@ -483,9 +483,29 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // `orderBy` / `orderDirection` config options are gone too: the
   // standard hook reads from the SQLite-backed collection and the row
   // order is determined by the grid's view config (sort/filter/group).
-  const listResult = useEntityListData(resolvedName, {
+  //
+  // GH#2806 verify-loop short-circuit: ?no-collections=1 disables the
+  // legacy TanStack DB collection bootstrap so we can measure the
+  // substrate's pure memory cost without the parallel collection cap
+  // ("collection RFI capped at 50000"). The substrate is the canonical
+  // data path post-cutover; this hook's `rows` is unused — only its
+  // `isReady`/`error`/`pagination.total` feed loading + total-count UI.
+  // When skipped we synthesize a ready empty result; the substrate's
+  // own ready/total drives the grid.
+  const skipLegacyCollection =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('no-collections') === '1'
+  const fullListResult = useEntityListData(skipLegacyCollection ? '' : resolvedName, {
     pagination: { pageIndex: 0, pageSize: 1000 },
   })
+  const listResult = skipLegacyCollection
+    ? {
+        rows: [] as any[],
+        isReady: true,
+        error: null as Error | null,
+        pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
+      }
+    : fullListResult
 
   // Fetch creation mode configuration for this entity type
   const creationConfigQuery = useQuery({
