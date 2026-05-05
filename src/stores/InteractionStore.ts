@@ -1051,7 +1051,16 @@ export class InteractionStore implements IStore {
     // Filter out selection column
     const dataColumns = visibleColumns.filter((col) => col.id !== 'selection')
 
+    // GH#2806 sparse guard: `processedRows` is cursor-bounded post-substrate-
+    // cutover, so it has genuine array holes for unloaded indices. `for...of`
+    // YIELDS undefined for holes (ECMA-262 §22.1.5.3 — Array iterator does
+    // NOT skip holes, unlike .map/.forEach which do per §22.1.3). Skip
+    // undefined and rows with no id; without this guard the autorun
+    // updateAllRowCheckboxes throws TypeError on every render that includes
+    // an unloaded index. Same family as the cellRefToPosition guard added
+    // in the same commit.
     for (const row of rows) {
+      if (!row || !row.id) continue
       const isRowSelected =
         dataColumns.every((col) => this.selectedCells.has(`${row.id}:${col.id}`)) && dataColumns.length > 0
 
