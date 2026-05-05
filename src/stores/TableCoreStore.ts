@@ -1549,30 +1549,10 @@ export class TableCoreStore implements IStore {
       // exactly as they did pre-cutover. Sparse placeholders never carry a
       // `data` wrapper, so the check is safe for them.
       virtualRows = rows.map((row, index) => {
-        // GH#2806 sparse guard: `.map` skips true holes per ECMA-262
-        // §22.1.3.18, BUT upstream `Array.prototype.sort` densifies holes
-        // into explicit `undefined` (§22.1.3.30) — sort moves them to the
-        // tail as real undefined values. The same crash family that hit
-        // wrapInVirtualRows in IncrementalRowProcessor lands here on the
-        // non-incremental path. Emit a sparse-placeholder VirtualRow with
-        // a stable synthetic id so positional indexing (height calc,
-        // scroll geometry, expansion bookkeeping) keeps working and the
-        // existing `__sparse` / `isSparsePlaceholder` guards downstream
-        // skip the row.
-        if (row == null) {
-          return {
-            type: 'data' as const,
-            id: `__sparse-${index}`,
-            index,
-            dataIndex: index,
-            height: GRID_DIMENSIONS.ROW_HEIGHT,
-            data: { __sparse: true, id: `__sparse-${index}` } as Record<string, unknown>,
-            __sparse: true as const,
-          }
-        }
         const isSparse = isSparsePlaceholder(row)
         const inner =
           !isSparse &&
+          row &&
           typeof row === 'object' &&
           'data' in row &&
           row.data &&
