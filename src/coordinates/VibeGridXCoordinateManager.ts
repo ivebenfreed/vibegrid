@@ -251,7 +251,13 @@ export class VibeGridXCoordinateManager {
    * Convert cell reference to logical position
    */
   cellRefToPosition(cellRef: CellRef): CoordinatePosition | null {
-    const rowMapping = this.mapping.rows.find((r) => r.rowId === cellRef.rowId)
+    // GH#2806 sparse guard: mapping.rows is a cursor-bounded sparse array
+    // post-substrate-cutover. Array.prototype.find visits holes as
+    // undefined per ECMA-262 §22.1.3.9; an unguarded `r.rowId` access then
+    // throws TypeError: Cannot read properties of undefined (reading
+    // 'rowId') from updateSelection / getVisualCellPositions on any
+    // selection that includes an unloaded row. Skip holes in the predicate.
+    const rowMapping = this.mapping.rows.find((r) => r && r.rowId === cellRef.rowId)
     const columnMapping = this.columnMap.get(cellRef.columnId)
 
     if (!rowMapping || !columnMapping) {
@@ -385,7 +391,8 @@ export class VibeGridXCoordinateManager {
    * Check if a row is visible in the viewport
    */
   isRowVisible(rowId: string, viewport: ViewportInfo): boolean {
-    const rowMapping = this.mapping.rows.find((r) => r.rowId === rowId)
+    // GH#2806 sparse guard: see cellRefToPosition.
+    const rowMapping = this.mapping.rows.find((r) => r && r.rowId === rowId)
     if (!rowMapping) {
       return false
     }
