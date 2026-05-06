@@ -173,8 +173,12 @@ export function createEditor(props: EditorProps): React.ReactElement {
     case 'phone':
       return <TextEditor {...props} />
 
+    case 'badge-list':
     case 'badge-list-live':
-      fileLog.debug('createEditor: Creating PickerEntityEditor for badge-list-live (URS relationship)')
+      // Substrate relationship columns (GH#2786 P6a) emit cellType='badge-list'
+      // for the static renderer but expect the inline EntityPicker when
+      // editable. badge-list-live is the legacy URS alias.
+      fileLog.debug('createEditor: Creating PickerEntityEditor for badge-list/badge-list-live')
       return <PickerEntityEditor {...props} />
 
     // System option reference types
