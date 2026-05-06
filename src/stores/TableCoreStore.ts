@@ -1547,8 +1547,20 @@ export class TableCoreStore implements IStore {
     // GH#1422: Check if we should use incremental cache for large datasets
     // When incremental processing is active, return the cached rows
     // (which may be partial during processing)
+    //
+    // GH#2848 D8 follow-up: do NOT engage incremental processing in
+    // sparse-substrate mode. The substrate has already sorted server-side;
+    // client-side incremental sort is redundant. Worse, the processor
+    // does `[...rows].sort()` which densifies sparse holes into explicit
+    // `undefined` entries — those propagate to renderBody's forEach
+    // (which only skips genuine holes, NOT explicit undefined) and crash
+    // with "Cannot read properties of undefined (reading 'height')".
     const rawRowCount = this.rawRows.length
-    const useIncremental = rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD && !this.hasGrouping && !this.hasHierarchy
+    const useIncremental =
+      rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD &&
+      !this.hasGrouping &&
+      !this.hasHierarchy &&
+      !this.isSparseMode
 
     if (useIncremental && this.isIncrementalProcessing) {
       // Return incremental cache while processing is in progress

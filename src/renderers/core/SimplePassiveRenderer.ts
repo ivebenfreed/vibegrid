@@ -1733,6 +1733,14 @@ export class SimplePassiveRenderer {
     let loadedHeightSum = 0
     let loadedCount = 0
     rows.forEach((row: any) => {
+      // GH#2848 D8 follow-up: forEach skips genuine holes per ECMA-262
+      // §22.1.3 but explicit `undefined` entries are enumerated. Guard
+      // defensively in case any upstream path densifies sparse holes
+      // (e.g., a future `[...rows].sort()` regression) — without this,
+      // the renderer crashes with "Cannot read properties of undefined
+      // (reading 'height')" the moment a sort toggle exposes a densified
+      // entry.
+      if (row == null) return
       loadedHeightSum += row.height || ROW_HEIGHT
       loadedCount++
     })
