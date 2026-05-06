@@ -21,7 +21,6 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { useEntityListData } from '@/shared/data/db/hooks/useEntityListData'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -476,36 +475,19 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const schema = useEntitySchema(resolvedName)
   const [isTransitionPending, startTransition] = useTransition()
 
-  // GH#2786 (F') P6b: useStreamingEntityListData replaced with the
-  // standard useEntityListData. Streaming was needed for client-side
-  // Rel_* materialization which F' eliminates — entity collections no
-  // longer balloon past the 5k cap that used to gate streaming. The
-  // `orderBy` / `orderDirection` config options are gone too: the
-  // standard hook reads from the SQLite-backed collection and the row
-  // order is determined by the grid's view config (sort/filter/group).
-  //
-  // GH#2806 verify-loop short-circuit: ?no-collections=1 disables the
-  // legacy TanStack DB collection bootstrap so we can measure the
-  // substrate's pure memory cost without the parallel collection cap
-  // ("collection RFI capped at 50000"). The substrate is the canonical
-  // data path post-cutover; this hook's `rows` is unused — only its
-  // `isReady`/`error`/`pagination.total` feed loading + total-count UI.
-  // When skipped we synthesize a ready empty result; the substrate's
-  // own ready/total drives the grid.
-  const skipLegacyCollection =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('no-collections') === '1'
-  const fullListResult = useEntityListData(skipLegacyCollection ? '' : resolvedName, {
-    pagination: { pageIndex: 0, pageSize: 1000 },
-  })
-  const listResult = skipLegacyCollection
-    ? {
-        rows: [] as any[],
-        isReady: true,
-        error: null as Error | null,
-        pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
-      }
-    : fullListResult
+  // GH#2848 Phase D B32: substrate fully owns the page-entity data path,
+  // so the legacy TanStack DB collection bootstrap is permanently retired
+  // for the VibeGrid page entity. The substrate's own ready/total drives
+  // the grid; the synthesized listResult below only feeds the loading +
+  // total-count UI shell. `useEntityListData` is no longer called for the
+  // page entity (it would call `useEntityCollection(resolvedName)` and
+  // race substrate's read path).
+  const listResult = {
+    rows: [] as any[],
+    isReady: true,
+    error: null as Error | null,
+    pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
+  }
 
   // Fetch creation mode configuration for this entity type
   const creationConfigQuery = useQuery({
