@@ -1395,6 +1395,13 @@ export class TableCoreStore implements IStore {
     const searchText = this.visualStateStore?.globalSearchText || ''
     if (!searchText.trim()) return rows
 
+    // GH#2848 D8: in sparse-substrate mode the JS text search would
+    // densify holes (and crash on .data access). Substrate doesn't
+    // currently push global search to SQL, so search-while-substrate
+    // returns the unfiltered window — out of #2848 scope to wire SQL
+    // text-search; tracked elsewhere.
+    if (this.isSparseMode) return rows
+
     return applyTextSearch(rows, searchText, this.columns, this.searchableColumns)
   }
 
@@ -1410,6 +1417,11 @@ export class TableCoreStore implements IStore {
     // Start from search-filtered rows (GH#1391)
     let rows = this.searchFilteredRows
     if (rows.length === 0) return rows
+
+    // GH#2848 D8: substrate pushes filters to SQL — JS-side filtering
+    // over a sparse array densifies holes and crashes on .data access.
+    // Skip the JS filter stages in sparse mode.
+    if (this.isSparseMode) return rows
 
     // Apply legacy filters first (for backward compatibility)
     const filters = this.visualStateStore?.filters || []
@@ -1427,6 +1439,18 @@ export class TableCoreStore implements IStore {
   /**
    * Stage 2: Sorted rows
    * Applies sorting configuration to filtered rows
+   *
+   * GH#2848 D8 (sort-toggle storm): when rows are sparse (substrate
+   * mode), skip the JS sort entirely. The substrate has already pushed
+   * the sort to SQL and re-emitted queryDelta with the sorted window;
+   * `[...rows].sort()` over a 211k-length sparse array would densify
+   * holes into explicit undefined entries, allocating ~211k bogus
+   * objects per sort toggle and tipping a fully-loaded grid into the
+   * 5GB / 100% CPU / 2.5MB/s storm reported on local Chromium.
+   *
+   * The intent of the substrate cutover (#2806) was always "JS pipeline
+   * bypassed for substrate" (see baseRows() line 1369 docblock); this
+   * is the missing wiring on the read side.
    */
   @computed
   get sortedRows(): any[] {
@@ -1435,7 +1459,30 @@ export class TableCoreStore implements IStore {
       return this.filteredRows
     }
 
+    if (this.isSparseMode) {
+      // Substrate sorted server-side; nothing to do here. Returning
+      // filteredRows preserves the sparse layout so logical row indices
+      // remain stable for virtual rendering.
+      return this.filteredRows
+    }
+
     return applySorting(this.filteredRows, sortBy)
+  }
+
+  /**
+   * GH#2848 D8: detect substrate (sparse) mode. setSparseRows allocates
+   * `new Array(totalCount)` and only fills `[loadedWindowStart, loadedWindowEnd)`
+   * — the rest are JS holes. Spreading or sorting such an array densifies
+   * the holes and blows up memory.
+   *
+   * Truthy when the substrate has populated a sparse window. Falsy in
+   * legacy / fully-dense paths so the JS pipeline still runs there.
+   */
+  @computed
+  private get isSparseMode(): boolean {
+    if (this.rawRows.length === 0) return false
+    const loaded = this.loadedWindowEnd - this.loadedWindowStart
+    return loaded < this.rawRows.length
   }
 
   /**
