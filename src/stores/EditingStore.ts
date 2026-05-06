@@ -26,6 +26,9 @@ import { DisposerManager } from '@/app/stores/utils/disposer'
 import { getLogger } from '@/shared/lib/logging'
 import { isModalTextType } from '../constants/field-type-categories'
 import type { CommandBus } from '@/systems/commands/CommandBus'
+// GH#2848 D2: route inline cell-edit commits through CommandBus.execute so
+// `commandBus.undo()` actually reverts substrate edits (B22 spec verify path).
+import { SubstrateUpdateCommand } from '@/systems/commands/dataforge/SubstrateUpdateCommand'
 // GH#2806 P8: substrate is the unconditional write path. Mutations route
 // through oRPC; the SharedWorker reconciles via queryDelta events. The
 // legacy TanStack DB collection.update fallback has been removed.
@@ -1183,14 +1186,49 @@ export class EditingStore implements IStore {
     }
 
     // GH#2806 P5: optimistic update path. Apply locally first, then issue
-    // oRPC; revert on failure. Returns a SubstrateTransaction the caller
-    // can await via `tx.isPersisted.promise` (we currently don't expose
-    // this through the legacy commitEdit() return type; callers that
-    // need it should call `commitSubstrateUpdate` directly). Attach a
-    // best-effort .catch so legacy callers (which don't await the
-    // returned transaction) don't trip Node's unhandled-rejection
-    // warning. The error has already been logged + toasted by the
-    // failure path.
+    // oRPC; revert on failure.
+    //
+    // GH#2848 D2: when a CommandBus is wired, route through
+    // `commandBus.execute(new SubstrateUpdateCommand(), ...)` so the
+    // edit is added to undo history. Without this, `commandBus.undo()`
+    // is a permanent no-op for cell edits (B22 spec violation). The
+    // SubstrateUpdateCommand.execute() in turn calls
+    // `commitSubstrateUpdate`, so the optimistic / oRPC / merge / revert
+    // semantics are unchanged.
+    if (this.commandBus) {
+      const entityName = this.tableCoreStore.entityType ?? 'Entity'
+      const command = new SubstrateUpdateCommand()
+      // Fire-and-forget at the call site; errors surface via toast + log.
+      // CommandBus.execute pushes to history only on success, which is
+      // the correct policy (failed edits should not consume undo slots).
+      const writer = {
+        commitSubstrateUpdate: (
+          rowId: string,
+          field: string,
+          newValue: unknown,
+        ) => this.commitSubstrateUpdate(rowId, field, newValue),
+      }
+      this.commandBus
+        .execute(command, {
+          editingStore: writer,
+          entityName,
+          recordId: String(rowId),
+          field,
+          newValue: finalValue,
+          previousValue: originalValue,
+        })
+        .catch(() => {
+          /* legacy call site — failure surfaced via toast + log */
+        })
+      return
+    }
+
+    // Fallback when no CommandBus is wired (tests, headless contexts).
+    // Returns a SubstrateTransaction the caller can await via
+    // `tx.isPersisted.promise` (legacy commitEdit return type doesn't
+    // expose this; callers needing it call `commitSubstrateUpdate`
+    // directly). Attach .catch so legacy callers don't trip Node's
+    // unhandled-rejection warning.
     const tx = this.commitSubstrateUpdate(String(rowId), field, finalValue)
     tx.isPersisted.promise.catch(() => {
       /* legacy call site — failure is surfaced via toast + log */
