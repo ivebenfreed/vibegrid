@@ -27,6 +27,16 @@
  * the same regression (any `useEntityCollection(resolvedName)` /
  * `useEntityCollection(entityName)` / `useEntityCollection(entityType)`
  * pattern in the page-entity files) at near-zero cost.
+ *
+ * GH#2848 review-fix (I-2): the hook-name match is purely textual, so a
+ * caller that re-routes through `getOrCreateEntityCollection(<page-entity>, …)`
+ * — the registry-direct singleton accessor used by `useEntityCommands`,
+ * `CreateRelationshipDialog`, `QuickCreatePanel` — would slip past the
+ * original assertion. We extend the source-text guard to that pattern as
+ * well. Wrapper helpers (`useEntityListData`, etc) and runtime indirection
+ * still bypass this test by definition; a true runtime regression test
+ * would mount VibeGrid against a fake SharedWorker and assert that the
+ * page-entity collection cache stays empty — tracked as a follow-up.
  */
 
 import { readFileSync } from 'node:fs'
@@ -70,6 +80,18 @@ describe('No page-entity useEntityCollection in VibeGrid flow (GH#2848 B33)', ()
       expect(code).not.toMatch(/useEntityCollection\s*\(\s*['"]RFI['"]/)
     })
 
+    it('does not call getOrCreateEntityCollection with the page entityType', () => {
+      // GH#2848 review-fix (I-2): registry-direct accessor returns the same
+      // singleton the hook would, so renaming `useEntityCollection(name)` to
+      // `getOrCreateEntityCollection(name, …)` would re-introduce the exact
+      // regression this test guards against (page-entity collection cap +
+      // 50k cursor pagination racing substrate). Block the alias too.
+      const code = stripComments(readSource(path))
+      expect(code).not.toMatch(/getOrCreateEntityCollection\s*\(\s*entityType\b/)
+      expect(code).not.toMatch(/getOrCreateEntityCollection\s*\(\s*resolvedName\b/)
+      expect(code).not.toMatch(/getOrCreateEntityCollection\s*\(\s*entityName\b/)
+    })
+
     it('does not import the no-collections URL flag pattern', () => {
       const code = readSource(path)
       expect(code).not.toContain('no-collections')
@@ -90,6 +112,15 @@ describe('No page-entity useEntityCollection in VibeGrid flow (GH#2848 B33)', ()
       // it with a non-empty page-entity name reintroduces the regression.
       expect(code).not.toMatch(/useEntityListData\s*\(\s*resolvedName\b/)
       expect(code).not.toMatch(/useEntityListData\s*\(\s*entityName\b/)
+    })
+
+    it('does not call getOrCreateEntityCollection with the page entityName', () => {
+      // GH#2848 review-fix (I-2): same regression guard as VibeGrid.tsx — the
+      // registry singleton accessor returns the same collection the hook
+      // would, so it has to be blocked on the page-entity entry route too.
+      const code = stripComments(readSource(path))
+      expect(code).not.toMatch(/getOrCreateEntityCollection\s*\(\s*resolvedName\b/)
+      expect(code).not.toMatch(/getOrCreateEntityCollection\s*\(\s*entityName\b/)
     })
 
     it('does not import the no-collections URL flag pattern', () => {

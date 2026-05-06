@@ -21,6 +21,7 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
+import { useEntityCountFetch } from '@/shared/data/db/hooks/useEntityCountFetch'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -48,6 +49,7 @@ import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
+import { EntityEmptyState } from './EntityEmptyState'
 import { EntityListError } from './EntityListError'
 import { EntityListSkeleton } from './EntityListSkeleton'
 import { EntityNotFound } from './EntityNotFound'
@@ -489,6 +491,12 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
   }
 
+  // GH#2848 review-fix (I-1): single COUNT query that gates the empty-state CTA
+  // restored below. Empty `resolvedName` short-circuits inside the hook. The
+  // hook re-fetches on entityBatch events, so the empty state hides
+  // automatically when the first record is created elsewhere.
+  const emptyCount = useEntityCountFetch(resolvedName, { enabled: !!resolvedName && !!orgId })
+
   // Fetch creation mode configuration for this entity type
   const creationConfigQuery = useQuery({
     queryKey: uploadQueryKeys.creationConfig(orgId, resolvedName),
@@ -655,11 +663,49 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     logger.debug('Sample row loaded', { row: rows[0] })
   }
 
-  // GH#2806 P8: substrate is the unconditional VibeGrid data path; rows
-  // arrive through useSubstrateGridRows, not useEntityListData. VibeGrid
-  // always mounts so the substrate hook can populate tableCoreStore — the
-  // legacy `rows.length === 0` empty-state short-circuit was removed
-  // because it depended on the (now-bypassed) TanStack DB collection.
+  // GH#2848 review-fix (I-1): substrate's row stream doesn't expose a synchronous
+  // "total" before its first cursor page lands, so empty entities used to render
+  // a bare VibeGrid frame with no "Create your first X" CTA. We restore the
+  // empty-state branch via a server-side COUNT (re-runs on entityBatch, so the
+  // first record landing dismisses the empty state without a manual reload).
+  // Only short-circuit when the count has resolved to 0 — never in the loading
+  // / error path, where the substrate-driven grid is the better fallback.
+  if (emptyCount.count === 0 && !emptyCount.isLoading && !emptyCount.error) {
+    return (
+      <>
+        <Header>
+          <TopNav links={[]} />
+        </Header>
+        <Main>
+          <EntityEmptyState
+            entityName={schema.entityName}
+            creationModes={creationModes as Array<'form' | 'upload'>}
+            onCreateForm={() =>
+              startTransition(() => {
+                setCreateDialogOpen(true)
+              })
+            }
+            onCreateUpload={() => uploadDialogRef.current?.open()}
+          />
+        </Main>
+
+        {/* Create Record Dialog — same dialog the populated path renders, so the
+            empty-state CTA produces the first record without a route change. */}
+        <CreateRecordDialog schema={schema} open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+
+        {/* Upload Files Dialog — owned via ref to mirror the populated path. */}
+        {hasUploadMode && (
+          <EntityUploadDialog
+            ref={uploadDialogRef}
+            entityName={resolvedName}
+            acceptedMimeTypes={primaryFileConfig?.mimeTypes}
+            extractionTemplate={primaryFileConfig?.extractionTemplate}
+            onFilesDropped={handleFilesDropped}
+          />
+        )}
+      </>
+    )
+  }
 
   // Render table with data (or substrate-driven empty state inside the grid)
   return (
