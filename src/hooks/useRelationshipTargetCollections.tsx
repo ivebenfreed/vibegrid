@@ -33,7 +33,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
-import { reaction } from 'mobx'
+import { comparer, reaction } from 'mobx'
 import { useOrganization } from '@/app/stores'
 import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
@@ -175,7 +175,17 @@ export function useRelationshipTargetCollections(
           })
         }, VISIBLE_FETCH_DEBOUNCE_MS)
       },
-      { fireImmediately: true },
+      // GH#2848 hot-path fix: `getRelationshipTargets` constructs a fresh
+      // array on every call (via `Array.from(...).sort()`), so identity-
+      // equality reaction comparison fires the effect on EVERY evaluation
+      // even when the targets list is unchanged. With substrate populating
+      // a sparse 211k-length processedRows, this fired the effect on every
+      // click that bubbled a processedRows touch — and the effect's
+      // runVisibleFetch then iterated all 211k indices via for-of (now
+      // forEach in the fix above). Shallow equality compares the array
+      // element-by-element, so unchanged-content/new-reference cases dedup
+      // and the effect only runs when targets or rowCount actually change.
+      { fireImmediately: true, equals: comparer.shallow },
     )
 
     return () => {
@@ -243,10 +253,19 @@ function runVisibleFetch(args: {
   const idsByTarget = new Map<string, Set<string>>()
   for (const target of targets) idsByTarget.set(target, new Set<string>())
 
-  for (const vrow of rows) {
-    if (!vrow || (vrow as any).type !== 'data') continue
+  // GH#2848 hot-path fix: in substrate (sparse) mode `processedRows` is a
+  // sparse array of length === serverTotalRows (~211k for DEB RFI). Per
+  // ECMA-262 §22.1.3, `for...of` invokes the array iterator which yields
+  // `undefined` for every hole — that's ~212k iterator-next allocations
+  // per fire of this reaction (which fires on EVERY click that bubbles a
+  // processedRows reaction). The sparse-aware path iterates only the
+  // actually-loaded window via `Array.prototype.forEach` (which skips
+  // holes per spec) — O(loaded) instead of O(total). Substantial click
+  // latency on populated grids.
+  rows.forEach((vrow) => {
+    if (!vrow || (vrow as any).type !== 'data') return
     const rowData = (vrow as any).data ?? vrow
-    if (!rowData || typeof rowData !== 'object') continue
+    if (!rowData || typeof rowData !== 'object') return
     for (const [target, fields] of targetToFields) {
       const set = idsByTarget.get(target)
       if (!set) continue
@@ -259,7 +278,7 @@ function runVisibleFetch(args: {
         }
       }
     }
-  }
+  })
 
   // Stable key — skip when nothing has changed since the last run.
   const keyParts: string[] = []
