@@ -423,11 +423,29 @@ function VibeGridInnerBase(props: VibeGridProps) {
           commandBusUndone: es.commandBus?.undoneCommands?.length ?? 0,
           commandBusCap: es.commandBus?.config?.maxHistorySize ?? 100,
         }
-        // 6. SqliteClient pending requests
-        const sc = getSQLiteClient() as unknown as { pendingRequests?: { size: number }; isLeader?: boolean }
+        // 6. SqliteClient pending requests + WORKER MEMORY (V8 + WASM)
+        const sc = getSQLiteClient() as unknown as {
+          pendingRequests?: { size: number }
+          isLeader?: boolean
+          memoryStats?: () => Promise<{ workerJSHeapUsedBytes: number; workerJSHeapTotalBytes: number; wasmHeapBytes: number }>
+        }
+        let workerMem: unknown = 'memoryStats() unavailable'
+        if (typeof sc.memoryStats === 'function') {
+          try {
+            const ms = await sc.memoryStats()
+            workerMem = {
+              workerJSHeapMB: +(ms.workerJSHeapUsedBytes / 1e6).toFixed(1),
+              workerJSHeapTotalMB: +(ms.workerJSHeapTotalBytes / 1e6).toFixed(1),
+              wasmHeapMB: +(ms.wasmHeapBytes / 1e6).toFixed(1),
+            }
+          } catch (e) {
+            workerMem = `memoryStats() rejected: ${e instanceof Error ? e.message : String(e)}`
+          }
+        }
         out.sqlite = {
           pendingRequests: sc.pendingRequests?.size ?? 0,
           isLeader: sc.isLeader ?? false,
+          worker: workerMem,
         }
         return out
       },
