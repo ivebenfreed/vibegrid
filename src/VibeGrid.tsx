@@ -333,6 +333,104 @@ function VibeGridInnerBase(props: VibeGridProps) {
         const i = interactionStore as unknown as Record<string, unknown>
         return i.selection ?? i.selectedCells ?? null
       },
+      // GH#2848: programmatic memory diagnostic. `performance.memory` only
+      // reports the V8 JS heap — it misses WASM (wa-sqlite + DB pages),
+      // worker heaps, DOM, and renderer-process overhead, which is where
+      // most of the substrate's footprint lives. This helper aggregates
+      // every source we can reach without DevTools attached. Run while
+      // the tab is in a bad state and paste the result.
+      async memoryReport() {
+        const out: Record<string, unknown> = {
+          ts: new Date().toISOString(),
+          crossOriginIsolated: typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : 'undef',
+          ua: navigator.userAgent.slice(0, 80),
+        }
+        // 1. V8 JS heap (Chrome only; precise-memory-info gives finer numbers)
+        const pm = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory
+        if (pm) {
+          out.jsHeap = {
+            usedMB: +(pm.usedJSHeapSize / 1e6).toFixed(1),
+            totalMB: +(pm.totalJSHeapSize / 1e6).toFixed(1),
+            limitMB: +(pm.jsHeapSizeLimit / 1e6).toFixed(0),
+          }
+        }
+        // 2. UA-specific cross-context memory (the closest API to Chrome
+        // Task Manager's footprint — covers Wasm + workers + DOM by
+        // attribution). Requires `crossOriginIsolated`. If gated, the
+        // call rejects with SecurityError.
+        const measureFn = (performance as unknown as { measureUserAgentSpecificMemory?: () => Promise<{ bytes: number; breakdown: Array<{ bytes: number; types?: string[]; attribution?: Array<{ scope?: string; url?: string }> }> }> }).measureUserAgentSpecificMemory
+        if (typeof measureFn === 'function') {
+          try {
+            const m = await measureFn.call(performance)
+            out.measureUA = {
+              totalMB: +(m.bytes / 1e6).toFixed(1),
+              breakdown: m.breakdown
+                .filter((b) => b.bytes > 0)
+                .map((b) => ({
+                  types: b.types?.join('+') ?? '?',
+                  scope: b.attribution?.[0]?.scope ?? '-',
+                  url: (b.attribution?.[0]?.url ?? '').slice(-50),
+                  MB: +(b.bytes / 1e6).toFixed(1),
+                }))
+                .sort((a, b) => b.MB - a.MB),
+            }
+          } catch (e) {
+            out.measureUA_err = e instanceof Error ? e.message : String(e)
+          }
+        } else {
+          out.measureUA = 'API unavailable (browser or COOP/COEP gating)'
+        }
+        // 3. DOM counters
+        out.dom = {
+          nodes: document.querySelectorAll('*').length,
+          inputs: document.querySelectorAll('input,textarea,select').length,
+          gridcells: document.querySelectorAll('[data-testid^="cell-"]').length,
+          listenerHeuristic: 'inspect Memory tab → Heap snapshot for true count',
+        }
+        // 4. Substrate metrics
+        const tcs = tableCoreStore as unknown as { rawRows?: unknown[]; processedRows?: unknown[]; loadedWindowStart?: number; loadedWindowEnd?: number }
+        const rawLen = Array.isArray(tcs.rawRows) ? tcs.rawRows.length : 0
+        let loadedCount = 0
+        let sampleRowBytes = 0
+        if (Array.isArray(tcs.rawRows)) {
+          tcs.rawRows.forEach((r) => {
+            loadedCount++
+            if (sampleRowBytes === 0 && r) {
+              try {
+                sampleRowBytes = JSON.stringify(r).length
+              } catch {
+                /* ignore */
+              }
+            }
+          })
+        }
+        out.substrate = {
+          rawRowsLength: rawLen,
+          actuallyLoaded: loadedCount,
+          loadedWindow: [tcs.loadedWindowStart, tcs.loadedWindowEnd],
+          processedRowsLength: Array.isArray(tcs.processedRows) ? tcs.processedRows.length : 0,
+          sampleRowBytes,
+          loadedRowsEstMB: +((loadedCount * sampleRowBytes) / 1e6).toFixed(1),
+        }
+        // 5. CommandBus + EditingStore retention
+        const es = editingStore as unknown as {
+          inFlight?: { size: number }
+          commandBus?: { history?: unknown[]; undoneCommands?: unknown[]; config?: { maxHistorySize?: number } }
+        }
+        out.editing = {
+          inFlight: es.inFlight?.size ?? 0,
+          commandBusHistory: es.commandBus?.history?.length ?? 0,
+          commandBusUndone: es.commandBus?.undoneCommands?.length ?? 0,
+          commandBusCap: es.commandBus?.config?.maxHistorySize ?? 100,
+        }
+        // 6. SqliteClient pending requests
+        const sc = getSQLiteClient() as unknown as { pendingRequests?: { size: number }; isLeader?: boolean }
+        out.sqlite = {
+          pendingRequests: sc.pendingRequests?.size ?? 0,
+          isLeader: sc.isLeader ?? false,
+        }
+        return out
+      },
     }
     ;(window as unknown as { __vibegrid_debug?: unknown }).__vibegrid_debug = debugApi
     return () => {
