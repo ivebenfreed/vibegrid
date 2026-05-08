@@ -45,11 +45,11 @@ export class GroupRenderer {
     rowElement.dataset.groupId = groupRow.id
     // PERF: Use transform for GPU-accelerated positioning
     rowElement.style.transform = `translateY(${rowIndex * ROW_HEIGHT}px)`
-    rowElement.style.background = '#f8f9fa'
-    rowElement.style.borderBottom = '1px solid #e9ecef'
-    rowElement.style.fontWeight = '600'
     rowElement.style.paddingLeft = `${level * 20 + 12}px`
-    rowElement.style.zIndex = '1'
+    // PERF (GH#2848): background, border-bottom, font-weight, z-index, and
+    // hover state moved to CSS (.vibegridx-group-header in vibegridx.css).
+    // Inline-style+JS-listener hover thrashed layout on every mousemove and
+    // leaked mouseenter/mouseleave listeners across every renderBody() pass.
 
     // Create expand/collapse button
     const expandButton = this.createElement('div', 'vibegridx-group-expand')
@@ -62,17 +62,10 @@ export class GroupRenderer {
       align-items: center;
       justify-content: center;
       border-radius: 3px;
-      background: rgba(0,0,0,0.1);
       transition: background 0.2s ease;
     `
-
-    expandButton.addEventListener('mouseenter', () => {
-      expandButton.style.background = 'rgba(0,0,0,0.15)'
-    })
-
-    expandButton.addEventListener('mouseleave', () => {
-      expandButton.style.background = 'rgba(0,0,0,0.1)'
-    })
+    // Background + :hover handled by .vibegridx-group-expand CSS rules
+    // (no per-row addEventListener -- avoids listener accumulation).
 
     // Triangle icon for expand/collapse
     const triangle = this.createElement('span', 'triangle-icon')
@@ -128,16 +121,7 @@ export class GroupRenderer {
       handleToggle()
     })
 
-    // Add visual feedback for group header hover
-    rowElement.addEventListener('mouseenter', () => {
-      if (rowElement.style.background !== '#e9ecef') {
-        rowElement.style.background = '#e9ecef'
-      }
-    })
-
-    rowElement.addEventListener('mouseleave', () => {
-      rowElement.style.background = '#f8f9fa'
-    })
+    // Hover background handled by CSS (.vibegridx-row.vibegridx-group-header:hover)
 
     // Assemble the group header
     rowElement.appendChild(expandButton)
