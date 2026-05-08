@@ -251,8 +251,14 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         componentSlug?: string
       }>)
     : []
-  const search = useSearch({ strict: false }) as { tab?: string }
-  const requestedTab = typeof search?.tab === 'string' ? search.tab : 'grid'
+  // Use a `select` so this hook only re-fires when the `tab` param actually
+  // changes. Without `select`, every search-param change re-renders this
+  // component (notably the review overlay's reviewEntity/reviewIds churn,
+  // which in turn re-renders VibeGrid).
+  const requestedTab = (useSearch({
+    strict: false,
+    select: (s) => (typeof (s as { tab?: unknown }).tab === 'string' ? (s as { tab: string }).tab : 'grid'),
+  }) as string) ?? 'grid'
   const knownTabIds = ['grid', ...listExtraTabs.map((t) => t.id)]
   // Fall back to grid when the URL contains an unknown tab id (stale config, deleted tab, etc.)
   const activeTab = knownTabIds.includes(requestedTab) ? requestedTab : 'grid'
