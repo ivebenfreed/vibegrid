@@ -25,7 +25,7 @@ import { useEntityCountFetch } from '@/shared/data/db/hooks/useEntityCountFetch'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
-import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
+import { useEntitySchema, useEntitySchemasQuery } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
@@ -475,7 +475,17 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // All hooks must be called unconditionally (React rules of hooks)
   const resolvedName = entityName ?? ''
   const schema = useEntitySchema(resolvedName)
+  // GH#2848 follow-up: cold-load shimmer needs the schemas query's loading
+  // state, since `useEntitySchema()` only returns `EntitySchema | undefined`
+  // and can't distinguish "still loading" from "doesn't exist".
+  const schemasQuery = useEntitySchemasQuery()
   const [isTransitionPending, startTransition] = useTransition()
+
+  // GH#2848 review-fix (I-1): single COUNT query that gates the empty-state CTA
+  // restored below. Empty `resolvedName` short-circuits inside the hook. The
+  // hook re-fetches on entityBatch events, so the empty state hides
+  // automatically when the first record is created elsewhere.
+  const emptyCount = useEntityCountFetch(resolvedName, { enabled: !!resolvedName && !!orgId })
 
   // GH#2848 Phase D B32: substrate fully owns the page-entity data path,
   // so the legacy TanStack DB collection bootstrap is permanently retired
@@ -484,18 +494,21 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // total-count UI shell. `useEntityListData` is no longer called for the
   // page entity (it would call `useEntityCollection(resolvedName)` and
   // race substrate's read path).
+  //
+  // GH#2848 follow-up — cold-load shimmer: the previous cutover hardcoded
+  // `isReady: true` here, which made the EntityListSkeleton branch below
+  // dead code. The page rendered blank until VibeGrid mounted and its
+  // internal TableSkeleton overlay painted. Restore proper page-level
+  // shimmer by deriving readiness from the schema + count queries — the
+  // two server round-trips that gate which branch (skeleton / empty
+  // state / grid) we ultimately render. Once both have resolved, the
+  // VibeGrid mounts and owns its own loading overlay from there on.
   const listResult = {
     rows: [] as any[],
-    isReady: true,
+    isReady: !schemasQuery.isLoading && !emptyCount.isLoading,
     error: null as Error | null,
     pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
   }
-
-  // GH#2848 review-fix (I-1): single COUNT query that gates the empty-state CTA
-  // restored below. Empty `resolvedName` short-circuits inside the hook. The
-  // hook re-fetches on entityBatch events, so the empty state hides
-  // automatically when the first record is created elsewhere.
-  const emptyCount = useEntityCountFetch(resolvedName, { enabled: !!resolvedName && !!orgId })
 
   // Fetch creation mode configuration for this entity type
   const creationConfigQuery = useQuery({
