@@ -77,6 +77,11 @@ export const ComplianceSummaryBanner = observer(function ComplianceSummaryBanner
     let expiringSoon = 0
 
     for (const row of rows) {
+      // GH#2848 follow-up: `processedRows` can contain explicit `undefined`
+      // entries — upstream `Array.prototype.sort` densifies sparse-row holes
+      // (see TableCoreStore.processedRows comment lines 1551–1557). Guard
+      // before deref to avoid the React-error-boundary 500 page.
+      if (!row) continue
       // processedRows are VirtualRow objects: { type, id, data }
       const record = (row.data ?? row) as Record<string, unknown>
       const check = record.compliance_check as { status?: string } | null | undefined
