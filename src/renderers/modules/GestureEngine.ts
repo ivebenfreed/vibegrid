@@ -186,9 +186,26 @@ export class GestureEngine {
   private readonly MOUSE_THRESHOLD = 4
   private readonly TOUCH_THRESHOLD = 8
 
+  // PERF (GH#2848): coalesce hover updates to once per animation frame.
+  // pointermove fires per-pixel; without coalescing the downstream
+  // hover path runs at cursor-pixel rate (30+ layouts/sec, 68+ recalcs/sec).
+  private hoverRafId: number | null = null
+  private latestHoverX = 0
+  private latestHoverY = 0
+
   constructor(callbacks: GestureCallbacks) {
     this.callbacks = callbacks
     fileLog.debug('GestureEngine initialized')
+  }
+
+  /**
+   * Cancel any pending hover rAF. Call from owning controller's destroy().
+   */
+  dispose(): void {
+    if (this.hoverRafId !== null) {
+      cancelAnimationFrame(this.hoverRafId)
+      this.hoverRafId = null
+    }
   }
 
   // ---- Public API ----
@@ -294,9 +311,20 @@ export class GestureEngine {
   }
 
   handlePointerMove(e: PointerEvent): void {
-    // Hover tracking (mouse only, regardless of state)
+    // Hover tracking (mouse only, regardless of state).
+    // PERF (GH#2848): coalesce to one callback per animation frame.
+    // Browsers fire pointermove per-pixel; without rAF coalescing the
+    // downstream chain (setMousePosition → currentHoveredCell computed →
+    // elementFromPoint forced layout) ran at cursor-pixel rate.
     if (e.pointerType === 'mouse') {
-      this.callbacks.onHoverUpdate(e.clientX, e.clientY)
+      this.latestHoverX = e.clientX
+      this.latestHoverY = e.clientY
+      if (this.hoverRafId === null) {
+        this.hoverRafId = requestAnimationFrame(() => {
+          this.hoverRafId = null
+          this.callbacks.onHoverUpdate(this.latestHoverX, this.latestHoverY)
+        })
+      }
     }
 
     if (this.state === 'idle' || !this.origin) return

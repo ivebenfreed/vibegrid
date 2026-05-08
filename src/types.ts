@@ -22,9 +22,10 @@ export type SortConfig = {
  *
  * Backward-compat: today's consumers that read InteractionStore.selectedCells
  * and InteractionStore.selectedRows continue to work in explicit mode (those
- * Sets remain the source of truth). Marker mode is opt-in via
- * setSelectionMode('all-with-exclusions') and only activates for entities in
- * SUBSTRATE_OWNED_ENTITIES at select-all time.
+ * Sets remain the source of truth). Marker mode activates via
+ * setSelectionMode('all-with-exclusions') — GH#2806 P8 made this the
+ * unconditional select-all path for every VibeGrid-rendered entity (the
+ * substrate is the unconditional data layer).
  */
 export type SelectionState =
   | { mode: 'explicit'; cells: Set<string>; rows: Set<string> }

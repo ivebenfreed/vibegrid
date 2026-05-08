@@ -730,6 +730,28 @@ body.vibegridx-dragging-active * {
   background-color: hsl(var(--primary) / 0.1);
 }
 
+/* Group header rows (GH#2848): formerly inline-styled + JS hover handlers.
+   CSS-only hover removes per-row mouseenter/mouseleave listeners that were
+   leaking across renderBody() passes and causing layout thrash. */
+.vibegridx-row.vibegridx-group-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+  z-index: 1;
+}
+
+.vibegridx-row.vibegridx-group-header:hover {
+  background: #e9ecef;
+}
+
+.vibegridx-group-expand {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.vibegridx-group-expand:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
 /* Cells */
 .vibegridx-cell {
   border: 1px solid var(--border);

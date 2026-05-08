@@ -10,13 +10,9 @@
  *   equals           → eq
  *   not_equals       → neq
  *   contains         → contains
- *   not_contains     → (negated `and(not_in… )`-style; today fall back to
- *                      `like '%v%'` flipped via wrapper — emit a `not_in` of
- *                      a single negated value? No — we map to a recognized
- *                      compound. Simpler: drop unsupported on the SQL path
- *                      and rely on JS fallback. We map ONLY supported ops.)
+ *   not_contains     → not_contains   (GH#2848 B5: native `NOT LIKE %v%`)
  *   starts_with      → starts_with
- *   ends_with        → (no SQL counterpart; skipped — JS path handles)
+ *   ends_with        → ends_with      (GH#2848 B5: native `LIKE %v`)
  *   greater_than     → gt
  *   less_than        → lt
  *   between          → between (range = [a, b])
@@ -24,7 +20,11 @@
  *   is_not_empty     → is_not_null
  *   in               → in
  *   not_in           → not_in
- *   regex            → (no SQL counterpart; skipped)
+ *   regex            → regex          (GH#2848 B5: REGEXP-availability-gated;
+ *                                      pushes down when wa-sqlite exposes
+ *                                      REGEXP, otherwise the worker applies
+ *                                      a JS post-filter to parsed rows)
+ *   decision_status  → (still unsupported on SQL path)
  *
  * Filters with unsupported operators fall through and are dropped from the
  * SQL pushdown — the substrate path's caller MUST gate the JS-side
@@ -110,10 +110,20 @@ function mapOperator(op: string): FilterOperator | null {
       return 'in'
     case 'not_in':
       return 'not_in'
-    // Unsupported on SQL path — caller's JS fallback (or no-op for substrate).
+    // GH#2848 B5: now SQL-pushdown-supported. `not_contains` and `ends_with`
+    // emit native `NOT LIKE %v%` / `LIKE %v`. `regex` either pushes down to
+    // native REGEXP when available, or falls back to a worker-side JS
+    // post-filter — both branches are handled by query-maintenance, so
+    // the bridge can map regex through unconditionally.
     case 'not_contains':
+      return 'not_contains'
     case 'ends_with':
+      return 'ends_with'
     case 'regex':
+      return 'regex'
+    // Still unsupported on the SQL path — caller's JS fallback (or no-op
+    // for substrate). `decision_status` requires cross-table joins that
+    // the worker substrate doesn't model yet.
     case 'decision_status':
       return null
     default:

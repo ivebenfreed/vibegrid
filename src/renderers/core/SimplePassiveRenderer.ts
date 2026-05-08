@@ -42,6 +42,50 @@ const fileLog = getLogger(['custom', 'vibegrid', 'renderers', 'core', 'SimplePas
 const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT
 
+/**
+ * GH#2848 follow-up — synthesize a sparse-row VirtualRow for an unloaded
+ * index in the cursor-bounded substrate window. Mirrors the inline literal
+ * previously duplicated only inside `renderBody` (line ~1849); now reused
+ * by the incremental scroll updater so fast-scroll past the loaded window
+ * paints skeleton cells instead of leaving the body container blank.
+ *
+ * The shape matches what `BodyRenderer.createRowElement` and the per-cell
+ * `isSparsePlaceholder` check expect:
+ *   - `__sparse: true` (top level + on `.data`) — both checked along the
+ *     hot path (TableCoreStore.isSparsePlaceholder)
+ *   - `id` is unique per index so the renderer's `activeRows` Map and the
+ *     incremental updater's removal/lookup logic can address it
+ *   - `type: 'data'` so the renderer takes the row-cell path, not the
+ *     group-header / expanded-content paths
+ */
+function synthesizeSparseRow(index: number): {
+  type: 'data'
+  id: string
+  index: number
+  dataIndex: number
+  height: number
+  data: { __sparse: true; id: string }
+  __sparse: true
+} {
+  return {
+    type: 'data' as const,
+    id: `__sparse_${index}__`,
+    index,
+    dataIndex: index,
+    height: ROW_HEIGHT,
+    data: { __sparse: true, id: '__sparse__' },
+    __sparse: true,
+  }
+}
+
+/** Stable id check — incremental updater uses this to skip the row pool +
+ *  pre-render buffer fast-paths, since both only hold real-row DOM and
+ *  recycling them as skeletons would carry stale cell content into the
+ *  pulse view. */
+function isSparseRowId(id: string | undefined): boolean {
+  return typeof id === 'string' && id.startsWith('__sparse_')
+}
+
 // ====================================
 // TYPES
 // ====================================
@@ -1051,44 +1095,52 @@ export class SimplePassiveRenderer {
     // Remove rows that are no longer visible - ADD TO POOL instead of destroy
     // GH#1240 FIX: Only pool data rows - expanded-content rows have different DOM structure
     // and cannot be recycled as data rows (causes corrupted rendering)
+    //
+    // GH#2848 follow-up — sparse-row removal:
+    // Previously this loop read `rows[i]?.id` to look up the activeRows
+    // entry. For sparse holes that's `undefined`, so any skeleton DOM
+    // appended at index `i` by the add-loops below would NEVER get
+    // removed when the user scrolled away — it leaked indefinitely.
+    // Fall back to the synthesized id `__sparse_${i}__` (matches
+    // `synthesizeSparseRow`) so skeleton elements clean up on the same
+    // tick that real-row elements do. Sparse DOM is NOT pushed to the
+    // row pool (skeleton cells would corrupt a recycled real-row pop).
     if (currentRange.start > previousRange.start) {
       for (let i = previousRange.start; i < currentRange.start && i <= previousRange.end; i++) {
-        const rowId = rows[i]?.id
-        if (rowId) {
-          const rowElement = this.activeRows.get(rowId)
-          if (rowElement) {
-            // Remove from DOM but keep for recycling
-            rowElement.remove()
-            this.activeRows.delete(rowId)
-            this.activeCells.delete(rowId)
-            // Only pool data rows (not expanded-content or group rows)
-            const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
-            if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
-              this.rowPool.push(rowElement)
-            }
-            rowsRemoved++
+        const rowId = rows[i]?.id ?? `__sparse_${i}__`
+        const rowElement = this.activeRows.get(rowId)
+        if (rowElement) {
+          // Remove from DOM but keep for recycling (real rows only)
+          rowElement.remove()
+          this.activeRows.delete(rowId)
+          this.activeCells.delete(rowId)
+          // Only pool data rows (not expanded-content, group, or sparse skeletons)
+          const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
+          const isSparseDom = isSparseRowId(rowId)
+          if (isDataRow && !isSparseDom && this.rowPool.length < this.MAX_POOL_SIZE) {
+            this.rowPool.push(rowElement)
           }
+          rowsRemoved++
         }
       }
     }
 
     if (currentRange.end < previousRange.end) {
       for (let i = currentRange.end; i < previousRange.end && i < rows.length; i++) {
-        const rowId = rows[i]?.id
-        if (rowId) {
-          const rowElement = this.activeRows.get(rowId)
-          if (rowElement) {
-            // Remove from DOM but keep for recycling
-            rowElement.remove()
-            this.activeRows.delete(rowId)
-            this.activeCells.delete(rowId)
-            // Only pool data rows (not expanded-content or group rows)
-            const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
-            if (isDataRow && this.rowPool.length < this.MAX_POOL_SIZE) {
-              this.rowPool.push(rowElement)
-            }
-            rowsRemoved++
+        const rowId = rows[i]?.id ?? `__sparse_${i}__`
+        const rowElement = this.activeRows.get(rowId)
+        if (rowElement) {
+          // Remove from DOM but keep for recycling (real rows only)
+          rowElement.remove()
+          this.activeRows.delete(rowId)
+          this.activeCells.delete(rowId)
+          // Only pool data rows (not expanded-content, group, or sparse skeletons)
+          const isDataRow = rows[i]?.type === 'data' || !rows[i]?.type
+          const isSparseDom = isSparseRowId(rowId)
+          if (isDataRow && !isSparseDom && this.rowPool.length < this.MAX_POOL_SIZE) {
+            this.rowPool.push(rowElement)
           }
+          rowsRemoved++
         }
       }
     }
@@ -1111,13 +1163,29 @@ export class SimplePassiveRenderer {
       const addFrom = Math.min(previousRange.start - 1, currentRange.end - 1)
       const fragment = document.createDocumentFragment()
       for (let i = addFrom; i >= currentRange.start; i--) {
-        const row = rows[i]
-        if (!row) continue
+        // GH#2848 follow-up: previously `if (!row) continue` skipped sparse
+        // holes entirely, leaving the body container blank for unloaded
+        // indices on fast-scroll. Synthesize a __sparse: true row so the
+        // BodyRenderer's per-cell isSparsePlaceholder check routes the
+        // cells through `sparseSkeletonCellRenderer` (CSS pulse). The full
+        // `renderBody` path already does this; the incremental updater
+        // didn't, which is why the skeleton "never showed on large scroll".
+        let row = rows[i]
+        const isSynthSparse = row === undefined
+        if (isSynthSparse) {
+          row = synthesizeSparseRow(i)
+        }
 
         let rowElement: HTMLElement | null = null
 
-        // FAST PATH: check pre-render buffer first
-        rowElement = this.preRenderBuffer.getRow(i)
+        // FAST PATH: check pre-render buffer first.
+        // Skip for synthesized sparse rows — buildRow returns null for
+        // holes, so the buffer never has a skeleton DOM for this index;
+        // even if it did, mixing skeleton DOM with real-row DOM in a
+        // shared cache would cause stale cell content on bounce-back.
+        if (!isSynthSparse) {
+          rowElement = this.preRenderBuffer.getRow(i)
+        }
         if (rowElement) {
           // Update position
           const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
@@ -1126,13 +1194,24 @@ export class SimplePassiveRenderer {
           // if horizontal scroll changed between pre-build and consumption
           this.trackCellsForRow(row.id, rowElement)
           this.reconcileRowColumns(row, rowElement, precomputed)
-        } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
-          // TRY RECYCLING: Reuse existing row from pool
+        } else if (
+          !isSynthSparse &&
+          this.rowPool.length > 0 &&
+          row.type === 'data' &&
+          this.bodyRenderer
+        ) {
+          // TRY RECYCLING: Reuse existing row from pool. Never recycle
+          // pooled real-row DOM into a skeleton — the per-cell content
+          // would carry over unchanged because BodyRenderer.recycleRow
+          // doesn't take the isSparsePlaceholder branch.
           const recycledRow = this.rowPool.pop()!
           rowElement = this.bodyRenderer.recycleRowForNewData(recycledRow, row, i, columns, precomputed)
           rowsRecycled++
         } else {
-          // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
+          // SLOW PATH: Create full row from scratch (fast scroll outpaced
+          // buffer, OR row is a synthesized sparse placeholder). The
+          // BodyRenderer's createCell logic detects __sparse and routes
+          // cells through sparseSkeletonCellRenderer.
           rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed, false)
         }
 
@@ -1153,14 +1232,41 @@ export class SimplePassiveRenderer {
       // Clamp: don't add rows before currentRange.start (they'd be outside visible range)
       const addStart = Math.max(previousRange.end, currentRange.start)
       const fragment = document.createDocumentFragment()
-      for (let i = addStart; i < currentRange.end && i < rows.length; i++) {
-        const row = rows[i]
-        if (!row) continue
+      // Loop bound uses processedRows.length, which in substrate mode is
+      // the full sparse length (= totalCount). Without synthesis below,
+      // every unloaded index in the visible range would still be skipped.
+      //
+      // GH#2848 follow-up — initial-load shimmer: on cold mount the
+      // bodyContainer height is sized from `serverTotalRows` (set by
+      // the substrate prefetch) before `setSparseRows` has fired, so
+      // `rows.length` is 0 here. Clamping the loop to `rows.length`
+      // would skip every visible index — same blank-grid bug
+      // `renderBody` had below. Use the larger of `rows.length` and
+      // `serverTotalRows` so indices past `rows.length` fall through to
+      // the synthesizer and paint shimmer until the first delivery
+      // lands. Legacy callers (serverTotalRows null) fall back to
+      // `rows.length` exactly as before.
+      const effectiveTotalRows = Math.max(
+        rows.length,
+        this.stores.viewportStore?.serverTotalRows ?? 0,
+      )
+      for (let i = addStart; i < currentRange.end && i < effectiveTotalRows; i++) {
+        // GH#2848 follow-up: see top-side loop above for rationale —
+        // synthesize a __sparse row so the cell pipeline paints the
+        // skeleton renderer instead of leaving the index blank.
+        let row = rows[i]
+        const isSynthSparse = row === undefined
+        if (isSynthSparse) {
+          row = synthesizeSparseRow(i)
+        }
 
         let rowElement: HTMLElement | null = null
 
-        // FAST PATH: check pre-render buffer first
-        rowElement = this.preRenderBuffer.getRow(i)
+        // FAST PATH: check pre-render buffer first (skip for sparse — see
+        // the top-side loop comment).
+        if (!isSynthSparse) {
+          rowElement = this.preRenderBuffer.getRow(i)
+        }
         if (rowElement) {
           // Update position
           const offset = this.tableCoreStore.rowOffsets[i] ?? i * ROW_HEIGHT
@@ -1168,13 +1274,20 @@ export class SimplePassiveRenderer {
           // Reconcile columns: pre-rendered row may have stale column set
           this.trackCellsForRow(row.id, rowElement)
           this.reconcileRowColumns(row, rowElement, precomputed)
-        } else if (this.rowPool.length > 0 && row.type === 'data' && this.bodyRenderer) {
-          // TRY RECYCLING: Reuse existing row from pool
+        } else if (
+          !isSynthSparse &&
+          this.rowPool.length > 0 &&
+          row.type === 'data' &&
+          this.bodyRenderer
+        ) {
+          // TRY RECYCLING (never for synthesized sparse — see top-side).
           const recycledRow = this.rowPool.pop()!
           rowElement = this.bodyRenderer.recycleRowForNewData(recycledRow, row, i, columns, precomputed)
           rowsRecycled++
         } else {
-          // SLOW PATH: Create full row from scratch (fast scroll outpaced buffer)
+          // SLOW PATH: Create full row from scratch (fast scroll outpaced
+          // buffer, OR synthesized sparse — BodyRenderer routes per-cell
+          // through sparseSkeletonCellRenderer).
           rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed, false)
         }
 
@@ -1362,10 +1475,16 @@ export class SimplePassiveRenderer {
       leaving: leaving.length,
     })
 
-    // Pre-compute lookup maps for O(1) access in the per-row loop
+    // Pre-compute lookup maps for O(1) access in the per-row loop.
+    //
+    // GH#2806 verify-loop fix: under fast scroll, processedRows can contain
+    // genuine array holes (substrate cursor offsets > 0) that
+    // Array.prototype.iteration treats as `undefined`. Filtering those
+    // before keying by `.id` avoids `Cannot read properties of undefined
+    // (reading 'id')`.
     const rowMap = new Map<string, any>()
     for (const row of this.tableCoreStore.processedRows) {
-      rowMap.set(row.id, row)
+      if (row && row.id) rowMap.set(row.id, row)
     }
     const columnMap = new Map<string, any>()
     for (const col of columns) {
@@ -1682,6 +1801,15 @@ export class SimplePassiveRenderer {
       event: 'renderBody_start',
       timestamp: renderStartTime,
     })
+    // [sort-trace] GH#2848: T4 — DOM teardown about to begin. Gap (T4 - T3)
+    // = TableCoreStore.setSparseRows + dataVersion bump + ObserverManager
+    // reaction propagation. The matching renderBody-end log fires below.
+    fileLog.warn('[sort-trace] renderBody start', {
+      t: renderStartTime,
+      rowCount: this.tableCoreStore.processedRows.length,
+      dataV: this.tableCoreStore.dataVersion,
+      configV: this.tableCoreStore.configVersion,
+    })
 
     // GUARD: Only render if grid is fully initialized OR if this is the initial render call
     const isFullyInitialized = this.initStore.isFullyHydrated
@@ -1727,6 +1855,14 @@ export class SimplePassiveRenderer {
     let loadedHeightSum = 0
     let loadedCount = 0
     rows.forEach((row: any) => {
+      // GH#2848 D8 follow-up: forEach skips genuine holes per ECMA-262
+      // §22.1.3 but explicit `undefined` entries are enumerated. Guard
+      // defensively in case any upstream path densifies sparse holes
+      // (e.g., a future `[...rows].sort()` regression) — without this,
+      // the renderer crashes with "Cannot read properties of undefined
+      // (reading 'height')" the moment a sort toggle exposes a densified
+      // entry.
+      if (row == null) return
       loadedHeightSum += row.height || ROW_HEIGHT
       loadedCount++
     })
@@ -1766,10 +1902,35 @@ export class SimplePassiveRenderer {
     }
     const visibleRange = visualState.geometry.visibleRowRange
     const startIndex = Math.max(0, visibleRange.start)
-    const endIndex = Math.min(rows.length, visibleRange.end)
+    // GH#2848 follow-up — initial-load shimmer.
+    // On cold mount the substrate path runs:
+    //   (1) prefetch sets viewportStore.serverTotalRows from the server
+    //       count → bodyContainer height is already sized for the full
+    //       dataset (loop above derives totalHeight from serverTotal),
+    //   (2) substrate Query.init() round-trips the SharedWorker,
+    //   (3) first queryDelta lands → setSparseRows allocates rawRows
+    //       length=totalCount with the loaded window filled.
+    // Between (1) and (3), `rows.length` is still 0 but the body is
+    // already as tall as the full dataset. Clamping `endIndex` to
+    // `rows.length` made the for-loop a no-op, so no DOM was appended
+    // anywhere — the user saw a blank rectangle (no rows, no shimmer)
+    // until first delivery.
+    //
+    // Use the larger of `rows.length` and `viewportStore.serverTotalRows`
+    // as the upper bound. Indices past `rows.length` fall through to the
+    // `row === undefined` branch in the loop below and synthesize a
+    // sparse skeleton row, so the visible viewport shimmers during the
+    // initial-load gap. Once setSparseRows lands rawRows gets real rows
+    // at the right indices and the next render swaps shimmer for data.
+    //
+    // Legacy (non-substrate) callers leave `serverTotalRows` at null →
+    // `effectiveTotalRows` collapses to `rows.length` → behavior unchanged.
+    const effectiveTotalRows = Math.max(rows.length, viewportStore?.serverTotalRows ?? 0)
+    const endIndex = Math.min(effectiveTotalRows, visibleRange.end)
 
     fileLog.info('🎨 ROW 16 DEBUG - Body rendering range', {
       totalRows: rows.length,
+      effectiveTotalRows,
       visibleRangeRaw: visibleRange,
       startIndex,
       endIndex,
@@ -1870,6 +2031,13 @@ export class SimplePassiveRenderer {
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
+    // [sort-trace] GH#2848: T5 — fragment appended; the new sorted rows are
+    // now in the DOM. Browser will paint on the next frame. Gap (T5 - T4)
+    // = pure renderBody DOM-build cost (cell-level construction).
+    fileLog.warn('[sort-trace] renderBody end', {
+      t: performance.now(),
+      durationMs: Number((performance.now() - renderStartTime).toFixed(1)),
+    })
 
     // Update debug metrics for initial render
     // Calculate truly visible rows (without buffer) for accurate debug display

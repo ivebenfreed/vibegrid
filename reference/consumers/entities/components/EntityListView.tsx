@@ -21,15 +21,11 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
-import { useEntityListData } from '@/shared/data/db/hooks/useEntityListData'
-// GH#2804 — when ?ff=substrate is on for substrate-owned entities, skip the
-// empty-state short-circuit so VibeGrid mounts and useVibeGridData can
-// source rows from the substrate Query.
-import { isSubstrateEnabled, isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
+import { useEntityCountFetch } from '@/shared/data/db/hooks/useEntityCountFetch'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
-import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
+import { useEntitySchema, useEntitySchemasQuery } from '@/shared/data/queries/entity-schemas.queries'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
@@ -53,7 +49,6 @@ import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { EntityUploadDialog, type EntityUploadDialogHandle } from './dialogs/EntityUploadDialog'
-import { EntityBreadcrumbs } from './EntityBreadcrumbs'
 import { EntityEmptyState } from './EntityEmptyState'
 import { EntityListError } from './EntityListError'
 import { EntityListSkeleton } from './EntityListSkeleton'
@@ -480,18 +475,40 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // All hooks must be called unconditionally (React rules of hooks)
   const resolvedName = entityName ?? ''
   const schema = useEntitySchema(resolvedName)
+  // GH#2848 follow-up: cold-load shimmer needs the schemas query's loading
+  // state, since `useEntitySchema()` only returns `EntitySchema | undefined`
+  // and can't distinguish "still loading" from "doesn't exist".
+  const schemasQuery = useEntitySchemasQuery()
   const [isTransitionPending, startTransition] = useTransition()
 
-  // GH#2786 (F') P6b: useStreamingEntityListData replaced with the
-  // standard useEntityListData. Streaming was needed for client-side
-  // Rel_* materialization which F' eliminates — entity collections no
-  // longer balloon past the 5k cap that used to gate streaming. The
-  // `orderBy` / `orderDirection` config options are gone too: the
-  // standard hook reads from the SQLite-backed collection and the row
-  // order is determined by the grid's view config (sort/filter/group).
-  const listResult = useEntityListData(resolvedName, {
-    pagination: { pageIndex: 0, pageSize: 1000 },
-  })
+  // GH#2848 review-fix (I-1): single COUNT query that gates the empty-state CTA
+  // restored below. Empty `resolvedName` short-circuits inside the hook. The
+  // hook re-fetches on entityBatch events, so the empty state hides
+  // automatically when the first record is created elsewhere.
+  const emptyCount = useEntityCountFetch(resolvedName, { enabled: !!resolvedName && !!orgId })
+
+  // GH#2848 Phase D B32: substrate fully owns the page-entity data path,
+  // so the legacy TanStack DB collection bootstrap is permanently retired
+  // for the VibeGrid page entity. The substrate's own ready/total drives
+  // the grid; the synthesized listResult below only feeds the loading +
+  // total-count UI shell. `useEntityListData` is no longer called for the
+  // page entity (it would call `useEntityCollection(resolvedName)` and
+  // race substrate's read path).
+  //
+  // GH#2848 follow-up — cold-load shimmer: the previous cutover hardcoded
+  // `isReady: true` here, which made the EntityListSkeleton branch below
+  // dead code. The page rendered blank until VibeGrid mounted and its
+  // internal TableSkeleton overlay painted. Restore proper page-level
+  // shimmer by deriving readiness from the schema + count queries — the
+  // two server round-trips that gate which branch (skeleton / empty
+  // state / grid) we ultimately render. Once both have resolved, the
+  // VibeGrid mounts and owns its own loading overlay from there on.
+  const listResult = {
+    rows: [] as any[],
+    isReady: !schemasQuery.isLoading && !emptyCount.isLoading,
+    error: null as Error | null,
+    pagination: { total: 0, pageIndex: 0, pageSize: 1000 },
+  }
 
   // Fetch creation mode configuration for this entity type
   const creationConfigQuery = useQuery({
@@ -659,23 +676,23 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     logger.debug('Sample row loaded', { row: rows[0] })
   }
 
-  // GH#2804 — substrate-owned entities feed rows through useVibeGridData
-  // not useEntityListData. Skip the empty-state short-circuit so VibeGrid
-  // mounts and the substrate hook can populate tableCoreStore.
-  const skipEmptyShortCircuit = isSubstrateEnabled() && isSubstrateOwnedEntity(resolvedName)
-
-  // Empty state - no records yet
-  if (rows.length === 0 && !skipEmptyShortCircuit) {
+  // GH#2848 review-fix (I-1): substrate's row stream doesn't expose a synchronous
+  // "total" before its first cursor page lands, so empty entities used to render
+  // a bare VibeGrid frame with no "Create your first X" CTA. We restore the
+  // empty-state branch via a server-side COUNT (re-runs on entityBatch, so the
+  // first record landing dismisses the empty state without a manual reload).
+  // Only short-circuit when the count has resolved to 0 — never in the loading
+  // / error path, where the substrate-driven grid is the better fallback.
+  if (emptyCount.count === 0 && !emptyCount.isLoading && !emptyCount.error) {
     return (
       <>
         <Header>
           <TopNav links={[]} />
         </Header>
         <Main>
-          <EntityBreadcrumbs entityName={schema.entityName} displayName={schema.displayName} />
           <EntityEmptyState
             entityName={schema.entityName}
-            creationModes={creationModes}
+            creationModes={creationModes as Array<'form' | 'upload'>}
             onCreateForm={() =>
               startTransition(() => {
                 setCreateDialogOpen(true)
@@ -685,10 +702,11 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           />
         </Main>
 
-        {/* Create Record Dialog */}
+        {/* Create Record Dialog — same dialog the populated path renders, so the
+            empty-state CTA produces the first record without a route change. */}
         <CreateRecordDialog schema={schema} open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
 
-        {/* Upload Files Dialog */}
+        {/* Upload Files Dialog — owned via ref to mirror the populated path. */}
         {hasUploadMode && (
           <EntityUploadDialog
             ref={uploadDialogRef}
@@ -702,7 +720,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     )
   }
 
-  // Success - render table with data
+  // Render table with data (or substrate-driven empty state inside the grid)
   return (
     <>
       {/* Top Header Bar */}

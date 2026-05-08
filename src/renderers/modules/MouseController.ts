@@ -1055,6 +1055,7 @@ export class MouseController {
   destroy(): void {
     this.scrollPhysics.reset()
     this.gestureEngine.forceReset()
+    this.gestureEngine.dispose()
     this.eventListeners.forEach(({ element, event, handler }) => {
       try {
         element.removeEventListener(event, handler)

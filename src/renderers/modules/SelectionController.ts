@@ -8,7 +8,6 @@
 import { runInAction } from 'mobx'
 import { toast } from 'sonner'
 import { getLogger } from '@/shared/lib/logging'
-import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import type { InteractionStore } from '../../stores/InteractionStore'
 import { isSparsePlaceholder } from '../../stores/TableCoreStore'
 
@@ -289,10 +288,10 @@ export class SelectionController {
   /**
    * Select all cells in the table (for select all checkbox)
    *
-   * GH#2804 B10: substrate-owned entities use the marker-model select-all
-   * (O(1) — set selectionMarkerMode to 'all-with-exclusions') so 100k-row
-   * grids don't materialize a 100k-element Set. Non-substrate entities keep
-   * today's O(N) behavior.
+   * GH#2806 P8: marker-model select-all is unconditional (O(1) — set
+   * selectionMarkerMode to 'all-with-exclusions') so 100k-row grids don't
+   * materialize a 100k-element Set. The legacy O(N) Set-population path was
+   * removed when substrate became the unconditional VibeGrid data path.
    */
   handleSelectAllToggle(): void {
     const interaction = this.interactionStore
@@ -301,14 +300,12 @@ export class SelectionController {
     const processedRows = this.getProcessedRows()
     const visibleColumns = this.getVisibleColumns()
     const entityName = this.getEntityName()
-    const useMarkerMode = entityName ? isSubstrateOwnedEntity(entityName) : false
 
     fileLog.debug('🎯 Select all checkbox toggled', {
       currentSelection: selectedCells.size,
       totalRows: processedRows.length,
       totalColumns: visibleColumns.length,
       entityName,
-      useMarkerMode,
       isMarkerActive,
     })
 
@@ -319,20 +316,11 @@ export class SelectionController {
       this.interactionStore.clearSelection()
       fileLog.debug('✅ Marker mode cleared via SelectionController')
     } else if (selectedCells.size === 0) {
-      if (useMarkerMode) {
-        // GH#2804 B10: O(1) select-all via marker mode. NO Set populated with
-        // 100k ids. Bulk actions iterate via iterateSelectedRowIds().
-        this.interactionStore.setSelectionMode('all-with-exclusions')
-        fileLog.debug('✅ Marker-mode select-all triggered (substrate-owned)', { entityName })
-      } else {
-        // Legacy path: populate selectedCells Set with all visible-row × visible-column ids.
-        this.interactionStore.selectAll({
-          rows: processedRows,
-          columns: visibleColumns,
-          columnVisibility: this.getColumnVisibility(),
-        })
-        fileLog.debug('✅ Legacy select-all triggered via SelectionController')
-      }
+      // GH#2806 P8: unconditional O(1) select-all via marker mode. NO Set
+      // populated with 100k ids. Bulk actions iterate via
+      // iterateSelectedRowIds().
+      this.interactionStore.setSelectionMode('all-with-exclusions')
+      fileLog.debug('✅ Marker-mode select-all triggered', { entityName })
     } else {
       // Has selection - clear all via interaction store
       this.interactionStore.clearSelection()
@@ -343,20 +331,6 @@ export class SelectionController {
     if (this.bodyRenderer?.updateAllRowCheckboxes) {
       this.bodyRenderer.updateAllRowCheckboxes()
     }
-  }
-
-  /**
-   * Get column visibility for interaction state
-   */
-  private getColumnVisibility(): Record<string, boolean> {
-    const visibleColumns = this.getVisibleColumns()
-    const columnVisibility: Record<string, boolean> = {}
-
-    visibleColumns.forEach((col) => {
-      columnVisibility[col.id] = true
-    })
-
-    return columnVisibility
   }
 
   /**

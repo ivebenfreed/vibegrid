@@ -93,7 +93,7 @@ export interface TableCoreState {
 }
 
 /**
- * GH#2804 B6: marker indicating a sparse placeholder row.
+ * Marker indicating a sparse placeholder row.
  * Indices between loadedWindowStart/loadedWindowEnd hold real rows; outside
  * the window, rawRows contains placeholders with `__sparse: true`.
  */
@@ -115,7 +115,7 @@ export function isSparsePlaceholder(row: unknown): row is SparsePlaceholder {
 }
 
 /**
- * GH#2804 B7 helper: find the next loaded row index at or after `index`,
+ * Find the next loaded row index at or after `index`,
  * given a contiguous loaded window [loadedWindowStart, loadedWindowEnd).
  * Returns -1 when no loaded row exists past `index`.
  */
@@ -133,7 +133,7 @@ export function nextLoadedRowIndex(
 }
 
 /**
- * GH#2804 B7 helper: find the previous loaded row index at or before `index`.
+ * Find the previous loaded row index at or before `index`.
  * Returns -1 when no loaded row exists before `index`.
  */
 export function previousLoadedRowIndex(
@@ -337,13 +337,13 @@ export class TableCoreStore implements IStore {
   @observable.ref private rawRows: Array<EntityRow | SparsePlaceholder> = []
   @observable private hasLoadedRows: boolean = false
 
-  // GH#2804 B6: bounds of the contiguous loaded window in rawRows. Outside
+  // Bounds of the contiguous loaded window in rawRows. Outside
   // [loadedWindowStart, loadedWindowEnd) every entry is a SparsePlaceholder.
   // In non-sparse mode (legacy setRows path) the window covers the whole array.
   @observable loadedWindowStart: number = 0
   @observable loadedWindowEnd: number = 0
 
-  // GH#2804 B6: memoized id→index lookup for structural-change detection.
+  // Memoized id→index lookup for structural-change detection.
   // Rebuilt only when the rawRows reference changes; sparse placeholders are
   // not added to the map (their shared id would collide).
   private rawRowsIndexCacheRef: Array<EntityRow | SparsePlaceholder> | null = null
@@ -634,9 +634,9 @@ export class TableCoreStore implements IStore {
     const changedCells = this.detectChangedCells(rows)
 
     // Step 2: Check structural changes
-    // GH#2804 B6: id-keyed structural-change check — sparse-row aware and
-    // O(n) overall. Memoized id→index map of the previous rawRows; sparse
-    // placeholders are not in the map and are treated as "not changed".
+    // Id-keyed structural-change check — sparse-row aware and O(n) overall.
+    // Memoized id→index map of the previous rawRows; sparse placeholders are
+    // not in the map and are treated as "not changed".
     const newRowCount = rows.length
     const prevRowCount = this.rawRows.length
     const countChanged = newRowCount !== prevRowCount
@@ -718,7 +718,7 @@ export class TableCoreStore implements IStore {
   }
 
   /**
-   * GH#2804 B6: legacy/non-sparse path — every row is loaded.
+   * Legacy/non-sparse path — every row is loaded.
    * Keeps loadedWindow in sync so getRowAt + sparse-aware consumers behave
    * correctly even when callers use the legacy setRows path.
    */
@@ -733,7 +733,7 @@ export class TableCoreStore implements IStore {
   }
 
   /**
-   * GH#2804 B6: build / reuse memoized id→index map for the current rawRows.
+   * Build / reuse memoized id→index map for the current rawRows.
    * Sparse placeholders are skipped (their shared id collides). Rebuilt only
    * when the rawRows reference changes, so structural-change detection costs
    * O(n) per swap, not O(n²).
@@ -755,7 +755,7 @@ export class TableCoreStore implements IStore {
   }
 
   /**
-   * GH#2804 B6: sparse-row entry point. Allocates a length-`totalCount`
+   * Sparse-row entry point. Allocates a length-`totalCount`
    * array; indices `[start, start+rows.length)` hold the real EntityRows,
    * all other indices are array HOLES (genuinely sparse, not placeholder
    * objects).
@@ -764,7 +764,7 @@ export class TableCoreStore implements IStore {
    * length=totalCount is allocated, the new window's rows are written, and
    * everything else is a hole.
    *
-   * GH#2812 perf fix: previously this filled every slot with a shared
+   * Perf note: previously this filled every slot with a shared
    * `SparsePlaceholder` object via a `for (let i = 0; i < totalCount; i++)`
    * loop. With totalCount = 211k and a cursor patch firing on every scroll,
    * that's 211k pointer writes per scroll — measured at ~2-2.5s of
@@ -798,13 +798,13 @@ export class TableCoreStore implements IStore {
     this.hasLoadedRows = totalCount > 0
     this.rawRowsIndexCacheRef = null
     this.rawRowsIndexCache = null
-    // GH#2804 B6 round-5 fix: bump dataVersion so ObserverManager triggers a
-    // renderBody. Without this, the bridge would write rows into the sparse
-    // store but the renderer would never re-run; the body container's
-    // style.height stayed at 0 from the initial empty render and the user
-    // could not scroll past the loaded window. The structural-change branches
-    // above (setRows etc.) all bump dataVersion or configVersion. setSparseRows
-    // is the only write path that wasn't, leading to silent bridge deliveries.
+    // Bump dataVersion so ObserverManager triggers a renderBody. Without
+    // this, the bridge would write rows into the sparse store but the
+    // renderer would never re-run; the body container's style.height stayed
+    // at 0 from the initial empty render and the user could not scroll past
+    // the loaded window. The structural-change branches above (setRows etc.)
+    // all bump dataVersion or configVersion. setSparseRows is the only write
+    // path that wasn't, leading to silent bridge deliveries.
     this.dataVersion++
 
     logger.debug('📦 Sparse rows set', {
@@ -816,7 +816,174 @@ export class TableCoreStore implements IStore {
   }
 
   /**
-   * GH#2804 B6: safe positional accessor.
+   * GH#2806 P5: Optimistic field patch.
+   *
+   * Mutates `rawRows[index].data[field] = newValue` in place for every (rowId,
+   * field, value) tuple in `patches`, stamps the row with `optimisticVersion`,
+   * and bumps `dataVersion` so renderers re-evaluate. Pure substrate flow —
+   * the change is local-only; `EditingStore.saveToDatabase()` issues the oRPC
+   * write in parallel, then either lets the server-side queryDelta confirm
+   * or calls `revertRowOptimistic` on failure.
+   *
+   * Returns the pre-edit value(s) so the caller can stash them for revert.
+   * If the row is missing or sparse, the patch is a no-op for that row.
+   */
+  @action
+  patchRowOptimistic(
+    patches: Array<{ rowId: string; field: string; newValue: unknown }>,
+    optimisticVersion: number,
+  ): Array<{ rowId: string; field: string; preEditValue: unknown; applied: boolean }> {
+    const out: Array<{ rowId: string; field: string; preEditValue: unknown; applied: boolean }> = []
+    const idx = this.getRawRowsIndexMap()
+    for (const p of patches) {
+      const i = idx.get(p.rowId)
+      if (i === undefined) {
+        out.push({ rowId: p.rowId, field: p.field, preEditValue: undefined, applied: false })
+        continue
+      }
+      const row = this.rawRows[i] as any
+      if (!row || isSparsePlaceholder(row)) {
+        out.push({ rowId: p.rowId, field: p.field, preEditValue: undefined, applied: false })
+        continue
+      }
+      // Mutate `data[field]` in place. EntityRow's `data` is a plain object;
+      // dataVersion bump below triggers re-render.
+      if (!row.data) row.data = {}
+      const preEditValue = row.data[p.field]
+      row.data[p.field] = p.newValue
+      row.optimisticVersion = optimisticVersion
+      out.push({ rowId: p.rowId, field: p.field, preEditValue, applied: true })
+    }
+    this.dataVersion++
+    return out
+  }
+
+  /**
+   * GH#2806 P5: Revert an optimistic field patch using the captured pre-edit
+   * value. Mirrors `patchRowOptimistic` but writes the previous value back.
+   * Bumps `dataVersion` so renderers re-evaluate.
+   */
+  @action
+  revertRowOptimistic(
+    reverts: Array<{ rowId: string; field: string; preEditValue: unknown }>,
+  ): void {
+    const idx = this.getRawRowsIndexMap()
+    for (const r of reverts) {
+      const i = idx.get(r.rowId)
+      if (i === undefined) continue
+      const row = this.rawRows[i] as any
+      if (!row || isSparsePlaceholder(row)) continue
+      if (!row.data) row.data = {}
+      row.data[r.field] = r.preEditValue
+      // Leave `optimisticVersion` stamped so subsequent dedup decisions can
+      // still recognize a recently-touched row. The next successful write
+      // will bump it; failure paths leave it as-is.
+    }
+    this.dataVersion++
+  }
+
+  /**
+   * GH#2806 P5: Optimistic insert. Appends `row` to the loaded window with
+   * the supplied temporary id (typically `optimistic-<uuid>`), allocates a
+   * new array reference (because rawRows is `@observable.ref`), and bumps
+   * `dataVersion`. The caller is responsible for swapping the temp id with
+   * the server-assigned id on success via `swapOptimisticId`.
+   */
+  @action
+  insertRowOptimistic(row: { id: string; data: Record<string, unknown>; optimisticVersion: number }): void {
+    // Append to the in-memory rawRows. We allocate a new array of the same
+    // length+1 (or expand) — the spec wants `serverTotalRows` to bump too,
+    // but that's owned by ViewportStore and the caller (EditingStore)
+    // should drive it.
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    // Find first hole to fill, else push.
+    next.push(row as unknown as EntityRow)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(this.loadedWindowEnd, next.length)
+    this.hasLoadedRows = true
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+  }
+
+  /**
+   * GH#2806 P5: Optimistic delete. Removes the row with `rowId` from
+   * rawRows. Returns the removed row (or undefined) so the caller can
+   * restore on failure via `restoreRow`.
+   */
+  @action
+  removeRowOptimistic(rowId: string): { row: EntityRow | undefined; index: number } {
+    const idx = this.getRawRowsIndexMap()
+    const i = idx.get(rowId)
+    if (i === undefined) {
+      return { row: undefined, index: -1 }
+    }
+    const row = this.rawRows[i] as EntityRow | undefined
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    next.splice(i, 1)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(0, this.loadedWindowEnd - 1)
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+    return { row, index: i }
+  }
+
+  /**
+   * GH#2806 P5: Restore a previously-removed row at its original index.
+   * Used by failure-revert in `EditingStore.commitDelete`.
+   */
+  @action
+  restoreRow(row: EntityRow, index: number): void {
+    const next: Array<EntityRow | SparsePlaceholder> = this.rawRows.slice()
+    const insertAt = Math.max(0, Math.min(index, next.length))
+    next.splice(insertAt, 0, row)
+    this.rawRows = next
+    this.loadedWindowEnd = Math.max(this.loadedWindowEnd, next.length)
+    this.hasLoadedRows = true
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    this.dataVersion++
+    this.structureVersion++
+  }
+
+  /**
+   * GH#2806 P5: Swap a temporary optimistic id (`optimistic-<uuid>`) with
+   * the server-assigned id once the create persists.
+   */
+  @action
+  swapOptimisticId(tempId: string, realId: string): boolean {
+    const idx = this.getRawRowsIndexMap()
+    const i = idx.get(tempId)
+    if (i === undefined) return false
+    const row = this.rawRows[i] as any
+    if (!row || isSparsePlaceholder(row)) return false
+    row.id = realId
+    this.rawRowsIndexCacheRef = null
+    this.rawRowsIndexCache = null
+    return true
+  }
+
+  /**
+   * GH#2806 P5: id-keyed view of rawRows. Used by the queryDelta dedup
+   * module for O(1) row lookup.
+   */
+  get rawRowsById(): Map<string, EntityRow> {
+    const out = new Map<string, EntityRow>()
+    const idx = this.getRawRowsIndexMap()
+    for (const [id, i] of idx) {
+      const row = this.rawRows[i]
+      if (row && !isSparsePlaceholder(row)) {
+        out.set(id, row as EntityRow)
+      }
+    }
+    return out
+  }
+
+  /**
+   * Safe positional accessor.
    * Returns the real EntityRow when `index` is within the loaded window;
    * a SparsePlaceholder when outside the loaded window but within
    * `[0, rawRows.length)`. For out-of-bounds indices, returns a placeholder
@@ -883,13 +1050,13 @@ export class TableCoreStore implements IStore {
       // Force baseline creation by calling setRows with current data
       // This will trigger detectChangedCells which will create the baseline
       //
-      // GH#2804 round-2 review fix (Suggestion 7): exclude sparse placeholders
-      // before snapshotting. In cursor-bounded substrate mode, `rawRows` is
-      // a sparse array — most indices hold a `SparsePlaceholder` (id
-      // `'__sparse__'`, no real fields). `createRowSnapshot` would hash the
-      // placeholder shape into the baseline, which then mis-classifies real
-      // rows as "changed" once they replace the placeholders. Filtering
-      // here guarantees the baseline reflects only concrete rows.
+      // Exclude sparse placeholders before snapshotting. In cursor-bounded
+      // substrate mode, `rawRows` is a sparse array — most indices hold a
+      // `SparsePlaceholder` (id `'__sparse__'`, no real fields).
+      // `createRowSnapshot` would hash the placeholder shape into the
+      // baseline, which then mis-classifies real rows as "changed" once they
+      // replace the placeholders. Filtering here guarantees the baseline
+      // reflects only concrete rows.
       const currentRows = this.rawRows.filter(
         (r): r is EntityRow => !isSparsePlaceholder(r),
       )
@@ -1182,11 +1349,11 @@ export class TableCoreStore implements IStore {
 
     // Use raw rows if available (simplified Day 7 approach)
     if (this.rawRows.length > 0) {
-      // GH#2804 B7 sparse guard / GH#2812 follow-up:
+      // Sparse guard:
       //
       // In sparse mode the JS pipeline (filter/sort/group) cannot operate on
       // placeholder rows. For substrate-owned entities the JS pipeline is
-      // bypassed entirely (B11) — sort/filter/group are pushed to SQL.
+      // bypassed entirely — sort/filter/group are pushed to SQL.
       //
       // Previously this branch SLICED rawRows to `[loadedWindowStart,
       // loadedWindowEnd)` so the downstream pipeline never saw placeholders.
@@ -1198,10 +1365,10 @@ export class TableCoreStore implements IStore {
       //
       // Return the full sparse array instead. Renderers / interaction
       // handlers gate on `__sparse` (see SelectionController, KeyboardNav,
-      // InteractionStore.anchorCell, FillHandleLayerDOM — all sparse-aware
-      // per GH#2804 p3 task list). The substrate path bypasses JS
-      // sort/filter/group, so the placeholder rows are never fed into a
-      // pipeline stage that would crash on `.data` access.
+      // InteractionStore.anchorCell, FillHandleLayerDOM — all sparse-aware).
+      // The substrate path bypasses JS sort/filter/group, so the placeholder
+      // rows are never fed into a pipeline stage that would crash on `.data`
+      // access.
       return this.rawRows
     }
 
@@ -1228,6 +1395,13 @@ export class TableCoreStore implements IStore {
     const searchText = this.visualStateStore?.globalSearchText || ''
     if (!searchText.trim()) return rows
 
+    // GH#2848 D8: in sparse-substrate mode the JS text search would
+    // densify holes (and crash on .data access). Substrate doesn't
+    // currently push global search to SQL, so search-while-substrate
+    // returns the unfiltered window — out of #2848 scope to wire SQL
+    // text-search; tracked elsewhere.
+    if (this.isSparseMode) return rows
+
     return applyTextSearch(rows, searchText, this.columns, this.searchableColumns)
   }
 
@@ -1243,6 +1417,11 @@ export class TableCoreStore implements IStore {
     // Start from search-filtered rows (GH#1391)
     let rows = this.searchFilteredRows
     if (rows.length === 0) return rows
+
+    // GH#2848 D8: substrate pushes filters to SQL — JS-side filtering
+    // over a sparse array densifies holes and crashes on .data access.
+    // Skip the JS filter stages in sparse mode.
+    if (this.isSparseMode) return rows
 
     // Apply legacy filters first (for backward compatibility)
     const filters = this.visualStateStore?.filters || []
@@ -1260,6 +1439,18 @@ export class TableCoreStore implements IStore {
   /**
    * Stage 2: Sorted rows
    * Applies sorting configuration to filtered rows
+   *
+   * GH#2848 D8 (sort-toggle storm): when rows are sparse (substrate
+   * mode), skip the JS sort entirely. The substrate has already pushed
+   * the sort to SQL and re-emitted queryDelta with the sorted window;
+   * `[...rows].sort()` over a 211k-length sparse array would densify
+   * holes into explicit undefined entries, allocating ~211k bogus
+   * objects per sort toggle and tipping a fully-loaded grid into the
+   * 5GB / 100% CPU / 2.5MB/s storm reported on local Chromium.
+   *
+   * The intent of the substrate cutover (#2806) was always "JS pipeline
+   * bypassed for substrate" (see baseRows() line 1369 docblock); this
+   * is the missing wiring on the read side.
    */
   @computed
   get sortedRows(): any[] {
@@ -1268,7 +1459,30 @@ export class TableCoreStore implements IStore {
       return this.filteredRows
     }
 
+    if (this.isSparseMode) {
+      // Substrate sorted server-side; nothing to do here. Returning
+      // filteredRows preserves the sparse layout so logical row indices
+      // remain stable for virtual rendering.
+      return this.filteredRows
+    }
+
     return applySorting(this.filteredRows, sortBy)
+  }
+
+  /**
+   * GH#2848 D8: detect substrate (sparse) mode. setSparseRows allocates
+   * `new Array(totalCount)` and only fills `[loadedWindowStart, loadedWindowEnd)`
+   * — the rest are JS holes. Spreading or sorting such an array densifies
+   * the holes and blows up memory.
+   *
+   * Truthy when the substrate has populated a sparse window. Falsy in
+   * legacy / fully-dense paths so the JS pipeline still runs there.
+   */
+  @computed
+  private get isSparseMode(): boolean {
+    if (this.rawRows.length === 0) return false
+    const loaded = this.loadedWindowEnd - this.loadedWindowStart
+    return loaded < this.rawRows.length
   }
 
   /**
@@ -1333,8 +1547,20 @@ export class TableCoreStore implements IStore {
     // GH#1422: Check if we should use incremental cache for large datasets
     // When incremental processing is active, return the cached rows
     // (which may be partial during processing)
+    //
+    // GH#2848 D8 follow-up: do NOT engage incremental processing in
+    // sparse-substrate mode. The substrate has already sorted server-side;
+    // client-side incremental sort is redundant. Worse, the processor
+    // does `[...rows].sort()` which densifies sparse holes into explicit
+    // `undefined` entries — those propagate to renderBody's forEach
+    // (which only skips genuine holes, NOT explicit undefined) and crash
+    // with "Cannot read properties of undefined (reading 'height')".
     const rawRowCount = this.rawRows.length
-    const useIncremental = rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD && !this.hasGrouping && !this.hasHierarchy
+    const useIncremental =
+      rawRowCount >= INCREMENTAL_CONFIG.SYNC_THRESHOLD &&
+      !this.hasGrouping &&
+      !this.hasHierarchy &&
+      !this.isSparseMode
 
     if (useIncremental && this.isIncrementalProcessing) {
       // Return incremental cache while processing is in progress
@@ -1350,27 +1576,76 @@ export class TableCoreStore implements IStore {
     // Standard synchronous path for small datasets or when grouping/hierarchy is active
     const rows = this.groupedOrOrderedRows
 
-    // If rows are already VirtualRows (from grouping), use as-is
+    // If rows are already VirtualRows (from grouping), use as-is.
+    //
+    // GH#2806 verify-loop fix: under sustained rapid scroll, `setSparseRows`
+    // can leave `rows[0]` as a genuine array hole (substrate cursor offset
+    // > 0). The previous unguarded `'type' in rows[0]` then throws
+    // `TypeError: Cannot use 'in' operator to search for 'type' in undefined`,
+    // tearing down the renderer on every scroll tick. Probe `rows[0] != null`
+    // before the `in` check so a hole takes the wrap branch (which already
+    // handles sparse placeholders via isSparsePlaceholder).
     let virtualRows: any[]
-    if (rows.length > 0 && 'type' in rows[0]) {
+    if (rows.length > 0 && rows[0] != null && typeof rows[0] === 'object' && 'type' in rows[0]) {
       virtualRows = rows
     } else {
       // Wrap flat rows in VirtualRow structure for consistency
       // BodyRenderer.createCellElement expects rows with { type, id, index, height, data } structure
-      // GH#2804 review fix: propagate `__sparse: true` onto the VirtualRow wrapper
-      // so that callers using isSparsePlaceholder(virtualRow) (the common shape
-      // throughout BodyRenderer / SelectionController / KeyboardNavigationController)
-      // correctly identify unloaded rows. Without this, the marker is buried on
-      // `virtualRow.data` and every guard becomes dead code.
+      // Propagate `__sparse: true` onto the VirtualRow wrapper so that callers
+      // using isSparsePlaceholder(virtualRow) (the common shape throughout
+      // BodyRenderer / SelectionController / KeyboardNavigationController)
+      // correctly identify unloaded rows. Without this, the marker is buried
+      // on `virtualRow.data` and every guard becomes dead code.
+      //
+      // GH#2806 ISSUE-1 fix-up: substrate-cutover rawRows now arrive WRAPPED
+      // (`{id, data: {...recordFields}, optimisticVersion?}`) per
+      // `wrapSubstrateRow` at the substrate→VibeGrid boundary. Without
+      // un-wrapping here, the VirtualRow becomes `{type, id, ..., data: {id,
+      // data: {...recordFields}}}` — a double-wrap that makes
+      // `virtualRow.data[field]` undefined for cell renderers and the
+      // verification harness alike. Detect the wrapped shape and pull
+      // `row.data` up so consumers see `virtualRow.data[field]` === recordFields[field]
+      // exactly as they did pre-cutover. Sparse placeholders never carry a
+      // `data` wrapper, so the check is safe for them.
       virtualRows = rows.map((row, index) => {
+        // GH#2806 sparse guard: `.map` skips true holes per ECMA-262
+        // §22.1.3.18, BUT upstream `Array.prototype.sort` densifies holes
+        // into explicit `undefined` (§22.1.3.30) — sort moves them to the
+        // tail as real undefined values. The same crash family that hit
+        // wrapInVirtualRows in IncrementalRowProcessor lands here on the
+        // non-incremental path. Emit a sparse-placeholder VirtualRow with
+        // a stable synthetic id so positional indexing (height calc,
+        // scroll geometry, expansion bookkeeping) keeps working and the
+        // existing `__sparse` / `isSparsePlaceholder` guards downstream
+        // skip the row.
+        if (row == null) {
+          return {
+            type: 'data' as const,
+            id: `__sparse-${index}`,
+            index,
+            dataIndex: index,
+            height: GRID_DIMENSIONS.ROW_HEIGHT,
+            data: { __sparse: true, id: `__sparse-${index}` } as Record<string, unknown>,
+            __sparse: true as const,
+          }
+        }
         const isSparse = isSparsePlaceholder(row)
+        const inner =
+          !isSparse &&
+          typeof row === 'object' &&
+          'data' in row &&
+          row.data &&
+          typeof row.data === 'object' &&
+          !Array.isArray(row.data)
+            ? (row.data as Record<string, unknown>)
+            : (row as Record<string, unknown>)
         return {
           type: 'data' as const,
           id: row.id,
           index,
           dataIndex: index, // For data-only rows, dataIndex === index (no expanded-content rows yet)
-          height: row.height || GRID_DIMENSIONS.ROW_HEIGHT, // Preserve variable row heights, default to 40
-          data: row,
+          height: (row as { height?: number }).height || GRID_DIMENSIONS.ROW_HEIGHT, // Preserve variable row heights, default to 40
+          data: inner,
           ...(isSparse ? { __sparse: true as const } : {}),
         }
       })
@@ -2215,7 +2490,7 @@ export class TableCoreStore implements IStore {
     this.columns = []
     this.rawRows = []
     this.hasLoadedRows = false
-    // GH#2804 B6: reset sparse-window tracking
+    // Reset sparse-window tracking
     this.loadedWindowStart = 0
     this.loadedWindowEnd = 0
     this.rawRowsIndexCacheRef = null

@@ -18,6 +18,8 @@ import type React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCommandBus, useUndoRouter } from '@/app/stores'
 import { useDependencyCollection, useMembersCollection } from '@/shared/data/db/hooks/useEntityCollection'
+import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
+import { getLegacyMigrationDiagnostics } from '@/shared/data/db/sqlite/migration'
 import { getLogger } from '@/shared/lib/logging'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import { BatchUpdateEntityRecordsCommand } from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
@@ -284,11 +286,13 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // NOTE: Field types are lazily loaded in InitStore.initializeStores() before TableCoreStore.init()
   // This ensures they're only loaded when VibeGrid is actually rendered, not at app startup.
 
-  // GH#2804 p3: expose `window.__vibegrid_debug` global on the active grid
-  // when `?debug=vibegrid` is set on the URL. Used by verification steps
-  // 7/8/10/11/13 to read live store state. `lastCursor` and `lastQuery`
-  // are nullable placeholders here — p4 wires the cursor side and p5 wires
-  // the query side.
+  // Expose `window.__vibegrid_debug` global on the active grid when
+  // `?debug=vibegrid` is set on the URL. Verification harnesses read this
+  // to inspect live store state, the active substrate cursor + query, and
+  // the SharedWorker SQLite client. The `lastCursor` / `lastQuery` slots
+  // are populated by `useSubstrateGridRows` once the substrate query
+  // initializes; the boot-side migration diagnostics are sourced from the
+  // module-local state in `migration.ts` (GH#2806 P1.5).
   useEffect(() => {
     if (typeof window === 'undefined') return
     const search = new URLSearchParams(window.location.search)
@@ -298,22 +302,152 @@ function VibeGridInnerBase(props: VibeGridProps) {
       viewportStore,
       tableCoreStore,
       interactionStore,
-      // GH#2804 round-5 follow-up: expose editingStore + visualStateStore for
-      // verification of B11 (filter pushdown via setFilters) and edit-parity
-      // tests on substrate-bounded grids. Reading-only — agents call methods
-      // on these stores to drive the same flows the UI does.
+      // editingStore + visualStateStore are exposed for verification of B11
+      // (filter pushdown via setFilters) and edit-parity tests on
+      // substrate-bounded grids. Reading-only — harnesses call methods on
+      // these stores to drive the same flows the UI does.
       editingStore,
       visualStateStore,
-      // p4 will populate via reaction in useSubstrateGridRows.
+      // SharedWorker-backed SQLite client. Verification reads
+      // `sqliteClient.isLeader`, broadcast-channel state, and connection
+      // status to assert multi-tab fanout (GH#2806 B4).
+      sqliteClient: getSQLiteClient(),
+      // Populated via reaction in `useSubstrateGridRows` whenever a new
+      // cursor is sent to the worker.
       lastCursor: null as { start: number; size: number } | null,
-      // p5 will populate when SQL pushdown lands.
-      lastQuery: null as string | null,
+      // Populated by `useSubstrateGridRows` once the substrate Query is
+      // initialized; the verification harness reads `lastQuery.shape` and
+      // calls `lastQuery.patch({filter})` directly to drive SQL pushdown.
+      lastQuery: null as unknown,
+      // Boot diagnostics for the legacy OPFS table migration (GH#2806 P1.5).
+      // Returns `{ lastResult, ranAt }` from the most recent
+      // `migrateLegacyEntityTables` call, or null if migration hasn't fired
+      // in this session.
+      get boot() {
+        return { legacyMigration: getLegacyMigrationDiagnostics() }
+      },
       // Selection shape will change in wave 3b. Until then, expose
       // whatever's on InteractionStore via a getter so verification
-      // step 10/11 keeps reading the latest shape.
+      // keeps reading the latest shape.
       get selection() {
         const i = interactionStore as unknown as Record<string, unknown>
         return i.selection ?? i.selectedCells ?? null
+      },
+      // GH#2848: programmatic memory diagnostic. `performance.memory` only
+      // reports the V8 JS heap — it misses WASM (wa-sqlite + DB pages),
+      // worker heaps, DOM, and renderer-process overhead, which is where
+      // most of the substrate's footprint lives. This helper aggregates
+      // every source we can reach without DevTools attached. Run while
+      // the tab is in a bad state and paste the result.
+      async memoryReport() {
+        const out: Record<string, unknown> = {
+          ts: new Date().toISOString(),
+          crossOriginIsolated: typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : 'undef',
+          ua: navigator.userAgent.slice(0, 80),
+        }
+        // 1. V8 JS heap (Chrome only; precise-memory-info gives finer numbers)
+        const pm = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } }).memory
+        if (pm) {
+          out.jsHeap = {
+            usedMB: +(pm.usedJSHeapSize / 1e6).toFixed(1),
+            totalMB: +(pm.totalJSHeapSize / 1e6).toFixed(1),
+            limitMB: +(pm.jsHeapSizeLimit / 1e6).toFixed(0),
+          }
+        }
+        // 2. UA-specific cross-context memory (the closest API to Chrome
+        // Task Manager's footprint — covers Wasm + workers + DOM by
+        // attribution). Requires `crossOriginIsolated`. If gated, the
+        // call rejects with SecurityError.
+        const measureFn = (performance as unknown as { measureUserAgentSpecificMemory?: () => Promise<{ bytes: number; breakdown: Array<{ bytes: number; types?: string[]; attribution?: Array<{ scope?: string; url?: string }> }> }> }).measureUserAgentSpecificMemory
+        if (typeof measureFn === 'function') {
+          try {
+            const m = await measureFn.call(performance)
+            out.measureUA = {
+              totalMB: +(m.bytes / 1e6).toFixed(1),
+              breakdown: m.breakdown
+                .filter((b) => b.bytes > 0)
+                .map((b) => ({
+                  types: b.types?.join('+') ?? '?',
+                  scope: b.attribution?.[0]?.scope ?? '-',
+                  url: (b.attribution?.[0]?.url ?? '').slice(-50),
+                  MB: +(b.bytes / 1e6).toFixed(1),
+                }))
+                .sort((a, b) => b.MB - a.MB),
+            }
+          } catch (e) {
+            out.measureUA_err = e instanceof Error ? e.message : String(e)
+          }
+        } else {
+          out.measureUA = 'API unavailable (browser or COOP/COEP gating)'
+        }
+        // 3. DOM counters
+        out.dom = {
+          nodes: document.querySelectorAll('*').length,
+          inputs: document.querySelectorAll('input,textarea,select').length,
+          gridcells: document.querySelectorAll('[data-testid^="cell-"]').length,
+          listenerHeuristic: 'inspect Memory tab → Heap snapshot for true count',
+        }
+        // 4. Substrate metrics
+        const tcs = tableCoreStore as unknown as { rawRows?: unknown[]; processedRows?: unknown[]; loadedWindowStart?: number; loadedWindowEnd?: number }
+        const rawLen = Array.isArray(tcs.rawRows) ? tcs.rawRows.length : 0
+        let loadedCount = 0
+        let sampleRowBytes = 0
+        if (Array.isArray(tcs.rawRows)) {
+          tcs.rawRows.forEach((r) => {
+            loadedCount++
+            if (sampleRowBytes === 0 && r) {
+              try {
+                sampleRowBytes = JSON.stringify(r).length
+              } catch {
+                /* ignore */
+              }
+            }
+          })
+        }
+        out.substrate = {
+          rawRowsLength: rawLen,
+          actuallyLoaded: loadedCount,
+          loadedWindow: [tcs.loadedWindowStart, tcs.loadedWindowEnd],
+          processedRowsLength: Array.isArray(tcs.processedRows) ? tcs.processedRows.length : 0,
+          sampleRowBytes,
+          loadedRowsEstMB: +((loadedCount * sampleRowBytes) / 1e6).toFixed(1),
+        }
+        // 5. CommandBus + EditingStore retention
+        const es = editingStore as unknown as {
+          inFlight?: { size: number }
+          commandBus?: { history?: unknown[]; undoneCommands?: unknown[]; config?: { maxHistorySize?: number } }
+        }
+        out.editing = {
+          inFlight: es.inFlight?.size ?? 0,
+          commandBusHistory: es.commandBus?.history?.length ?? 0,
+          commandBusUndone: es.commandBus?.undoneCommands?.length ?? 0,
+          commandBusCap: es.commandBus?.config?.maxHistorySize ?? 100,
+        }
+        // 6. SqliteClient pending requests + WORKER MEMORY (V8 + WASM)
+        const sc = getSQLiteClient() as unknown as {
+          pendingRequests?: { size: number }
+          isLeader?: boolean
+          memoryStats?: () => Promise<{ workerJSHeapUsedBytes: number; workerJSHeapTotalBytes: number; wasmHeapBytes: number }>
+        }
+        let workerMem: unknown = 'memoryStats() unavailable'
+        if (typeof sc.memoryStats === 'function') {
+          try {
+            const ms = await sc.memoryStats()
+            workerMem = {
+              workerJSHeapMB: +(ms.workerJSHeapUsedBytes / 1e6).toFixed(1),
+              workerJSHeapTotalMB: +(ms.workerJSHeapTotalBytes / 1e6).toFixed(1),
+              wasmHeapMB: +(ms.wasmHeapBytes / 1e6).toFixed(1),
+            }
+          } catch (e) {
+            workerMem = `memoryStats() rejected: ${e instanceof Error ? e.message : String(e)}`
+          }
+        }
+        out.sqlite = {
+          pendingRequests: sc.pendingRequests?.size ?? 0,
+          isLeader: sc.isLeader ?? false,
+          worker: workerMem,
+        }
+        return out
       },
     }
     ;(window as unknown as { __vibegrid_debug?: unknown }).__vibegrid_debug = debugApi

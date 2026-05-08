@@ -1256,6 +1256,12 @@ export class VisualStateStore implements IStore {
   toggleSort(field: string, isMultiSort: boolean = false): void {
     const existingIndex = this.sortBy.findIndex((s) => s.field === field)
 
+    // [sort-trace] GH#2848: pipeline timing — `T0` for end-to-end sort latency.
+    // Match log messages prefixed [sort-trace] across files to correlate.
+    // Emit at warn so it survives prod/preview defaultLevel='warning' and
+    // the per-channel `['vibegrid'] -> warning` filter in logging/config.ts.
+    logger.warn('[sort-trace] toggleSort', { field, t: performance.now() })
+
     logger.info('toggleSort called', {
       field,
       isMultiSort,

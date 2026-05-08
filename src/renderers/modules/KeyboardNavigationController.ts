@@ -280,15 +280,10 @@ export class KeyboardNavigationController {
       case 'A':
         if (isCtrlKey) {
           event.preventDefault()
-          // REACTIVE: Select all directly via InteractionStore
-          const processedRows = this.getProcessedRows()
-          const visibleColumns = this.getVisibleColumns()
-          this.interactionStore.selectAll({
-            rows: processedRows,
-            columns: visibleColumns,
-            columnVisibility: Object.fromEntries(visibleColumns.map((col) => [col.id, true])),
-          })
-          logger.debug('⌨️ Ctrl+A select all triggered via InteractionStore')
+          // GH#2806 P8: marker-model select-all is unconditional (O(1)).
+          // Bulk actions iterate via iterateSelectedRowIds() in marker mode.
+          this.interactionStore.setSelectionMode('all-with-exclusions')
+          logger.debug('⌨️ Ctrl+A marker-mode select-all triggered')
           return true
         }
         break

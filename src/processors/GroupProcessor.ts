@@ -6,7 +6,6 @@
 
 import { formatDate } from '@/shared/lib/format-date'
 import { getLogger } from '@/shared/lib/logging'
-import { isSubstrateOwnedEntity } from '@/shared/data/query/feature-flag'
 import type { GroupRowOrderConfig } from '../stores/TableCoreStore'
 import type { Column, GroupAggregation, GroupConfig, GroupNode, TableRow, VirtualRow, VirtualRowType } from '../types'
 
@@ -44,27 +43,32 @@ export class GroupProcessor {
 
   static processData(
     rows: TableRow[],
+    _columns: Column[],
+    _config: GroupConfig,
+    _groupRowOrders?: Record<string, GroupRowOrderConfig>,
+    _entityName?: string,
+  ): GroupTree {
+    // GH#2806 P8: group-by is disabled for every VibeGrid-rendered entity
+    // (substrate is the unconditional data path; the substrate's SQL
+    // emitter doesn't support group-by). The processor always returns
+    // flat virtual rows, saving the O(n) row iteration cost on
+    // 100k-row datasets and avoiding any drift between UI gating and
+    // the data layer.
+    fileLog.debug('GroupProcessor: processData called (group-by disabled post-cutover)', {
+      rowCount: rows.length,
+    })
+    return GroupProcessor.createFlatVirtualRows(rows)
+  }
+
+  /** Legacy implementation retained as a private helper so any future
+   * group-by restoration only needs to flip processData's body, not
+   * re-derive the entire group hierarchy. Currently unreachable. */
+  private static _legacyProcessDataDoNotUse(
+    rows: TableRow[],
     columns: Column[],
     config: GroupConfig,
     groupRowOrders?: Record<string, GroupRowOrderConfig>,
-    entityName?: string,
   ): GroupTree {
-    fileLog.debug('GroupProcessor: processData called', {
-      rowCount: rows.length,
-      columnCount: columns.length,
-      groupFieldCount: config.fields.length,
-      hasAggregations: config.aggregations.length > 0,
-      entityName,
-    })
-
-    // GH#2804 B12: substrate-owned entities don't support group-by.
-    // Early-return as if there were no grouping configured — saves the
-    // O(n) row iteration cost on 100k-row datasets.
-    if (entityName && isSubstrateOwnedEntity(entityName)) {
-      fileLog.debug('GroupProcessor: substrate-owned entity, skipping grouping', { entityName })
-      return GroupProcessor.createFlatVirtualRows(rows)
-    }
-
     if (config.fields.length === 0) {
       // No grouping - return flat virtual rows
       return GroupProcessor.createFlatVirtualRows(rows)

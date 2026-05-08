@@ -107,8 +107,15 @@ export class InteractionStore implements IStore {
   // MOUSE COORDINATE STATE
   // ====================================
 
-  @observable mouseX: number = 0
-  @observable mouseY: number = 0
+  // PERF (GH#2848): mouseX/mouseY are intentionally NOT @observable.
+  // pointermove fires per-pixel; making these observables means every pixel
+  // invalidated the `currentHoveredCell` computed. If anything subscribed to
+  // it from a reactive context, every pixel triggered
+  // document.elementFromPoint(), which forces a synchronous layout flush --
+  // observed at 30+ layouts/sec, 68+ recalcs/sec on RFI grid hover.
+  // Coordinates are still readable on demand for hit-testing.
+  mouseX: number = 0
+  mouseY: number = 0
   @observable isMouseDown: boolean = false
 
   // ====================================
@@ -360,9 +367,15 @@ export class InteractionStore implements IStore {
   }
 
   /**
-   * Get current hovered cell from mouse position
+   * Get current hovered cell from mouse position.
+   *
+   * PERF (GH#2848): NOT @computed -- this calls document.elementFromPoint()
+   * which forces a synchronous layout. Reactive observers (computeds /
+   * autoruns / reactions) reading this would re-run on every pixel of mouse
+   * movement, since mouseX/mouseY change per pointermove event.
+   * Call as a plain method only when a hover hit-test is actually needed.
    */
-  @computed get currentHoveredCell(): string | null {
+  getCurrentHoveredCell(): string | null {
     if (this.mouseX === 0 && this.mouseY === 0) return null
 
     // Find cell at coordinates using DOM
@@ -382,7 +395,9 @@ export class InteractionStore implements IStore {
   // MOUSE COORDINATE ACTIONS
   // ====================================
 
-  @action
+  // PERF (GH#2848): no @action -- mouseX/mouseY are non-observable plain
+  // fields, so there are no MobX reactions to batch. Keeping this as a plain
+  // method also avoids any subtle re-entry costs on hot per-frame writes.
   setMousePosition(x: number, y: number): void {
     this.mouseX = x
     this.mouseY = y
@@ -1051,7 +1066,16 @@ export class InteractionStore implements IStore {
     // Filter out selection column
     const dataColumns = visibleColumns.filter((col) => col.id !== 'selection')
 
+    // GH#2806 sparse guard: `processedRows` is cursor-bounded post-substrate-
+    // cutover, so it has genuine array holes for unloaded indices. `for...of`
+    // YIELDS undefined for holes (ECMA-262 §22.1.5.3 — Array iterator does
+    // NOT skip holes, unlike .map/.forEach which do per §22.1.3). Skip
+    // undefined and rows with no id; without this guard the autorun
+    // updateAllRowCheckboxes throws TypeError on every render that includes
+    // an unloaded index. Same family as the cellRefToPosition guard added
+    // in the same commit.
     for (const row of rows) {
+      if (!row || !row.id) continue
       const isRowSelected =
         dataColumns.every((col) => this.selectedCells.has(`${row.id}:${col.id}`)) && dataColumns.length > 0
 
