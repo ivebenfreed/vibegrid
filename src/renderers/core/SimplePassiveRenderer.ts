@@ -1691,7 +1691,7 @@ export class SimplePassiveRenderer {
     // [sort-trace] GH#2848: T4 — DOM teardown about to begin. Gap (T4 - T3)
     // = TableCoreStore.setSparseRows + dataVersion bump + ObserverManager
     // reaction propagation. The matching renderBody-end log fires below.
-    console.info('[sort-trace] renderBody start', {
+    fileLog.info('[sort-trace] renderBody start', {
       t: renderStartTime,
       rowCount: this.tableCoreStore.processedRows.length,
       dataV: this.tableCoreStore.dataVersion,
@@ -1896,7 +1896,7 @@ export class SimplePassiveRenderer {
     // [sort-trace] GH#2848: T5 — fragment appended; the new sorted rows are
     // now in the DOM. Browser will paint on the next frame. Gap (T5 - T4)
     // = pure renderBody DOM-build cost (cell-level construction).
-    console.info('[sort-trace] renderBody end', {
+    fileLog.info('[sort-trace] renderBody end', {
       t: performance.now(),
       durationMs: Number((performance.now() - renderStartTime).toFixed(1)),
     })

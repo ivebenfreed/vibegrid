@@ -1257,8 +1257,8 @@ export class VisualStateStore implements IStore {
     const existingIndex = this.sortBy.findIndex((s) => s.field === field)
 
     // [sort-trace] GH#2848: pipeline timing — `T0` for end-to-end sort latency.
-    // Match against [sort-trace] entries in console to correlate.
-    console.info('[sort-trace] toggleSort', { field, t: performance.now() })
+    // Match log messages prefixed [sort-trace] across files to correlate.
+    logger.info('[sort-trace] toggleSort', { field, t: performance.now() })
 
     logger.info('toggleSort called', {
       field,
