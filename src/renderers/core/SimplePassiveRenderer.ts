@@ -1688,6 +1688,15 @@ export class SimplePassiveRenderer {
       event: 'renderBody_start',
       timestamp: renderStartTime,
     })
+    // [sort-trace] GH#2848: T4 — DOM teardown about to begin. Gap (T4 - T3)
+    // = TableCoreStore.setSparseRows + dataVersion bump + ObserverManager
+    // reaction propagation. The matching renderBody-end log fires below.
+    console.info('[sort-trace] renderBody start', {
+      t: renderStartTime,
+      rowCount: this.tableCoreStore.processedRows.length,
+      dataV: this.tableCoreStore.dataVersion,
+      configV: this.tableCoreStore.configVersion,
+    })
 
     // GUARD: Only render if grid is fully initialized OR if this is the initial render call
     const isFullyInitialized = this.initStore.isFullyHydrated
@@ -1884,6 +1893,13 @@ export class SimplePassiveRenderer {
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
+    // [sort-trace] GH#2848: T5 — fragment appended; the new sorted rows are
+    // now in the DOM. Browser will paint on the next frame. Gap (T5 - T4)
+    // = pure renderBody DOM-build cost (cell-level construction).
+    console.info('[sort-trace] renderBody end', {
+      t: performance.now(),
+      durationMs: Number((performance.now() - renderStartTime).toFixed(1)),
+    })
 
     // Update debug metrics for initial render
     // Calculate truly visible rows (without buffer) for accurate debug display
