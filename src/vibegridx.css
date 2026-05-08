@@ -575,54 +575,46 @@ body.vibegridx-dragging-active * {
   line-height: 1;
 }
 
-/* Row header checkbox - permanently absolute-positioned overlay on the row
-   number. PERF (GH#2848): keeping `position: absolute` constant means hover
-   only flips opacity, not layout. Previously `display: none ↔ block` on the
-   number plus `position: absolute ↔ static` on the checkbox forced ~2 layout
-   reflows per row hover, driving 30+ layouts/sec on cursor sweep. */
+/* Row header checkbox */
 .vibegridx-row-checkbox {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
 }
 
 /* Combined number + checkbox behaviour:
    - Number visible by default, checkbox hidden (but stays in ARIA tree)
    - On row hover: swap to checkbox
    - When checkbox is checked (row selected): keep checkbox visible
-   NOTE: Uses opacity (not display:none) so checkbox remains in the
+   NOTE: Uses opacity:0 (not display:none) so checkbox remains in the
    accessibility tree for screen readers and chrome-devtools-axi snapshot.
-   The number ALSO uses opacity (not display:none) — display:none would
-   remove it from the a11y tree AND cause a layout reflow on every hover. */
+   display:none removes elements from the a11y tree entirely. */
 .vibegridx-row-header-cell .vibegridx-row-number {
-  opacity: 1;
-  transition: opacity 0.1s ease;
+  display: block;
 }
 .vibegridx-row-header-cell .vibegridx-row-checkbox {
   opacity: 0;
+  position: absolute;
   pointer-events: none;
-  transition: opacity 0.1s ease;
 }
 
 /* Show checkbox on row hover (JS adds .vibegridx-row-hovered via mouseover delegation) */
 .vibegridx-row-hovered .vibegridx-row-header-cell .vibegridx-row-number {
-  opacity: 0;
+  display: none;
 }
 .vibegridx-row-hovered .vibegridx-row-header-cell .vibegridx-row-checkbox {
   opacity: 1;
+  position: static;
   pointer-events: auto;
 }
 
 /* Keep checkbox visible (and hide number) when row is selected */
 .vibegridx-row-header-cell:has(.vibegridx-row-checkbox:checked) .vibegridx-row-number {
-  opacity: 0;
+  display: none;
 }
 .vibegridx-row-header-cell:has(.vibegridx-row-checkbox:checked) .vibegridx-row-checkbox {
   opacity: 1;
+  position: static;
   pointer-events: auto;
 }
 
