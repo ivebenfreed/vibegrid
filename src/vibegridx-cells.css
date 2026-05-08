@@ -732,26 +732,37 @@
   pointer-events: none; /* skeleton rows are non-interactive */
 }
 
-/* The animated bar — opacity-only animation so it stays GPU-composited */
+/* The animated bar — opacity-only animation so it stays GPU-composited.
+ *
+ * GH#2848 follow-up: the previous fallback `rgba(0, 0, 0, 0.08)` was
+ * invisible in dark mode (faint black on a near-black cell background),
+ * so users observed solid dark blocks instead of shimmer when scrolling
+ * past the loaded cursor window. Use `color-mix` against `--foreground`
+ * so the bar color inverts with the theme — faint dark bar on light bg,
+ * faint light bar on dark bg — without needing two separate token sets.
+ *
+ * `--bp-skeleton-base` / `--bp-skeleton-highlight` are still respected
+ * for design-system overrides; the color-mix expressions are the
+ * theme-aware fallback. (Was: hardcoded rgba.)
+ */
 .sparse-skeleton-bar {
   flex: 1;
   height: 12px;
   border-radius: 4px;
-  /* Falls back to a neutral muted background if tokens aren't defined. */
-  background: var(--bp-skeleton-base, rgba(0, 0, 0, 0.08));
-  will-change: opacity;
+  background: var(--bp-skeleton-base, color-mix(in oklch, var(--foreground) 12%, transparent));
+  will-change: opacity, background-color;
   animation: sparse-skeleton-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes sparse-skeleton-pulse {
   0%,
   100% {
-    opacity: 0.3;
-    background: var(--bp-skeleton-base, rgba(0, 0, 0, 0.08));
+    opacity: 0.6;
+    background: var(--bp-skeleton-base, color-mix(in oklch, var(--foreground) 12%, transparent));
   }
   50% {
-    opacity: 0.7;
-    background: var(--bp-skeleton-highlight, rgba(0, 0, 0, 0.14));
+    opacity: 1;
+    background: var(--bp-skeleton-highlight, color-mix(in oklch, var(--foreground) 22%, transparent));
   }
 }
 
