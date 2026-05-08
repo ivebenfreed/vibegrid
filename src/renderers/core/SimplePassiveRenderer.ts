@@ -1235,7 +1235,22 @@ export class SimplePassiveRenderer {
       // Loop bound uses processedRows.length, which in substrate mode is
       // the full sparse length (= totalCount). Without synthesis below,
       // every unloaded index in the visible range would still be skipped.
-      for (let i = addStart; i < currentRange.end && i < rows.length; i++) {
+      //
+      // GH#2848 follow-up — initial-load shimmer: on cold mount the
+      // bodyContainer height is sized from `serverTotalRows` (set by
+      // the substrate prefetch) before `setSparseRows` has fired, so
+      // `rows.length` is 0 here. Clamping the loop to `rows.length`
+      // would skip every visible index — same blank-grid bug
+      // `renderBody` had below. Use the larger of `rows.length` and
+      // `serverTotalRows` so indices past `rows.length` fall through to
+      // the synthesizer and paint shimmer until the first delivery
+      // lands. Legacy callers (serverTotalRows null) fall back to
+      // `rows.length` exactly as before.
+      const effectiveTotalRows = Math.max(
+        rows.length,
+        this.stores.viewportStore?.serverTotalRows ?? 0,
+      )
+      for (let i = addStart; i < currentRange.end && i < effectiveTotalRows; i++) {
         // GH#2848 follow-up: see top-side loop above for rationale —
         // synthesize a __sparse row so the cell pipeline paints the
         // skeleton renderer instead of leaving the index blank.
@@ -1887,10 +1902,35 @@ export class SimplePassiveRenderer {
     }
     const visibleRange = visualState.geometry.visibleRowRange
     const startIndex = Math.max(0, visibleRange.start)
-    const endIndex = Math.min(rows.length, visibleRange.end)
+    // GH#2848 follow-up — initial-load shimmer.
+    // On cold mount the substrate path runs:
+    //   (1) prefetch sets viewportStore.serverTotalRows from the server
+    //       count → bodyContainer height is already sized for the full
+    //       dataset (loop above derives totalHeight from serverTotal),
+    //   (2) substrate Query.init() round-trips the SharedWorker,
+    //   (3) first queryDelta lands → setSparseRows allocates rawRows
+    //       length=totalCount with the loaded window filled.
+    // Between (1) and (3), `rows.length` is still 0 but the body is
+    // already as tall as the full dataset. Clamping `endIndex` to
+    // `rows.length` made the for-loop a no-op, so no DOM was appended
+    // anywhere — the user saw a blank rectangle (no rows, no shimmer)
+    // until first delivery.
+    //
+    // Use the larger of `rows.length` and `viewportStore.serverTotalRows`
+    // as the upper bound. Indices past `rows.length` fall through to the
+    // `row === undefined` branch in the loop below and synthesize a
+    // sparse skeleton row, so the visible viewport shimmers during the
+    // initial-load gap. Once setSparseRows lands rawRows gets real rows
+    // at the right indices and the next render swaps shimmer for data.
+    //
+    // Legacy (non-substrate) callers leave `serverTotalRows` at null →
+    // `effectiveTotalRows` collapses to `rows.length` → behavior unchanged.
+    const effectiveTotalRows = Math.max(rows.length, viewportStore?.serverTotalRows ?? 0)
+    const endIndex = Math.min(effectiveTotalRows, visibleRange.end)
 
     fileLog.info('🎨 ROW 16 DEBUG - Body rendering range', {
       totalRows: rows.length,
+      effectiveTotalRows,
       visibleRangeRaw: visibleRange,
       startIndex,
       endIndex,
