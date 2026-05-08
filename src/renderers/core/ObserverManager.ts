@@ -94,6 +94,11 @@ export class ObserverManager {
   private lastStructureVersion = 0
   private _lastSelectedCells: Set<string> = new Set()
   private pendingRAF: number | null = null
+  // GH#2848: track previous incremental progress so we can fire the
+  // viewport-ready render only on the 0 → >0 transition. The original code
+  // re-fired renderBody on every 1% progress tick (1, 2, 3, … 99), causing
+  // 12+ full DOM teardowns per sort on a 211k-row substrate grid.
+  private lastIncrementalProgress = 0
 
   constructor(private deps: ObserverManagerDeps) {}
 
@@ -535,19 +540,28 @@ export class ObserverManager {
           return
         }
 
-        fileLog.info('📊 INCREMENTAL PROCESSING UPDATE', {
-          isProcessing,
-          progress,
-          timestamp: Date.now(),
-        })
+        const previousProgress = this.lastIncrementalProgress
+        this.lastIncrementalProgress = progress
 
-        // When viewport is first ready (progress > 0), do an immediate render
-        if (progress > 0 && progress < 100) {
+        // GH#2848: Detect the 0 → >0 transition that signals viewport-first
+        // readiness. Without this guard the reaction fired
+        // handleIncrementalViewportReady() on every 1% tick (1, 2, 3, …, 99),
+        // which calls renderBody() — a full DOM teardown + rebuild. On a
+        // 211k-row substrate grid the per-sort thrash was 12+ full re-renders
+        // over ~7s, producing the visible "blank cells flashing" symptom and
+        // dragging layouts/sec to 30+ with zero mouse interaction.
+        const becameReady = previousProgress === 0 && progress > 0
+
+        if (becameReady) {
           fileLog.info('🎯 Viewport ready - triggering incremental render', { progress })
           this.deps.handleIncrementalViewportReady()
         }
+        // Note: subsequent progress ticks (1→2, 2→3, …) intentionally do NOT
+        // re-render. Live data delivery in sparse mode is driven by
+        // setSparseRows → dataVersion++ → createDataObserver, which routes
+        // through determineUpdateStrategy() and prefers granular cell updates.
 
-        // When processing completes, do a final full render
+        // When processing completes, do a final full render.
         if (progress === 100 && !isProcessing) {
           fileLog.info('✅ Incremental processing complete - triggering final render')
           this.deps.renderBody()
