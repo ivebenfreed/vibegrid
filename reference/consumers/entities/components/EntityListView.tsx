@@ -545,12 +545,22 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   // Use backend count when loaded; fall back to upload store count while loading
   const reviewCount = reviewQueueResult.isLoading ? uploadStore.reviewRequiredCount : reviewQueueResult.total
 
-  const handleOpenReview = useCallback((_rowIds: string[], rowsData: any[]) => {
-    // GH#2326: Open review overlay via search params (page stays mounted underneath)
-    const entities = rowsData.map((row) => (row?.data ?? row) as EntityRecord)
-    const ids = entities.map((e) => e.id).join(',')
+  const handleOpenReview = useCallback((rowIds: string[], _rowsData: any[]) => {
+    // GH#2326: Open review overlay via search params (page stays mounted underneath).
+    //
+    // GH#2848 follow-up: use the `rowIds` argument directly. Previously we
+    // derived ids via `rowsData.map((r) => (r.data ?? r).id)`, which only
+    // worked while TanStack DB collections populated each VirtualRow's
+    // `data` payload with the full entity record (including `id`). Under
+    // the substrate row stream, `processedRows[i].data` is the column
+    // payload from SQLite and does not necessarily expose an `id` field —
+    // so the join produced an empty string and the URL ended up with
+    // `reviewIds=` (empty), which `EntityReviewOverlay.getReviewParams`
+    // reads as zero ids and renders nothing. The grid passes the actual
+    // row ids as the first argument; that's our source of truth.
+    if (rowIds.length === 0) return
     navigate({
-      search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: ids }),
+      search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: rowIds.join(',') }),
     } as any)
   }, [navigate, resolvedName])
 
