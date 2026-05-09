@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, Loader2, Play, PlayCircle } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, Loader2, Play, PlayCircle, Send } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -31,6 +31,10 @@ import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 
 import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
+import {
+  BULK_SEND_BATCH_SIZE,
+  dispatchBulkSend,
+} from '@/features/lien-waivers/bulk-send-action'
 import type { EntityRecord } from '@/shared/types/dataforge'
 import { VibeGrid, type RowAction } from '@/systems/vibegrid'
 import type { SchemaFieldDescriptor } from '@/systems/vibegrid/modules/GridModule'
@@ -220,10 +224,35 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     },
   }
 
+  // GH#2561 Track C C5: PaymentLine bulk "Mark sent + send waiver" action.
+  // Hidden when:
+  //   - Wrong entity type (PaymentLine only)
+  //   - User lacks write access (viewer role) — server enforces; UI hides
+  //     for clarity. When CASL #2564 lands, swap to
+  //     `useCan('bulk_import', 'Payment')`.
+  //   - ANY selected line has a status outside the re-sendable set
+  //     (`imported`, `manual_rejected`). Per-row check: ActionsBar treats
+  //     the action as visible only when no row triggers `hidden`.
+  const SENDABLE_PAYMENT_LINE_STATUSES = new Set(['imported', 'manual_rejected'])
+  const sendLienWaiverAction: RowAction = {
+    id: 'send-lien-waiver',
+    label: 'Mark sent + send waiver',
+    icon: Send,
+    hidden: (rowData: any) => {
+      if (entityName !== 'PaymentLine') return true
+      if (!hasWriteAccess) return true
+      const status = rowData?.status ?? rowData?.data?.status
+      return !SENDABLE_PAYMENT_LINE_STATUSES.has(status)
+    },
+  }
+
   // Assemble row actions based on entity type
   const allRowActions: RowAction[] = [reviewAction]
   if (entityName === 'LienWaiverCycle') {
     allRowActions.push(startCycleAction, exportWaiversAction)
+  }
+  if (entityName === 'PaymentLine') {
+    allRowActions.push(sendLienWaiverAction)
   }
 
   // GH#2641: Render widgets above the grid driven by entity_views.config.listWidgets.
@@ -399,6 +428,54 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
                     toast.error(`Failed to start cycle: ${err.message}`)
                   })
               }
+            }
+            // GH#2561 Track C C5+C6: PaymentLine bulk "Mark sent + send waiver".
+            // Pages on the client side (≤100 ids per HTTP call, see D5 cap)
+            // and surfaces per-batch progress + final aggregate via toast.
+            if (actionId === 'send-lien-waiver' && rowIds.length > 0) {
+              const totalCount = rowIds.length
+              const willBatch = totalCount > BULK_SEND_BATCH_SIZE
+              const initialMessage = willBatch
+                ? `Sending in ${Math.ceil(totalCount / BULK_SEND_BATCH_SIZE)} batches…`
+                : `Sending ${totalCount} ${totalCount === 1 ? 'waiver' : 'waivers'}…`
+              const toastId = toast.loading(initialMessage)
+
+              dispatchBulkSend(rowIds, {
+                onBatchProgress: (batchIndex, batchCount) => {
+                  if (batchCount > 1) {
+                    toast.loading(
+                      `Sending in ${batchCount} batches… (${batchIndex}/${batchCount})`,
+                      { id: toastId },
+                    )
+                  }
+                },
+              })
+                .then((result) => {
+                  const summary = `Sent ${result.sent} ${result.sent === 1 ? 'waiver' : 'waivers'} (skipped ${result.skipped})`
+                  if (result.errors.length > 0) {
+                    // Surface up to 5 error lines as a toast detail block.
+                    // Sonner's `description` accepts strings; long lists get
+                    // truncated rather than overflowing the viewport.
+                    const sample = result.errors
+                      .slice(0, 5)
+                      .map((e) => `• ${e.line_id}: ${e.message}`)
+                      .join('\n')
+                    const more = result.errors.length > 5 ? `\n…and ${result.errors.length - 5} more` : ''
+                    toast.error(
+                      `${summary} — ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`,
+                      {
+                        id: toastId,
+                        description: `${sample}${more}`,
+                        duration: 8000,
+                      },
+                    )
+                  } else {
+                    toast.success(summary, { id: toastId })
+                  }
+                })
+                .catch((err: Error) => {
+                  toast.error(`Failed to send waivers: ${err.message}`, { id: toastId })
+                })
             }
             if (actionId === 'export-waivers' && rowIds.length > 0) {
               // Trigger export by changing status to closed (fires lien-waiver-export workflow)
