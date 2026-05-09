@@ -64,6 +64,34 @@ import { QuickCreatePanel } from './QuickCreatePanel'
 const logger = getLogger(['entity', 'EntityListView'])
 
 /**
+ * Header count chip — reads the server-authoritative entity count from the
+ * substrate's `viewportStore.serverTotalRows` (set by `useSubstrateGridRows`
+ * via the one-shot `dataforge.data.count` prefetch at mount, and kept in
+ * sync via Math.max(prev, query.count) on subsequent substrate deltas).
+ *
+ * Lives inside the toolbar JSX, which is rendered as children inside
+ * VibeGridStoreProvider — so `useVibeGridStores()` resolves to the same
+ * store bundle the substrate writes the count into.
+ *
+ * GH#2848 follow-up: prior to this, the count chip read from
+ * `listResult.pagination.total`, which had been hardcoded to 0 after Phase D
+ * B32 retired the legacy `useEntityListData` call. The chip displayed "0"
+ * indefinitely even though substrate had the truth.
+ */
+const EntityCountChip = observer(function EntityCountChip() {
+  const { viewportStore } = useVibeGridStores()
+  const total = viewportStore.serverTotalRows
+  // `null` means the substrate prefetch hasn't landed yet — render nothing
+  // rather than flashing a stale "0".
+  if (total === null) return null
+  return (
+    <span className="text-xs text-muted-foreground whitespace-nowrap">
+      {total}
+    </span>
+  )
+})
+
+/**
  * Inner component that lives inside VibeGridStoreProvider context
  * to enable useViewUrlSync hook access to VibeGrid stores (GH#1570)
  */
@@ -864,9 +892,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               toolbarLeading={
                 <div className="flex items-center gap-2 border-r border-border pr-3 mr-1">
                   <h1 className="text-sm font-semibold whitespace-nowrap">{entityTitle}</h1>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {listResult.pagination.total}
-                  </span>
+                  <EntityCountChip />
                 </div>
               }
               toolbarTrailing={
