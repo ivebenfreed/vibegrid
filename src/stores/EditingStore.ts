@@ -492,7 +492,11 @@ export class EditingStore implements IStore {
     // VALIDATION: Validate using SlotRegistry CellRenderer (D2)
     const valueToSave = finalValue
     if (this.slotRegistry) {
-      const slotCtx = { viewMode: 'table' as const, entityType: this.tableCoreStore.entityType }
+      const slotCtx = {
+        viewMode: 'table' as const,
+        entityType: this.tableCoreStore.entityType,
+        organizationId: this.visualStateStore.orgId,
+      }
       const renderer = this.slotRegistry.resolve(column, slotCtx)
       if (renderer?.validate) {
         const validationError = renderer.validate(finalValue, column, slotCtx)
@@ -710,6 +714,7 @@ export class EditingStore implements IStore {
       const renderer = this.slotRegistry.resolve(column, {
         viewMode: 'table',
         entityType: this.tableCoreStore.entityType,
+        organizationId: this.visualStateStore.orgId,
       })
       return renderer?.interactionPolicy?.blurPolicy || 'commit'
     }
@@ -1256,7 +1261,11 @@ export class EditingStore implements IStore {
     const { column } = this.currentSession
 
     if (this.slotRegistry) {
-      const slotCtx = { viewMode: 'table' as const, entityType: this.tableCoreStore.entityType }
+      const slotCtx = {
+        viewMode: 'table' as const,
+        entityType: this.tableCoreStore.entityType,
+        organizationId: this.visualStateStore.orgId,
+      }
       const renderer = this.slotRegistry.resolve(column, slotCtx)
       if (renderer?.validate) {
         const validationError = renderer.validate(valueToValidate, column, slotCtx)

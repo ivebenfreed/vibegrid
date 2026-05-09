@@ -372,9 +372,13 @@ export class InitStore implements IStore {
       if (this.tableCoreStore && this.visualStateStore) {
         const columns = this.visualStateStore.columns
         if (columns.length > 0) {
+          // organizationId MUST match what BodyRenderer passes to resolve(),
+          // otherwise every cell hits the cache-miss-after-preload warning path
+          // (cache key includes organizationId — see SlotRegistry.getCacheKey).
           const slotContext = {
             entityType: this.entityType,
             viewMode: 'table' as const,
+            organizationId: this.visualStateStore.orgId,
           }
           await this.slotRegistry.preloadForColumns(columns, slotContext)
           // Now that preload is complete, precompute affordances

@@ -165,6 +165,7 @@ export class InteractionCoordinator {
       const context: CellRendererContext = {
         viewMode: 'table',
         entityType: this.tableCoreStore.entityType,
+        organizationId: this.visualStateStore.orgId,
       }
       const renderer = this.slotRegistry.resolve(column, context)
       interactionPolicy = renderer?.interactionPolicy
@@ -215,6 +216,7 @@ export class InteractionCoordinator {
       const context: CellRendererContext = {
         viewMode: 'table',
         entityType: this.tableCoreStore.entityType,
+        organizationId: this.visualStateStore.orgId,
       }
       const renderer = this.slotRegistry.resolve(column, context)
       policy = renderer?.interactionPolicy
