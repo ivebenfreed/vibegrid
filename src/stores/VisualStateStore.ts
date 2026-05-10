@@ -1258,9 +1258,10 @@ export class VisualStateStore implements IStore {
 
     // [sort-trace] GH#2848: pipeline timing — `T0` for end-to-end sort latency.
     // Match log messages prefixed [sort-trace] across files to correlate.
-    // Emit at warn so it survives prod/preview defaultLevel='warning' and
-    // the per-channel `['vibegrid'] -> warning` filter in logging/config.ts.
-    logger.warn('[sort-trace] toggleSort', { field, t: performance.now() })
+    // debug-level: vibegrid category gated to `warning` by default
+    // (config.ts:44). User-initiated sort is best traced on demand:
+    //   __BASEPLANE_LOGGER__.setLevel('debug', ['vibegrid'])
+    logger.debug('[sort-trace] toggleSort', { field, t: performance.now() })
 
     logger.info('toggleSort called', {
       field,
