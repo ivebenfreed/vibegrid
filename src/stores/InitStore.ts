@@ -215,16 +215,19 @@ export class InitStore implements IStore {
    * Invariants:
    * - Strictly forward: 'init' → 'schema' → 'controllers' → 'painted'.
    * - No skips, no regression. Backward/skipped transitions throw.
-   * - `transitionPhase('schema')` additionally asserts that `setContainer()`
-   *   has been called (the DOM container is required before stores can
-   *   proceed to controller construction).
+   * - `transitionPhase('schema')` warns (but does not throw) if `setContainer()`
+   *   has not yet been called. In the React lifecycle, `setContainer` runs from
+   *   a passive useEffect AFTER microtasks drain — `initializeStores`'s four
+   *   awaits often complete first, so `transitionPhase('schema')` legitimately
+   *   precedes the container being set. The renderer-creation reaction
+   *   (`setupRendererReaction`) handles the cross-timing via `hasContainer`.
    */
   @action
   transitionPhase(next: InitPhase): void {
     if (next === 'schema' && this.container === null) {
-      throw new Error(
-        'InitStore.transitionPhase("schema") requires setContainer() to have been called first',
-      )
+      logger.warn('transitionPhase("schema") — container not yet set; renderer reaction will wait', {
+        tableId: this.tableId,
+      })
     }
     const currentIdx = PHASE_ORDER.indexOf(this.phase)
     const nextIdx = PHASE_ORDER.indexOf(next)

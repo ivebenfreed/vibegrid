@@ -374,14 +374,19 @@ describe('InitStore', () => {
   // GH#2925 p4 — container assertion on transitionPhase('schema')
   // ====================================
 
-  describe('transitionPhase("schema") asserts container (GH#2925 p4)', () => {
-    it('throws when container is null', () => {
+  describe('transitionPhase("schema") tolerates pre-container call (GH#2925 p4)', () => {
+    // In production React's passive-effect timing means setContainer often
+    // runs AFTER initializeStores's awaits drain — so transitionPhase('schema')
+    // is allowed to advance with container still null. The renderer-creation
+    // reaction waits for the container via MobX. A warning is logged for
+    // forensics but the call does not throw.
+    it('advances phase even when container is null (logs a warning, no throw)', () => {
       expect((initStore as any).container).toBeNull()
-      expect(() => initStore.transitionPhase('schema')).toThrow(/requires setContainer/i)
-      expect(initStore.phase).toBe('init')
+      expect(() => initStore.transitionPhase('schema')).not.toThrow()
+      expect(initStore.phase).toBe('schema')
     })
 
-    it('succeeds after setContainer() has been called', () => {
+    it('also succeeds when setContainer() has been called first', () => {
       runInAction(() => {
         initStore.setContainer(createMockContainer())
       })
