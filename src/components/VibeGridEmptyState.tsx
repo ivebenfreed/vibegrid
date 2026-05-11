@@ -15,7 +15,7 @@ interface VibeGridEmptyStateProps {
 export function VibeGridEmptyState({ entityDisplayName }: VibeGridEmptyStateProps) {
   const noun = entityDisplayName ?? 'records'
   return (
-    <div
+    <output
       data-testid="vibegrid-empty-state"
       aria-label={`Empty state for ${noun}`}
       style={{
@@ -33,6 +33,6 @@ export function VibeGridEmptyState({ entityDisplayName }: VibeGridEmptyStateProp
       }}
     >
       <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>No {noun.toLowerCase()} yet</p>
-    </div>
+    </output>
   )
 }
