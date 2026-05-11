@@ -430,6 +430,11 @@ export class InitStore implements IStore {
         this.markReady('interactionStoreReady')
       }
 
+      // GH#2925 p1: advance phase machine — schema + stores ready.
+      // Fires immediately after the last sequential await; the
+      // `container != null` assertion lands in p4.
+      this.transitionPhase('schema')
+
       // Step 4.5: Preload slots for the loaded columns
       if (this.tableCoreStore && this.visualStateStore) {
         const columns = this.visualStateStore.columns

@@ -689,259 +689,229 @@ export class SimplePassiveRenderer {
 
   /**
    * Post-initialization setup after all managers are created
+   *
+   * GH#2925 p1 — flattened from 5 nested scheduleAfterPaint calls to two stages:
+   *   Stage 1 (sync): position tracking + bounds measure + controllers +
+   *     event handlers + header render. Ends at transitionPhase('controllers').
+   *   Stage 2 (one scheduleAfterPaint): renderBody + paint observation.
+   *     Ends at transitionPhase('painted').
+   *
+   * Two ordering invariants preserved by this flattening:
+   *   - ScrollController BEFORE MouseController (Mouse holds Scroll ref)
+   *   - InteractionCoordinator BEFORE OverlayManager (Overlay references InteractionCoordinator)
+   * A third invariant (EventManager BEFORE KeyboardController) lives in
+   * initPhase2Managers() and is unchanged.
    */
   private postInitialization(): void {
-    fileLog.info('[VGDEBUG] 🚀 Starting post-initialization')
+    if (this.isDestroyed) {
+      fileLog.debug('[VGDEBUG] ⏭️ Skipping postInitialization - instance destroyed', {
+        instanceId: this.rendererInstanceId,
+      })
+      return
+    }
 
-    // Phase 1: Quick synchronous operations that don't cause reflows
+    fileLog.info('[VGDEBUG] 🚀 Starting post-initialization (flattened)')
+
+    // ----------------------------------------------------------------
+    // Stage 1 — synchronous DOM-ready work
+    // ----------------------------------------------------------------
+
     // Initialize hybrid coordinate system position tracking (mostly calculations)
     this.initializePositionTracking()
 
-    // Phase 2: Defer DOM measurements and controller initialization
+    // Now safe to measure DOM
+    const _bounds = this.container.getBoundingClientRect()
+    // TODO: Add updateViewportDimensions method to VisualStateStore
+    // this.visualStateStore.updateViewportDimensions(bounds.width, bounds.height);
+
+    if (!this.viewport) {
+      fileLog.error('❌ Viewport not initialized - cannot create ScrollController', {
+        instanceId: this.rendererInstanceId,
+        viewportProperty: this.viewport,
+        viewportElement: document.querySelector('.vibegridx-viewport'),
+        bodyContainer: this.bodyContainer,
+        container: this.container,
+      })
+      return
+    }
+
+    // Initialize enhanced ScrollController with comprehensive event handling
+    // (MUST be before MouseController — Mouse holds a Scroll ref)
+    this.scrollController = new ScrollController({
+      viewport: this.viewport,
+      headerViewport: this.headerViewport || undefined,
+      container: this.container,
+      viewportStore: this.stores.viewportStore,
+      coordinateManager: this.stores.coordinateManager,
+      onClickOutside: (e: MouseEvent) => {
+        // ✅ Route through InteractionCoordinator for proper service layer handling
+        if (this.interactionCoordinator) {
+          this.interactionCoordinator.handleOutsidePointer(e as PointerEvent)
+        } else {
+          // Fallback to legacy path if coordinator not available
+          this.interactionStore.handleOutsideClick()
+        }
+      },
+      onScroll: (scrollLeft: number, scrollTop: number) => {
+        // Update scroll position in VisualStateStore
+        runInAction(() => {
+          this.stores.viewportStore.updateScroll(scrollTop, scrollLeft)
+        })
+        // Note: Detailed scroll debugging removed for performance
+        // Re-enable via verbose logging if needed
+      },
+      keyboardNavController: this.keyboardNavController,
+      selectionController: this.selectionController,
+      interactionStore: this.interactionStore,
+    })
+
+    // Create service layer before MouseController
+    // Note: EditSessionManager is created in OverlayManager and accessed via its getter
+    // Create SelectionService with coordinate manager
+    this.selectionService = new SelectionService(
+      this.interactionStore,
+      this.tableCoreStore,
+      this.visualStateStore,
+      this.stores.coordinateManager,
+    )
+
+    // Create CellActionRouter (using EditingStore directly)
+    this.cellActionRouter = new CellActionRouter(
+      this.editingStore,
+      this.options.onCellClick as OnCellClickCallback | undefined,
+    )
+
+    // Create InteractionCoordinator (MUST be before OverlayManager.initializeOverlay —
+    // Overlay references InteractionCoordinator)
+    this.interactionCoordinator = new InteractionCoordinator(
+      this.container,
+      this.interactionStore,
+      this.selectionService,
+      this.cellActionRouter,
+      this.editingStore,
+      this.tableCoreStore,
+      this.visualStateStore,
+      this.keyboardNavController ?? undefined,
+    )
+    // Wire SlotRegistry into InteractionCoordinator for D2 pipeline
+    if (this.initStore?.slotRegistry) {
+      this.interactionCoordinator.setSlotRegistry(this.initStore.slotRegistry)
+    }
+
+    if (this.keyboardController) {
+      this.keyboardController.setInteractionCoordinator(this.interactionCoordinator)
+    }
+
+    // Initialize MouseController for centralized mouse event handling
+    this.mouseController = new MouseController({
+      container: this.container,
+      bodyRenderer: this.bodyRenderer,
+      scrollController: this.scrollController,
+      selectionController: this.selectionController,
+      interactionStore: this.interactionStore,
+      visualStateStore: this.visualStateStore,
+      tableCoreStore: this.tableCoreStore,
+      keyboardController: this.keyboardController, // Already initialized in Phase 2
+      coordinator: this.interactionCoordinator, // ✅ Pass coordinator
+      enableSelectionColumn: this.options.enableSelectionColumn,
+    })
+
+    // Connect MouseController to KeyboardController for focus management
+    if (this.mouseController && this.keyboardController) {
+      this.mouseController.setKeyboardController(this.keyboardController)
+    }
+
+    // Configure ColumnWidthManager with DOM containers
+    if (this.columnWidthManager) {
+      this.columnWidthManager.setContainers({
+        headerContainer: this.headerContainer,
+        bodyContainer: this.bodyContainer,
+        headerViewport: this.headerViewport,
+      })
+    }
+
+    // Mark controller dependencies as ready (legacy 10-flag tracking; sync now)
+    if (this.initStore) {
+      fileLog.debug('[VGDEBUG] ✅ Marking viewportReady')
+      this.initStore.markReady('viewportReady')
+      fileLog.debug('[VGDEBUG] ✅ Controllers ready')
+    }
+
+    // Initialize overlay now that DOM is ready (AFTER InteractionCoordinator)
+    if (this.overlayManager) {
+      this.overlayManager.initializeOverlay()
+    }
+
+    // Setup event handling via EventManager
+    if (this.eventManager) {
+      this.eventManager.setOverlayManager(this.overlayManager!)
+      this.eventManager.setupEventHandling()
+    }
+
+    // Link coordinator to overlay manager for fill handle delegation
+    if (this.interactionCoordinator) {
+      this.interactionCoordinator.setOverlayManager(this.overlayManager!)
+    }
+
+    if (this.initStore) {
+      fileLog.debug('[VGDEBUG] ✅ Marking eventHandlersReady')
+      this.initStore.markReady('eventHandlersReady')
+      fileLog.debug('[VGDEBUG] ✅ Overlay and event handlers ready')
+    }
+
+    // Render header (lighter operation)
+    runInAction(() => {
+      this.renderHeader()
+    })
+
+    // GH#2925 p1: advance phase machine — controllers fully constructed
+    this.initStore.transitionPhase('controllers')
+
+    // ----------------------------------------------------------------
+    // Stage 2 — one scheduleAfterPaint observes the body paint
+    //
     // GH#2923: scheduleAfterPaint = RAF + 200ms setTimeout fallback. Chrome
     // pauses RAF entirely on unfocused/occluded tabs; without the fallback
-    // the chain stalls and `viewportReady`/`eventHandlersReady`/
-    // `rendererInitialized` never flip true, leaving the loading overlay
-    // permanently mounted over fully-loaded data.
+    // the chain stalls and `rendererInitialized` never flips true, leaving
+    // the loading overlay permanently mounted over fully-loaded data.
+    // ----------------------------------------------------------------
     scheduleAfterPaint(() => {
-      // Guard: Skip if instance was destroyed (React StrictMode remount)
+      // Guard: Skip if instance was destroyed
       if (this.isDestroyed) {
-        fileLog.debug('[VGDEBUG] ⏭️ Skipping postInit RAF - instance destroyed', {
+        fileLog.debug('⏭️ Skipping body render RAF - instance destroyed', {
           instanceId: this.rendererInstanceId,
         })
         return
       }
 
-      fileLog.info('[VGDEBUG] ✅ Phase 2 RAF executing (not destroyed)')
+      // Render body and capture ranges in batch
+      runInAction(() => {
+        this.renderBody()
 
-      // Now safe to measure DOM
-      const _bounds = this.container.getBoundingClientRect()
-      // TODO: Add updateViewportDimensions method to VisualStateStore
-      // this.visualStateStore.updateViewportDimensions(bounds.width, bounds.height);
-
-      // Initialize enhanced ScrollController with comprehensive event handling
-      if (!this.viewport) {
-        fileLog.error('❌ Viewport not initialized - cannot create ScrollController', {
-          instanceId: this.rendererInstanceId,
-          viewportProperty: this.viewport,
-          viewportElement: document.querySelector('.vibegridx-viewport'),
-          bodyContainer: this.bodyContainer,
-          container: this.container,
-        })
-        return
-      }
-
-      this.scrollController = new ScrollController({
-        viewport: this.viewport,
-        headerViewport: this.headerViewport || undefined,
-        container: this.container,
-        viewportStore: this.stores.viewportStore,
-        coordinateManager: this.stores.coordinateManager,
-        onClickOutside: (e: MouseEvent) => {
-          // ✅ Route through InteractionCoordinator for proper service layer handling
-          if (this.interactionCoordinator) {
-            this.interactionCoordinator.handleOutsidePointer(e as PointerEvent)
-          } else {
-            // Fallback to legacy path if coordinator not available
-            this.interactionStore.handleOutsideClick()
-          }
-        },
-        onScroll: (scrollLeft: number, scrollTop: number) => {
-          // Update scroll position in VisualStateStore
-          runInAction(() => {
-            this.stores.viewportStore.updateScroll(scrollTop, scrollLeft)
-          })
-          // Note: Detailed scroll debugging removed for performance
-          // Re-enable via verbose logging if needed
-        },
-        keyboardNavController: this.keyboardNavController,
-        selectionController: this.selectionController,
-        interactionStore: this.interactionStore,
+        // Capture initial visible ranges after body render (MobX computed properties)
+        this.lastVisibleColumns = this.visualStateStore.visibleColumnRange
+        this.lastVisibleRows = this.visualStateStore.visibleRowRange
       })
 
-      // Create service layer before MouseController
-      // Note: EditSessionManager is created in OverlayManager and accessed via its getter
-      // Create SelectionService with coordinate manager
-      this.selectionService = new SelectionService(
-        this.interactionStore,
-        this.tableCoreStore,
-        this.visualStateStore,
-        this.stores.coordinateManager,
-      )
+      const actualPaintTime = performance.now()
+      fileLog.debug('[VGDEBUG] ✅ Marking rendererInitialized')
+      this.initStore.markReady('rendererInitialized')
 
-      // Create CellActionRouter (using EditingStore directly)
-      this.cellActionRouter = new CellActionRouter(
-        this.editingStore,
-        this.options.onCellClick as OnCellClickCallback | undefined,
-      )
+      // GH#2925 p1: advance phase machine — paint observed
+      this.initStore.transitionPhase('painted')
 
-      // Create InteractionCoordinator (using EditingStore directly)
-      this.interactionCoordinator = new InteractionCoordinator(
-        this.container,
-        this.interactionStore,
-        this.selectionService,
-        this.cellActionRouter,
-        this.editingStore,
-        this.tableCoreStore,
-        this.visualStateStore,
-        this.keyboardNavController ?? undefined,
-      )
-      // Wire SlotRegistry into InteractionCoordinator for D2 pipeline
-      if (this.initStore?.slotRegistry) {
-        this.interactionCoordinator.setSlotRegistry(this.initStore.slotRegistry)
-      }
-
-      if (this.keyboardController) {
-        this.keyboardController.setInteractionCoordinator(this.interactionCoordinator)
-      }
-
-      // Initialize MouseController for centralized mouse event handling
-      this.mouseController = new MouseController({
-        container: this.container,
-        bodyRenderer: this.bodyRenderer,
-        scrollController: this.scrollController,
-        selectionController: this.selectionController,
-        interactionStore: this.interactionStore,
-        visualStateStore: this.visualStateStore,
-        tableCoreStore: this.tableCoreStore,
-        keyboardController: this.keyboardController, // Already initialized in Phase 2
-        coordinator: this.interactionCoordinator, // ✅ Pass coordinator
-        enableSelectionColumn: this.options.enableSelectionColumn,
+      fileLog.debug('[VGDEBUG] 🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
+        event: 'browser_paint_complete',
+        timestamp: actualPaintTime,
+        rendererState: 'fully_rendered',
       })
 
-      // Connect MouseController to KeyboardController for focus management
-      if (this.mouseController && this.keyboardController) {
-        this.mouseController.setKeyboardController(this.keyboardController)
-      }
+      // Enable observers after initialization is complete
+      // GH#2034 P4: observersEnabled is now managed by ObserverManager
+      // Re-enable is a no-op since observers were already enabled in initObservers()
+      fileLog.info('✅ Observers already initialized and enabled in constructor')
 
-      // Configure ColumnWidthManager with DOM containers
-      if (this.columnWidthManager) {
-        this.columnWidthManager.setContainers({
-          headerContainer: this.headerContainer,
-          bodyContainer: this.bodyContainer,
-          headerViewport: this.headerViewport,
-        })
-      }
-
-      // Mark controller dependencies as ready (if initManager exists)
-      if (this.initStore) {
-        // ✅ FIXED: InitStore DOES have markReady method - uncommented
-        fileLog.debug('[VGDEBUG] ✅ Marking viewportReady')
-        this.initStore.markReady('viewportReady')
-        fileLog.debug('[VGDEBUG] ✅ Controllers ready')
-      }
-
-      // Phase 3: Defer overlay and event setup (GH#2923 — see Phase 2 note)
-      scheduleAfterPaint(() => {
-        // Guard: Skip if instance was destroyed
-        if (this.isDestroyed) {
-          fileLog.debug('⏭️ Skipping overlay RAF - instance destroyed', {
-            instanceId: this.rendererInstanceId,
-          })
-          return
-        }
-
-        // Initialize overlay now that DOM is ready
-        if (this.overlayManager) {
-          this.overlayManager.initializeOverlay()
-        }
-
-        // Setup event handling via EventManager
-        if (this.eventManager) {
-          this.eventManager.setOverlayManager(this.overlayManager!)
-          this.eventManager.setupEventHandling()
-        }
-
-        // Link coordinator to overlay manager for fill handle delegation
-        if (this.interactionCoordinator) {
-          this.interactionCoordinator.setOverlayManager(this.overlayManager!)
-        }
-
-        // Mark remaining dependencies as ready (if initManager exists)
-        if (this.initStore) {
-          // ✅ FIXED: InitStore DOES have markReady method - uncommented
-          fileLog.debug('[VGDEBUG] ✅ Marking eventHandlersReady')
-          this.initStore.markReady('eventHandlersReady')
-          fileLog.debug('[VGDEBUG] ✅ Overlay and event handlers ready')
-        }
-
-        // Phase 4: Defer header render (GH#2923 — see Phase 2 note)
-        scheduleAfterPaint(() => {
-          // Guard: Skip if instance was destroyed
-          if (this.isDestroyed) {
-            fileLog.debug('⏭️ Skipping header render RAF - instance destroyed', {
-              instanceId: this.rendererInstanceId,
-            })
-            return
-          }
-
-          // Render header first (lighter operation)
-          runInAction(() => {
-            this.renderHeader()
-          })
-
-          // Phase 5: Defer body render to next frame (GH#2923 — see Phase 2 note)
-          scheduleAfterPaint(() => {
-            // Guard: Skip if instance was destroyed
-            if (this.isDestroyed) {
-              fileLog.debug('⏭️ Skipping body render RAF - instance destroyed', {
-                instanceId: this.rendererInstanceId,
-              })
-              return
-            }
-
-            // Render body and capture ranges in batch
-            runInAction(() => {
-              this.renderBody()
-
-              // Capture initial visible ranges after body render (MobX computed properties)
-              this.lastVisibleColumns = this.visualStateStore.visibleColumnRange
-              this.lastVisibleRows = this.visualStateStore.visibleRowRange
-            })
-
-            // Wait for browser to actually paint before marking as ready
-            const paintCompleteTime = performance.now()
-            fileLog.debug('🎨 DOM PAINT COMPLETE', {
-              event: 'renderBody_complete',
-              timestamp: paintCompleteTime,
-              rendererState: 'dom_ready_waiting_for_paint',
-            })
-
-            // Mark renderer as initialized AFTER browser paint is complete
-            // (GH#2923 — see Phase 2 note; the "wait one more frame" is to
-            // observe the post-renderBody paint, which is still desired when
-            // RAF works normally; the setTimeout fallback ensures forward
-            // progress when it doesn't.)
-            scheduleAfterPaint(() => {
-              // Guard: Skip if instance was destroyed
-              if (this.isDestroyed) {
-                fileLog.debug('⏭️ Skipping markReady RAF - instance destroyed', {
-                  instanceId: this.rendererInstanceId,
-                })
-                return
-              }
-
-              const actualPaintTime = performance.now()
-              fileLog.debug('[VGDEBUG] ✅ Marking rendererInitialized')
-              this.initStore.markReady('rendererInitialized')
-
-              fileLog.debug('[VGDEBUG] 🖼️ BROWSER PAINT COMPLETE - SKELETON CAN HIDE', {
-                event: 'browser_paint_complete',
-                timestamp: actualPaintTime,
-                paintDuration: actualPaintTime - paintCompleteTime,
-                rendererState: 'fully_rendered',
-              })
-            })
-
-            // Enable observers after initialization is complete
-            // GH#2034 P4: observersEnabled is now managed by ObserverManager
-            // Re-enable is a no-op since observers were already enabled in initObservers()
-            fileLog.info('✅ Observers already initialized and enabled in constructor')
-
-            fileLog.debug('✅ Post-initialization complete')
-          })
-        })
-      })
+      fileLog.debug('✅ Post-initialization complete')
     })
   }
 

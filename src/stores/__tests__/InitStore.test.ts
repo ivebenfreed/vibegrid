@@ -434,6 +434,65 @@ describe('InitStore', () => {
     })
   })
 
+  describe('initializeStores transitions phase to "schema" (GH#2925 p1)', () => {
+    it('advances phase from "init" to "schema" after the last sequential store init', async () => {
+      const mockVisualStateStore = createMockVisualStateStore()
+      const mockTableCoreStore = createMockStore()
+      const mockInteractionStore = createMockStore()
+      const mockPersistenceStore = createMockStore()
+      const mockViewportStore = createMockViewportStore()
+
+      initStore.setTableCoreStore(mockTableCoreStore as any)
+      initStore.setVisualStateStore(mockVisualStateStore as any)
+      initStore.setInteractionStore(mockInteractionStore as any)
+      initStore.setPersistenceStore(mockPersistenceStore as any)
+      initStore.setViewportStore(mockViewportStore as any)
+
+      expect(initStore.phase).toBe('init')
+      await initStore.initializeStores()
+      expect(initStore.phase).toBe('schema')
+
+      initStore.dispose()
+    })
+
+    it('calls transitionPhase after interactionStore.init() resolves (ordering check)', async () => {
+      const events: string[] = []
+      const mockVisualStateStore = createMockVisualStateStore()
+      const mockTableCoreStore = createMockStore()
+      const mockInteractionStore = {
+        ...createMockStore(),
+        init: vi.fn().mockImplementation(async () => {
+          events.push('interactionStore.init')
+        }),
+      }
+      const mockPersistenceStore = createMockStore()
+      const mockViewportStore = createMockViewportStore()
+
+      initStore.setTableCoreStore(mockTableCoreStore as any)
+      initStore.setVisualStateStore(mockVisualStateStore as any)
+      initStore.setInteractionStore(mockInteractionStore as any)
+      initStore.setPersistenceStore(mockPersistenceStore as any)
+      initStore.setViewportStore(mockViewportStore as any)
+
+      // Spy on transitionPhase to record when it fires
+      const originalTransition = initStore.transitionPhase.bind(initStore)
+      const transitionSpy = vi.spyOn(initStore, 'transitionPhase').mockImplementation((next: any) => {
+        events.push(`transitionPhase:${next}`)
+        return originalTransition(next)
+      })
+
+      await initStore.initializeStores()
+
+      const interactionIdx = events.indexOf('interactionStore.init')
+      const schemaIdx = events.indexOf('transitionPhase:schema')
+      expect(interactionIdx).toBeGreaterThanOrEqual(0)
+      expect(schemaIdx).toBeGreaterThan(interactionIdx)
+
+      transitionSpy.mockRestore()
+      initStore.dispose()
+    })
+  })
+
   describe('setContainer (GH#2925 p0)', () => {
     it('accepts null to clear the container reference', () => {
       const container = createMockContainer()
