@@ -31,6 +31,7 @@ import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 // GH#1658: Ghost rows for inline creation
 import { GhostRowPortal } from './components/GhostRowPortal'
 import { GanttToolbar } from './components/GanttToolbar'
+import { VibeGridEmptyState } from './components/VibeGridEmptyState'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
@@ -1238,17 +1239,25 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // DERIVED STATE
   // ====================================
 
-  // isReady: basic data readiness (stores exist, data loaded)
-  // isRendered: renderer has fully painted (header + body + browser paint complete)
-  // Uses InitStore.isFullyHydrated (MobX computed) instead of checking rendererRef
-  // because the ref is set when the renderer object is created, before it has actually
-  // painted rows. isFullyHydrated waits for rendererInitialized (Phase 6 RAF).
-  const isReady = stores && !isDataLoading
-  const isRendered = initStore?.isFullyHydrated ?? false
+  // GH#2925 (p3): overlay + empty-state predicates derived from InitStore.phase
+  // and entityDataKnownComplete. The 'isReady' / 'isRendered' compound flags
+  // (and the now-defunct isFullyHydrated read) are gone.
+  const showLoadingOverlay =
+    !initStore ||
+    initStore.phase !== 'painted' ||
+    (!initStore.entityDataKnownComplete && tableCoreStore.processedRows.length === 0)
+
+  const showEmptyState =
+    !!initStore &&
+    initStore.phase === 'painted' &&
+    initStore.entityDataKnownComplete &&
+    tableCoreStore.processedRows.length === 0 &&
+    !visualStateStore.globalSearchText &&
+    !visualStateStore.filterGroup
 
   // Header should show as soon as stores are ready (don't wait for renderer)
   // GH#1240: Respect showHeader prop for nested grids that don't need headers
-  const shouldShowHeader = showHeader && isReady && visualStateStore.columns.length > 0
+  const shouldShowHeader = showHeader && !!stores && !isDataLoading && visualStateStore.columns.length > 0
 
   // GH#1391: Smart text search configuration
   const searchConfig = {
@@ -1268,14 +1277,26 @@ function VibeGridInnerBase(props: VibeGridProps) {
   useEffect(() => {
     logger.info('📊 Header visibility check', {
       shouldShowHeader,
-      isReady,
-      isRendered,
-      showLoadingOverlay: !isReady || !isRendered,
+      showLoadingOverlay,
+      showEmptyState,
+      phase: initStore?.phase,
+      entityDataKnownComplete: initStore?.entityDataKnownComplete,
+      processedRowCount: tableCoreStore.processedRows.length,
       columnCount: visualStateStore.columns.length,
       isDataLoading,
       hasStores: !!stores,
     })
-  }, [shouldShowHeader, isReady, isRendered, visualStateStore.columns.length, isDataLoading, stores])
+  }, [
+    shouldShowHeader,
+    showLoadingOverlay,
+    showEmptyState,
+    initStore?.phase,
+    initStore?.entityDataKnownComplete,
+    tableCoreStore.processedRows.length,
+    visualStateStore.columns.length,
+    isDataLoading,
+    stores,
+  ])
 
   // ====================================
   // RENDER
@@ -1297,7 +1318,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
       }}
     >
       {/* Loading overlay */}
-      {(!isReady || !isRendered) && initStore && (
+      {showLoadingOverlay && initStore && (
         <div className="absolute inset-0 z-10">
           <VibeGridLoadingOverlay initStore={initStore} height={height} width={width} />
         </div>
@@ -1372,6 +1393,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
               visibility: effectiveViewMode === 'kanban' ? 'hidden' : 'visible',
             }}
           />
+          {/* GH#2925 (p3): Empty state when grid has fully painted with zero rows */}
+          {effectiveViewMode !== 'kanban' && showEmptyState && (
+            <VibeGridEmptyState entityDisplayName={entityDisplayName} />
+          )}
           {/* GH#2041: Empty state when search/filter returns zero results */}
           {effectiveViewMode !== 'kanban' &&
             !tableCoreStore.isIncrementalProcessing &&

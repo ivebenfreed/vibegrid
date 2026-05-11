@@ -37,11 +37,7 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
   const _hasErrors = initStore.hasErrors
   const criticalErrors = initStore.criticalErrors
 
-  // Always render - let parent control visibility to prevent flash
-  // if (isFullyInitialized) {
-  //   return null;
-  // }
-
+  // Visibility controlled by parent.
   const hasCriticalErrors = criticalErrors.length > 0
 
   return (
