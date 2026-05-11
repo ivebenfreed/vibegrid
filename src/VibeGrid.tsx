@@ -308,6 +308,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
       // these stores to drive the same flows the UI does.
       editingStore,
       visualStateStore,
+      // GH#2925 p0 B1: expose initStore directly so the 4-state phase
+      // machine (phase + entityDataKnownComplete) is reachable in the
+      // browser console without a React Fiber walk.
+      initStore,
       // SharedWorker-backed SQLite client. Verification reads
       // `sqliteClient.isLeader`, broadcast-channel state, and connection
       // status to assert multi-tab fanout (GH#2806 B4).
@@ -454,7 +458,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     return () => {
       delete (window as unknown as { __vibegrid_debug?: unknown }).__vibegrid_debug
     }
-  }, [viewportStore, tableCoreStore, interactionStore, editingStore, visualStateStore])
+  }, [viewportStore, tableCoreStore, interactionStore, editingStore, visualStateStore, initStore])
 
   const cutoffWidth = viewModeStore.cutoffWidth
 

@@ -72,6 +72,15 @@ export interface HydrationMetrics {
   dependencyTimings: Partial<Record<keyof HydrationState, number>>
 }
 
+/**
+ * 4-state phase enum that replaces the 10-flag hydrationState in p4.
+ * Forward-only progression: 'init' → 'schema' → 'controllers' → 'painted'.
+ * Added in p0 as a parallel field; not yet load-bearing — p1–p4 wire it in.
+ */
+export type InitPhase = 'init' | 'schema' | 'controllers' | 'painted'
+
+const PHASE_ORDER: readonly InitPhase[] = ['init', 'schema', 'controllers', 'painted'] as const
+
 // ====================================
 // INIT STORE
 // ====================================
@@ -100,6 +109,18 @@ export class InitStore implements IStore {
     rendererInitialized: false,
     eventHandlersReady: false,
   }
+
+  /**
+   * 4-state lifecycle phase (GH#2925 p0). Parallel to `hydrationState` in p0;
+   * load-bearing in p4 once the 10-flag tracking is removed.
+   */
+  @observable phase: InitPhase = 'init'
+
+  /**
+   * Parallel field for `hydrationState.entityDataLoaded` (GH#2925 p0).
+   * Both are set in lockstep at the same call sites; p4 renames in place.
+   */
+  @observable entityDataKnownComplete: boolean = false
 
   @observable errors: HydrationError[] = []
 
@@ -203,13 +224,54 @@ export class InitStore implements IStore {
   /**
    * Set the DOM container element for the renderer.
    * Called by VibeGrid.tsx when the containerRef is available.
+   * Accepts null so callers can clear the reference during teardown.
    */
   @action
-  setContainer(container: HTMLElement): void {
+  setContainer(container: HTMLElement | null): void {
     this.container = container
     logger.info('Container set on InitStore', {
       tableId: this.tableId,
       hasContainer: !!container,
+    })
+  }
+
+  /**
+   * Mark entity data as known-complete (GH#2925 p0).
+   *
+   * Parallel setter for `markReady('entityDataLoaded')` — p0 sets both in
+   * lockstep at every entityDataLoaded call site; p4 renames in place.
+   * Idempotent — no-op if already true.
+   */
+  @action
+  markEntityDataKnownComplete(): void {
+    if (this.entityDataKnownComplete) return
+    this.entityDataKnownComplete = true
+  }
+
+  /**
+   * Advance the lifecycle phase forward (GH#2925 p0).
+   *
+   * Invariants:
+   * - Strictly forward: 'init' → 'schema' → 'controllers' → 'painted'.
+   * - No skips, no regression. Backward/skipped transitions throw.
+   *
+   * In p0 this field is parallel to `hydrationState` and is not yet load-
+   * bearing. p1–p4 progressively migrate consumers to read `phase` directly.
+   */
+  @action
+  transitionPhase(next: InitPhase): void {
+    const currentIdx = PHASE_ORDER.indexOf(this.phase)
+    const nextIdx = PHASE_ORDER.indexOf(next)
+    if (nextIdx !== currentIdx + 1) {
+      throw new Error(
+        `InitStore.transitionPhase: invalid transition '${this.phase}' → '${next}'. ` +
+          `Phases must progress forward through ${PHASE_ORDER.join(' → ')}.`,
+      )
+    }
+    this.phase = next
+    logger.info('InitStore phase advanced', {
+      tableId: this.tableId,
+      phase: next,
     })
   }
 
@@ -589,6 +651,10 @@ export class InitStore implements IStore {
     Object.keys(this.hydrationState).forEach((key) => {
       this.hydrationState[key as keyof HydrationState] = false
     })
+
+    // GH#2925 p0: reset parallel state-machine fields alongside hydrationState.
+    this.phase = 'init'
+    this.entityDataKnownComplete = false
 
     // Reset metrics and errors
     this.errors = []

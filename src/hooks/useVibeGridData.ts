@@ -154,6 +154,8 @@ export function useVibeGridData(
       // Mark entity data as loaded
       if (!initStore.hydrationState.entityDataLoaded) {
         initStore.markReady('entityDataLoaded')
+        // GH#2925 p0: parallel field, set in lockstep with the old flag.
+        initStore.markEntityDataKnownComplete()
       }
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
@@ -177,6 +179,8 @@ export function useVibeGridData(
           emptyCollectionTimerRef.current = null
         }
         initStore.markReady('entityDataLoaded')
+        // GH#2925 p0: parallel field, set in lockstep with the old flag.
+        initStore.markEntityDataKnownComplete()
       }
     }
   }, [
@@ -198,6 +202,8 @@ export function useVibeGridData(
     emptyCollectionTimerRef.current = setTimeout(() => {
       if (!initStore.hydrationState.entityDataLoaded) {
         initStore.markReady('entityDataLoaded')
+        // GH#2925 p0: parallel field, set in lockstep with the old flag.
+        initStore.markEntityDataKnownComplete()
         logger.info('[useVibeGridData] 📊 Entity data marked loaded (empty collection fallback)', {
           entityType,
         })

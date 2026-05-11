@@ -363,4 +363,89 @@ describe('InitStore', () => {
       expect(status.progress).toBe(0)
     })
   })
+
+  // ====================================
+  // GH#2925 p0 — 4-state phase machine
+  // ====================================
+
+  describe('phase / transitionPhase (GH#2925 p0)', () => {
+    it('starts at phase "init"', () => {
+      expect(initStore.phase).toBe('init')
+    })
+
+    it('starts with entityDataKnownComplete === false', () => {
+      expect(initStore.entityDataKnownComplete).toBe(false)
+    })
+
+    it('advances forward through init → schema → controllers → painted', () => {
+      initStore.transitionPhase('schema')
+      expect(initStore.phase).toBe('schema')
+      initStore.transitionPhase('controllers')
+      expect(initStore.phase).toBe('controllers')
+      initStore.transitionPhase('painted')
+      expect(initStore.phase).toBe('painted')
+    })
+
+    it('throws when skipping states (init → controllers)', () => {
+      expect(() => initStore.transitionPhase('controllers')).toThrow(/invalid transition/i)
+      expect(initStore.phase).toBe('init')
+    })
+
+    it('throws when skipping states (init → painted)', () => {
+      expect(() => initStore.transitionPhase('painted')).toThrow(/invalid transition/i)
+    })
+
+    it('throws on backward transition (painted → schema)', () => {
+      initStore.transitionPhase('schema')
+      initStore.transitionPhase('controllers')
+      initStore.transitionPhase('painted')
+      expect(() => initStore.transitionPhase('schema')).toThrow(/invalid transition/i)
+      expect(initStore.phase).toBe('painted')
+    })
+
+    it('throws on same-state transition (init → init)', () => {
+      expect(() => initStore.transitionPhase('init')).toThrow(/invalid transition/i)
+    })
+
+    it('markEntityDataKnownComplete flips the parallel flag', () => {
+      initStore.markEntityDataKnownComplete()
+      expect(initStore.entityDataKnownComplete).toBe(true)
+    })
+
+    it('markEntityDataKnownComplete is idempotent', () => {
+      initStore.markEntityDataKnownComplete()
+      initStore.markEntityDataKnownComplete()
+      expect(initStore.entityDataKnownComplete).toBe(true)
+    })
+
+    it('reset() returns phase to "init" and clears entityDataKnownComplete', () => {
+      initStore.transitionPhase('schema')
+      initStore.transitionPhase('controllers')
+      initStore.markEntityDataKnownComplete()
+      expect(initStore.phase).toBe('controllers')
+      expect(initStore.entityDataKnownComplete).toBe(true)
+
+      runInAction(() => {
+        initStore.reset()
+      })
+
+      expect(initStore.phase).toBe('init')
+      expect(initStore.entityDataKnownComplete).toBe(false)
+    })
+  })
+
+  describe('setContainer (GH#2925 p0)', () => {
+    it('accepts null to clear the container reference', () => {
+      const container = createMockContainer()
+      runInAction(() => {
+        initStore.setContainer(container)
+      })
+      expect((initStore as any).container).toBe(container)
+
+      runInAction(() => {
+        initStore.setContainer(null)
+      })
+      expect((initStore as any).container).toBeNull()
+    })
+  })
 })
