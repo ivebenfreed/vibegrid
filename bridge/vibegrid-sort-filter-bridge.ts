@@ -218,3 +218,68 @@ export function convertVibeGridFilterToFilterExpression(
   const result = convertGroup(filters as VibeGridFilterGroup)
   return result ?? undefined
 }
+
+// ---------------------------------------------------------------------
+// Global text search (GH#2949)
+// ---------------------------------------------------------------------
+
+/**
+ * Translate VibeGrid's global search text into a FilterExpression that runs
+ * an OR-group of `contains` predicates across the supplied field names.
+ *
+ * Returns `undefined` when there is no usable search (empty/whitespace text
+ * or no fields) so callers can pass the result directly to
+ * `query.patch({ filter })` without a defaulting step.
+ *
+ * SQL emission for `contains` is `<operand> LIKE ? ESCAPE '\\'` with the
+ * value wrapped in `%...%` (see `query-maintenance.ts:818-822`), which is
+ * case-insensitive for ASCII under SQLite's default collation — matching the
+ * JS-side `String.prototype.includes(text.toLowerCase())` semantics that the
+ * dense-mode `applyTextSearch` helper uses. This keeps client and server
+ * behavior aligned across the sparse-mode bypass in
+ * `TableCoreStore.searchFilteredRows` (GH#2848 D8).
+ */
+export function convertGlobalSearchToFilterExpression(
+  searchText: string | null | undefined,
+  searchableFields: readonly string[] | null | undefined,
+): FilterExpression | undefined {
+  if (!searchText) return undefined
+  const trimmed = searchText.trim()
+  if (!trimmed) return undefined
+  if (!searchableFields || searchableFields.length === 0) return undefined
+
+  // Dedupe fields so a misconfigured column list can't generate an
+  // exponential OR expression. Stable order (first-seen) keeps SQL plans
+  // deterministic across renders.
+  const seen = new Set<string>()
+  const leafs: FilterExpression[] = []
+  for (const field of searchableFields) {
+    if (!field || seen.has(field)) continue
+    seen.add(field)
+    leafs.push({ op: 'contains', field, value: trimmed })
+  }
+
+  if (leafs.length === 0) return undefined
+  if (leafs.length === 1) return leafs[0]!
+  return { op: 'or', filters: leafs }
+}
+
+/**
+ * AND-compose two optional FilterExpressions. Used to combine the user's
+ * column-filter UI with the global search filter so both predicates must
+ * hold on the SQL pushdown path.
+ *
+ *   composeFiltersAnd(undefined, undefined) → undefined
+ *   composeFiltersAnd(a,         undefined) → a
+ *   composeFiltersAnd(undefined, b)         → b
+ *   composeFiltersAnd(a,         b)         → { op: 'and', filters: [a, b] }
+ */
+export function composeFiltersAnd(
+  a: FilterExpression | undefined,
+  b: FilterExpression | undefined,
+): FilterExpression | undefined {
+  if (!a && !b) return undefined
+  if (!a) return b
+  if (!b) return a
+  return { op: 'and', filters: [a, b] }
+}

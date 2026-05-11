@@ -9,6 +9,8 @@
 
 import { describe, expect, it } from 'vitest'
 import {
+  composeFiltersAnd,
+  convertGlobalSearchToFilterExpression,
   convertVibeGridFilterToFilterExpression,
   convertVibeGridSortToQueryShape,
   type VibeGridFilterCondition,
@@ -287,5 +289,142 @@ describe('convertVibeGridFilterToFilterExpression — FilterGroup', () => {
       ],
     }
     expect(convertVibeGridFilterToFilterExpression(group)).toBeUndefined()
+  })
+})
+
+// -------------------------------------------------------------------
+// Global search (GH#2949)
+// -------------------------------------------------------------------
+
+describe('convertGlobalSearchToFilterExpression', () => {
+  it('returns undefined for null search text', () => {
+    expect(convertGlobalSearchToFilterExpression(null, ['name'])).toBeUndefined()
+  })
+
+  it('returns undefined for undefined search text', () => {
+    expect(convertGlobalSearchToFilterExpression(undefined, ['name'])).toBeUndefined()
+  })
+
+  it('returns undefined for empty search text', () => {
+    expect(convertGlobalSearchToFilterExpression('', ['name'])).toBeUndefined()
+  })
+
+  it('returns undefined for whitespace-only search text', () => {
+    expect(convertGlobalSearchToFilterExpression('   ', ['name'])).toBeUndefined()
+  })
+
+  it('returns undefined when no searchable fields', () => {
+    expect(convertGlobalSearchToFilterExpression('foo', [])).toBeUndefined()
+    expect(convertGlobalSearchToFilterExpression('foo', null)).toBeUndefined()
+    expect(convertGlobalSearchToFilterExpression('foo', undefined)).toBeUndefined()
+  })
+
+  it('emits a single leaf when one searchable field', () => {
+    expect(convertGlobalSearchToFilterExpression('chinatown', ['name'])).toEqual({
+      op: 'contains',
+      field: 'name',
+      value: 'chinatown',
+    })
+  })
+
+  it('emits OR-group of contains across multiple fields', () => {
+    expect(
+      convertGlobalSearchToFilterExpression('200084', ['name', 'project_number', 'code']),
+    ).toEqual({
+      op: 'or',
+      filters: [
+        { op: 'contains', field: 'name', value: '200084' },
+        { op: 'contains', field: 'project_number', value: '200084' },
+        { op: 'contains', field: 'code', value: '200084' },
+      ],
+    })
+  })
+
+  it('trims surrounding whitespace from the search value', () => {
+    expect(convertGlobalSearchToFilterExpression('  200084  ', ['name'])).toEqual({
+      op: 'contains',
+      field: 'name',
+      value: '200084',
+    })
+  })
+
+  it('preserves internal whitespace and special characters', () => {
+    expect(convertGlobalSearchToFilterExpression('CTB Chinatown', ['name'])).toEqual({
+      op: 'contains',
+      field: 'name',
+      value: 'CTB Chinatown',
+    })
+  })
+
+  it('dedupes repeated fields to avoid redundant OR branches', () => {
+    expect(
+      convertGlobalSearchToFilterExpression('foo', ['name', 'name', 'code', 'name']),
+    ).toEqual({
+      op: 'or',
+      filters: [
+        { op: 'contains', field: 'name', value: 'foo' },
+        { op: 'contains', field: 'code', value: 'foo' },
+      ],
+    })
+  })
+
+  it('drops empty field names', () => {
+    expect(convertGlobalSearchToFilterExpression('foo', ['name', '', 'code'])).toEqual({
+      op: 'or',
+      filters: [
+        { op: 'contains', field: 'name', value: 'foo' },
+        { op: 'contains', field: 'code', value: 'foo' },
+      ],
+    })
+  })
+
+  it('unwraps to leaf if dedupe collapses to a single field', () => {
+    expect(
+      convertGlobalSearchToFilterExpression('foo', ['name', 'name', 'name']),
+    ).toEqual({ op: 'contains', field: 'name', value: 'foo' })
+  })
+})
+
+// -------------------------------------------------------------------
+// AND composition (GH#2949)
+// -------------------------------------------------------------------
+
+describe('composeFiltersAnd', () => {
+  it('returns undefined when both inputs are undefined', () => {
+    expect(composeFiltersAnd(undefined, undefined)).toBeUndefined()
+  })
+
+  it('returns the lone defined input — a side', () => {
+    const a = { op: 'eq' as const, field: 'status', value: 'open' }
+    expect(composeFiltersAnd(a, undefined)).toBe(a)
+  })
+
+  it('returns the lone defined input — b side', () => {
+    const b = { op: 'eq' as const, field: 'status', value: 'open' }
+    expect(composeFiltersAnd(undefined, b)).toBe(b)
+  })
+
+  it('wraps two leaves in AND', () => {
+    const a = { op: 'eq' as const, field: 'status', value: 'open' }
+    const b = { op: 'contains' as const, field: 'name', value: 'foo' }
+    expect(composeFiltersAnd(a, b)).toEqual({
+      op: 'and',
+      filters: [a, b],
+    })
+  })
+
+  it('does not flatten nested AND groups (composition is opaque)', () => {
+    const a = {
+      op: 'and' as const,
+      filters: [
+        { op: 'eq' as const, field: 'a', value: 1 },
+        { op: 'eq' as const, field: 'b', value: 2 },
+      ],
+    }
+    const b = { op: 'contains' as const, field: 'name', value: 'foo' }
+    expect(composeFiltersAnd(a, b)).toEqual({
+      op: 'and',
+      filters: [a, b],
+    })
   })
 })
