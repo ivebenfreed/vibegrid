@@ -226,41 +226,61 @@ export async function generateColumnsFromEntitySchema<T = any>(
 
   // Note: BidPackage and GlobalBidPackage special cases removed — now standard platform entities (GH#2332)
 
-  // Wait for schema registry to be ready (with timeout)
-  // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds
-  const maxWaitMs = 30000 // 30 seconds
+  // Wait for the schema registry to be ready AND for the requested entity
+  // to be present in `byName`. Two distinct readiness gates collapsed into
+  // one loop:
+  //   1. `isBootstrapping || !schemas` — initial bootstrap hasn't landed yet.
+  //   2. `!schemas.byName[entityType]` — bootstrap completed but the entity
+  //      arrived via a later `schema_change` delta (GH#2933). Common when an
+  //      entity manifest was deployed after the user's SQLite schema cache
+  //      was last populated — the cache hydrates the collection instantly
+  //      with the old set, then the network refresh + delta path appends
+  //      the new entity a few hundred ms (sometimes seconds) later.
+  //
+  // The single-entity check is a no-op on the hot path: when the entity is
+  // already in `byName` (hard-reload, second visit, or any session where the
+  // SQLite cache is current) the very first iteration falls through with
+  // zero added latency.
+  //
+  // WebSocket bootstrap can take 12+ seconds, so allow 30 seconds total.
+  const maxWaitMs = 30000
   const pollIntervalMs = 100
   let waited = 0
 
-  while (schemaRegistry.isBootstrapping || !schemaRegistry.schemas) {
+  while (
+    schemaRegistry.isBootstrapping ||
+    !schemaRegistry.schemas ||
+    !schemaRegistry.schemas.byName[entityType]
+  ) {
     if (waited >= maxWaitMs) {
-      fileLog.error('❌ Schema registry timeout', { entityType, waited })
-      throw new Error(`Schema registry timeout waiting for entity: ${entityType}`)
+      const available = schemaRegistry.schemas
+        ? Object.keys(schemaRegistry.schemas.byName)
+        : []
+      fileLog.error('❌ Schema registry timeout waiting for entity', {
+        entityType,
+        waited,
+        isBootstrapping: schemaRegistry.isBootstrapping,
+        hasSchemas: !!schemaRegistry.schemas,
+        availableEntities: available,
+      })
+      throw new Error(
+        `Entity ${entityType} not found in schema registry after ${waited}ms. Available: ${available.join(', ')}`,
+      )
     }
-    fileLog.debug('⏳ Waiting for schema registry...', { entityType, waited })
+    fileLog.debug('⏳ Waiting for entity schema...', {
+      entityType,
+      waited,
+      isBootstrapping: schemaRegistry.isBootstrapping,
+      hasSchemas: !!schemaRegistry.schemas,
+    })
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
     waited += pollIntervalMs
   }
 
-  // Get schemas from MobX store
-  const schemas = schemaRegistry.schemas
-  if (!schemas) {
-    fileLog.warn('❌ Schema registry not available', { entityType })
-    throw new Error(`Schema registry not available for entity: ${entityType}`)
-  }
-
-  // Look up entity schema by name using the byName index
-  const entitySchema = schemas.byName[entityType]
-
-  if (!entitySchema) {
-    fileLog.error('❌ Entity not found in schema registry - FAIL FAST', {
-      entityType,
-      availableEntities: Object.keys(schemas.byName),
-    })
-    throw new Error(
-      `Entity ${entityType} not found in schema registry. Available: ${Object.keys(schemas.byName).join(', ')}`,
-    )
-  }
+  // Loop above only exits when both `schemas` and `byName[entityType]` are
+  // truthy. TS can't narrow across property reads on a MobX store, so assert.
+  const schemas = schemaRegistry.schemas!
+  const entitySchema = schemas.byName[entityType]!
 
   fileLog.debug('✅ Found entity schema', {
     entityType,

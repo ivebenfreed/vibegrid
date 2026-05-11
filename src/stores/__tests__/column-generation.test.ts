@@ -129,3 +129,57 @@ describe('column-generation: D2 SlotRegistry migration', () => {
     }
   })
 })
+
+describe('column-generation: GH#2933 late-arriving entity in byName', () => {
+  it('waits for entity to appear in byName when bootstrap completes without it', async () => {
+    // Simulates the PaymentCycle soft-nav race: bootstrap is done
+    // (isBootstrapping=false, schemas present), but the requested entity
+    // arrives later via a schema_change delta. The wait loop must keep
+    // polling until byName[entityType] is populated, then proceed.
+    const registry: any = {
+      isBootstrapping: false,
+      schemas: {
+        byName: {
+          // PaymentCycle missing initially — only Company present.
+          Company: { fields: [{ name: 'name', type: 'text' }] },
+        },
+      },
+    }
+
+    const promise = generateColumnsFromEntitySchema('PaymentCycle', registry)
+
+    // Append PaymentCycle after a short delay (simulates schema_change
+    // delta landing via collection.subscribeChanges → ingestSchemas).
+    setTimeout(() => {
+      registry.schemas.byName.PaymentCycle = {
+        fields: [
+          { name: 'name', type: 'text' },
+          { name: 'period_start', type: 'date' },
+          { name: 'status', type: 'select' },
+        ],
+      }
+    }, 300)
+
+    const columns = await promise
+    const ids = columns.map((c) => c.id)
+    expect(ids).toContain('name')
+    expect(ids).toContain('period_start')
+    expect(ids).toContain('status')
+  })
+
+  it('hot path: entity already in byName at first check resolves with zero delay', async () => {
+    const registry = makeSchemaRegistry([
+      { name: 'name', type: 'text' },
+      { name: 'status', type: 'select' },
+    ])
+
+    const start = Date.now()
+    const columns = await generateColumnsFromEntitySchema('TestEntity', registry)
+    const elapsed = Date.now() - start
+
+    expect(columns.length).toBeGreaterThan(0)
+    // Should resolve effectively instantly — no polling delay added.
+    // Generous bound to avoid CI flakiness; first poll interval is 100ms.
+    expect(elapsed).toBeLessThan(80)
+  })
+})
