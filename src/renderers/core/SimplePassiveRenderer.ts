@@ -5,7 +5,7 @@
  * then we can add overlays back once we have the foundation working.
  */
 
-import { reaction, runInAction } from 'mobx'
+import { runInAction } from 'mobx'
 import { getLogger } from '@/shared/lib/logging'
 // New hybrid coordinate system imports
 import { GRID_DIMENSIONS } from '../../constants/grid-dimensions'
@@ -327,44 +327,12 @@ export class SimplePassiveRenderer {
       setupPreRenderContext: () => this.setupPreRenderContext(),
     })
 
-    // CRITICAL: Enable observers BEFORE initializing them so guards don't block
+    // CRITICAL: Enable observers BEFORE init() so guards don't block.
+    // GH#2925 p2: .init() (which creates the 11 reactions) is deferred to
+    // the post-paint callback inside postInitialization(). The
+    // ObserverManager instance is created here (constructor is cheap).
     this._observerManager.enable()
-    fileLog.info('🎯 Initializing focused observers after all components ready')
-    this._observerManager.init()
-
-    // GH#2920 follow-up — defense-in-depth hydration gate.
-    //
-    // ObserverManager already wires a hydration observer
-    // (createHydrationObserver), but that path runs through
-    // `observersEnabled` and the manager's lifecycle. This redundant reaction
-    // is owned by the renderer itself and tied to the renderer dispose
-    // chain — it covers the rare race where the data observer's renderBody
-    // call lands inside the init gate (renderBody:1817), bails, and no
-    // further dataVersion bump arrives before isFullyHydrated flips true.
-    //
-    // Live trace from pr-8 (commit faed0a962):
-    //   13:18:09.514  setSparseRows + dataVersion bump → renderBody bails (init gate)
-    //   13:18:14.430  empty-collection fallback flips entityDataLoaded → isFullyHydrated=true
-    //   ... no further data event, body stays empty.
-    //
-    // The relaxed gate at renderBody:1817 fixes the common case (data
-    // present pre-init); this reaction covers the inverse (init completes
-    // after a no-op render attempt). On the false→true transition, only
-    // forces renderBody when rows are actually present, so we don't paint
-    // an empty body redundantly.
-    const disposeHydrationGate = reaction(
-      () => this.initStore.isFullyHydrated,
-      (hydrated, prev) => {
-        if (hydrated && !prev && this.tableCoreStore.processedRows.length > 0) {
-          fileLog.info('🎨 hydration gate cleared post-data — forcing renderBody', {
-            rowCount: this.tableCoreStore.processedRows.length,
-          })
-          this.renderBody()
-        }
-      },
-      { fireImmediately: false },
-    )
-    this.disposers.push(disposeHydrationGate)
+    fileLog.info('🎯 ObserverManager constructed + enabled; init() deferred to post-paint')
   }
 
   /**
@@ -906,10 +874,22 @@ export class SimplePassiveRenderer {
         rendererState: 'fully_rendered',
       })
 
-      // Enable observers after initialization is complete
-      // GH#2034 P4: observersEnabled is now managed by ObserverManager
-      // Re-enable is a no-op since observers were already enabled in initObservers()
-      fileLog.info('✅ Observers already initialized and enabled in constructor')
+      // GH#2925 p2 — create the 11 MobX reactions AFTER paint. The
+      // ObserverManager instance is constructed up-front in initObservers()
+      // (constructor is cheap); .init() is deferred here so each reaction
+      // fires immediately against the post-paint store state and observes
+      // any subsequent changes. The builder chain runs postInitialization()
+      // synchronously, then initObservers() synchronously (which creates
+      // the instance) — by the time this RAF/setTimeout callback fires,
+      // `this._observerManager` exists.
+      if (!this._observerManager) {
+        fileLog.error(
+          '❌ ObserverManager missing in post-paint callback — builder chain ordering broken',
+        )
+      } else {
+        fileLog.info('🎯 Initializing focused observers post-paint')
+        this._observerManager.init()
+      }
 
       fileLog.debug('✅ Post-initialization complete')
     })
@@ -1865,27 +1845,13 @@ export class SimplePassiveRenderer {
       configV: this.tableCoreStore.configVersion,
     })
 
-    // GUARD: Only render if grid is fully initialized OR if this is the initial render call
-    const isFullyInitialized = this.initStore.isFullyHydrated
-    const rendererInitialized = this.initStore.hydrationState.rendererInitialized
-    // GH#2920 follow-up: relax the gate when data has already arrived. The
-    // original bail (return when !isFullyHydrated && rendererInitialized) was
-    // protecting against partial-init renders, but it created a render-init
-    // race: setSparseRows arrives, dataVersion bumps, the data observer fires
-    // renderBody, the gate bails — and there is no guarantee that any
-    // subsequent dataVersion bump will re-trigger renderBody (the
-    // entityDataLoaded → isFullyHydrated transition fires alone, with no row
-    // data event behind it). Net effect: 12 rows in TableCoreStore, body
-    // container empty until the user scrolls or sorts. Relax the gate so we
-    // render when rows are present even if isFullyHydrated hasn't flipped
-    // yet; the hydration observer in ObserverManager remains as
-    // defense-in-depth for the genuinely-empty path.
-    const hasRows = this.tableCoreStore.processedRows.length > 0
-
-    // Allow initial render before renderer is marked as initialized.
-    // Skip ONLY when the grid is mid-init AND no data has arrived yet.
-    if (!isFullyInitialized && rendererInitialized && !hasRows) {
-      fileLog.debug('⏸️ RENDER_BODY: Skipping render during initialization (no data yet)')
+    // GH#2925 p2: single phase check. Allow renderBody during
+    // postInitialization's own first call (phase 'controllers' — Stage 2's
+    // scheduleAfterPaint callback invokes renderBody BEFORE
+    // transitionPhase('painted')) and on all subsequent renders (phase
+    // 'painted'). Block before controllers exist.
+    if (this.initStore.phase !== 'painted' && this.initStore.phase !== 'controllers') {
+      fileLog.debug('⏸️ RENDER_BODY: phase not ready', { phase: this.initStore.phase })
       return
     }
 

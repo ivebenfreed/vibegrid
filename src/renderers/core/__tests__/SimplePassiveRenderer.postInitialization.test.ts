@@ -41,6 +41,7 @@ type PostInitCtx = {
     transitionPhase: ReturnType<typeof vi.fn>
     slotRegistry: { register?: any }
   }
+  _observerManager: { init: ReturnType<typeof vi.fn> } | null
   keyboardNavController: any
   keyboardController: { setInteractionCoordinator: ReturnType<typeof vi.fn> } | null
   selectionController: any
@@ -115,6 +116,7 @@ function makeCtx(): PostInitCtx {
     columnWidthManager: { setContainers: vi.fn() },
     overlayManager: { initializeOverlay: vi.fn() },
     eventManager: { setOverlayManager: vi.fn(), setupEventHandling: vi.fn() },
+    _observerManager: { init: vi.fn() },
     bodyRenderer: {},
     options: { enableSelectionColumn: false },
     lastVisibleColumns: null,
@@ -283,5 +285,43 @@ describe('SimplePassiveRenderer.postInitialization (GH#2925 p1)', () => {
 
     expect(ctx.renderBody).not.toHaveBeenCalled()
     expect(ctx.initStore.transitionPhase).not.toHaveBeenCalledWith('painted')
+  })
+
+  it('calls _observerManager.init() inside the scheduled callback after transitionPhase("painted") (GH#2925 p2)', () => {
+    const ctx = makeCtx()
+    ctx.postInitialization.call(ctx)
+
+    // Init has NOT been called yet — it lives inside the scheduled callback
+    expect(ctx._observerManager!.init).not.toHaveBeenCalled()
+
+    // Track call order between transitionPhase('painted') and observer init
+    const callOrder: string[] = []
+    ctx.initStore.transitionPhase.mockImplementation((p: string) => {
+      callOrder.push(`transitionPhase:${p}`)
+    })
+    ctx._observerManager!.init.mockImplementation(() => {
+      callOrder.push('observerManager.init')
+    })
+
+    // Fire the captured RAF callback
+    pendingCallbacks[0]()
+
+    expect(ctx._observerManager!.init).toHaveBeenCalledTimes(1)
+    // transitionPhase('painted') must fire BEFORE observerManager.init()
+    const paintedIdx = callOrder.indexOf('transitionPhase:painted')
+    const initIdx = callOrder.indexOf('observerManager.init')
+    expect(paintedIdx).toBeGreaterThanOrEqual(0)
+    expect(initIdx).toBeGreaterThan(paintedIdx)
+  })
+
+  it('does NOT throw if _observerManager is missing in the scheduled callback (defensive guard)', () => {
+    const ctx = makeCtx()
+    ctx._observerManager = null
+    ctx.postInitialization.call(ctx)
+
+    // The callback should not throw even with no observer manager
+    expect(() => pendingCallbacks[0]()).not.toThrow()
+    // transitionPhase('painted') still fires
+    expect(ctx.initStore.transitionPhase).toHaveBeenCalledWith('painted')
   })
 })

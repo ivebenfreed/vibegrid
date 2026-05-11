@@ -112,7 +112,14 @@ export class ObserverManager {
     this.observersEnabled = false
   }
 
-  /** Create all reactions. Called once during init. */
+  /**
+   * Create all reactions. Called once during init from the renderer's
+   * post-paint callback (GH#2925 p2). Each reaction uses
+   * `fireImmediately: true` to reconcile current store state with the
+   * already-painted DOM on first activation — the legacy
+   * `createHydrationObserver` was a defense-in-depth bandage for the
+   * pre-paint observer wiring and is no longer needed.
+   */
   init(): void {
     fileLog.info('🎯 Initializing focused observers')
 
@@ -125,7 +132,6 @@ export class ObserverManager {
     this.createColumnWidthsObserver()
     this.createVirtualScrollObserver()
     this.createHorizontalScrollObserver()
-    this.createHydrationObserver()
     this.createSelectionDeltaReaction()
     this.createGridLineCanvasReactions()
 
@@ -217,7 +223,7 @@ export class ObserverManager {
    * React to version changes instead of processedRows to avoid unnecessary recomputation.
    */
   private createDataObserver(): void {
-    const { tableCoreStore, initStore } = this.deps
+    const { tableCoreStore } = this.deps
 
     fileLog.info('🎯 Creating version-based data observer - tracking dataVersion/configVersion/structureVersion')
 
@@ -244,15 +250,9 @@ export class ObserverManager {
           timestamp: Date.now(),
         })
 
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ VERSION: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        if (initStore && !initStore.isFullyHydrated) {
-          fileLog.debug('⏸️ VERSION: Skipping render during initialization')
           return
         }
 
@@ -349,6 +349,7 @@ export class ObserverManager {
           return
         }
       },
+      { fireImmediately: true },
     )
   }
 
@@ -356,21 +357,14 @@ export class ObserverManager {
    * COLUMN VISIBILITY OBSERVER: MobX reaction for column visibility changes
    */
   private createColumnVisibilityObserver(): void {
-    const { visualStateStore, initStore } = this.deps
+    const { visualStateStore } = this.deps
 
     this.columnVisibilityObserverDisposer = reaction(
       () => visualStateStore.columnVisibility,
       (columnVisibility) => {
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ COLUMN VISIBILITY: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        const isFullyInitialized = initStore.isFullyHydrated
-        if (!isFullyInitialized) {
-          fileLog.debug('⏸️ COLUMN VISIBILITY: Skipping render during initialization')
           return
         }
 
@@ -385,6 +379,7 @@ export class ObserverManager {
         this.deps.renderHeader()
         this.deps.renderBody()
       },
+      { fireImmediately: true },
     )
   }
 
@@ -392,21 +387,14 @@ export class ObserverManager {
    * GH#1391: SEARCH FILTER OBSERVER - triggers body re-render when search text changes
    */
   private createSearchFilterObserver(): void {
-    const { visualStateStore, initStore, tableCoreStore } = this.deps
+    const { visualStateStore, tableCoreStore } = this.deps
 
     this.searchFilterObserverDisposer = reaction(
       () => visualStateStore.globalSearchText,
       (searchText) => {
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ SEARCH FILTER: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        const isFullyInitialized = initStore.isFullyHydrated
-        if (!isFullyInitialized) {
-          fileLog.debug('⏸️ SEARCH FILTER: Skipping render during initialization')
           return
         }
 
@@ -419,6 +407,7 @@ export class ObserverManager {
         // Re-render body with filtered rows
         this.deps.renderBody()
       },
+      { fireImmediately: true },
     )
   }
 
@@ -426,7 +415,7 @@ export class ObserverManager {
    * GH#1240: ROW EXPANSION OBSERVER - triggers data loading and body re-render
    */
   private createExpansionObserver(): void {
-    const { interactionStore, initStore, tableCoreStore } = this.deps
+    const { interactionStore, tableCoreStore } = this.deps
 
     this.expansionObserverDisposer = reaction(
       () => interactionStore.expansionVersion,
@@ -437,15 +426,9 @@ export class ObserverManager {
           expandedRowIds: Array.from(interactionStore.expandedRowIds),
         })
 
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ EXPANSION: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        if (initStore && !initStore.isFullyHydrated) {
-          fileLog.debug('⏸️ EXPANSION: Skipping render during initialization')
           return
         }
 
@@ -508,6 +491,7 @@ export class ObserverManager {
           this.deps.renderBody()
         })
       },
+      { fireImmediately: true },
     )
   }
 
@@ -515,7 +499,7 @@ export class ObserverManager {
    * GH#1422: INCREMENTAL PROCESSING OBSERVER - handles viewport-first rendering for large datasets
    */
   private createIncrementalProcessingObserver(): void {
-    const { tableCoreStore, initStore } = this.deps
+    const { tableCoreStore } = this.deps
 
     const incrementalProcessingDisposer = reaction(
       () => ({
@@ -523,15 +507,9 @@ export class ObserverManager {
         progress: tableCoreStore.processingProgress,
       }),
       ({ isProcessing, progress }) => {
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ INCREMENTAL: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        if (initStore && !initStore.isFullyHydrated) {
-          fileLog.debug('⏸️ INCREMENTAL: Skipping render during initialization')
           return
         }
 
@@ -567,6 +545,7 @@ export class ObserverManager {
           this.deps.renderBody()
         }
       },
+      { fireImmediately: true },
     )
     this.disposers.push(incrementalProcessingDisposer)
   }
@@ -575,7 +554,7 @@ export class ObserverManager {
    * COLUMN ORDER OBSERVER: MobX reaction for column order changes
    */
   private createColumnOrderObserver(): void {
-    const { visualStateStore, initStore } = this.deps
+    const { visualStateStore } = this.deps
 
     this.columnOrderObserverDisposer = reaction(
       () => visualStateStore.columnOrder,
@@ -585,16 +564,9 @@ export class ObserverManager {
           timestamp: Date.now(),
         })
 
-        // GUARD: Skip if observers are not enabled yet
+        // GUARD: Skip if observers are not enabled yet (explicit teardown killswitch).
         if (!this.observersEnabled) {
           fileLog.debug('⏸️ COLUMN ORDER: Observers not enabled yet')
-          return
-        }
-
-        // GUARD: Only render if grid is fully initialized
-        const isFullyInitialized = initStore.isFullyHydrated
-        if (!isFullyInitialized) {
-          fileLog.debug('⏸️ COLUMN ORDER: Skipping render during initialization')
           return
         }
 
@@ -611,6 +583,7 @@ export class ObserverManager {
           this.deps.renderBody()
         })
       },
+      { fireImmediately: true },
     )
   }
 
@@ -785,29 +758,6 @@ export class ObserverManager {
         }
       },
     )
-  }
-
-  /**
-   * HYDRATION OBSERVER: Re-render when grid becomes fully hydrated (for late-arriving data)
-   */
-  private createHydrationObserver(): void {
-    const { initStore, tableCoreStore } = this.deps
-
-    // CRITICAL: fireImmediately ensures initial render happens if data is already loaded
-    const hydrationDisposer = reaction(
-      () => initStore.isFullyHydrated,
-      (isHydrated) => {
-        if (isHydrated && this.observersEnabled) {
-          fileLog.debug('🎯 Grid fully hydrated - triggering render for any pending data', {
-            rowCount: tableCoreStore.processedRows.length,
-          })
-          // Re-render to show any data that arrived during initialization
-          this.deps.renderBody()
-        }
-      },
-      { fireImmediately: true },
-    )
-    this.disposers.push(hydrationDisposer)
   }
 
   /**
