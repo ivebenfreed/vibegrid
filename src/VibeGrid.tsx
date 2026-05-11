@@ -324,6 +324,30 @@ function VibeGridInnerBase(props: VibeGridProps) {
       // initialized; the verification harness reads `lastQuery.shape` and
       // calls `lastQuery.patch({filter})` directly to drive SQL pushdown.
       lastQuery: null as unknown,
+      // GH#2928 B1 — ring buffer for cold-start telemetry events
+      // (`query.firstCell` from the SQLite worker, plus P3's
+      // `cold_start_bypass.*` events). Pushed to by `telemetry-bridge.ts`'s
+      // `mirrorToColdStartBuffer`; capped at 100 entries (push + shift).
+      // Initialized empty here so the bridge's defensive `Array.isArray`
+      // check passes as soon as the debug surface mounts.
+      coldStart: [] as Array<unknown>,
+      // GH#2928 B2 — drop OPFS state for the active org and reload. Uses
+      // `location.reload()` (NOT `location.href = location.pathname`) so
+      // the `?debug=vibegrid` (and any other) query params survive the
+      // round trip — V0 of the spec verification depends on this.
+      async resetOPFS() {
+        const client = getSQLiteClient()
+        const targetOrgId = client.orgId
+        if (!targetOrgId) throw new Error('No active org on client')
+        // biome-ignore lint/suspicious/noConsole: visible diagnostic for debug helper
+        console.warn('[__vibegrid_debug.resetOPFS] resetting OPFS — page will reload')
+        const result = await client.resetForOrg(targetOrgId)
+        // biome-ignore lint/suspicious/noConsole: visible diagnostic for debug helper
+        console.log('[__vibegrid_debug.resetOPFS] result', result)
+        // location.reload() preserves query params (?debug=vibegrid&...).
+        setTimeout(() => location.reload(), 200)
+        return result
+      },
       // Boot diagnostics for the legacy OPFS table migration (GH#2806 P1.5).
       // Returns `{ lastResult, ranAt }` from the most recent
       // `migrateLegacyEntityTables` call, or null if migration hasn't fired
