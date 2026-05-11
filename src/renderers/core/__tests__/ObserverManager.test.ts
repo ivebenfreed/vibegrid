@@ -50,8 +50,7 @@ function makeDeps(processedRows: any[] = []): ObserverManagerDeps {
   }
   const editingStore: any = {}
   const initStore: any = {
-    // p2: no longer used by reactions, but kept on deps for type compatibility
-    isFullyHydrated: true,
+    // GH#2925 p4: phase machine is the single source of truth.
     phase: 'painted',
   }
   const debugStore: any = {
@@ -129,7 +128,7 @@ describe('ObserverManager (GH#2925 p2)', () => {
     om.init()
 
     // Count reactions that received { fireImmediately: true } as their 3rd arg.
-    // The 6 reactions formerly gated on isFullyHydrated all must now fire immediately.
+    // The 6 reactions formerly gated on phase !== 'painted' all must now fire immediately.
     const fireImmediatelyCalls = reactionSpy.mock.calls.filter(
       (call: any[]) => (call[2] as any)?.fireImmediately === true,
     )

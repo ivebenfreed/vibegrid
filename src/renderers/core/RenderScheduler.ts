@@ -120,8 +120,8 @@ export class RenderScheduler {
           return
         }
 
-        // GUARD: Only render if grid is fully initialized
-        if (!this.initStore.isFullyHydrated) {
+        // GUARD: Only render if grid has fully painted
+        if (this.initStore.phase !== 'painted') {
           fileLog.debug('Skipping render during initialization')
           return
         }

@@ -163,9 +163,9 @@ const MockDataInjector = observer(function MockDataInjector({
   useEffect(() => {
     tableCoreStore.setRows(tasks)
 
-    // Mark as ready if not already
-    if (!initStore.hydrationState.entityDataLoaded) {
-      initStore.markReady('entityDataLoaded')
+    // Mark as known-complete if not already
+    if (!initStore.entityDataKnownComplete) {
+      initStore.markEntityDataKnownComplete()
     }
   }, [tasks, tableCoreStore, initStore])
 

@@ -498,9 +498,9 @@ const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: s
       tableCoreStore.setRows(data.items)
     })
 
-    // Mark entity data as loaded to complete hydration
-    if (!initStore.hydrationState.entityDataLoaded) {
-      initStore.markReady('entityDataLoaded')
+    // Mark entity data as known-complete to drive hydration
+    if (!initStore.entityDataKnownComplete) {
+      initStore.markEntityDataKnownComplete()
     }
   }, [tableCoreStore, initStore, data])
 

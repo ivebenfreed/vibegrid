@@ -607,9 +607,8 @@ export class ObserverManager {
           return
         }
 
-        // GUARD: Only render if grid is fully initialized
-        const isFullyInitialized = initStore.isFullyHydrated
-        if (!isFullyInitialized) {
+        // GUARD: Only render if grid has fully painted
+        if (initStore.phase !== 'painted') {
           fileLog.debug('[RESIZE] ⏸️ COLUMN WIDTHS: Skipping during initialization')
           return
         }

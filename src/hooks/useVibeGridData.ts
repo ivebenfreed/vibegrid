@@ -88,7 +88,7 @@ export interface VibeGridDataOptions {
  *
  * The substrate hook writes rows directly to TableCoreStore via setSparseRows().
  * This hook owns:
- *   - hydration state (initStore.markReady('entityDataLoaded'))
+ *   - hydration state (initStore.markEntityDataKnownComplete())
  *   - mock-data passthrough (collectionOverride)
  *   - mutation entry points (createEntity / updateEntity / deleteEntity)
  *
@@ -151,10 +151,8 @@ export function useVibeGridData(
       })
       tableCoreStore.setRows(items)
 
-      // Mark entity data as loaded
-      if (!initStore.hydrationState.entityDataLoaded) {
-        initStore.markReady('entityDataLoaded')
-        // GH#2925 p0: parallel field, set in lockstep with the old flag.
+      // Mark entity data as known-complete
+      if (!initStore.entityDataKnownComplete) {
         initStore.markEntityDataKnownComplete()
       }
     }
@@ -170,7 +168,7 @@ export function useVibeGridData(
     // window arrives.
     if (substrateState.bounded) {
       if (
-        !initStore.hydrationState.entityDataLoaded &&
+        !initStore.entityDataKnownComplete &&
         substrateState.isReady &&
         substrateState.count > 0
       ) {
@@ -178,8 +176,6 @@ export function useVibeGridData(
           clearTimeout(emptyCollectionTimerRef.current)
           emptyCollectionTimerRef.current = null
         }
-        initStore.markReady('entityDataLoaded')
-        // GH#2925 p0: parallel field, set in lockstep with the old flag.
         initStore.markEntityDataKnownComplete()
       }
     }
@@ -193,18 +189,16 @@ export function useVibeGridData(
     substrateState.count,
   ])
 
-  // Fallback: For legitimately empty collections, mark entityDataLoaded after a delay.
+  // Fallback: For legitimately empty collections, mark entityDataKnownComplete after a delay.
   // When the substrate returns 0 records, the condition above never fires.
   // This timeout ensures the skeleton eventually disappears.
   useEffect(() => {
-    if (skip || initStore.hydrationState.entityDataLoaded) return
+    if (skip || initStore.entityDataKnownComplete) return
 
     emptyCollectionTimerRef.current = setTimeout(() => {
-      if (!initStore.hydrationState.entityDataLoaded) {
-        initStore.markReady('entityDataLoaded')
-        // GH#2925 p0: parallel field, set in lockstep with the old flag.
+      if (!initStore.entityDataKnownComplete) {
         initStore.markEntityDataKnownComplete()
-        logger.info('[useVibeGridData] 📊 Entity data marked loaded (empty collection fallback)', {
+        logger.info('[useVibeGridData] 📊 Entity data marked known-complete (empty collection fallback)', {
           entityType,
         })
       }

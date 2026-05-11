@@ -2,10 +2,12 @@
  * VibeGrid Loading Overlay
  *
  * Shows loading state with skeleton UI while VibeGrid initializes.
- * Displays progress, errors, and provides retry functionality.
+ * Visibility is controlled by the parent — see `showLoadingOverlay` in
+ * VibeGrid.tsx (predicate: `phase !== 'painted' || (!entityDataKnownComplete
+ * && processedRows.length === 0)`).
  */
 
-import { AlertTriangle, CheckCircle } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import type { InitStore } from '../stores/InitStore'
 import { TableSkeleton } from './TableSkeleton'
@@ -31,13 +33,7 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
   width = '100%',
   showDetailedProgress = false,
 }: VibeGridLoadingOverlayProps) {
-  // Access MobX store properties directly
-  const _isFullyInitialized = initStore.isFullyHydrated
-  const _errors = initStore.errors
-  const _hasErrors = initStore.hasErrors
   const criticalErrors = initStore.criticalErrors
-
-  // Visibility controlled by parent.
   const hasCriticalErrors = criticalErrors.length > 0
 
   return (
@@ -60,45 +56,23 @@ export const VibeGridLoadingOverlay = observer(function VibeGridLoadingOverlay({
         </div>
       )}
 
-      {/* Development Debug Panel (only if explicitly enabled) */}
+      {/* Development Debug Panel (only if explicitly enabled) — GH#2925 p4:
+          collapsed from per-flag map to the 2 phase-machine signals. */}
       {showDetailedProgress && process.env.NODE_ENV === 'development' && (
         <div className="absolute bottom-4 left-4 bg-background/95 backdrop-blur-sm border rounded-lg p-3 shadow-lg max-w-sm">
           <div className="text-xs font-medium text-muted-foreground mb-2">Debug Info:</div>
-          <div className="space-y-1 text-xs max-h-32 overflow-y-auto">
-            {Object.entries(initStore.hydrationState).map(([dependency, ready]) => (
-              <div key={dependency} className="flex items-center justify-between">
-                <span className="text-muted-foreground">{dependency}</span>
-                {ready ? (
-                  <CheckCircle className="w-3 h-3 text-green-500" />
-                ) : (
-                  <div className="w-3 h-3 bg-muted rounded-full animate-pulse" />
-                )}
-              </div>
-            ))}
+          <div className="space-y-1 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">phase</span>
+              <span>{initStore.phase}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">entityDataKnownComplete</span>
+              <span>{String(initStore.entityDataKnownComplete)}</span>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
 })
-
-// ====================================
-// LOADING STATE HOOK
-// ====================================
-
-/**
- * Hook for using VibeGrid loading state in components
- */
-export function useVibeGridLoadingState(initStore: InitStore) {
-  // MobX observables are accessed directly, observer() handles reactivity
-  return {
-    isLoading: !initStore.isFullyHydrated,
-    isReady: initStore.isFullyHydrated,
-    progress: initStore.hydrationProgress,
-    hasErrors: initStore.hasErrors,
-    hasCriticalErrors: initStore.criticalErrors.length > 0,
-    canRetry: initStore.criticalErrors.some((error) => error.canRetry),
-    retry: () => initStore.reset(),
-    getStatus: () => initStore.getStatus(),
-  }
-}

@@ -670,19 +670,20 @@ function VibeGridInnerBase(props: VibeGridProps) {
   useEffect(() => {
     if (!stores || !stores.initStore || !tableCoreStore) return
 
-    const { schemaLoaded, entityDataLoaded } = stores.initStore.hydrationState
+    const phase = stores.initStore.phase
+    const entityDataKnownComplete = stores.initStore.entityDataKnownComplete
 
-    if (schemaLoaded && entityDataLoaded) {
-      logger.info('[VGDEBUG] 🎯 Both schema and data loaded - initializing baseline snapshot', {
-        schemaLoaded,
-        entityDataLoaded,
+    if (phase !== 'init' && entityDataKnownComplete) {
+      logger.info('[VGDEBUG] 🎯 Schema + data known - initializing baseline snapshot', {
+        phase,
+        entityDataKnownComplete,
         columnCount: tableCoreStore.columns.length,
       })
       tableCoreStore.initializeBaselineSnapshot()
     }
   }, [
-    stores?.initStore.hydrationState.schemaLoaded,
-    stores?.initStore.hydrationState.entityDataLoaded,
+    stores?.initStore.phase,
+    stores?.initStore.entityDataKnownComplete,
     tableCoreStore,
     stores,
   ])
@@ -1004,15 +1005,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
       return
     }
 
-    // Mark container as ready (hydration tracking) — only on first run;
-    // this effect re-fires when callback props change to recreate the renderer,
-    // but the container itself is already ready.
-    if (!stores.initStore.hydrationState.containerReady) {
-      stores.initStore.markReady('containerReady')
-      logger.info('[VGDEBUG] Container ready')
-    }
-
-    // Provide the container to InitStore
+    // Provide the container to InitStore — this is the canonical "container
+    // ready" signal; `transitionPhase('schema')` will assert it was called.
     stores.initStore.setContainer(containerRef.current)
 
     // Provide a renderer factory that delegates callbacks through refs (always latest value).
@@ -1239,9 +1233,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // DERIVED STATE
   // ====================================
 
-  // GH#2925 (p3): overlay + empty-state predicates derived from InitStore.phase
+  // GH#2925 (p3/p4): overlay + empty-state predicates derived from InitStore.phase
   // and entityDataKnownComplete. The 'isReady' / 'isRendered' compound flags
-  // (and the now-defunct isFullyHydrated read) are gone.
+  // and the legacy 10-flag hydrationState are removed.
   const showLoadingOverlay =
     !initStore ||
     initStore.phase !== 'painted' ||

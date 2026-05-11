@@ -37,7 +37,6 @@ type PostInitCtx = {
   interactionStore: any
   editingStore: any
   initStore: {
-    markReady: ReturnType<typeof vi.fn>
     transitionPhase: ReturnType<typeof vi.fn>
     slotRegistry: { register?: any }
   }
@@ -101,7 +100,6 @@ function makeCtx(): PostInitCtx {
     interactionStore: { handleOutsideClick: vi.fn() },
     editingStore: {},
     initStore: {
-      markReady: vi.fn(),
       transitionPhase: vi.fn(),
       slotRegistry: undefined as any,
     },
@@ -242,17 +240,17 @@ describe('SimplePassiveRenderer.postInitialization (GH#2925 p1)', () => {
     // AFTER initializeOverlay, proving coordinator existed at overlay init time).
   })
 
-  it('still fires the legacy markReady() calls (viewportReady, eventHandlersReady sync; rendererInitialized inside callback)', () => {
+  it('drives the phase machine via transitionPhase (controllers sync; painted inside scheduled callback)', () => {
     const ctx = makeCtx()
     ctx.postInitialization.call(ctx)
 
-    expect(ctx.initStore.markReady).toHaveBeenCalledWith('viewportReady')
-    expect(ctx.initStore.markReady).toHaveBeenCalledWith('eventHandlersReady')
-    // rendererInitialized is inside the scheduled callback
-    expect(ctx.initStore.markReady).not.toHaveBeenCalledWith('rendererInitialized')
+    // controllers fires synchronously during stage 1
+    expect(ctx.initStore.transitionPhase).toHaveBeenCalledWith('controllers')
+    // painted does NOT fire until the scheduled callback runs
+    expect(ctx.initStore.transitionPhase).not.toHaveBeenCalledWith('painted')
 
     pendingCallbacks[0]()
-    expect(ctx.initStore.markReady).toHaveBeenCalledWith('rendererInitialized')
+    expect(ctx.initStore.transitionPhase).toHaveBeenCalledWith('painted')
   })
 
   it('renderHeader runs synchronously in Stage 1; renderBody runs in Stage 2', () => {

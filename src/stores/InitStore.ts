@@ -36,30 +36,12 @@ const logger = getLogger(['vibegrid', 'stores', 'InitStore'])
 // ====================================
 
 /**
- * Hydration state for tracking initialization progress
+ * Error recorded during hydration. `dependency` is a free-form string identifying
+ * the failing subsystem (e.g. 'rendererInitialized'); the 10-flag HydrationState
+ * was removed in GH#2925 p4, so this is no longer a typed key union.
  */
-export interface HydrationState {
-  // Store initialization
-  tableCoreStoreReady: boolean
-  visualStateStoreReady: boolean
-  interactionStoreReady: boolean
-  persistenceStoreReady: boolean
-
-  // Schema and data
-  schemaLoaded: boolean
-  entityDataLoaded: boolean
-
-  // DOM dependencies
-  containerReady: boolean
-  viewportReady: boolean
-
-  // Renderer dependencies
-  rendererInitialized: boolean
-  eventHandlersReady: boolean
-}
-
 export interface HydrationError {
-  dependency: keyof HydrationState
+  dependency: string
   error: string
   timestamp: number
   canRetry: boolean
@@ -69,13 +51,11 @@ export interface HydrationMetrics {
   startTime: number
   endTime?: number
   totalDuration?: number
-  dependencyTimings: Partial<Record<keyof HydrationState, number>>
 }
 
 /**
- * 4-state phase enum that replaces the 10-flag hydrationState in p4.
+ * 4-state lifecycle phase (GH#2925 p4 — sole source of truth).
  * Forward-only progression: 'init' → 'schema' → 'controllers' → 'painted'.
- * Added in p0 as a parallel field; not yet load-bearing — p1–p4 wire it in.
  */
 export type InitPhase = 'init' | 'schema' | 'controllers' | 'painted'
 
@@ -90,35 +70,16 @@ export class InitStore implements IStore {
   // OBSERVABLE STATE
   // ====================================
 
-  @observable hydrationState: HydrationState = {
-    // Store initialization
-    tableCoreStoreReady: false,
-    visualStateStoreReady: false,
-    interactionStoreReady: false,
-    persistenceStoreReady: false,
-
-    // Schema and data
-    schemaLoaded: false,
-    entityDataLoaded: false,
-
-    // DOM dependencies
-    containerReady: false,
-    viewportReady: false,
-
-    // Renderer dependencies
-    rendererInitialized: false,
-    eventHandlersReady: false,
-  }
-
   /**
-   * 4-state lifecycle phase (GH#2925 p0). Parallel to `hydrationState` in p0;
-   * load-bearing in p4 once the 10-flag tracking is removed.
+   * 4-state lifecycle phase (GH#2925 p4 — load-bearing).
+   * Forward-only progression: 'init' → 'schema' → 'controllers' → 'painted'.
    */
   @observable phase: InitPhase = 'init'
 
   /**
-   * Parallel field for `hydrationState.entityDataLoaded` (GH#2925 p0).
-   * Both are set in lockstep at the same call sites; p4 renames in place.
+   * Set to true once the substrate (or fallback) reports that the entity
+   * collection's row count is definitively known (zero or non-zero).
+   * Drives the empty-state vs loading-overlay decision in VibeGrid.tsx.
    */
   @observable entityDataKnownComplete: boolean = false
 
@@ -126,7 +87,6 @@ export class InitStore implements IStore {
 
   @observable metrics: HydrationMetrics = {
     startTime: Date.now(),
-    dependencyTimings: {},
   }
 
   /**
@@ -172,9 +132,11 @@ export class InitStore implements IStore {
    */
   private resizeObserver: ResizeObserver | null = null
 
-  // Timeout tracking
-  private timeouts = new Map<keyof HydrationState, NodeJS.Timeout>()
-  private readonly DEPENDENCY_TIMEOUT = 15000 // 15 seconds
+  /**
+   * GH#2925 p4 — generation id used to invalidate stale 15s hydration-stall
+   * timers when reset()/init() is called before the previous timer fires.
+   */
+  private generationId = 0
 
   // ====================================
   // CONSTRUCTOR
@@ -189,7 +151,6 @@ export class InitStore implements IStore {
     logger.info('🚀 InitStore created', {
       tableId,
       entityType,
-      totalDependencies: Object.keys(this.hydrationState).length,
     })
   }
 
@@ -236,11 +197,11 @@ export class InitStore implements IStore {
   }
 
   /**
-   * Mark entity data as known-complete (GH#2925 p0).
+   * Mark entity data as known-complete.
    *
-   * Parallel setter for `markReady('entityDataLoaded')` — p0 sets both in
-   * lockstep at every entityDataLoaded call site; p4 renames in place.
-   * Idempotent — no-op if already true.
+   * Called when the substrate (or fallback) confirms the entity collection's
+   * row count is definitively known (zero or non-zero). Drives the
+   * empty-state vs loading-overlay decision in VibeGrid.tsx. Idempotent.
    */
   @action
   markEntityDataKnownComplete(): void {
@@ -249,17 +210,22 @@ export class InitStore implements IStore {
   }
 
   /**
-   * Advance the lifecycle phase forward (GH#2925 p0).
+   * Advance the lifecycle phase forward (GH#2925 p4 — load-bearing).
    *
    * Invariants:
    * - Strictly forward: 'init' → 'schema' → 'controllers' → 'painted'.
    * - No skips, no regression. Backward/skipped transitions throw.
-   *
-   * In p0 this field is parallel to `hydrationState` and is not yet load-
-   * bearing. p1–p4 progressively migrate consumers to read `phase` directly.
+   * - `transitionPhase('schema')` additionally asserts that `setContainer()`
+   *   has been called (the DOM container is required before stores can
+   *   proceed to controller construction).
    */
   @action
   transitionPhase(next: InitPhase): void {
+    if (next === 'schema' && this.container === null) {
+      throw new Error(
+        'InitStore.transitionPhase("schema") requires setContainer() to have been called first',
+      )
+    }
     const currentIdx = PHASE_ORDER.indexOf(this.phase)
     const nextIdx = PHASE_ORDER.indexOf(next)
     if (nextIdx !== currentIdx + 1) {
@@ -293,17 +259,6 @@ export class InitStore implements IStore {
   // ====================================
 
   @computed
-  get isFullyHydrated(): boolean {
-    const allReady = Object.values(this.hydrationState).every((ready) => ready === true)
-
-    if (allReady && !this.metrics.endTime) {
-      this.recordHydrationComplete()
-    }
-
-    return allReady
-  }
-
-  @computed
   get hasErrors(): boolean {
     return this.errors.length > 0
   }
@@ -313,64 +268,18 @@ export class InitStore implements IStore {
     return this.errors.filter((error) => !error.canRetry)
   }
 
-  @computed
-  get hydrationProgress(): number {
-    const values = Object.values(this.hydrationState)
-    const completed = values.filter((ready) => ready === true).length
-    const total = values.length
-    return Math.round((completed / total) * 100)
-  }
-
-  /**
-   * Alias for isFullyHydrated - provides a clearer API for VibeGrid.tsx consumers.
-   * Returns true when all hydration dependencies (including renderer) are ready.
-   */
-  @computed
-  get isFullyReady(): boolean {
-    return this.isFullyHydrated
-  }
-
   // ====================================
   // PUBLIC API
   // ====================================
 
   /**
-   * Mark a dependency as ready
+   * Mark a subsystem as failed.
+   *
+   * `dependency` is a free-form identifier (e.g. 'rendererInitialized'); the
+   * 10-flag HydrationState was removed in GH#2925 p4.
    */
   @action
-  markReady(dependency: keyof HydrationState): void {
-    if (this.hydrationState[dependency]) {
-      logger.warn('🔄 Dependency already marked ready', {
-        dependency,
-        tableId: this.tableId,
-      })
-      return
-    }
-
-    const timing = Date.now() - this.metrics.startTime
-    this.metrics.dependencyTimings[dependency] = timing
-    this.hydrationState[dependency] = true
-
-    // Clear timeout for this dependency
-    const timeout = this.timeouts.get(dependency)
-    if (timeout) {
-      clearTimeout(timeout)
-      this.timeouts.delete(dependency)
-    }
-
-    logger.info('✅ Dependency ready', {
-      dependency,
-      timing: `${timing}ms`,
-      tableId: this.tableId,
-      progress: this.hydrationProgress,
-    })
-  }
-
-  /**
-   * Mark a dependency as failed
-   */
-  @action
-  markError(dependency: keyof HydrationState, error: string, canRetry: boolean = true): void {
+  markError(dependency: string, error: string, canRetry: boolean = true): void {
     const hydrationError: HydrationError = {
       dependency,
       error,
@@ -408,31 +317,25 @@ export class InitStore implements IStore {
       // Step 1: Initialize PersistenceStore first (loads saved preferences)
       if (this.persistenceStore) {
         await this.persistenceStore.init()
-        this.markReady('persistenceStoreReady')
       }
 
       // Step 2: Initialize TableCoreStore (loads schema)
       if (this.tableCoreStore) {
         await this.tableCoreStore.init()
-        this.markReady('tableCoreStoreReady')
-        this.markReady('schemaLoaded')
       }
 
       // Step 3: Initialize VisualStateStore
       if (this.visualStateStore) {
         await this.visualStateStore.init()
-        this.markReady('visualStateStoreReady')
       }
 
       // Step 4: Initialize InteractionStore
       if (this.interactionStore) {
         await this.interactionStore.init()
-        this.markReady('interactionStoreReady')
       }
 
-      // GH#2925 p1: advance phase machine — schema + stores ready.
-      // Fires immediately after the last sequential await; the
-      // `container != null` assertion lands in p4.
+      // GH#2925 p4: advance phase machine — schema + stores ready.
+      // Asserts `setContainer()` has been called.
       this.transitionPhase('schema')
 
       // Step 4.5: Preload slots for the loaded columns
@@ -524,12 +427,10 @@ export class InitStore implements IStore {
     return {
       tableId: this.tableId,
       entityType: this.entityType,
-      isFullyHydrated: this.isFullyHydrated,
-      progress: this.hydrationProgress,
-      state: this.hydrationState,
+      phase: this.phase,
+      entityDataKnownComplete: this.entityDataKnownComplete,
       errors: this.errors,
       metrics: this.metrics,
-      pendingTimeouts: Array.from(this.timeouts.keys()),
     }
   }
 
@@ -538,8 +439,8 @@ export class InitStore implements IStore {
    */
   async waitForHydration(timeoutMs: number = 30000): Promise<boolean> {
     return new Promise((resolve, reject) => {
-      // If already hydrated, resolve immediately
-      if (this.isFullyHydrated) {
+      // If already painted, resolve immediately
+      if (this.phase === 'painted') {
         resolve(true)
         return
       }
@@ -551,7 +452,7 @@ export class InitStore implements IStore {
 
       // Poll for completion (MobX doesn't have direct "when" like Legend State)
       const checkInterval = setInterval(() => {
-        if (this.isFullyHydrated) {
+        if (this.phase === 'painted') {
           clearTimeout(overallTimeout)
           clearInterval(checkInterval)
           resolve(true)
@@ -576,8 +477,15 @@ export class InitStore implements IStore {
       entityType: this.entityType,
     })
 
-    // Timeouts disabled - dependencies are marked ready by components during initialization
-    // The timeout system was causing false positives when stores were recreated
+    // GH#2925 p4: arm the 15s hydration-stall watchdog. The generation id
+    // makes the timer self-invalidate if reset()/init() runs again before
+    // it fires (e.g. fast unmount/remount during navigation).
+    const capturedGen = this.generationId
+    setTimeout(() => {
+      if (this.generationId !== capturedGen) return
+      if (this.phase === 'painted') return
+      this.recordHydrationStall()
+    }, 15_000)
 
     // Initialize all stores
     await this.initializeStores()
@@ -588,9 +496,8 @@ export class InitStore implements IStore {
   }
 
   dispose(): void {
-    // Clear all timeouts
-    for (const timeout of this.timeouts.values()) clearTimeout(timeout)
-    this.timeouts.clear()
+    // Invalidate any pending hydration-stall timer
+    this.generationId += 1
 
     // Destroy renderer and ResizeObserver
     this.destroyRenderer()
@@ -612,9 +519,9 @@ export class InitStore implements IStore {
 
   @action
   reset(): void {
-    // Clear timeouts
-    for (const timeout of this.timeouts.values()) clearTimeout(timeout)
-    this.timeouts.clear()
+    // GH#2925 p4: bump generation id BEFORE doing anything so any pending
+    // 15s hydration-stall timer from the previous init() no-ops.
+    this.generationId += 1
 
     // Destroy renderer and ResizeObserver
     this.destroyRenderer()
@@ -625,9 +532,6 @@ export class InitStore implements IStore {
     // Reset metrics and errors
     this.resetHydrationState()
 
-    // Restart timeouts
-    this.setupTimeouts()
-
     logger.info('🔄 InitStore reset', {
       tableId: this.tableId,
     })
@@ -637,27 +541,29 @@ export class InitStore implements IStore {
   // PRIVATE METHODS
   // ====================================
 
+  /**
+   * GH#2925 p4 — re-armed 15s hydration-stall watchdog.
+   *
+   * Fires if `phase !== 'painted'` 15 seconds after init() and no reset()
+   * has happened in the interim. Logs an error including the current phase
+   * and entityDataKnownComplete; does NOT fail the user-visible flow — the
+   * 200ms scheduleAfterPaint fallback in renderer init is the actual stall
+   * escape, this is purely diagnostic.
+   */
   @action
-  private recordHydrationComplete(): void {
-    this.metrics.endTime = Date.now()
-    this.metrics.totalDuration = this.metrics.endTime - this.metrics.startTime
-
-    logger.info('🎉 VibeGrid fully hydrated', {
+  private recordHydrationStall(): void {
+    logger.error('VIbeGrid hydration stalled', {
+      phase: this.phase,
+      entityDataKnownComplete: this.entityDataKnownComplete,
+      generationId: this.generationId,
       tableId: this.tableId,
       entityType: this.entityType,
-      duration: this.metrics.totalDuration,
-      dependencyTimings: this.metrics.dependencyTimings,
     })
   }
 
   @action
   private resetHydrationState(): void {
-    // Reset hydration state
-    Object.keys(this.hydrationState).forEach((key) => {
-      this.hydrationState[key as keyof HydrationState] = false
-    })
-
-    // GH#2925 p0: reset parallel state-machine fields alongside hydrationState.
+    // GH#2925 p4: phase machine is the single source of truth.
     this.phase = 'init'
     this.entityDataKnownComplete = false
 
@@ -665,7 +571,6 @@ export class InitStore implements IStore {
     this.errors = []
     this.metrics = {
       startTime: Date.now(),
-      dependencyTimings: {},
     }
   }
 
@@ -674,7 +579,7 @@ export class InitStore implements IStore {
    * - columns are loaded (visualStateStore.columns.length > 0)
    * - container is set (this.container)
    * - rendererFactory is set
-   * - renderer has not already been created (!this.hydrationState.rendererInitialized)
+   * - renderer has not already been created (!this.renderer)
    *
    * This replaces the VibeGrid.tsx autorun that previously raced with initializeStores().
    */
@@ -684,7 +589,7 @@ export class InitStore implements IStore {
         columnCount: this.visualStateStore?.columns.length ?? 0,
         hasContainer: !!this.container,
         hasFactory: !!this.rendererFactory,
-        alreadyInitialized: this.hydrationState.rendererInitialized,
+        alreadyInitialized: !!this.renderer,
       }),
       ({ columnCount, hasContainer, hasFactory, alreadyInitialized }) => {
         if (columnCount > 0 && hasContainer && hasFactory && !alreadyInitialized) {
@@ -868,30 +773,7 @@ export class InitStore implements IStore {
     if (this.renderer) {
       this.renderer.destroy()
       this.renderer = null
-
-      // Reset renderer-related hydration flags so the renderer creation
-      // reaction can fire again when a new factory is provided.
-      this.hydrationState.rendererInitialized = false
-      this.hydrationState.viewportReady = false
-      this.hydrationState.eventHandlersReady = false
     }
-  }
-
-  private setupTimeouts(): void {
-    Object.keys(this.hydrationState).forEach((dependency) => {
-      this.setupTimeoutForDependency(dependency as keyof HydrationState)
-    })
-  }
-
-  private setupTimeoutForDependency(dependency: keyof HydrationState): void {
-    const timeout = setTimeout(() => {
-      // Only log error if dependency is STILL not ready (prevents false positives from store recreation)
-      if (!this.hydrationState[dependency]) {
-        this.markError(dependency, `Dependency '${dependency}' timed out after ${this.DEPENDENCY_TIMEOUT}ms`, true)
-      }
-    }, this.DEPENDENCY_TIMEOUT)
-
-    this.timeouts.set(dependency, timeout)
   }
 }
 

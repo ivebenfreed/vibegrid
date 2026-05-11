@@ -70,7 +70,7 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
 
   // Push thread data to VibeGrid store when threads change
   useEffect(() => {
-    // Wait for tableCoreStore but NOT isFullyHydrated (we need to mark entityDataLoaded ourselves)
+    // Wait for tableCoreStore; we mark entityDataKnownComplete ourselves below.
     if (!tableCoreStore) return
 
     // Transform threads to rows format expected by VibeGrid (flat objects)
@@ -126,9 +126,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
       tableCoreStore.setRows(rows)
     })
 
-    // Mark entity data as loaded to complete hydration
-    if (!initStore.hydrationState.entityDataLoaded) {
-      initStore.markReady('entityDataLoaded')
+    // Mark entity data as known-complete to drive hydration
+    if (!initStore.entityDataKnownComplete) {
+      initStore.markEntityDataKnownComplete()
     }
   }, [threads, tableCoreStore, initStore])
 

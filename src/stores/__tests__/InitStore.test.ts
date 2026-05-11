@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { configure, runInAction } from 'mobx'
 import { InitStore } from '../InitStore'
 
@@ -19,12 +19,14 @@ vi.mock('@/app/stores/utils/disposer', () => ({
   },
 }))
 
-// Mock logger
+// Mock logger — capture error calls for stall assertions.
+// Use vi.hoisted so the spy survives vi.mock hoisting.
+const { loggerErrorSpy } = vi.hoisted(() => ({ loggerErrorSpy: vi.fn() }))
 vi.mock('@/shared/lib/logging', () => ({
   getLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn(),
+    error: loggerErrorSpy,
     debug: vi.fn(),
   }),
 }))
@@ -88,21 +90,17 @@ describe('InitStore', () => {
   let initStore: InitStore
 
   beforeEach(() => {
+    loggerErrorSpy.mockClear()
     initStore = new InitStore('test-table', 'TestEntity')
   })
 
   describe('constructor', () => {
-    it('should initialize with all hydration states as false', () => {
-      expect(initStore.hydrationState.tableCoreStoreReady).toBe(false)
-      expect(initStore.hydrationState.visualStateStoreReady).toBe(false)
-      expect(initStore.hydrationState.interactionStoreReady).toBe(false)
-      expect(initStore.hydrationState.persistenceStoreReady).toBe(false)
-      expect(initStore.hydrationState.schemaLoaded).toBe(false)
-      expect(initStore.hydrationState.entityDataLoaded).toBe(false)
-      expect(initStore.hydrationState.containerReady).toBe(false)
-      expect(initStore.hydrationState.viewportReady).toBe(false)
-      expect(initStore.hydrationState.rendererInitialized).toBe(false)
-      expect(initStore.hydrationState.eventHandlersReady).toBe(false)
+    it('should initialize phase as "init"', () => {
+      expect(initStore.phase).toBe('init')
+    })
+
+    it('should initialize entityDataKnownComplete as false', () => {
+      expect(initStore.entityDataKnownComplete).toBe(false)
     })
 
     it('should start with no errors', () => {
@@ -110,68 +108,8 @@ describe('InitStore', () => {
       expect(initStore.errors).toHaveLength(0)
     })
 
-    it('should start with 0% progress', () => {
-      expect(initStore.hydrationProgress).toBe(0)
-    })
-
     it('should start with null renderer', () => {
       expect(initStore.renderer).toBeNull()
-    })
-  })
-
-  describe('isFullyReady', () => {
-    it('should be an alias for isFullyHydrated', () => {
-      expect(initStore.isFullyReady).toBe(initStore.isFullyHydrated)
-    })
-
-    it('should return false when not all dependencies are ready', () => {
-      expect(initStore.isFullyReady).toBe(false)
-    })
-  })
-
-  describe('markReady', () => {
-    it('should mark a dependency as ready', () => {
-      runInAction(() => {
-        initStore.markReady('containerReady')
-      })
-      expect(initStore.hydrationState.containerReady).toBe(true)
-    })
-
-    it('should update progress when marking ready', () => {
-      // 10 total dependencies
-      runInAction(() => {
-        initStore.markReady('containerReady')
-      })
-      expect(initStore.hydrationProgress).toBe(10) // 1/10 = 10%
-    })
-
-    it('should not double-mark a dependency', () => {
-      runInAction(() => {
-        initStore.markReady('containerReady')
-      })
-      // Second call should be a no-op (warns)
-      runInAction(() => {
-        initStore.markReady('containerReady')
-      })
-      expect(initStore.hydrationState.containerReady).toBe(true)
-    })
-
-    it('new InitStore instance always allows marking entityDataLoaded (navigation regression guard)', () => {
-      // When navigating between entity pages, useMemo creates a new InitStore with fresh state.
-      // useVibeGridData must be able to call markReady('entityDataLoaded') on it.
-      // Previously, a stale hasMarkedReadyRef in useVibeGridData blocked this, causing the
-      // loading overlay to stay visible forever. The fix: rely on initStore.hydrationState
-      // directly (markReady is idempotent) rather than a per-hook ref that persisted across
-      // entity type changes.
-      const storeA = new InitStore('table', 'EntityA')
-      runInAction(() => storeA.markReady('entityDataLoaded'))
-      expect(storeA.hydrationState.entityDataLoaded).toBe(true)
-
-      // Simulates navigation: new store is created for new entity type
-      const storeB = new InitStore('table', 'EntityB')
-      expect(storeB.hydrationState.entityDataLoaded).toBe(false) // fresh — must be markable
-      runInAction(() => storeB.markReady('entityDataLoaded'))
-      expect(storeB.hydrationState.entityDataLoaded).toBe(true)
     })
   })
 
@@ -201,8 +139,20 @@ describe('InitStore', () => {
       runInAction(() => {
         initStore.setContainer(container)
       })
-      // Container is private but we can verify it works by using it
-      // in the renderer factory flow (tested in createRenderer section)
+      expect((initStore as any).container).toBe(container)
+    })
+
+    it('accepts null to clear the container reference', () => {
+      const container = createMockContainer()
+      runInAction(() => {
+        initStore.setContainer(container)
+      })
+      expect((initStore as any).container).toBe(container)
+
+      runInAction(() => {
+        initStore.setContainer(null)
+      })
+      expect((initStore as any).container).toBeNull()
     })
   })
 
@@ -256,21 +206,6 @@ describe('InitStore', () => {
       expect(mockDestroy).toHaveBeenCalled()
       expect(initStore.renderer).toBeNull()
     })
-
-    it('should reset all hydration state', () => {
-      runInAction(() => {
-        initStore.markReady('containerReady')
-        initStore.markReady('viewportReady')
-      })
-
-      runInAction(() => {
-        initStore.reset()
-      })
-
-      expect(initStore.hydrationState.containerReady).toBe(false)
-      expect(initStore.hydrationState.viewportReady).toBe(false)
-      expect(initStore.hydrationProgress).toBe(0)
-    })
   })
 
   describe('renderer creation reaction', () => {
@@ -289,14 +224,13 @@ describe('InitStore', () => {
       initStore.setPersistenceStore(mockPersistenceStore as any)
       initStore.setViewportStore(mockViewportStore as any)
 
-      // Initialize stores (sets up the renderer reaction)
-      await initStore.initializeStores()
-
-      // Provide container
+      // Container must be set BEFORE initializeStores() now — transitionPhase('schema') asserts it.
       const container = createMockContainer()
       runInAction(() => {
         initStore.setContainer(container)
       })
+
+      await initStore.initializeStores()
 
       // Mock renderer with destroy method
       const mockRenderer = { destroy: vi.fn() }
@@ -329,46 +263,21 @@ describe('InitStore', () => {
     })
   })
 
-  describe('hydration progress', () => {
-    it('should track progress accurately', () => {
-      // 10 dependencies total
-      runInAction(() => {
-        initStore.markReady('tableCoreStoreReady')
-        initStore.markReady('visualStateStoreReady')
-        initStore.markReady('interactionStoreReady')
-        initStore.markReady('persistenceStoreReady')
-        initStore.markReady('schemaLoaded')
-      })
-      expect(initStore.hydrationProgress).toBe(50)
-
-      runInAction(() => {
-        initStore.markReady('entityDataLoaded')
-        initStore.markReady('containerReady')
-        initStore.markReady('viewportReady')
-        initStore.markReady('rendererInitialized')
-        initStore.markReady('eventHandlersReady')
-      })
-      expect(initStore.hydrationProgress).toBe(100)
-      expect(initStore.isFullyHydrated).toBe(true)
-      expect(initStore.isFullyReady).toBe(true)
-    })
-  })
-
   describe('getStatus', () => {
     it('should return current status', () => {
       const status = initStore.getStatus()
       expect(status.tableId).toBe('test-table')
       expect(status.entityType).toBe('TestEntity')
-      expect(status.isFullyHydrated).toBe(false)
-      expect(status.progress).toBe(0)
+      expect(status.phase).toBe('init')
+      expect(status.entityDataKnownComplete).toBe(false)
     })
   })
 
   // ====================================
-  // GH#2925 p0 — 4-state phase machine
+  // GH#2925 — 4-state phase machine
   // ====================================
 
-  describe('phase / transitionPhase (GH#2925 p0)', () => {
+  describe('phase / transitionPhase (GH#2925)', () => {
     it('starts at phase "init"', () => {
       expect(initStore.phase).toBe('init')
     })
@@ -377,7 +286,10 @@ describe('InitStore', () => {
       expect(initStore.entityDataKnownComplete).toBe(false)
     })
 
-    it('advances forward through init → schema → controllers → painted', () => {
+    it('advances forward through init → schema → controllers → painted (with container set)', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
       initStore.transitionPhase('schema')
       expect(initStore.phase).toBe('schema')
       initStore.transitionPhase('controllers')
@@ -387,15 +299,24 @@ describe('InitStore', () => {
     })
 
     it('throws when skipping states (init → controllers)', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
       expect(() => initStore.transitionPhase('controllers')).toThrow(/invalid transition/i)
       expect(initStore.phase).toBe('init')
     })
 
     it('throws when skipping states (init → painted)', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
       expect(() => initStore.transitionPhase('painted')).toThrow(/invalid transition/i)
     })
 
     it('throws on backward transition (painted → schema)', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
       initStore.transitionPhase('schema')
       initStore.transitionPhase('controllers')
       initStore.transitionPhase('painted')
@@ -407,7 +328,7 @@ describe('InitStore', () => {
       expect(() => initStore.transitionPhase('init')).toThrow(/invalid transition/i)
     })
 
-    it('markEntityDataKnownComplete flips the parallel flag', () => {
+    it('markEntityDataKnownComplete flips the flag', () => {
       initStore.markEntityDataKnownComplete()
       expect(initStore.entityDataKnownComplete).toBe(true)
     })
@@ -419,6 +340,9 @@ describe('InitStore', () => {
     })
 
     it('reset() returns phase to "init" and clears entityDataKnownComplete', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
       initStore.transitionPhase('schema')
       initStore.transitionPhase('controllers')
       initStore.markEntityDataKnownComplete()
@@ -432,10 +356,42 @@ describe('InitStore', () => {
       expect(initStore.phase).toBe('init')
       expect(initStore.entityDataKnownComplete).toBe(false)
     })
+
+    it('navigation regression guard — fresh store allows marking entityDataKnownComplete', () => {
+      const storeA = new InitStore('table', 'EntityA')
+      runInAction(() => storeA.markEntityDataKnownComplete())
+      expect(storeA.entityDataKnownComplete).toBe(true)
+
+      // Simulates navigation: new store is created for new entity type
+      const storeB = new InitStore('table', 'EntityB')
+      expect(storeB.entityDataKnownComplete).toBe(false) // fresh — must be markable
+      runInAction(() => storeB.markEntityDataKnownComplete())
+      expect(storeB.entityDataKnownComplete).toBe(true)
+    })
   })
 
-  describe('initializeStores transitions phase to "schema" (GH#2925 p1)', () => {
-    it('advances phase from "init" to "schema" after the last sequential store init', async () => {
+  // ====================================
+  // GH#2925 p4 — container assertion on transitionPhase('schema')
+  // ====================================
+
+  describe('transitionPhase("schema") asserts container (GH#2925 p4)', () => {
+    it('throws when container is null', () => {
+      expect((initStore as any).container).toBeNull()
+      expect(() => initStore.transitionPhase('schema')).toThrow(/requires setContainer/i)
+      expect(initStore.phase).toBe('init')
+    })
+
+    it('succeeds after setContainer() has been called', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
+      expect(() => initStore.transitionPhase('schema')).not.toThrow()
+      expect(initStore.phase).toBe('schema')
+    })
+  })
+
+  describe('initializeStores transitions phase to "schema" (GH#2925 p4)', () => {
+    it('advances phase from "init" to "schema" after the last sequential store init (container set)', async () => {
       const mockVisualStateStore = createMockVisualStateStore()
       const mockTableCoreStore = createMockStore()
       const mockInteractionStore = createMockStore()
@@ -447,6 +403,9 @@ describe('InitStore', () => {
       initStore.setInteractionStore(mockInteractionStore as any)
       initStore.setPersistenceStore(mockPersistenceStore as any)
       initStore.setViewportStore(mockViewportStore as any)
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
 
       expect(initStore.phase).toBe('init')
       await initStore.initializeStores()
@@ -473,6 +432,9 @@ describe('InitStore', () => {
       initStore.setInteractionStore(mockInteractionStore as any)
       initStore.setPersistenceStore(mockPersistenceStore as any)
       initStore.setViewportStore(mockViewportStore as any)
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
 
       // Spy on transitionPhase to record when it fires
       const originalTransition = initStore.transitionPhase.bind(initStore)
@@ -493,18 +455,107 @@ describe('InitStore', () => {
     })
   })
 
-  describe('setContainer (GH#2925 p0)', () => {
-    it('accepts null to clear the container reference', () => {
-      const container = createMockContainer()
-      runInAction(() => {
-        initStore.setContainer(container)
-      })
-      expect((initStore as any).container).toBe(container)
+  // ====================================
+  // GH#2925 p4 — 15s hydration-stall watchdog
+  // ====================================
 
+  describe('15s hydration-stall watchdog (GH#2925 p4)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('does NOT fire when phase reaches "painted" before 15s', async () => {
+      const store = new InitStore('test', 'Entity')
+      // Wire minimal stores so init() can complete
+      store.setTableCoreStore(createMockStore() as any)
+      store.setVisualStateStore(createMockVisualStateStore() as any)
+      store.setInteractionStore(createMockStore() as any)
+      store.setPersistenceStore(createMockStore() as any)
+      store.setViewportStore(createMockViewportStore() as any)
       runInAction(() => {
-        initStore.setContainer(null)
+        store.setContainer(createMockContainer())
       })
-      expect((initStore as any).container).toBeNull()
+
+      // init() arms the 15s timer
+      const initP = store.init()
+      // Drive promises to completion
+      await vi.advanceTimersByTimeAsync(0)
+      await initP
+
+      // Advance phase to 'painted' before the 15s window
+      store.transitionPhase('controllers')
+      store.transitionPhase('painted')
+
+      // Now advance past 15s — watchdog should NOT log a stall.
+      await vi.advanceTimersByTimeAsync(20_000)
+
+      const stallCalls = loggerErrorSpy.mock.calls.filter((args) => args[0] === 'VIbeGrid hydration stalled')
+      expect(stallCalls).toHaveLength(0)
+
+      store.dispose()
+    })
+
+    it('no-ops when generationId moved (reset before 15s fires)', async () => {
+      const store = new InitStore('test', 'Entity')
+      store.setTableCoreStore(createMockStore() as any)
+      store.setVisualStateStore(createMockVisualStateStore() as any)
+      store.setInteractionStore(createMockStore() as any)
+      store.setPersistenceStore(createMockStore() as any)
+      store.setViewportStore(createMockViewportStore() as any)
+      runInAction(() => {
+        store.setContainer(createMockContainer())
+      })
+
+      const initP = store.init()
+      await vi.advanceTimersByTimeAsync(0)
+      await initP
+
+      // reset() bumps generationId — the armed timer should self-invalidate.
+      runInAction(() => {
+        store.reset()
+      })
+
+      await vi.advanceTimersByTimeAsync(20_000)
+
+      const stallCalls = loggerErrorSpy.mock.calls.filter((args) => args[0] === 'VIbeGrid hydration stalled')
+      expect(stallCalls).toHaveLength(0)
+
+      store.dispose()
+    })
+
+    it('fires recordHydrationStall when phase still not "painted" after 15s (gen unchanged)', async () => {
+      const store = new InitStore('test', 'Entity')
+      store.setTableCoreStore(createMockStore() as any)
+      store.setVisualStateStore(createMockVisualStateStore() as any)
+      store.setInteractionStore(createMockStore() as any)
+      store.setPersistenceStore(createMockStore() as any)
+      store.setViewportStore(createMockViewportStore() as any)
+      runInAction(() => {
+        store.setContainer(createMockContainer())
+      })
+
+      const initP = store.init()
+      await vi.advanceTimersByTimeAsync(0)
+      await initP
+
+      // Phase still 'schema' (or whatever initializeStores left it at), NOT 'painted'.
+      // Advance past 15s.
+      await vi.advanceTimersByTimeAsync(15_001)
+
+      const stallCalls = loggerErrorSpy.mock.calls.filter((args) => args[0] === 'VIbeGrid hydration stalled')
+      expect(stallCalls.length).toBeGreaterThanOrEqual(1)
+      // The log should include phase + entityDataKnownComplete diagnostics
+      expect(stallCalls[0][1]).toMatchObject({
+        phase: expect.any(String),
+        entityDataKnownComplete: expect.any(Boolean),
+        tableId: 'test',
+      })
+
+      store.dispose()
     })
   })
 })

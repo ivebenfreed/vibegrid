@@ -47,9 +47,9 @@ const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT
  *
  * `postInitialization()` schedules Phases 2–6 via 4 chained
  * `requestAnimationFrame`s. Each phase eventually calls
- * `initStore.markReady()` for one of `viewportReady`, `eventHandlersReady`,
- * `rendererInitialized`. If those flags never flip, `isFullyHydrated` stays
- * false and `VibeGridLoadingOverlay` covers the grid forever.
+ * `initStore.transitionPhase()` (post GH#2925 p4: was markReady). If the
+ * chain stalls before reaching `phase === 'painted'`, `VibeGridLoadingOverlay`
+ * covers the grid forever.
  *
  * Chrome **pauses RAF entirely** for tabs that are unfocused/occluded
  * (verified live: 0 RAF callbacks in 3000ms with `document.hidden=false,
@@ -636,8 +636,8 @@ export class SimplePassiveRenderer {
       updateCoordinateMapping: (mapping: CoordinateMapping) => {
         this.coordinateMapping = mapping
 
-        // GUARD: Only update coordinate mapping if grid is fully initialized
-        if (!this.initStore.isFullyHydrated) {
+        // GUARD: Only update coordinate mapping if grid has fully painted
+        if (this.initStore.phase !== 'painted') {
           fileLog.debug('⏸️ COORDINATE: Skipping coordinate mapping update during initialization')
           return
         }
@@ -798,13 +798,6 @@ export class SimplePassiveRenderer {
       })
     }
 
-    // Mark controller dependencies as ready (legacy 10-flag tracking; sync now)
-    if (this.initStore) {
-      fileLog.debug('[VGDEBUG] ✅ Marking viewportReady')
-      this.initStore.markReady('viewportReady')
-      fileLog.debug('[VGDEBUG] ✅ Controllers ready')
-    }
-
     // Initialize overlay now that DOM is ready (AFTER InteractionCoordinator)
     if (this.overlayManager) {
       this.overlayManager.initializeOverlay()
@@ -819,12 +812,6 @@ export class SimplePassiveRenderer {
     // Link coordinator to overlay manager for fill handle delegation
     if (this.interactionCoordinator) {
       this.interactionCoordinator.setOverlayManager(this.overlayManager!)
-    }
-
-    if (this.initStore) {
-      fileLog.debug('[VGDEBUG] ✅ Marking eventHandlersReady')
-      this.initStore.markReady('eventHandlersReady')
-      fileLog.debug('[VGDEBUG] ✅ Overlay and event handlers ready')
     }
 
     // Render header (lighter operation)
@@ -862,8 +849,6 @@ export class SimplePassiveRenderer {
       })
 
       const actualPaintTime = performance.now()
-      fileLog.debug('[VGDEBUG] ✅ Marking rendererInitialized')
-      this.initStore.markReady('rendererInitialized')
 
       // GH#2925 p1: advance phase machine — paint observed
       this.initStore.transitionPhase('painted')
@@ -2152,9 +2137,8 @@ export class SimplePassiveRenderer {
         sampleRows: newRows.slice(0, 3).map((r) => ({ id: r.rowId, y: r.y })),
       })
 
-      // GUARD: Only update coordinate mapping if grid is fully initialized
-      const isFullyInitialized = this.initStore.isFullyHydrated
-      if (!isFullyInitialized) {
+      // GUARD: Only update coordinate mapping if grid has fully painted
+      if (this.initStore.phase !== 'painted') {
         fileLog.debug('⏸️ COORDINATE: Skipping coordinate mapping update during initialization (renderBody)')
         return
       }
@@ -2170,7 +2154,7 @@ export class SimplePassiveRenderer {
     // Position tracking should be derived from coordinate mapping, not DOM scanning
     // The coordinate mapping already contains all position information needed
     // TODO: Refactor position tracker to use computed observables from coordinateMapping
-    if (this.initStore.isFullyHydrated) {
+    if (this.initStore.phase === 'painted') {
       // Coordinate mapping is already updated above - position tracker should react to that
       // instead of doing expensive DOM scanning
       fileLog.debug('🚀 PERF: Skipping expensive DOM position update - using coordinate mapping instead')
