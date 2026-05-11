@@ -43,6 +43,44 @@ const ROW_HEIGHT = GRID_DIMENSIONS.ROW_HEIGHT
 const HEADER_HEIGHT = GRID_DIMENSIONS.HEADER_HEIGHT
 
 /**
+ * GH#2923 — RAF + setTimeout race for the post-init phase chain.
+ *
+ * `postInitialization()` schedules Phases 2–6 via 4 chained
+ * `requestAnimationFrame`s. Each phase eventually calls
+ * `initStore.markReady()` for one of `viewportReady`, `eventHandlersReady`,
+ * `rendererInitialized`. If those flags never flip, `isFullyHydrated` stays
+ * false and `VibeGridLoadingOverlay` covers the grid forever.
+ *
+ * Chrome **pauses RAF entirely** for tabs that are unfocused/occluded
+ * (verified live: 0 RAF callbacks in 3000ms with `document.hidden=false,
+ * visibilityState='visible'` but `hasFocus()=false`). On a warm refresh
+ * where the tab loses focus during init, the chain stalls forever — every
+ * other hydration key is `true`, only the three RAF-gated ones are stuck,
+ * and the renderer's own `hasRows` post-data render gate never triggers
+ * because the rows arrived *before* observers were set up (no
+ * `dataVersion` change to react to).
+ *
+ * `scheduleAfterPaint` races RAF against a 200ms `setTimeout` fallback so
+ * the chain progresses even when RAF is paused. RAF still wins in the
+ * normal foreground case (~16ms), preserving the original "yield between
+ * paints" smoothness; the fallback only fires when the user-agent
+ * actually paused the RAF queue. The fired-once guard prevents a
+ * double-execution if both fire in flight.
+ */
+const POST_INIT_RAF_FALLBACK_MS = 200
+
+function scheduleAfterPaint(cb: () => void): void {
+  let fired = false
+  const fire = () => {
+    if (fired) return
+    fired = true
+    cb()
+  }
+  requestAnimationFrame(fire)
+  setTimeout(fire, POST_INIT_RAF_FALLBACK_MS)
+}
+
+/**
  * GH#2848 follow-up — synthesize a sparse-row VirtualRow for an unloaded
  * index in the cursor-bounded substrate window. Mirrors the inline literal
  * previously duplicated only inside `renderBody` (line ~1849); now reused
@@ -660,7 +698,12 @@ export class SimplePassiveRenderer {
     this.initializePositionTracking()
 
     // Phase 2: Defer DOM measurements and controller initialization
-    requestAnimationFrame(() => {
+    // GH#2923: scheduleAfterPaint = RAF + 200ms setTimeout fallback. Chrome
+    // pauses RAF entirely on unfocused/occluded tabs; without the fallback
+    // the chain stalls and `viewportReady`/`eventHandlersReady`/
+    // `rendererInitialized` never flip true, leaving the loading overlay
+    // permanently mounted over fully-loaded data.
+    scheduleAfterPaint(() => {
       // Guard: Skip if instance was destroyed (React StrictMode remount)
       if (this.isDestroyed) {
         fileLog.debug('[VGDEBUG] ⏭️ Skipping postInit RAF - instance destroyed', {
@@ -788,8 +831,8 @@ export class SimplePassiveRenderer {
         fileLog.debug('[VGDEBUG] ✅ Controllers ready')
       }
 
-      // Phase 3: Defer overlay and event setup
-      requestAnimationFrame(() => {
+      // Phase 3: Defer overlay and event setup (GH#2923 — see Phase 2 note)
+      scheduleAfterPaint(() => {
         // Guard: Skip if instance was destroyed
         if (this.isDestroyed) {
           fileLog.debug('⏭️ Skipping overlay RAF - instance destroyed', {
@@ -822,8 +865,8 @@ export class SimplePassiveRenderer {
           fileLog.debug('[VGDEBUG] ✅ Overlay and event handlers ready')
         }
 
-        // Phase 4: Defer header render
-        requestAnimationFrame(() => {
+        // Phase 4: Defer header render (GH#2923 — see Phase 2 note)
+        scheduleAfterPaint(() => {
           // Guard: Skip if instance was destroyed
           if (this.isDestroyed) {
             fileLog.debug('⏭️ Skipping header render RAF - instance destroyed', {
@@ -837,8 +880,8 @@ export class SimplePassiveRenderer {
             this.renderHeader()
           })
 
-          // Phase 5: Defer body render to next frame
-          requestAnimationFrame(() => {
+          // Phase 5: Defer body render to next frame (GH#2923 — see Phase 2 note)
+          scheduleAfterPaint(() => {
             // Guard: Skip if instance was destroyed
             if (this.isDestroyed) {
               fileLog.debug('⏭️ Skipping body render RAF - instance destroyed', {
@@ -865,7 +908,11 @@ export class SimplePassiveRenderer {
             })
 
             // Mark renderer as initialized AFTER browser paint is complete
-            requestAnimationFrame(() => {
+            // (GH#2923 — see Phase 2 note; the "wait one more frame" is to
+            // observe the post-renderBody paint, which is still desired when
+            // RAF works normally; the setTimeout fallback ensures forward
+            // progress when it doesn't.)
+            scheduleAfterPaint(() => {
               // Guard: Skip if instance was destroyed
               if (this.isDestroyed) {
                 fileLog.debug('⏭️ Skipping markReady RAF - instance destroyed', {
