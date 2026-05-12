@@ -40,6 +40,8 @@ interface MyWorkGridProps {
   hasMore?: boolean
   toolbarLeading?: React.ReactNode
   toolbarTrailing?: React.ReactNode
+  emptyStateHeadline?: string
+  emptyStateBody?: string
 }
 
 // ====================================
@@ -78,6 +80,8 @@ const MyWorkGridInner = observer(function MyWorkGridInner({
   hasMore,
   toolbarLeading,
   toolbarTrailing,
+  emptyStateHeadline,
+  emptyStateBody,
 }: MyWorkGridProps) {
   const tableCoreStore = useTableCoreStore()
   const initStore = useInitStore()
@@ -206,6 +210,8 @@ const MyWorkGridInner = observer(function MyWorkGridInner({
           onRowAction={handleRowAction}
           toolbarLeading={toolbarLeading}
           toolbarTrailing={toolbarTrailing}
+          emptyStateHeadline={emptyStateHeadline}
+          emptyStateBody={emptyStateBody}
         />
       </div>
       {/* Load More button for pagination */}

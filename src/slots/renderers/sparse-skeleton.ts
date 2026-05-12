@@ -38,8 +38,11 @@ class SparseSkeletonCellRenderer implements CellRenderer {
     el.style.width = `${width}px`
     el.style.height = `${ROW_HEIGHT_PX}px`
 
+    // GH#2934 (p5): compose `vibegrid-skeleton-bar` (animation/color) with
+    // `sparse-skeleton-bar` (sizing) so this renderer shares its shimmer with
+    // the React TableSkeleton overlay.
     const bar = document.createElement('div')
-    bar.className = 'sparse-skeleton-bar'
+    bar.className = 'vibegrid-skeleton-bar sparse-skeleton-bar'
     el.appendChild(bar)
 
     return el

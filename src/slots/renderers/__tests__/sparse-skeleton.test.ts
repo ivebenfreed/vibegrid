@@ -55,6 +55,13 @@ describe('SparseSkeletonCellRenderer', () => {
     expect(bars.length).toBe(1)
   })
 
+  it('GH#2934 (p5): bar composes the unified .vibegrid-skeleton-bar class for shared shimmer', () => {
+    const el = sparseSkeletonCellRenderer.render(undefined, makeColumn(), ctx)
+    const bar = el.querySelector('.sparse-skeleton-bar') as HTMLElement | null
+    expect(bar).not.toBeNull()
+    expect(bar?.classList.contains('vibegrid-skeleton-bar')).toBe(true)
+  })
+
   it('declares non-interactive affordances (no edit/sort/filter)', () => {
     expect(sparseSkeletonCellRenderer.affordances?.editable).toBe(false)
     expect(sparseSkeletonCellRenderer.affordances?.sortable).toBe(false)

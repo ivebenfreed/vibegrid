@@ -43,6 +43,9 @@ interface ThreadListGridProps {
   onStar: (threadId: string, starred: boolean) => void
   toolbarLeading?: React.ReactNode
   toolbarTrailing?: React.ReactNode
+  emptyStateHeadline?: string
+  emptyStateBody?: string
+  emptyStateCta?: React.ReactNode
 }
 
 // ====================================
@@ -62,6 +65,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
   onStar,
   toolbarLeading,
   toolbarTrailing,
+  emptyStateHeadline,
+  emptyStateBody,
+  emptyStateCta,
 }: ThreadListGridProps) {
   const store = useEmailInbox()
   const navigate = useNavigate()
@@ -259,6 +265,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         onRowAction={handleRowAction}
         toolbarLeading={toolbarLeading}
         toolbarTrailing={toolbarTrailing}
+        emptyStateHeadline={emptyStateHeadline}
+        emptyStateBody={emptyStateBody}
+        emptyStateCta={emptyStateCta}
       />
     </div>
   )

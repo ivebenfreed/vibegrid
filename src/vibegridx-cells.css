@@ -745,16 +745,25 @@
  * for design-system overrides; the color-mix expressions are the
  * theme-aware fallback. (Was: hardcoded rgba.)
  */
+/* GH#2934 (p5): unified shimmer class for the React `TableSkeleton` overlay AND
+ * the imperative `SparseSkeletonCellRenderer`. Both paths share the same
+ * `vibegrid-skeleton-pulse` keyframe so cold-load and fast-scroll shimmer are
+ * visually identical (1.5s ease-in-out, opacity 0.6 → 1.0 → 0.6). */
+.vibegrid-skeleton-bar {
+  background: var(--bp-skeleton-base, color-mix(in oklch, var(--foreground) 12%, transparent));
+  border-radius: 4px;
+  will-change: opacity, background-color;
+  animation: vibegrid-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Sparse-row variant keeps its sizing rules; the renderer composes both classes
+ * on each rendered bar. */
 .sparse-skeleton-bar {
   flex: 1;
   height: 12px;
-  border-radius: 4px;
-  background: var(--bp-skeleton-base, color-mix(in oklch, var(--foreground) 12%, transparent));
-  will-change: opacity, background-color;
-  animation: sparse-skeleton-pulse 1.5s ease-in-out infinite;
 }
 
-@keyframes sparse-skeleton-pulse {
+@keyframes vibegrid-skeleton-pulse {
   0%,
   100% {
     opacity: 0.6;
@@ -767,7 +776,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sparse-skeleton-bar {
+  .vibegrid-skeleton-bar {
     animation: none;
     opacity: 0.5;
   }

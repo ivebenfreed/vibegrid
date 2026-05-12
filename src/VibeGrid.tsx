@@ -196,6 +196,15 @@ interface VibeGridProps<_T = any> {
   toolbarLeading?: React.ReactNode
   /** Trailing content for the toolbar (e.g., creation button) */
   toolbarTrailing?: React.ReactNode
+
+  // Empty-state slot + copy overrides (GH#2934)
+  /** Consumer-supplied call-to-action node for the `empty` variant (e.g., a creation button).
+   *  Ignored for `search` and `filter` variants. */
+  emptyStateCta?: React.ReactNode
+  /** Override headline for the `empty` variant. Ignored for `search` and `filter`. */
+  emptyStateHeadline?: string
+  /** Override body copy for the `empty` variant. Ignored for `search` and `filter`. */
+  emptyStateBody?: string
 }
 
 // ====================================
@@ -262,6 +271,10 @@ function VibeGridInnerBase(props: VibeGridProps) {
     // Toolbar slots
     toolbarLeading,
     toolbarTrailing,
+    // Empty-state slot + copy overrides (GH#2934)
+    emptyStateCta,
+    emptyStateHeadline,
+    emptyStateBody,
   } = props
 
   // ====================================
@@ -1260,13 +1273,27 @@ function VibeGridInnerBase(props: VibeGridProps) {
     initStore.phase !== 'painted' ||
     (!initStore.entityDataKnownComplete && tableCoreStore.processedRows.length === 0)
 
+  // GH#2934 (p2): unified mount predicate — fires for any zero-row state
+  // (empty / search-to-zero / filter-to-zero). Variant is resolved at the
+  // render site below. Keeps the `isIncrementalProcessing` guard to avoid
+  // flashing "empty" mid-stream during pagination.
   const showEmptyState =
     !!initStore &&
     initStore.phase === 'painted' &&
     initStore.entityDataKnownComplete &&
     tableCoreStore.processedRows.length === 0 &&
-    !visualStateStore.globalSearchText &&
-    !visualStateStore.filterGroup
+    !tableCoreStore.isIncrementalProcessing
+
+  // Variant resolution — treat a filter group with no conditions as "no filter active"
+  // (a consumer could call applyFilterGroup({logic: 'AND', conditions: []}) which we
+  // must not mis-classify as the `filter` variant).
+  const searchActive = Boolean(visualStateStore.globalSearchText)
+  const filterActive = (visualStateStore.filterGroup?.conditions?.length ?? 0) > 0
+  const emptyVariant: 'empty' | 'search' | 'filter' = searchActive
+    ? 'search'
+    : filterActive
+      ? 'filter'
+      : 'empty'
 
   // Header should show as soon as stores are ready (don't wait for renderer)
   // GH#1240: Respect showHeader prop for nested grids that don't need headers
@@ -1406,45 +1433,18 @@ function VibeGridInnerBase(props: VibeGridProps) {
               visibility: effectiveViewMode === 'kanban' ? 'hidden' : 'visible',
             }}
           />
-          {/* GH#2925 (p3): Empty state when grid has fully painted with zero rows */}
+          {/* GH#2934 (p2): Unified empty state — variant resolved from active search/filter.
+              Subsumes the legacy inline search/filter empty block and routes all three
+              zero-row surfaces through VibeGridEmptyState. */}
           {effectiveViewMode !== 'kanban' && showEmptyState && (
-            <VibeGridEmptyState entityDisplayName={entityDisplayName} />
+            <VibeGridEmptyState
+              variant={emptyVariant}
+              entityDisplayName={entityDisplayName}
+              headline={emptyVariant === 'empty' ? emptyStateHeadline : undefined}
+              body={emptyVariant === 'empty' ? emptyStateBody : undefined}
+              cta={emptyVariant === 'empty' ? emptyStateCta : undefined}
+            />
           )}
-          {/* GH#2041: Empty state when search/filter returns zero results */}
-          {effectiveViewMode !== 'kanban' &&
-            !tableCoreStore.isIncrementalProcessing &&
-            tableCoreStore.processedRows.length === 0 &&
-            (visualStateStore.globalSearchText || visualStateStore.filterGroup) && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 48,
-                  left: 0,
-                  right: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '48px 16px',
-                  pointerEvents: 'none',
-                  zIndex: 1,
-                }}
-              >
-                <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>No results found</p>
-                {visualStateStore.globalSearchText && (
-                  <p
-                    style={{
-                      color: 'var(--muted-foreground)',
-                      fontSize: 12,
-                      marginTop: 4,
-                      opacity: 0.7,
-                    }}
-                  >
-                    Try a different search term
-                  </p>
-                )}
-              </div>
-            )}
         </div>
 
         {/* Non-table view modes — rendered by activeModule via ViewModeRegistry */}

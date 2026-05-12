@@ -425,7 +425,15 @@ const DeleteFileDialog = observer(function DeleteFileDialog({
  * - Push data to tableCoreStore.setRows() directly
  * - Use entityType="File" for column schema (all file types share similar fields)
  */
-const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: string; projectId: string }) {
+const FileGrid = observer(function FileGrid({
+  tableId,
+  projectId,
+  onUploadClick,
+}: {
+  tableId: string
+  projectId: string
+  onUploadClick: () => void
+}) {
   const stores = useVibeGridStores()
   const tableCoreStore = useTableCoreStore()
   const initStore = useInitStore()
@@ -528,6 +536,14 @@ const FileGrid = observer(function FileGrid({ tableId, projectId }: { tableId: s
       rowActions={FILE_ROW_ACTIONS}
       searchableColumns={['name', '_file_type', 'entity_type', 'mime_type', 'status']}
       searchPlaceholder="Search files, photos, drawings..."
+      emptyStateHeadline="No files yet"
+      emptyStateBody="Upload documents, drawings, or photos to get started."
+      emptyStateCta={
+        <Button onClick={onUploadClick}>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload Files
+        </Button>
+      }
     />
   )
 })
@@ -626,7 +642,11 @@ export const GCFileBrowser = observer(function GCFileBrowser({ projectId, projec
           </div>
           <div className="flex-1 w-full min-h-[400px]">
             <VibeGridStoreProvider tableId={tableId} entityType="File">
-              <FileGrid tableId={tableId} projectId={projectId} />
+              <FileGrid
+                tableId={tableId}
+                projectId={projectId}
+                onUploadClick={() => setUploadOpen(true)}
+              />
             </VibeGridStoreProvider>
           </div>
         </div>

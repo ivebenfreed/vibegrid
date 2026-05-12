@@ -15,7 +15,11 @@ interface TableSkeletonProps {
 
 /**
  * Loading skeleton that matches VibeGrid table structure exactly
- * Uses same dimensions as actual grid: drag column (30px) + row header (40px) + data columns
+ * Uses same dimensions as actual grid: drag column (30px) + row header (40px) + data columns.
+ *
+ * GH#2934 (p5): shimmer bars use the unified `.vibegrid-skeleton-bar` class so
+ * the cold-load overlay and the fast-scroll sparse-row cells share one keyframe
+ * (`vibegrid-skeleton-pulse`, 1.5s ease-in-out, opacity 0.6 → 1.0 → 0.6).
  */
 export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
   // Generate stable random widths once per render (not on every cell)
@@ -40,7 +44,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
             className="flex-shrink-0 flex items-center justify-center border-r border-border"
             style={{ width: GRID_DIMENSIONS.ROW_HEADER_WIDTH }}
           >
-            <div className="h-4 w-4 bg-muted-foreground/20 rounded animate-pulse" />
+            <div className="h-4 w-4 vibegrid-skeleton-bar" />
           </div>
 
           {/* Column headers */}
@@ -50,7 +54,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
               className="flex items-center px-3 border-r border-border"
               style={{ width: GRID_DIMENSIONS.DEFAULT_COLUMN_WIDTH }}
             >
-              <div className="h-4 bg-muted-foreground/30 rounded w-3/4 animate-pulse" />
+              <div className="h-4 w-3/4 vibegrid-skeleton-bar" />
             </div>
           ))}
         </div>
@@ -86,7 +90,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
                 className="flex-shrink-0 flex items-center justify-center border-r border-border"
                 style={{ width: GRID_DIMENSIONS.ROW_HEADER_WIDTH }}
               >
-                <div className="h-4 w-4 bg-muted/50 rounded animate-pulse" />
+                <div className="h-4 w-4 vibegrid-skeleton-bar" />
               </div>
 
               {/* Data cells */}
@@ -97,7 +101,7 @@ export function TableSkeleton({ columns = 6, rows = 12 }: TableSkeletonProps) {
                   style={{ width: GRID_DIMENSIONS.DEFAULT_COLUMN_WIDTH }}
                 >
                   <div
-                    className="h-4 bg-muted/50 rounded animate-pulse"
+                    className="h-4 vibegrid-skeleton-bar"
                     style={{ width: cellWidths[rowIndex * columns + colIndex] }}
                   />
                 </div>
@@ -124,7 +128,7 @@ export function TableRowSkeleton({ columns = 6 }: { columns?: number }) {
         className="flex-shrink-0 flex items-center justify-center border-r border-border"
         style={{ width: GRID_DIMENSIONS.ROW_HEADER_WIDTH }}
       >
-        <div className="animate-pulse h-4 w-4 bg-muted/50 rounded" />
+        <div className="h-4 w-4 vibegrid-skeleton-bar" />
       </div>
 
       {/* Data columns */}
@@ -134,7 +138,7 @@ export function TableRowSkeleton({ columns = 6 }: { columns?: number }) {
           className="flex items-center px-3 border-r border-border"
           style={{ width: GRID_DIMENSIONS.DEFAULT_COLUMN_WIDTH }}
         >
-          <div className="animate-pulse h-4 bg-muted/50 rounded w-3/4" />
+          <div className="h-4 w-3/4 vibegrid-skeleton-bar" />
         </div>
       ))}
     </div>
