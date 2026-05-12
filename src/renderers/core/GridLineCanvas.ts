@@ -202,7 +202,7 @@ export class GridLineCanvas {
     // During fast scroll, cells are missing but the canvas shows the correct
     // row colors + grid lines, so the transition when cells appear is just
     // text filling in on an already-correct background.
-    this.drawRowBackgrounds(viewportWidth, viewportHeight, scrollTop)
+    this.drawRowBackgrounds(viewportWidth, viewportHeight, scrollLeft, scrollTop)
     this.drawVerticalLines(viewportWidth, viewportHeight, scrollLeft, scrollTop)
     this.drawHorizontalLines(viewportWidth, viewportHeight, scrollTop)
   }
@@ -212,7 +212,7 @@ export class GridLineCanvas {
    * Even rows are left transparent (the canvas clear shows the default background).
    * This provides visual structure during fast scroll when DOM cells are absent.
    */
-  private drawRowBackgrounds(canvasWidth: number, _canvasHeight: number, scrollTop: number): void {
+  private drawRowBackgrounds(canvasWidth: number, _canvasHeight: number, scrollLeft: number, scrollTop: number): void {
     const rowOffsets = this.viewportStore.rowOffsets
     const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
     const totalRows = this.viewportStore.totalRows
@@ -236,6 +236,11 @@ export class GridLineCanvas {
 
     this.ctx.fillStyle = this.altRowColor
 
+    // Clamp fill width to the column area so the alt-row band does not
+    // extend past the last column. DOM .vibegridx-row elements are
+    // fit-content; without this clamp the canvas paints past them.
+    const fillWidth = Math.min(canvasWidth, Math.max(0, this.visualStateStore.totalWidth - scrollLeft))
+
     for (let i = start; i < end; i++) {
       // Only paint odd rows (alternating pattern)
       if (i % 2 === 0) continue
@@ -254,7 +259,7 @@ export class GridLineCanvas {
       }
 
       if (y + h >= 0) {
-        this.ctx.fillRect(0, y, canvasWidth, h)
+        this.ctx.fillRect(0, y, fillWidth, h)
       }
     }
   }
