@@ -564,11 +564,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
   })
 
   // Row expansion integration (GH#1240)
-  logger.info('🔄 VibeGrid rowExpansionConfig', {
-    hasConfig: !!rowExpansionConfig,
-    enabled: rowExpansionConfig?.enabled,
-    enabledFallback: rowExpansionConfig?.enabled ?? false,
-  })
   const _rowExpansion = useRowExpansion(interactionStore, {
     enabled: rowExpansionConfig?.enabled ?? false,
     allowMultiple: rowExpansionConfig?.allowMultiple ?? true,
