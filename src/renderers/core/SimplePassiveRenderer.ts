@@ -1817,13 +1817,7 @@ export class SimplePassiveRenderer {
       event: 'renderBody_start',
       timestamp: renderStartTime,
     })
-    // [sort-trace] GH#2848: T4 — DOM teardown about to begin. Gap (T4 - T3)
-    // = TableCoreStore.setSparseRows + dataVersion bump + ObserverManager
-    // reaction propagation. The matching renderBody-end log fires below.
-    // debug-level: vibegrid category is gated to `warning` by default
-    // (config.ts:44). Re-enable from console when tracing:
-    //   __BASEPLANE_LOGGER__.setLevel('debug', ['vibegrid'])
-    fileLog.debug('[sort-trace] renderBody start', {
+    fileLog.debug('renderBody start', {
       t: renderStartTime,
       rowCount: this.tableCoreStore.processedRows.length,
       dataV: this.tableCoreStore.dataVersion,
@@ -2050,16 +2044,8 @@ export class SimplePassiveRenderer {
 
     // PERFORMANCE FIX: Single DOM operation instead of multiple appendChild calls
     this.bodyContainer.appendChild(fragment)
-    // [sort-trace] GH#2848: T5 — fragment appended; the new sorted rows are
-    // now in the DOM. Browser will paint on the next frame. Gap (T5 - T4)
-    // = pure renderBody DOM-build cost (cell-level construction).
-    // debug-level: paired with renderBody-start above. Re-enable via:
-    //   __BASEPLANE_LOGGER__.setLevel('debug', ['vibegrid'])
-    // Slow-render escalation (durationMs > 100ms) is logged separately
-    // by the existing fileLog.info('🎨 DOM RENDER COMPLETE', ...) below
-    // so production still surfaces actually-slow renders.
     const renderDurationMs = Number((performance.now() - renderStartTime).toFixed(1))
-    fileLog.debug('[sort-trace] renderBody end', {
+    fileLog.debug('renderBody end', {
       t: performance.now(),
       durationMs: renderDurationMs,
     })

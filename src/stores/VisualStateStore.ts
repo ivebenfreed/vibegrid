@@ -1256,12 +1256,7 @@ export class VisualStateStore implements IStore {
   toggleSort(field: string, isMultiSort: boolean = false): void {
     const existingIndex = this.sortBy.findIndex((s) => s.field === field)
 
-    // [sort-trace] GH#2848: pipeline timing — `T0` for end-to-end sort latency.
-    // Match log messages prefixed [sort-trace] across files to correlate.
-    // debug-level: vibegrid category gated to `warning` by default
-    // (config.ts:44). User-initiated sort is best traced on demand:
-    //   __BASEPLANE_LOGGER__.setLevel('debug', ['vibegrid'])
-    logger.debug('[sort-trace] toggleSort', { field, t: performance.now() })
+    logger.debug('toggleSort', { field, t: performance.now() })
 
     logger.info('toggleSort called', {
       field,
