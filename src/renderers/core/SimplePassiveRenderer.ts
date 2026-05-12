@@ -1947,7 +1947,7 @@ export class SimplePassiveRenderer {
     const effectiveTotalRows = Math.max(rows.length, viewportStore?.serverTotalRows ?? 0)
     const endIndex = Math.min(effectiveTotalRows, visibleRange.end)
 
-    fileLog.info('🎨 ROW 16 DEBUG - Body rendering range', {
+    fileLog.debug('🎨 Body rendering range', {
       totalRows: rows.length,
       effectiveTotalRows,
       visibleRangeRaw: visibleRange,

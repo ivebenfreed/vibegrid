@@ -57,7 +57,7 @@ export class RowPreRenderBuffer {
    */
   setContext(ctx: RowBuildContext): void {
     this.ctx = ctx
-    log.info('📋 RowPreRenderBuffer context set')
+    log.debug('📋 RowPreRenderBuffer context set')
   }
 
   /**
@@ -140,7 +140,7 @@ export class RowPreRenderBuffer {
    * Called on data/column changes to clear stale pre-rendered rows.
    */
   invalidate(): void {
-    log.info('🧹 Buffer invalidated', { cleared: this.buffer.size })
+    log.debug('🧹 Buffer invalidated', { cleared: this.buffer.size })
     this.buffer.clear()
     this.queue = []
     this.cancelScheduled()

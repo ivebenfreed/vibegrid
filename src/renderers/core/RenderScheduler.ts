@@ -144,7 +144,7 @@ export class RenderScheduler {
         // Determine update strategy using the update router
         const strategy = determineUpdateStrategy(lastChangeMetadata)
 
-        fileLog.info('Routing update based on strategy', {
+        fileLog.debug('Routing update based on strategy', {
           strategy,
           changeType: lastChangeMetadata?.type,
           estimatedCells: lastChangeMetadata?.estimatedCellCount,
@@ -155,8 +155,8 @@ export class RenderScheduler {
           // FULL RE-RENDER PATH (structural/config changes or large updates)
           // This will trigger processedRows recomputation via MobX
 
-          fileLog.info('Full render triggered', {
-            reason: lastChangeMetadata?.type || 'structural/config change',
+          fileLog.debug('Full render triggered', {
+            reason: lastChangeMetadata?.type ?? 'no-metadata-fallback',
             dataVersion,
             configVersion,
             structureVersion,
