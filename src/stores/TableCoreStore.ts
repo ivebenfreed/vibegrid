@@ -798,6 +798,17 @@ export class TableCoreStore implements IStore {
     this.hasLoadedRows = totalCount > 0
     this.rawRowsIndexCacheRef = null
     this.rawRowsIndexCache = null
+    // A sparse-window swap replaces the row set wholesale — classify as
+    // STRUCTURAL so ObserverManager routes to full-render with the real
+    // cause attributed (instead of the no-metadata fallback branch).
+    this.lastChangeMetadata = {
+      type: ChangeType.STRUCTURAL,
+      affectedRows: new Set(),
+      affectedCells: new Map(),
+      sortingSensitive: false,
+      structuralChange: true,
+      estimatedCellCount: 0,
+    }
     // Bump dataVersion so ObserverManager triggers a renderBody. Without
     // this, the bridge would write rows into the sparse store but the
     // renderer would never re-run; the body container's style.height stayed
