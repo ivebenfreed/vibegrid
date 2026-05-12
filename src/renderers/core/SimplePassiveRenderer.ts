@@ -1064,9 +1064,25 @@ export class SimplePassiveRenderer {
       this.activeRows.clear()
       this.activeCells.clear()
 
+      // GH#2934 follow-up — initial-render shimmer.
+      // The scroll-up/down branches below already synthesize a __sparse row
+      // for unloaded indices (and bound the loop by `effectiveTotalRows`).
+      // This branch ran ONLY on the very first updateVirtualRows after a
+      // mount/remount and was missed — it clamped to `rows.length` and
+      // handed undefined to createRowElementByType (returns null). A fast
+      // scroll that landed the first incremental tick on an unloaded
+      // region — or any case where the substrate prefetch sized the body
+      // for `serverTotalRows` before setSparseRows had fired — produced a
+      // blank grid until the queryDelta arrived. Mirror the same pattern
+      // as the scroll-down branch so the cold path paints shimmer the
+      // moment it has a viewport range to fill.
+      const effectiveTotalRows = Math.max(rows.length, this.stores.viewportStore?.serverTotalRows ?? 0)
       const fragment = document.createDocumentFragment()
-      for (let i = currentRange.start; i < currentRange.end && i < rows.length; i++) {
-        const row = rows[i]
+      for (let i = currentRange.start; i < currentRange.end && i < effectiveTotalRows; i++) {
+        let row = rows[i]
+        if (row === undefined) {
+          row = synthesizeSparseRow(i)
+        }
         const rowElement = this.createRowElementByType(row, i, columns, columnVisibility, baseOffset, precomputed)
         if (rowElement && row?.id) {
           fragment.appendChild(rowElement)
