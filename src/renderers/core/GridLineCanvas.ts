@@ -204,7 +204,7 @@ export class GridLineCanvas {
     // text filling in on an already-correct background.
     this.drawRowBackgrounds(viewportWidth, viewportHeight, scrollLeft, scrollTop)
     this.drawVerticalLines(viewportWidth, viewportHeight, scrollLeft, scrollTop)
-    this.drawHorizontalLines(viewportWidth, viewportHeight, scrollTop)
+    this.drawHorizontalLines(viewportWidth, viewportHeight, scrollLeft, scrollTop)
   }
 
   /**
@@ -341,7 +341,7 @@ export class GridLineCanvas {
    * instead of using viewportStore.visibleRowRange, so lines are independent of
    * the MobX virtual scroll lifecycle that controls DOM row creation.
    */
-  private drawHorizontalLines(canvasWidth: number, _canvasHeight: number, scrollTop: number): void {
+  private drawHorizontalLines(canvasWidth: number, _canvasHeight: number, scrollLeft: number, scrollTop: number): void {
     const rowOffsets = this.viewportStore.rowOffsets
     const rowHeight = GRID_DIMENSIONS.ROW_HEIGHT
     const totalRows = this.viewportStore.totalRows
@@ -368,6 +368,13 @@ export class GridLineCanvas {
     start = Math.max(0, start)
     end = Math.min(totalRows, end)
 
+    // Clamp line width to the column area so horizontal grid lines don't
+    // extend past the last column — matches the alt-row clamp from GH#2955
+    // and prevents trailing lines on pages where totalWidth < viewportWidth
+    // (e.g. /my-work).
+    const lineEndX = Math.min(canvasWidth, Math.max(0, this.visualStateStore.totalWidth - scrollLeft))
+    if (lineEndX <= 0) return
+
     this.ctx.beginPath()
     this.ctx.strokeStyle = this.borderColor
     this.ctx.lineWidth = 1
@@ -386,7 +393,7 @@ export class GridLineCanvas {
 
       if (y >= 0) {
         this.ctx.moveTo(0, y)
-        this.ctx.lineTo(canvasWidth, y)
+        this.ctx.lineTo(lineEndX, y)
       }
     }
 

@@ -40,6 +40,7 @@ function createMockVisualStateStore(
   overrides: Partial<{
     visibleColumns: ColumnLayout[]
     visibleColumnRange: { start: number; end: number }
+    totalWidth: number
     scrollLeft: number
     scrollTop: number
   }> = {},
@@ -50,9 +51,15 @@ function createMockVisualStateStore(
     { id: 'col3', width: 150, xOffset: 420, visible: true, order: 2 },
   ]
 
+  // Production: totalWidth = 70 (drag column + row header) + sum of visible column widths.
+  // GridLineCanvas reads this to clamp the canvas paint to the column area
+  // (alt-row fill GH#2955, horizontal lines GH#2955 follow-up).
+  const defaultTotalWidth = 70 + columns.reduce((sum, c) => sum + c.width, 0)
+
   return {
     visibleColumns: columns,
     visibleColumnRange: overrides.visibleColumnRange ?? { start: 0, end: columns.length },
+    totalWidth: overrides.totalWidth ?? defaultTotalWidth,
   } as unknown as VisualStateStore
 }
 
@@ -481,6 +488,8 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
+        // Wide enough that the clamp does not affect lineTo end-x (matches canvasWidth)
+        totalWidth: 800,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
@@ -509,6 +518,7 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
+        totalWidth: 800,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
@@ -534,6 +544,7 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [],
         visibleColumnRange: { start: 0, end: 0 },
+        totalWidth: 800,
       })
       const viewportStore = createMockViewportStore({
         viewportWidth: 800,
@@ -554,6 +565,78 @@ describe('GridLineCanvas', () => {
       expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 50.5)
       expect(mockCtx.moveTo).toHaveBeenCalledWith(0, 120.5)
       expect(mockCtx.lineTo).toHaveBeenCalledWith(800, 120.5)
+    })
+
+    it('clamps horizontal lines to column area when totalWidth < viewportWidth', () => {
+      // /my-work scenario: visible-columns total ~1020px, viewport ~1700px.
+      // Without the clamp, canvas paints horizontal lines across the empty
+      // space past the last column. Lines must stop at totalWidth - scrollLeft.
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
+        visibleColumnRange: { start: 0, end: 1 },
+        totalWidth: 220, // 70 + 150 (col1)
+      })
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 3 },
+        rowOffsets: null,
+        scrollLeft: 0,
+        scrollTop: 0,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // Lines should stop at column area (220), not extend to viewport width (800)
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(220, 1 * RH + 0.5)
+      expect(mockCtx.lineTo).not.toHaveBeenCalledWith(800, 1 * RH + 0.5)
+    })
+
+    it('shifts horizontal-line clamp leftward as scrollLeft grows', () => {
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
+        visibleColumnRange: { start: 0, end: 1 },
+        totalWidth: 220,
+      })
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 2 },
+        rowOffsets: null,
+        scrollLeft: 50,
+        scrollTop: 0,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // lineEndX = min(800, 220 - 50) = 170
+      expect(mockCtx.lineTo).toHaveBeenCalledWith(170, 1 * RH + 0.5)
+    })
+
+    it('does not draw horizontal lines when the column area is fully scrolled off-screen', () => {
+      const visualStore = createMockVisualStateStore({
+        visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
+        visibleColumnRange: { start: 0, end: 1 },
+        totalWidth: 220,
+      })
+      const viewportStore = createMockViewportStore({
+        viewportWidth: 800,
+        viewportHeight: 600,
+        visibleRowRange: { start: 0, end: 2 },
+        rowOffsets: null,
+        scrollLeft: 500, // beyond totalWidth=220
+        scrollTop: 0,
+      })
+      const gridLines = new GridLineCanvas(visualStore, viewportStore)
+
+      gridLines.draw()
+
+      // lineEndX = min(800, max(0, 220 - 500)) = 0 → early return, no horizontal moveTo calls
+      const moveToCalls = (mockCtx.moveTo as ReturnType<typeof vi.fn>).mock.calls
+      const horizontalMoveTos = moveToCalls.filter((args) => args[0] === 0)
+      expect(horizontalMoveTos.length).toBe(0)
     })
 
     it('falls back gracefully when rowOffsets are sparse', () => {
@@ -602,6 +685,9 @@ describe('GridLineCanvas', () => {
       const visualStore = createMockVisualStateStore({
         visibleColumns: [{ id: 'col1', width: 150, xOffset: 70, visible: true, order: 0 }],
         visibleColumnRange: { start: 0, end: 1 },
+        // 70 (fixed) + 150 (col1) + scrollLeft=100 = 920 column-area end.
+        // Pick totalWidth so clamp leaves a full viewportWidth (800) of lines.
+        totalWidth: 1000,
       })
       // Need enough rows so content at scrollTop=200 still exceeds 600px viewport
       // (totalRows * RH - scrollTop) > viewportHeight → totalRows > (600 + 200) / RH
