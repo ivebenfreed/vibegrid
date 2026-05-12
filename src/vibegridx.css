@@ -1019,11 +1019,11 @@ body.vibegridx-dragging-active * {
   border-left: 1px solid var(--border);
 }
 
-/* Search highlight */
+/* Search highlight — explicit dark text on yellow; inheriting from dark-mode foreground gave light-on-light. */
 .vg-search-highlight {
-  background-color: hsl(48 96% 70% / 0.6);
+  background-color: hsl(48 96% 65%);
   border-radius: 1px;
-  color: inherit;
+  color: hsl(0 0% 10%);
   padding: 0 1px;
 }
 
