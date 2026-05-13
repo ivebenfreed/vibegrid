@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, Loader2, Play, PlayCircle, Send } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, Send } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -632,10 +632,13 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const primaryFileConfig = creationConfigQuery.data?.primaryFile
 
   // Upload orchestration hook (conditionally enabled based on schema config)
+  // GH#2985: forward primaryFile.intent so non-OCR uploads (e.g. CSV imports)
+  // route to their workflow via CSV_INTENT_TO_WORKFLOW in the workflows worker.
   const { store: uploadStore, handleFilesDropped } = useEntityUpload({
     entityName: resolvedName,
     acceptedMimeTypes: primaryFileConfig?.mimeTypes,
     maxFileSizeBytes: primaryFileConfig?.maxFileSizeBytes,
+    intent: primaryFileConfig?.intent,
     enabled: hasUploadMode,
   })
 
