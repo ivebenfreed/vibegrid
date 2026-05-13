@@ -381,14 +381,32 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           return
         }
 
-        // No ?view= in URL — load default and apply it.
+        // No ?view= in URL — resolve the default view's config so widgets +
+        // extra tabs still render, but only call selectView (which clobbers
+        // sort/filter/group/mode/search to the view's config) when the URL
+        // carries no layered state. Otherwise selectView would silently
+        // overwrite the user's deep-linked `?sort=` / `?filter=` / `?group=`
+        // / `?mode=` / `?q=` with the default view's defaults (typically
+        // empty), and the Store→URL reaction would then strip those params
+        // out of the URL — making deep-linked search look like the search
+        // bar is broken and causing two back-to-back loading-skeleton
+        // flashes (URL→Store and the selectView clobber each fire a
+        // separate substrate sort/filter reaction, each clobbers the
+        // loaded window before its query.patch round-trip resolves).
         const defaultView = result.views.find(
           (v: { is_default: boolean }) => v.is_default,
         )
         const resolvedView = defaultView ?? result.views[0] ?? null
         setDefaultViewConfig(resolvedView?.config ?? null)
 
-        if (defaultView && !cancelled) {
+        const urlHasLayeredState =
+          !!initialSearchRef.current.sort ||
+          !!initialSearchRef.current.filter ||
+          !!initialSearchRef.current.group ||
+          !!initialSearchRef.current.mode ||
+          initialSearchRef.current.q !== undefined
+
+        if (defaultView && !cancelled && !urlHasLayeredState) {
           logger.info('Loading default view', {
             viewId: defaultView.id,
             viewName: defaultView.name,
