@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { InitStore } from '../stores/InitStore'
@@ -128,9 +128,6 @@ export function useVibeGridData(
     useSubstrate ? visualStateStore : null,
   )
 
-  // Timer ref for empty collection fallback
-  const emptyCollectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   // ====================================
   // PUSH DATA DIRECTLY TO MOBX STORE
   // ====================================
@@ -158,59 +155,26 @@ export function useVibeGridData(
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
 
+  // Mark hydrated when the substrate becomes ready, regardless of count.
+  // - count > 0: data arrived (from substrate or cold-start bypass writer)
+  // - count === 0: legitimately empty (substrate has authoritatively answered)
+  //
+  // Previously this was split into two effects: one that handled count > 0,
+  // and a 5s wall-clock fallback for the empty case. The fallback fired
+  // before substrate had a chance to initialize on cold-start logins (SQLite
+  // init can take up to 60s — see use-substrate-grid-rows.ts MAX_ATTEMPTS),
+  // causing the grid to flash "No records yet" while data was still loading.
   useEffect(() => {
-    // Skip data push in mock mode when NOT using collectionOverride
-    // (collectionOverride is handled by the effect above)
-    if (skip) return
-
-    // Substrate path: rows are written directly via setSparseRows() inside
-    // useSubstrateGridRows. Mark hydrated when the first ready/non-empty
-    // window arrives.
-    if (substrateState.bounded) {
-      if (
-        !initStore.entityDataKnownComplete &&
-        substrateState.isReady &&
-        substrateState.count > 0
-      ) {
-        if (emptyCollectionTimerRef.current) {
-          clearTimeout(emptyCollectionTimerRef.current)
-          emptyCollectionTimerRef.current = null
-        }
-        initStore.markEntityDataKnownComplete()
-      }
+    if (skip || initStore.entityDataKnownComplete) return
+    if (substrateState.bounded && substrateState.isReady) {
+      initStore.markEntityDataKnownComplete()
     }
   }, [
     skip,
     initStore,
-    entityType,
-    // Bounded-mode delivery happens inside useSubstrateGridRows.
-    substrateState.isReady,
     substrateState.bounded,
-    substrateState.count,
+    substrateState.isReady,
   ])
-
-  // Fallback: For legitimately empty collections, mark entityDataKnownComplete after a delay.
-  // When the substrate returns 0 records, the condition above never fires.
-  // This timeout ensures the skeleton eventually disappears.
-  useEffect(() => {
-    if (skip || initStore.entityDataKnownComplete) return
-
-    emptyCollectionTimerRef.current = setTimeout(() => {
-      if (!initStore.entityDataKnownComplete) {
-        initStore.markEntityDataKnownComplete()
-        logger.info('[useVibeGridData] 📊 Entity data marked known-complete (empty collection fallback)', {
-          entityType,
-        })
-      }
-    }, 5000)
-
-    return () => {
-      if (emptyCollectionTimerRef.current) {
-        clearTimeout(emptyCollectionTimerRef.current)
-        emptyCollectionTimerRef.current = null
-      }
-    }
-  }, [skip, initStore, entityType])
 
   // ====================================
   // CRUD MUTATIONS
