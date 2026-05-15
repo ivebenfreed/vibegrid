@@ -85,6 +85,74 @@ describe('VibeGridEmptyState', () => {
     })
   })
 
+  describe('dropzone mode (GH#3016)', () => {
+    it('renders dropzoneContent in place of headline/body/cta', () => {
+      render(
+        <VibeGridEmptyState
+          variant="empty"
+          headline="Should be sr-only"
+          body="Should not render"
+          cta={<button type="button">Should not render</button>}
+          mode="dropzone"
+          dropzoneContent={<button type="button">Drop files here</button>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      expect(root).toHaveAttribute('data-empty-state-mode', 'dropzone')
+      // The dropzone content is rendered
+      expect(within(root).getByRole('button', { name: 'Drop files here' })).toBeInTheDocument()
+      // The default CTA button is NOT rendered
+      expect(within(root).queryByRole('button', { name: 'Should not render' })).toBeNull()
+      // No visible <p> body
+      expect(root.querySelector('p')).toBeNull()
+    })
+
+    it('still emits a screen-reader-only status output for accessibility', () => {
+      render(
+        <VibeGridEmptyState
+          variant="empty"
+          headline="No COIs yet"
+          mode="dropzone"
+          dropzoneContent={<div>Dropzone</div>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      const output = root.querySelector('output')
+      expect(output).not.toBeNull()
+      expect(output?.textContent).toBe('No COIs yet')
+      // sr-only class hides visually but keeps it in the a11y tree
+      expect(output?.className).toContain('sr-only')
+    })
+
+    it('covers the full grid area (top:0) to hide the column header strip', () => {
+      render(
+        <VibeGridEmptyState
+          variant="empty"
+          mode="dropzone"
+          dropzoneContent={<div>Dropzone</div>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      // Critical: top:0 (not 48) so the column header strip is visually covered.
+      expect(root.style.top).toBe('0px')
+      expect(root.style.bottom).toBe('0px')
+    })
+
+    it('applies dropzone mode for filter variant too (filter-empty still shows dropzone)', () => {
+      render(
+        <VibeGridEmptyState
+          variant="filter"
+          mode="dropzone"
+          dropzoneContent={<button type="button">Drop files</button>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      expect(root).toHaveAttribute('data-empty-state-variant', 'filter')
+      expect(root).toHaveAttribute('data-empty-state-mode', 'dropzone')
+      expect(within(root).getByRole('button', { name: 'Drop files' })).toBeInTheDocument()
+    })
+  })
+
   describe('ARIA shape', () => {
     it('uses <section> as the root with aria-labelledby pointing to the <output id>', () => {
       render(<VibeGridEmptyState variant="empty" headline="Empty" />)

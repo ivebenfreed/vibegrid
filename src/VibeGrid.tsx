@@ -205,6 +205,24 @@ interface VibeGridProps<_T = any> {
   emptyStateHeadline?: string
   /** Override body copy for the `empty` variant. Ignored for `search` and `filter`. */
   emptyStateBody?: string
+
+  // Empty-state dropzone mode (GH#3016)
+  /**
+   * Visual mode for the empty state.
+   * - `default` (omitted): standard centered message + optional CTA below the column header strip.
+   * - `dropzone`: full-bleed overlay that visually hides the column header strip and renders
+   *   `emptyStateContent` (typically an inline upload dropzone) as the primary affordance.
+   *
+   * Applies to all variants (`empty`, `search`, `filter`) so the dropzone stays usable when
+   * a filter excludes every row.
+   */
+  emptyStateMode?: 'default' | 'dropzone'
+  /**
+   * Custom content rendered inside the empty state when `emptyStateMode === 'dropzone'`.
+   * Typically an `<EntityUploadDropzone>` configured with the same upload flow that the
+   * toolbar's "Upload Files" button uses.
+   */
+  emptyStateContent?: React.ReactNode
 }
 
 // ====================================
@@ -275,6 +293,9 @@ function VibeGridInnerBase(props: VibeGridProps) {
     emptyStateCta,
     emptyStateHeadline,
     emptyStateBody,
+    // Empty-state dropzone mode (GH#3016)
+    emptyStateMode = 'default',
+    emptyStateContent,
   } = props
 
   // ====================================
@@ -1435,7 +1456,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
           />
           {/* GH#2934 (p2): Unified empty state — variant resolved from active search/filter.
               Subsumes the legacy inline search/filter empty block and routes all three
-              zero-row surfaces through VibeGridEmptyState. */}
+              zero-row surfaces through VibeGridEmptyState.
+              GH#3016: When `emptyStateMode === 'dropzone'`, the empty state goes full-bleed
+              (covers the column header strip) and renders `emptyStateContent` (typically an
+              inline upload dropzone) as the primary affordance. The dropzone is useful for
+              both truly-empty and filter-empty cases (user can still drop new files). */}
           {effectiveViewMode !== 'kanban' && showEmptyState && (
             <VibeGridEmptyState
               variant={emptyVariant}
@@ -1443,6 +1468,8 @@ function VibeGridInnerBase(props: VibeGridProps) {
               headline={emptyVariant === 'empty' ? emptyStateHeadline : undefined}
               body={emptyVariant === 'empty' ? emptyStateBody : undefined}
               cta={emptyVariant === 'empty' ? emptyStateCta : undefined}
+              mode={emptyStateMode}
+              dropzoneContent={emptyStateMode === 'dropzone' ? emptyStateContent : undefined}
             />
           )}
         </div>
