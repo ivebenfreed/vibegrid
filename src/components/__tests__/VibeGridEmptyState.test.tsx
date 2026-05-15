@@ -86,10 +86,10 @@ describe('VibeGridEmptyState', () => {
   })
 
   describe('dropzone mode (GH#3016)', () => {
-    it('renders dropzoneContent in place of headline/body/cta', () => {
+    it('renders dropzoneContent in place of headline/body/cta (filter variant)', () => {
       render(
         <VibeGridEmptyState
-          variant="empty"
+          variant="filter"
           headline="Should be sr-only"
           body="Should not render"
           cta={<button type="button">Should not render</button>}
@@ -110,8 +110,8 @@ describe('VibeGridEmptyState', () => {
     it('still emits a screen-reader-only status output for accessibility', () => {
       render(
         <VibeGridEmptyState
-          variant="empty"
-          headline="No COIs yet"
+          variant="filter"
+          headline="No COIs match filter"
           mode="dropzone"
           dropzoneContent={<div>Dropzone</div>}
         />,
@@ -119,7 +119,8 @@ describe('VibeGridEmptyState', () => {
       const root = screen.getByTestId('vibegrid-empty-state')
       const output = root.querySelector('output')
       expect(output).not.toBeNull()
-      expect(output?.textContent).toBe('No COIs yet')
+      // For filter variant the headline is built-in, not the consumer's prop.
+      expect(output?.textContent).toBe('No results match these filters')
       // sr-only class hides visually but keeps it in the a11y tree
       expect(output?.className).toContain('sr-only')
     })
@@ -127,7 +128,7 @@ describe('VibeGridEmptyState', () => {
     it('covers the full grid area (top:0) to hide the column header strip', () => {
       render(
         <VibeGridEmptyState
-          variant="empty"
+          variant="filter"
           mode="dropzone"
           dropzoneContent={<div>Dropzone</div>}
         />,
@@ -138,7 +139,7 @@ describe('VibeGridEmptyState', () => {
       expect(root.style.bottom).toBe('0px')
     })
 
-    it('applies dropzone mode for filter variant too (filter-empty still shows dropzone)', () => {
+    it('applies dropzone mode for filter variant (filter-empty still shows dropzone)', () => {
       render(
         <VibeGridEmptyState
           variant="filter"
@@ -150,6 +151,54 @@ describe('VibeGridEmptyState', () => {
       expect(root).toHaveAttribute('data-empty-state-variant', 'filter')
       expect(root).toHaveAttribute('data-empty-state-mode', 'dropzone')
       expect(within(root).getByRole('button', { name: 'Drop files' })).toBeInTheDocument()
+    })
+
+    it('applies dropzone mode for search variant (search-empty is filter-like)', () => {
+      render(
+        <VibeGridEmptyState
+          variant="search"
+          mode="dropzone"
+          dropzoneContent={<button type="button">Drop files</button>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      expect(root).toHaveAttribute('data-empty-state-variant', 'search')
+      expect(root).toHaveAttribute('data-empty-state-mode', 'dropzone')
+      expect(within(root).getByRole('button', { name: 'Drop files' })).toBeInTheDocument()
+    })
+
+    it('IGNORES dropzone mode when variant is empty (truly zero records)', () => {
+      // The fix: a list with no records at all (variant='empty') should
+      // render the standard "No {noun} yet" + CTA empty state, NOT the
+      // full-bleed dropzone — even if the consumer passes mode='dropzone'.
+      render(
+        <VibeGridEmptyState
+          variant="empty"
+          entityDisplayName="COIs"
+          cta={<button type="button">Upload Files</button>}
+          mode="dropzone"
+          dropzoneContent={<button type="button">Should not render</button>}
+        />,
+      )
+      const root = screen.getByTestId('vibegrid-empty-state')
+      // Falls back to default mode — no data-empty-state-mode="dropzone" attr.
+      expect(root.getAttribute('data-empty-state-mode')).not.toBe('dropzone')
+      // Default mode is anchored below the column header strip (top:48), NOT top:0.
+      expect(root.style.top).toBe('48px')
+      // Standard empty-state copy is shown.
+      expect(within(root).getByText('No COIs yet')).toBeInTheDocument()
+      // Consumer CTA renders.
+      expect(within(root).getByRole('button', { name: 'Upload Files' })).toBeInTheDocument()
+      // Dropzone content is NOT rendered.
+      expect(within(root).queryByRole('button', { name: 'Should not render' })).toBeNull()
+    })
+
+    it('default mode + filter variant is unchanged (centered filter-empty copy, no dropzone)', () => {
+      render(<VibeGridEmptyState variant="filter" mode="default" />)
+      const root = screen.getByTestId('vibegrid-empty-state')
+      expect(root.getAttribute('data-empty-state-mode')).not.toBe('dropzone')
+      expect(root.style.top).toBe('48px')
+      expect(within(root).getByText('No results match these filters')).toBeInTheDocument()
     })
   })
 
