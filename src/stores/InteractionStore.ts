@@ -1008,14 +1008,39 @@ export class InteractionStore implements IStore {
       this.selectedCells = newSelection
       logger.info('Row cells deselected', { rowId })
     } else {
-      // Select row - replace existing selection to avoid mixing partial-column
-      // drag selections with full-row checkbox selections (causes overlay expansion)
-      const newSelection = new Set<string>()
+      // GH#2994: Multi-row checkbox selection.
+      // If the existing selection consists entirely of full rows (i.e. only
+      // prior checkbox selections, no partial-column drag), accumulate so
+      // repeated checkbox clicks build a multi-row selection. If the existing
+      // selection is partial (drag-selected a subset of columns), replace it —
+      // mixing partial-column drag with full-row checkbox cells caused the
+      // overlay-expansion visual bug fixed in d705c81b.
+      const colIdsForRow = rowCells.map((c) => c.slice(c.indexOf(':') + 1))
+      const existingRowIds = new Set<string>()
+      for (const cellId of this.selectedCells) {
+        existingRowIds.add(cellId.slice(0, cellId.indexOf(':')))
+      }
+      let existingIsAllFullRows = true
+      for (const rid of existingRowIds) {
+        for (const cid of colIdsForRow) {
+          if (!this.selectedCells.has(`${rid}:${cid}`)) {
+            existingIsAllFullRows = false
+            break
+          }
+        }
+        if (!existingIsAllFullRows) break
+      }
+      const newSelection = existingIsAllFullRows
+        ? new Set(this.selectedCells)
+        : new Set<string>()
       for (const cellId of rowCells) {
         newSelection.add(cellId)
       }
       this.selectedCells = newSelection
-      logger.info('Row cells selected (replaced selection)', { rowId })
+      logger.info('Row cells selected', {
+        rowId,
+        mode: existingIsAllFullRows ? 'accumulated' : 'replaced',
+      })
     }
 
     // Increment version to trigger overlay updates
