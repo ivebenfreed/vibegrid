@@ -108,6 +108,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateCta,
   emptyStateHeadline,
   emptyStateBody,
+  emptyStateMode,
+  emptyStateContent,
 }: {
   entityName: string
   orgId: string
@@ -123,6 +125,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateCta?: React.ReactNode
   emptyStateHeadline?: string
   emptyStateBody?: string
+  emptyStateMode?: 'default' | 'dropzone'
+  emptyStateContent?: React.ReactNode
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -439,6 +443,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           emptyStateCta={emptyStateCta}
           emptyStateHeadline={emptyStateHeadline}
           emptyStateBody={emptyStateBody}
+          emptyStateMode={emptyStateMode}
+          emptyStateContent={emptyStateContent}
           rowActions={allRowActions}
           onRowAction={(actionId, rowIds, rowsData) => {
             if (actionId === 'review-selected') {
@@ -791,6 +797,28 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     slug: f.name,
   }))
 
+  // GH#3016 follow-up: the moment an upload starts (R2 PUT begins), the
+  // dropzone empty-state must yield to the regular grid chrome so the user
+  // immediately sees "drop received, table is filling in". Without this, the
+  // dropzone stays visible for 1-3s until the server confirms entity
+  // creation and the substrate reconciles a row.
+  //
+  // `EntityListView` is wrapped in `observer(...)` at the bottom of this
+  // file, so reading `uploadStore.hasAnyInFlight` / `uploadStore.inFlightCount`
+  // here participates in MobX reactivity — no extra observer boundary needed.
+  const isUploadInFlight = uploadStore.hasAnyInFlight
+  const inFlightCount = uploadStore.inFlightCount
+  const emptyStateMode: 'default' | 'dropzone' =
+    hasUploadMode && hasWriteAccess && !isUploadInFlight ? 'dropzone' : 'default'
+  const baseEmptyStateHeadline = `No ${entityTitle} records yet`
+  const baseEmptyStateBody = 'Get started by creating your first record.'
+  const emptyStateHeadlineEffective = isUploadInFlight
+    ? `Processing ${inFlightCount} file${inFlightCount === 1 ? '' : 's'}…`
+    : baseEmptyStateHeadline
+  const emptyStateBodyEffective = isUploadInFlight
+    ? 'Rows will appear as extraction completes.'
+    : baseEmptyStateBody
+
   if (import.meta.env.DEV && rows.length) {
     logger.debug('Sample row loaded', { row: rows[0] })
   }
@@ -876,8 +904,8 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                   />
                 ) : undefined
               }
-              emptyStateHeadline={`No ${entityTitle} records yet`}
-              emptyStateBody="Get started by creating your first record."
+              emptyStateHeadline={emptyStateHeadlineEffective}
+              emptyStateBody={emptyStateBodyEffective}
               emptyStateCta={
                 hasWriteAccess ? (
                   <CreationModeButton
@@ -891,6 +919,31 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                     }
                     onCreateUpload={() => uploadDialogRef.current?.open()}
                     disabled={isTransitionPending}
+                  />
+                ) : undefined
+              }
+              // GH#3016: When the entity supports upload-based creation AND the
+              // user has write access, replace the centered empty-state message
+              // with a full-bleed inline dropzone. The dropzone reuses the same
+              // `handleFilesDropped` from `useEntityUpload` so the batch summary
+              // toast (D4 / PR #3014) fires for inline-drop uploads too. Stays
+              // visible during filter-empty so users can still drop files.
+              //
+              // GH#3016 follow-up: the moment an upload starts
+              // (`uploadStore.hasAnyInFlight === true`), revert to the default
+              // empty-state mode so the dropzone disappears immediately,
+              // column headers become visible, and the centered "Processing N
+              // file(s)…" status (set on emptyStateHeadline/Body above)
+              // signals that drops were received while substrate reconciles
+              // the new rows.
+              emptyStateMode={emptyStateMode}
+              emptyStateContent={
+                hasUploadMode && hasWriteAccess ? (
+                  <EntityUploadDropzone
+                    entityName={resolvedName}
+                    acceptedMimeTypes={primaryFileConfig?.mimeTypes}
+                    onFilesDropped={handleFilesDropped}
+                    className="h-full w-full"
                   />
                 ) : undefined
               }

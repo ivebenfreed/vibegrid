@@ -9,6 +9,7 @@
  */
 
 import { getLogger } from '@/shared/lib/logging'
+import { registerProjectFieldTypes } from '@/features/entities/schemas/project-field-types'
 import type { SlotRegistry } from './SlotRegistry'
 import {
   textFallbackRenderer,
@@ -213,6 +214,13 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   // `record[fieldName]` (source-row JSONB written by the URS dual-write
   // path) and resolves names locally from the synced target collection.
   registry.register({ id: 'badge-list', priority: 0, renderer: () => badgeListCellRenderer })
+
+  // --- Domain-specific renderers (priority 50, scoped via contextFilter) ---
+  // Per-entity field-type modules register their slots after the defaults so
+  // their priority-50 entries win over the priority-0 / -1 fallbacks for
+  // matching columns. Keep each registration scoped via `contextFilter` to
+  // prevent leaks across entity types.
+  registerProjectFieldTypes(registry)
 
   logger.debug('Default slots registered', {
     slotCount: registry.getRegisteredIds().length,
