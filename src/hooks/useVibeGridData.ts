@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { InitStore } from '../stores/InitStore'
@@ -40,6 +40,7 @@ import {
 import { useSubstrateGridRows } from '@/shared/data/query/use-substrate-grid-rows'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'
+import { armWedgeWatchdog } from '@/shared/data/db/sqlite/wedge-watchdog'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
@@ -175,6 +176,30 @@ export function useVibeGridData(
     substrateState.bounded,
     substrateState.isReady,
   ])
+
+  // ====================================
+  // WEDGE WATCHDOG
+  // ====================================
+  // If the substrate fails to report `isReady` within the watchdog deadline,
+  // the SharedWorker leader has wedged (heartbeat lost / WebLock stuck /
+  // RPC hung). The watchdog trips a leader-bypass nuclear reset that tears
+  // down OPFS + IDB + caches and force-reloads. Loop-guarded so a chronic
+  // wedge doesn't put the user in an infinite reload spiral.
+
+  // Mirror substrateState.isReady into a ref so the watchdog timer reads
+  // the LIVE value at fire time, not what was snapshotted at arm time.
+  const isReadyRef = useRef(false)
+  useEffect(() => {
+    isReadyRef.current = substrateState.isReady
+  }, [substrateState.isReady])
+
+  // Arm only on entity/org changes — re-arming on every isReady flip would
+  // reset the deadline forever and the watchdog would never fire.
+  useEffect(() => {
+    if (skip || !entityType || !orgId) return
+    const cancel = armWedgeWatchdog({ entityType, orgId, isReadyRef })
+    return cancel
+  }, [skip, entityType, orgId])
 
   // ====================================
   // CRUD MUTATIONS
