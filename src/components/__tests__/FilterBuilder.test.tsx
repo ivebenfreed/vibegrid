@@ -146,7 +146,7 @@ describe('FilterBuilder Toolbar Button', () => {
 // DROPDOWN MENU TESTS
 // ====================================
 
-describe('FilterBuilder Dropdown Menu', () => {
+describe('FilterBuilder Popover', () => {
   let sourceCode: string
 
   beforeEach(() => {
@@ -154,13 +154,13 @@ describe('FilterBuilder Dropdown Menu', () => {
     sourceCode = getFilterBuilderSource()
   })
 
-  it('should use DropdownMenu component', () => {
+  it('should use Popover component', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
     // Allow multiline named imports
-    expect(sourceCode).toMatch(/import[\s\S]*DropdownMenu[\s\S]*from/)
-    expect(sourceCode).toContain('<DropdownMenu')
+    expect(sourceCode).toMatch(/import[\s\S]*Popover[\s\S]*from/)
+    expect(sourceCode).toContain('<Popover')
   })
 
   it('should have dropdown content with data-testid="vibegrid-filter-dropdown"', () => {
@@ -435,12 +435,12 @@ describe('FilterBuilder Imports', () => {
     expect(sourceCode).toMatch(/import.*Button.*from/)
   })
 
-  it('should import DropdownMenu components', () => {
+  it('should import Popover components', () => {
     if (!componentExists()) {
       throw new Error('FilterBuilder.tsx does not exist yet')
     }
     // Allow multiline named imports
-    expect(sourceCode).toMatch(/import[\s\S]*DropdownMenu[\s\S]*from/)
+    expect(sourceCode).toMatch(/import[\s\S]*Popover[\s\S]*from/)
   })
 })
 

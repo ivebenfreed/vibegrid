@@ -16,7 +16,7 @@ import { AlertTriangle, Filter, Plus } from 'lucide-react'
 import { observer } from 'mobx-react-lite'
 import React from 'react'
 import { Button } from '@/shared/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/shared/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { getLogger } from '@/shared/lib/logging'
 import type { VibeGridStores } from '../stores/context'
 import type { FilterGroup as FilterGroupType } from '../types/filter-types'
@@ -116,8 +116,8 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
   const displayFilterGroup = draftFilterGroup ?? filterGroup
 
   return (
-    <DropdownMenu open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger
+    <Popover open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
+      <PopoverTrigger
         render={
           // GH#2804 p3: testid renamed from `vibegrid-filter-btn` → `filter-trigger`
           // for verification step 12. Tests in FilterBuilder.test.tsx updated accordingly.
@@ -130,9 +130,9 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
             {activeFilterCount}
           </span>
         )}
-      </DropdownMenuTrigger>
+      </PopoverTrigger>
 
-      <DropdownMenuContent
+      <PopoverContent
         data-testid="vibegrid-filter-dropdown"
         className="w-[500px] p-4"
         align="start"
@@ -178,7 +178,7 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
             Apply
           </Button>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   )
 })
