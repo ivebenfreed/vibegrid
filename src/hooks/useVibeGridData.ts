@@ -156,25 +156,27 @@ export function useVibeGridData(
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
 
-  // Mark hydrated when the substrate becomes ready, regardless of count.
-  // - count > 0: data arrived (from substrate or cold-start bypass writer)
-  // - count === 0: legitimately empty (substrate has authoritatively answered)
-  //
-  // Previously this was split into two effects: one that handled count > 0,
-  // and a 5s wall-clock fallback for the empty case. The fallback fired
-  // before substrate had a chance to initialize on cold-start logins (SQLite
-  // init can take up to 60s — see use-substrate-grid-rows.ts MAX_ATTEMPTS),
-  // causing the grid to flash "No records yet" while data was still loading.
+  // GH#3019 B10 — drive `markEntityDataKnownComplete()` from the unified
+  // query layer's snapshot signals (`isComplete` + `source`) instead of the
+  // pre-B8 ad-hoc `bounded && isReady` heuristic. A snapshot is
+  // authoritatively complete when:
+  //   - source is non-null (we received at least one snapshot), AND
+  //   - response.isComplete === true (the adapter declared the dataset
+  //     fully delivered through `cursor.start + records.length >= total`,
+  //     or local-substrate equivalent).
+  // Empty-but-authoritative entities (server returned `total: 0`) also
+  // satisfy `isComplete: true` from the server adapter, so the renderer
+  // can flip out of the hydration gate even with zero rows.
   useEffect(() => {
     if (skip || initStore.entityDataKnownComplete) return
-    if (substrateState.bounded && substrateState.isReady) {
+    if (substrateState.source !== null && substrateState.isComplete) {
       initStore.markEntityDataKnownComplete()
     }
   }, [
     skip,
     initStore,
-    substrateState.bounded,
-    substrateState.isReady,
+    substrateState.source,
+    substrateState.isComplete,
   ])
 
   // ====================================

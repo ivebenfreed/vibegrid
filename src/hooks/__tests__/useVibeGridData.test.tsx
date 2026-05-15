@@ -3,12 +3,11 @@
 /**
  * useVibeGridData hydration gate.
  *
- * The hook must mark `initStore.entityDataKnownComplete` only once the
- * substrate has authoritatively reported readiness (`bounded && isReady`),
- * regardless of count. The previous implementation fired a 5s wall-clock
- * fallback that could flip the gate before the substrate had even
- * initialized on cold-start logins (SQLite init can take up to 60s),
- * causing the grid to flash "No records yet" while data was still loading.
+ * GH#3019 B10: the hook marks `initStore.entityDataKnownComplete` once the
+ * unified query layer's snapshot has authoritatively reported completion
+ * (`source !== null && isComplete`). Empty-but-authoritative entities
+ * (server returned `total: 0`) satisfy `isComplete: true` and flip the
+ * gate so the renderer can paint "No records yet" instead of a skeleton.
  */
 
 import { renderHook } from '@testing-library/react'
@@ -22,8 +21,17 @@ const { substrateStateRef } = vi.hoisted(() => {
     count: number
     isReady: boolean
     bounded: boolean
+    isComplete: boolean
+    source: 'local' | 'server' | null
   }
-  const initial: SubstrateState = { rows: [], count: 0, isReady: false, bounded: false }
+  const initial: SubstrateState = {
+    rows: [],
+    count: 0,
+    isReady: false,
+    bounded: false,
+    isComplete: false,
+    source: null,
+  }
   return {
     substrateStateRef: { current: initial as SubstrateState },
   }
@@ -82,12 +90,16 @@ function setSubstrateState(next: {
   count: number
   isReady: boolean
   bounded: boolean
+  isComplete?: boolean
+  source?: 'local' | 'server' | null
 }): void {
   substrateStateRef.current = {
     rows: next.rows ?? [],
     count: next.count,
     isReady: next.isReady,
     bounded: next.bounded,
+    isComplete: next.isComplete ?? false,
+    source: next.source ?? null,
   }
 }
 
@@ -105,12 +117,13 @@ describe('useVibeGridData — hydration gate', () => {
     vi.clearAllMocks()
   })
 
-  it('does not mark entityDataKnownComplete until substrate reports isReady', () => {
+  it('does not mark entityDataKnownComplete until the unified layer delivers isComplete', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
     const visualStateStore = {} as any
 
-    setSubstrateState({ count: 0, isReady: false, bounded: false })
+    // No snapshot delivered yet (source === null).
+    setSubstrateState({ count: 0, isReady: false, bounded: false, source: null })
 
     const { rerender } = renderHook(() =>
       useVibeGridData(
@@ -122,24 +135,35 @@ describe('useVibeGridData — hydration gate', () => {
     )
 
     // Advance well past the previous 5s wall-clock fallback. The new
-    // implementation must NOT mark complete here — substrate hasn't
-    // reported isReady yet.
+    // implementation must NOT mark complete here — no snapshot yet.
     vi.advanceTimersByTime(6000)
     expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
 
-    // Now substrate becomes ready (count still 0 — legitimately empty).
-    setSubstrateState({ count: 0, isReady: true, bounded: true })
+    // Snapshot arrives from server with isComplete=true (legitimately empty).
+    setSubstrateState({
+      count: 0,
+      isReady: true,
+      bounded: true,
+      isComplete: true,
+      source: 'server',
+    })
     rerender()
 
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('marks entityDataKnownComplete when substrate is ready with count > 0', () => {
+  it('marks entityDataKnownComplete when snapshot is complete with count > 0', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
     const visualStateStore = {} as any
 
-    setSubstrateState({ count: 5, isReady: true, bounded: true })
+    setSubstrateState({
+      count: 5,
+      isReady: true,
+      bounded: true,
+      isComplete: true,
+      source: 'local',
+    })
 
     renderHook(() =>
       useVibeGridData(
@@ -153,12 +177,18 @@ describe('useVibeGridData — hydration gate', () => {
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('marks entityDataKnownComplete when substrate is ready with count === 0 (legitimately empty)', () => {
+  it('marks entityDataKnownComplete when snapshot is complete with count === 0 (legitimately empty)', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
     const visualStateStore = {} as any
 
-    setSubstrateState({ count: 0, isReady: true, bounded: true })
+    setSubstrateState({
+      count: 0,
+      isReady: true,
+      bounded: true,
+      isComplete: true,
+      source: 'server',
+    })
 
     renderHook(() =>
       useVibeGridData(
@@ -172,14 +202,20 @@ describe('useVibeGridData — hydration gate', () => {
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('does not mark entityDataKnownComplete when bounded but not ready', () => {
+  it('does not mark entityDataKnownComplete when source is set but isComplete is false', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
     const visualStateStore = {} as any
 
-    // bounded === true (substrate writer is engaged) but isReady false
-    // (the first maintainQuery has not resolved yet).
-    setSubstrateState({ count: 0, isReady: false, bounded: true })
+    // First-page snapshot landed (source='server') but more rows remain
+    // (isComplete=false): hydration gate should still be closed.
+    setSubstrateState({
+      count: 100,
+      isReady: true,
+      bounded: true,
+      isComplete: false,
+      source: 'server',
+    })
 
     renderHook(() =>
       useVibeGridData(
