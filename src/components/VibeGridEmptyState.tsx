@@ -16,6 +16,11 @@
  * place of the headline/body/cta. The aria semantics are preserved — a
  * screen-reader-only status output still announces the empty state.
  *
+ * Dropzone mode is ONLY honored for `variant !== 'empty'` (i.e. filter or
+ * search-induced empties). When the underlying list truly has zero records
+ * (`variant === 'empty'`), the standard "No {noun} yet" + CTA empty state is
+ * the correct affordance and dropzone mode is ignored.
+ *
  * Markup is `<section>` (page landmark, accepts aria-labelledby) wrapping a
  * `<output role="status">` for the headline so screen readers announce the
  * empty state on appearance. The CTA sits as a sibling of `<output>`, NOT a
@@ -67,7 +72,15 @@ export function VibeGridEmptyState(props: VibeGridEmptyStateProps) {
   }
 
   const showCta = props.variant === 'empty' && Boolean(props.cta)
-  const isDropzoneMode = props.mode === 'dropzone'
+  // GH#3016 follow-up: dropzone mode is ONLY honored for filter/search-induced
+  // empties. When variant is 'empty' (no records in DB at all), the caller's
+  // standard empty state — "No {noun} yet" + CTA — is the correct affordance,
+  // even if the consumer passed mode='dropzone'. The full-bleed dropzone is
+  // reserved for filter-induced empties where the user actively narrowed the
+  // view and would benefit from a primary upload affordance to fix it.
+  const effectiveMode: Mode =
+    props.mode === 'dropzone' && props.variant !== 'empty' ? 'dropzone' : 'default'
+  const isDropzoneMode = effectiveMode === 'dropzone'
 
   if (isDropzoneMode) {
     // Full-bleed overlay: covers column header strip AND grid body so the user
