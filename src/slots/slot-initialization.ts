@@ -10,6 +10,7 @@
 
 import { getLogger } from '@/shared/lib/logging'
 import { registerProjectFieldTypes } from '@/features/entities/schemas/project-field-types'
+import { registerSubcontractorAssignmentFieldTypes } from '@/features/entities/schemas/subcontractor-assignment-field-types'
 import type { SlotRegistry } from './SlotRegistry'
 import {
   textFallbackRenderer,
@@ -221,6 +222,7 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   // matching columns. Keep each registration scoped via `contextFilter` to
   // prevent leaks across entity types.
   registerProjectFieldTypes(registry)
+  registerSubcontractorAssignmentFieldTypes(registry)
 
   logger.debug('Default slots registered', {
     slotCount: registry.getRegisteredIds().length,

@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, Send } from 'lucide-react'
+import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -21,6 +22,7 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
+import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -44,6 +46,16 @@ import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialo
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
+import {
+  collectFailedDeleteIds,
+  countRestoredAfterRefetch,
+  describeOptimisticDeleteOutcome,
+} from '../lib/coi-optimistic-delete'
+import {
+  buildPlaceholderRecord,
+  collectRemovablePlaceholders,
+  shouldOptimisticUpload,
+} from '../lib/coi-optimistic-upload'
 // GH#2641: side-effect import registers built-in list widgets + overview components
 import '../lib/register-view-components'
 // GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
@@ -110,6 +122,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateBody,
   emptyStateMode,
   emptyStateContent,
+  onDelete,
 }: {
   entityName: string
   orgId: string
@@ -127,6 +140,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateBody?: string
   emptyStateMode?: 'default' | 'dropzone'
   emptyStateContent?: React.ReactNode
+  onDelete?: (rowIds: string[], rowsData: any[]) => Promise<void>
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -431,6 +445,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           readOnly={!hasWriteAccess}
           enableDragAndDrop={hasWriteAccess}
           enableDelete={hasWriteAccess}
+          onDelete={onDelete}
           enableExport={true}
           enableInlineCreation={enableInlineCreation}
           onInlineCreate={onInlineCreate}
@@ -648,6 +663,76 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     enabled: hasUploadMode,
   })
 
+  // COI optimistic upload-row carve-out: tempId per dropped file, keyed by
+  // file.name. Populated synchronously on drop; entries removed when the
+  // matching uploadStore op gets an entity_id (or terminates with error).
+  const coiPlaceholderMapRef = useRef<Map<string, string>>(new Map())
+
+  // COI carve-out: insert an optimistic placeholder row per dropped file BEFORE
+  // the upload starts so the grid shows "Processing" rows immediately. The
+  // placeholder uses a client-generated UUID id; the real entity (different
+  // UUID, server-assigned) arrives later via the substrate event flow. The
+  // reaction below removes each placeholder once its op picks up an entity_id.
+  const coiAwareHandleFilesDropped = useCallback(
+    async (files: File[]) => {
+      if (!shouldOptimisticUpload({ resolvedEntityName: resolvedName, orgId })) {
+        return handleFilesDropped(files)
+      }
+      const sqlite = getSQLiteClient()
+      const inserts: Array<Promise<unknown>> = []
+      for (const file of files) {
+        const tempId = crypto.randomUUID()
+        coiPlaceholderMapRef.current.set(file.name, tempId)
+        inserts.push(
+          sqlite.insertOptimisticPlaceholder({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            record: buildPlaceholderRecord({ tempId, fileName: file.name }),
+          }),
+        )
+      }
+      // Fire placeholders in parallel; don't block file processing on them.
+      void Promise.allSettled(inserts)
+      return handleFilesDropped(files)
+    },
+    [resolvedName, orgId, handleFilesDropped],
+  )
+
+  // Remove COI optimistic placeholders when the real entity is known (or
+  // the upload errored). Keyed by file.name → tempId; we don't care which
+  // fileId/op observed the change, only that the file's terminal state is
+  // reached. Reaction only fires for COI carve-out.
+  useEffect(() => {
+    if (!shouldOptimisticUpload({ resolvedEntityName: resolvedName, orgId })) return
+    const dispose = reaction(
+      () =>
+        uploadStore.operations.map((op) => ({
+          fileName: op.fileName,
+          hasEntity: !!op.entityId,
+          status: op.status,
+        })),
+      (snapshots) => {
+        const sqlite = getSQLiteClient()
+        const removable = collectRemovablePlaceholders(
+          snapshots,
+          coiPlaceholderMapRef.current,
+        )
+        if (removable.length === 0) return
+        void Promise.allSettled(
+          removable.map((id) =>
+            sqlite.localDeleteEntity({
+              orgId,
+              entityName: 'CertificateOfInsurance',
+              recordId: id,
+            }),
+          ),
+        )
+      },
+      { fireImmediately: true },
+    )
+    return dispose
+  }, [resolvedName, orgId, uploadStore])
+
   // GH#1843: Related entity drawer state for relationship badge clicks
   const [drawerState, setDrawerState] = useState<{
     open: boolean
@@ -696,6 +781,55 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       return response.data?.id ?? ''
     },
     [resolvedName],
+  )
+
+  // COI optimistic delete carve-out: local-only delete first (instant grid
+  // update via entityBatch), then server delete in parallel. On any per-row
+  // failure, refetch the row by id to restore it from the server. Toast
+  // distinguishes "restored" (server still has the row) from a plain failure
+  // (server actually deleted it, but a downstream cascade failed).
+  const coiOptimisticDelete = useCallback(
+    async (rowIds: string[], _rowsData: any[]): Promise<void> => {
+      if (entityName !== 'CertificateOfInsurance') return
+      if (!orgId || rowIds.length === 0) return
+      const sqlite = getSQLiteClient()
+      // 1. Optimistic local removals (parallel).
+      await Promise.allSettled(
+        rowIds.map((id) =>
+          sqlite.localDeleteEntity({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      // 2. Server delete (parallel).
+      const serverResults = await Promise.allSettled(
+        rowIds.map((id) =>
+          orpcClient.dataforge.data.delete({
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      // 3. Collect failed ids: rejected promises OR resolved with success=false.
+      const failedIds = collectFailedDeleteIds(rowIds, serverResults)
+      if (failedIds.length === 0) return
+      // 4. Refetch each failed id from the server to restore (or confirm gone).
+      const refetchResults = await Promise.allSettled(
+        failedIds.map((id) =>
+          sqlite.fetchEntityById({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      const restored = countRestoredAfterRefetch(refetchResults)
+      const outcome = describeOptimisticDeleteOutcome(failedIds.length, restored)
+      if (outcome.kind !== 'none') toast.error(outcome.message)
+    },
+    [entityName, orgId],
   )
 
   // GH#1658: QuickCreatePanel state for escalation from ghost rows
@@ -879,6 +1013,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
+              onDelete={entityName === 'CertificateOfInsurance' ? coiOptimisticDelete : undefined}
               hasReviewMode={hasReviewMode}
               schemaFields={schemaFields}
               toolbarLeading={
@@ -942,7 +1077,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                   <EntityUploadDropzone
                     entityName={resolvedName}
                     acceptedMimeTypes={primaryFileConfig?.mimeTypes}
-                    onFilesDropped={handleFilesDropped}
+                    onFilesDropped={coiAwareHandleFilesDropped}
                     className="h-full w-full"
                   />
                 ) : undefined
@@ -1010,7 +1145,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           entityName={resolvedName}
           acceptedMimeTypes={primaryFileConfig?.mimeTypes}
           extractionTemplate={primaryFileConfig?.extractionTemplate}
-          onFilesDropped={handleFilesDropped}
+          onFilesDropped={coiAwareHandleFilesDropped}
         />
       )}
 
@@ -1021,7 +1156,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           acceptedMimeTypes={primaryFileConfig?.mimeTypes}
           onFilesDropped={(files) => {
             setIsPageDragActive(false)
-            handleFilesDropped(files)
+            coiAwareHandleFilesDropped(files)
           }}
           isPageLevel={true}
         />
