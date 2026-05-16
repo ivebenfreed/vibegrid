@@ -21,6 +21,7 @@ import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
 import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
+import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
@@ -44,6 +45,11 @@ import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialo
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
+import {
+  collectFailedDeleteIds,
+  countRestoredAfterRefetch,
+  describeOptimisticDeleteOutcome,
+} from '../lib/coi-optimistic-delete'
 // GH#2641: side-effect import registers built-in list widgets + overview components
 import '../lib/register-view-components'
 // GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
@@ -110,6 +116,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateBody,
   emptyStateMode,
   emptyStateContent,
+  onDelete,
 }: {
   entityName: string
   orgId: string
@@ -127,6 +134,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   emptyStateBody?: string
   emptyStateMode?: 'default' | 'dropzone'
   emptyStateContent?: React.ReactNode
+  onDelete?: (rowIds: string[], rowsData: any[]) => Promise<void>
 }) {
   const stores = useVibeGridStores()
   const authStore = useAuth()
@@ -431,6 +439,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           readOnly={!hasWriteAccess}
           enableDragAndDrop={hasWriteAccess}
           enableDelete={hasWriteAccess}
+          onDelete={onDelete}
           enableExport={true}
           enableInlineCreation={enableInlineCreation}
           onInlineCreate={onInlineCreate}
@@ -698,6 +707,55 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     [resolvedName],
   )
 
+  // COI optimistic delete carve-out: local-only delete first (instant grid
+  // update via entityBatch), then server delete in parallel. On any per-row
+  // failure, refetch the row by id to restore it from the server. Toast
+  // distinguishes "restored" (server still has the row) from a plain failure
+  // (server actually deleted it, but a downstream cascade failed).
+  const coiOptimisticDelete = useCallback(
+    async (rowIds: string[], _rowsData: any[]): Promise<void> => {
+      if (entityName !== 'CertificateOfInsurance') return
+      if (!orgId || rowIds.length === 0) return
+      const sqlite = getSQLiteClient()
+      // 1. Optimistic local removals (parallel).
+      await Promise.allSettled(
+        rowIds.map((id) =>
+          sqlite.localDeleteEntity({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      // 2. Server delete (parallel).
+      const serverResults = await Promise.allSettled(
+        rowIds.map((id) =>
+          orpcClient.dataforge.data.delete({
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      // 3. Collect failed ids: rejected promises OR resolved with success=false.
+      const failedIds = collectFailedDeleteIds(rowIds, serverResults)
+      if (failedIds.length === 0) return
+      // 4. Refetch each failed id from the server to restore (or confirm gone).
+      const refetchResults = await Promise.allSettled(
+        failedIds.map((id) =>
+          sqlite.fetchEntityById({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            recordId: id,
+          }),
+        ),
+      )
+      const restored = countRestoredAfterRefetch(refetchResults)
+      const outcome = describeOptimisticDeleteOutcome(failedIds.length, restored)
+      if (outcome.kind !== 'none') toast.error(outcome.message)
+    },
+    [entityName, orgId],
+  )
+
   // GH#1658: QuickCreatePanel state for escalation from ghost rows
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
   const [quickCreateInheritedFields, setQuickCreateInheritedFields] = useState<Record<string, unknown>>({})
@@ -879,6 +937,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onInlineCreate={handleInlineCreate}
               onEscalate={handleEscalate}
               onOpenReview={handleOpenReview}
+              onDelete={entityName === 'CertificateOfInsurance' ? coiOptimisticDelete : undefined}
               hasReviewMode={hasReviewMode}
               schemaFields={schemaFields}
               toolbarLeading={
