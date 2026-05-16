@@ -377,6 +377,65 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
             // Ensure activeViewId state matches the URL even if the
             // URL→Store effect already set it; harmless re-set.
             setActiveViewId(activeView.id)
+
+            // GH#3016 4th fix: write the saved view's filter/sort/group into
+            // visualStateStore on cold-nav so the substrate's sort/filter
+            // reaction (fireImmediately: false, in use-substrate-grid-rows.ts)
+            // actually fires. Without this write, the URL→Store effect above
+            // leaves filters/sortBy empty (no `?filter=` in URL to apply), the
+            // reaction never observes a reactive change, and the substrate's
+            // query.shape.filter stays `undefined` — so the grid renders the
+            // unfiltered result set despite the saved view's filter being
+            // configured.
+            //
+            // Skip per-dimension when the URL carries an explicit override
+            // (`?sort=`, `?filter=`, `?group=`), so we don't clobber layered
+            // deep-linked state — preserves the original contract documented
+            // in the comment block at :337–350.
+            const config = activeView.config as Record<string, unknown> | null
+            if (config) {
+              const initialSearch = initialSearchRef.current
+              const { visualStateStore } = stores
+              // Suppress Store→URL sync while we apply view config, since the
+              // URL already encodes this via `?view=<id>`.
+              suppressUrlUpdateRef.current = true
+              runInAction(() => {
+                if (!initialSearch.filter && Array.isArray(config.filters)) {
+                  visualStateStore.filters = config.filters as FilterConfig[]
+                }
+                if (!initialSearch.sort && Array.isArray(config.sortBy)) {
+                  visualStateStore.sortBy = config.sortBy as Array<{
+                    field: string
+                    direction: 'asc' | 'desc'
+                  }>
+                }
+                if (
+                  !initialSearch.group &&
+                  config.groupConfig &&
+                  typeof config.groupConfig === 'object'
+                ) {
+                  const gc = config.groupConfig as Record<string, unknown>
+                  if (Array.isArray(gc.fields) && gc.fields.length > 0) {
+                    visualStateStore.setGroupConfig({
+                      fields: gc.fields as Array<{
+                        field: string
+                        displayName: string
+                      }>,
+                      sortBy:
+                        (gc.sortBy as 'name' | 'count' | 'custom') || 'name',
+                      sortDirection:
+                        (gc.sortDirection as 'asc' | 'desc') || 'asc',
+                      aggregations:
+                        (gc.aggregations as AggregationConfig[]) || [],
+                      expandedGroups: new Set(),
+                    })
+                  }
+                }
+              })
+              requestAnimationFrame(() => {
+                suppressUrlUpdateRef.current = false
+              })
+            }
           }
           return
         }
