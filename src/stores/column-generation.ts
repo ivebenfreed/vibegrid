@@ -5,6 +5,7 @@
  * as cell renderers for consistent behavior.
  */
 
+import { ENTITY_TYPE_STATUS_LABEL_OVERRIDES } from '@/features/entities/labels/status-label-overrides'
 import { getLogger } from '@/shared/lib/logging'
 import { COLUMN_DEFAULTS } from '../column-defaults'
 import type { CellType } from '../column-types'
@@ -299,6 +300,9 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
     return getBasicColumns<T>()
   }
 
+  // FE-only status label override (GH#3044) — resolved once per entity type.
+  const entityTypeOverride = ENTITY_TYPE_STATUS_LABEL_OVERRIDES[entityType]
+
   // Read primaryField from schema businessMetadata (e.g., 'subject' for RFI)
   // When set, the matching column gets isPrimaryField: true → entity-name renderer with nav affordance
   const primaryFieldName: string | undefined = entitySchema.businessMetadata?.primaryField ?? entitySchema.primaryField
@@ -451,6 +455,13 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
       // Use options from schema (backend already provides colored options)
       const options = safeFieldDef.editor?.options || []
 
+      // FE-only status label override (GH#3044) — scoped by entityType, applied only to status fields.
+      const isStatusField = fieldType === 'status' || fieldType === 'status_set'
+      const finalOptions =
+        entityTypeOverride && isStatusField
+          ? options.map((o: any) => ({ ...o, label: entityTypeOverride[o.value] ?? o.label }))
+          : options
+
       // Derive a clean display name:
       // 1. Explicit display.label (set by server for new relationship fields)
       // 2. Client-side derivation for relationship fields lacking a label (existing data)
@@ -472,8 +483,8 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         width,
         editable: isEditable,
         // Enhanced options with colors
-        options: options,
-        editor: safeFieldDef.editor || null,
+        options: finalOptions,
+        editor: safeFieldDef.editor ? { ...safeFieldDef.editor, options: finalOptions } : null,
         validation: safeFieldDef.validation || null,
         // Enhanced field metadata from backend schema enhancement
         display: safeFieldDef.display || undefined,
