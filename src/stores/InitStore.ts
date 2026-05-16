@@ -765,6 +765,15 @@ export class InitStore implements IStore {
 
   /**
    * Destroy the current renderer and clean up associated resources.
+   *
+   * Regresses the phase from 'controllers'/'painted' back to 'schema': those
+   * phases describe renderer state that no longer exists, and
+   * setupRendererReaction can re-fire synchronously once `this.renderer = null`
+   * if container + factory are still set (e.g. on route change, VibeGrid.tsx's
+   * inner useEffect cleanup runs *before* the parent VibeGridStoreProvider
+   * disposes the reaction). Without the regression the recreated renderer's
+   * postInitialization() calls transitionPhase('controllers') against
+   * phase='painted' and throws "invalid transition 'painted' → 'controllers'".
    */
   @action
   destroyRenderer(): void {
@@ -776,6 +785,10 @@ export class InitStore implements IStore {
     if (this.renderer) {
       this.renderer.destroy()
       this.renderer = null
+    }
+
+    if (this.phase === 'controllers' || this.phase === 'painted') {
+      this.phase = 'schema'
     }
   }
 }

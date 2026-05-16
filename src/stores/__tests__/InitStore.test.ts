@@ -357,6 +357,63 @@ describe('InitStore', () => {
       expect(initStore.entityDataKnownComplete).toBe(false)
     })
 
+    it('destroyRenderer regresses phase from "painted" to "schema" (allows recreation after route nav)', () => {
+      // Repro: VibeGrid.tsx's inner useEffect cleanup calls destroyRenderer
+      // before the parent VibeGridStoreProvider's dispose tears the renderer
+      // reaction down. The reaction re-fires synchronously, creating a new
+      // SimplePassiveRenderer whose postInitialization() calls
+      // transitionPhase('controllers'). Without phase regression, that throws.
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
+      initStore.transitionPhase('schema')
+      initStore.transitionPhase('controllers')
+      initStore.transitionPhase('painted')
+      expect(initStore.phase).toBe('painted')
+
+      runInAction(() => {
+        initStore.destroyRenderer()
+      })
+
+      expect(initStore.phase).toBe('schema')
+      // Critical: postInitialization can now advance the recreated renderer.
+      expect(() => initStore.transitionPhase('controllers')).not.toThrow()
+      expect(initStore.phase).toBe('controllers')
+    })
+
+    it('destroyRenderer regresses phase from "controllers" to "schema"', () => {
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
+      initStore.transitionPhase('schema')
+      initStore.transitionPhase('controllers')
+
+      runInAction(() => {
+        initStore.destroyRenderer()
+      })
+
+      expect(initStore.phase).toBe('schema')
+    })
+
+    it('destroyRenderer leaves "init"/"schema" phases untouched', () => {
+      // Pre-renderer destroys (e.g. dispose before init completes) shouldn't
+      // jump phase forward.
+      expect(initStore.phase).toBe('init')
+      runInAction(() => {
+        initStore.destroyRenderer()
+      })
+      expect(initStore.phase).toBe('init')
+
+      runInAction(() => {
+        initStore.setContainer(createMockContainer())
+      })
+      initStore.transitionPhase('schema')
+      runInAction(() => {
+        initStore.destroyRenderer()
+      })
+      expect(initStore.phase).toBe('schema')
+    })
+
     it('navigation regression guard — fresh store allows marking entityDataKnownComplete', () => {
       const storeA = new InitStore('table', 'EntityA')
       runInAction(() => storeA.markEntityDataKnownComplete())

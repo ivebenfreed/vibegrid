@@ -40,6 +40,7 @@ import {
 import { useSubstrateGridRows } from '@/shared/data/query/use-substrate-grid-rows'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'
+import { armWedgeWatchdog } from '@/shared/data/db/sqlite/wedge-watchdog'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
@@ -128,9 +129,6 @@ export function useVibeGridData(
     useSubstrate ? visualStateStore : null,
   )
 
-  // Timer ref for empty collection fallback
-  const emptyCollectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   // ====================================
   // PUSH DATA DIRECTLY TO MOBX STORE
   // ====================================
@@ -158,59 +156,50 @@ export function useVibeGridData(
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
 
+  // Mark hydrated when the substrate becomes ready, regardless of count.
+  // - count > 0: data arrived (from substrate or cold-start bypass writer)
+  // - count === 0: legitimately empty (substrate has authoritatively answered)
+  //
+  // Previously this was split into two effects: one that handled count > 0,
+  // and a 5s wall-clock fallback for the empty case. The fallback fired
+  // before substrate had a chance to initialize on cold-start logins (SQLite
+  // init can take up to 60s — see use-substrate-grid-rows.ts MAX_ATTEMPTS),
+  // causing the grid to flash "No records yet" while data was still loading.
   useEffect(() => {
-    // Skip data push in mock mode when NOT using collectionOverride
-    // (collectionOverride is handled by the effect above)
-    if (skip) return
-
-    // Substrate path: rows are written directly via setSparseRows() inside
-    // useSubstrateGridRows. Mark hydrated when the first ready/non-empty
-    // window arrives.
-    if (substrateState.bounded) {
-      if (
-        !initStore.entityDataKnownComplete &&
-        substrateState.isReady &&
-        substrateState.count > 0
-      ) {
-        if (emptyCollectionTimerRef.current) {
-          clearTimeout(emptyCollectionTimerRef.current)
-          emptyCollectionTimerRef.current = null
-        }
-        initStore.markEntityDataKnownComplete()
-      }
+    if (skip || initStore.entityDataKnownComplete) return
+    if (substrateState.bounded && substrateState.isReady) {
+      initStore.markEntityDataKnownComplete()
     }
   }, [
     skip,
     initStore,
-    entityType,
-    // Bounded-mode delivery happens inside useSubstrateGridRows.
-    substrateState.isReady,
     substrateState.bounded,
-    substrateState.count,
+    substrateState.isReady,
   ])
 
-  // Fallback: For legitimately empty collections, mark entityDataKnownComplete after a delay.
-  // When the substrate returns 0 records, the condition above never fires.
-  // This timeout ensures the skeleton eventually disappears.
+  // ====================================
+  // WEDGE WATCHDOG
+  // ====================================
+  // If the substrate fails to report `isReady` within the watchdog deadline,
+  // the SharedWorker leader has wedged (heartbeat lost / WebLock stuck /
+  // RPC hung). The watchdog trips a leader-bypass nuclear reset that tears
+  // down OPFS + IDB + caches and force-reloads. Loop-guarded so a chronic
+  // wedge doesn't put the user in an infinite reload spiral.
+
+  // Mirror substrateState.isReady into a ref so the watchdog timer reads
+  // the LIVE value at fire time, not what was snapshotted at arm time.
+  const isReadyRef = useRef(false)
   useEffect(() => {
-    if (skip || initStore.entityDataKnownComplete) return
+    isReadyRef.current = substrateState.isReady
+  }, [substrateState.isReady])
 
-    emptyCollectionTimerRef.current = setTimeout(() => {
-      if (!initStore.entityDataKnownComplete) {
-        initStore.markEntityDataKnownComplete()
-        logger.info('[useVibeGridData] 📊 Entity data marked known-complete (empty collection fallback)', {
-          entityType,
-        })
-      }
-    }, 5000)
-
-    return () => {
-      if (emptyCollectionTimerRef.current) {
-        clearTimeout(emptyCollectionTimerRef.current)
-        emptyCollectionTimerRef.current = null
-      }
-    }
-  }, [skip, initStore, entityType])
+  // Arm only on entity/org changes — re-arming on every isReady flip would
+  // reset the deadline forever and the watchdog would never fire.
+  useEffect(() => {
+    if (skip || !entityType || !orgId) return
+    const cancel = armWedgeWatchdog({ entityType, orgId, isReadyRef })
+    return cancel
+  }, [skip, entityType, orgId])
 
   // ====================================
   // CRUD MUTATIONS
