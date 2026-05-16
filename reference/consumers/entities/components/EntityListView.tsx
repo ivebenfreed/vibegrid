@@ -14,6 +14,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, Send } from 'lucide-react'
+import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
@@ -50,6 +51,11 @@ import {
   countRestoredAfterRefetch,
   describeOptimisticDeleteOutcome,
 } from '../lib/coi-optimistic-delete'
+import {
+  buildPlaceholderRecord,
+  collectRemovablePlaceholders,
+  shouldOptimisticUpload,
+} from '../lib/coi-optimistic-upload'
 // GH#2641: side-effect import registers built-in list widgets + overview components
 import '../lib/register-view-components'
 // GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
@@ -657,6 +663,76 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     enabled: hasUploadMode,
   })
 
+  // COI optimistic upload-row carve-out: tempId per dropped file, keyed by
+  // file.name. Populated synchronously on drop; entries removed when the
+  // matching uploadStore op gets an entity_id (or terminates with error).
+  const coiPlaceholderMapRef = useRef<Map<string, string>>(new Map())
+
+  // COI carve-out: insert an optimistic placeholder row per dropped file BEFORE
+  // the upload starts so the grid shows "Processing" rows immediately. The
+  // placeholder uses a client-generated UUID id; the real entity (different
+  // UUID, server-assigned) arrives later via the substrate event flow. The
+  // reaction below removes each placeholder once its op picks up an entity_id.
+  const coiAwareHandleFilesDropped = useCallback(
+    async (files: File[]) => {
+      if (!shouldOptimisticUpload({ resolvedEntityName: resolvedName, orgId })) {
+        return handleFilesDropped(files)
+      }
+      const sqlite = getSQLiteClient()
+      const inserts: Array<Promise<unknown>> = []
+      for (const file of files) {
+        const tempId = crypto.randomUUID()
+        coiPlaceholderMapRef.current.set(file.name, tempId)
+        inserts.push(
+          sqlite.insertOptimisticPlaceholder({
+            orgId,
+            entityName: 'CertificateOfInsurance',
+            record: buildPlaceholderRecord({ tempId, fileName: file.name }),
+          }),
+        )
+      }
+      // Fire placeholders in parallel; don't block file processing on them.
+      void Promise.allSettled(inserts)
+      return handleFilesDropped(files)
+    },
+    [resolvedName, orgId, handleFilesDropped],
+  )
+
+  // Remove COI optimistic placeholders when the real entity is known (or
+  // the upload errored). Keyed by file.name → tempId; we don't care which
+  // fileId/op observed the change, only that the file's terminal state is
+  // reached. Reaction only fires for COI carve-out.
+  useEffect(() => {
+    if (!shouldOptimisticUpload({ resolvedEntityName: resolvedName, orgId })) return
+    const dispose = reaction(
+      () =>
+        uploadStore.operations.map((op) => ({
+          fileName: op.fileName,
+          hasEntity: !!op.entityId,
+          status: op.status,
+        })),
+      (snapshots) => {
+        const sqlite = getSQLiteClient()
+        const removable = collectRemovablePlaceholders(
+          snapshots,
+          coiPlaceholderMapRef.current,
+        )
+        if (removable.length === 0) return
+        void Promise.allSettled(
+          removable.map((id) =>
+            sqlite.localDeleteEntity({
+              orgId,
+              entityName: 'CertificateOfInsurance',
+              recordId: id,
+            }),
+          ),
+        )
+      },
+      { fireImmediately: true },
+    )
+    return dispose
+  }, [resolvedName, orgId, uploadStore])
+
   // GH#1843: Related entity drawer state for relationship badge clicks
   const [drawerState, setDrawerState] = useState<{
     open: boolean
@@ -1001,7 +1077,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
                   <EntityUploadDropzone
                     entityName={resolvedName}
                     acceptedMimeTypes={primaryFileConfig?.mimeTypes}
-                    onFilesDropped={handleFilesDropped}
+                    onFilesDropped={coiAwareHandleFilesDropped}
                     className="h-full w-full"
                   />
                 ) : undefined
@@ -1069,7 +1145,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           entityName={resolvedName}
           acceptedMimeTypes={primaryFileConfig?.mimeTypes}
           extractionTemplate={primaryFileConfig?.extractionTemplate}
-          onFilesDropped={handleFilesDropped}
+          onFilesDropped={coiAwareHandleFilesDropped}
         />
       )}
 
@@ -1080,7 +1156,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           acceptedMimeTypes={primaryFileConfig?.mimeTypes}
           onFilesDropped={(files) => {
             setIsPageDragActive(false)
-            handleFilesDropped(files)
+            coiAwareHandleFilesDropped(files)
           }}
           isPageLevel={true}
         />
