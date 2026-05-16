@@ -147,13 +147,24 @@ export function ChildEntitySection({
   // data with `open_coi_request: <CoiRequest | null>` so the existing
   // VibeGrid pipeline can route it to `OpenCoiRequestPillRenderer`
   // without needing a React-context bridge.
+  //
+  // Scope the query to this project so DEB-scale orgs don't pull every
+  // open CoiRequest across every project. The Subcontractors tab's
+  // parent record IS the project, so `parentRecordId` is the project
+  // id when `isSubcontractorAssignmentTab` is true. CoiRequest carries
+  // `project_id` denormalized (spec Decision Q1) so the filter is a
+  // direct equality match.
   const isSubcontractorAssignmentTab = childEntityType === 'SubcontractorAssignment'
   const { data: openCoiRequests } = useEntityListFetch<EntityRecord>('CoiRequest', {
     enabled: isSubcontractorAssignmentTab && childRecords.length > 0,
     limit: 500,
-    // `status` field lives in entity_records.data — the dataforge query
-    // builder extracts via data->>'status' for non-system columns.
-    where: { status: { $in: ['sent', 'replied_no_attachment'] } },
+    // `status` and `project_id` fields live in entity_records.data — the
+    // dataforge query builder extracts via data->>'<field>' for
+    // non-system columns.
+    where: {
+      status: { $in: ['sent', 'replied_no_attachment'] },
+      project_id: parentRecordId,
+    },
   })
 
   // Map keyed on the SubcontractorAssignment id this request belongs to.
