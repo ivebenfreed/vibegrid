@@ -14,12 +14,13 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { useOrganization } from '@/app/stores'
+import { useAuth, useOrganization } from '@/app/stores'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
 import { Skeleton } from '@/shared/components/ui/skeleton'
+import { useEntityRecord } from '@/shared/data/db/hooks/useEntityRecord'
 import { orpcClient } from '@/shared/data/orpc/client'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
@@ -35,6 +36,8 @@ import { useChildEntityData } from '../hooks/useChildEntityData'
 import { useLinkedFieldEnrichment } from '../hooks/useLinkedFieldEnrichment'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { CreationModeButton } from './CreationModeButton'
+import type { CoiRequestIntent } from './dialogs/coi-request-templates'
+import { CoiRequestModal } from './dialogs/CoiRequestModal'
 import { CreateRecordDialog } from './dialogs/CreateRecordDialog'
 import { CreateRelationshipDialog } from './dialogs/CreateRelationshipDialog'
 import { DeleteConfirmDialog } from './dialogs/DeleteConfirmDialog'
@@ -180,6 +183,25 @@ export function ChildEntitySection({
   const [createOpen, setCreateOpen] = useState(false)
   const [editRecord, setEditRecord] = useState<EntityRecord | null>(null)
   const [deleteRecord, setDeleteRecord] = useState<EntityRecord | null>(null)
+
+  // GH#3040: Subcontractors-tab outbound actions ("Request reissue" /
+  // "Send onboarding"). Open state stores the row + intent; the modal
+  // resolves vendor + project names via useEntityRecord lookups before
+  // the user sends. Modal stays unmounted while this is null so the
+  // lookups don't run on every parent render.
+  const [coiRequestState, setCoiRequestState] = useState<{
+    intent: CoiRequestIntent
+    subcontractorAssignmentId: string
+    vendorId: string
+  } | null>(null)
+
+  // GH#3040: COI request actions are scoped to admin/owner roles on the
+  // Subcontractors tab only. The bridge (#3016) is already DEB-scoped
+  // via the Postgres trigger; no additional org guard is needed here.
+  const authStore = useAuth()
+  const orgRole = authStore.currentOrganization?.role
+  const isOrgAdmin = orgRole === 'admin' || orgRole === 'owner'
+  const showCoiRequestActions = isOrgAdmin && childEntityType === 'SubcontractorAssignment'
 
   // GH#2139: View mode switching in child entity tabs
   const [childViewMode, setChildViewMode] = useState<ViewMode>('table')
@@ -466,6 +488,44 @@ export function ChildEntitySection({
                         if (record) setDeleteRecord(record)
                       },
                     },
+                    ...(showCoiRequestActions
+                      ? [
+                          {
+                            id: 'coi-request-reissue',
+                            label: 'Request reissue',
+                            onClick: (rowData: Record<string, unknown>) => {
+                              const recordId = rowData.id as string
+                              const data = rowData.data as Record<string, unknown> | undefined
+                              const vendorId = (data?.target_entity_id ?? rowData.target_entity_id) as
+                                | string
+                                | undefined
+                              if (!recordId || !vendorId) return
+                              setCoiRequestState({
+                                intent: 'reissue',
+                                subcontractorAssignmentId: recordId,
+                                vendorId,
+                              })
+                            },
+                          },
+                          {
+                            id: 'coi-request-onboarding',
+                            label: 'Send onboarding',
+                            onClick: (rowData: Record<string, unknown>) => {
+                              const recordId = rowData.id as string
+                              const data = rowData.data as Record<string, unknown> | undefined
+                              const vendorId = (data?.target_entity_id ?? rowData.target_entity_id) as
+                                | string
+                                | undefined
+                              if (!recordId || !vendorId) return
+                              setCoiRequestState({
+                                intent: 'onboarding',
+                                subcontractorAssignmentId: recordId,
+                                vendorId,
+                              })
+                            },
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </VibeGridStoreProvider>
@@ -535,6 +595,71 @@ export function ChildEntitySection({
           onFilesDropped={handleFilesDropped}
         />
       )}
+
+      {/* GH#3040: COI request modal — only mounted when a row action fires */}
+      {coiRequestState && (
+        <CoiRequestModalLoader
+          intent={coiRequestState.intent}
+          subcontractorAssignmentId={coiRequestState.subcontractorAssignmentId}
+          vendorId={coiRequestState.vendorId}
+          projectId={parentRecordId}
+          onClose={() => setCoiRequestState(null)}
+        />
+      )}
     </>
   )
+}
+
+/**
+ * GH#3040: small wrapper around `CoiRequestModal` that resolves the
+ * vendor (Company) and project (Project) display names via
+ * `useEntityRecord` before mounting the modal. The lookups happen lazily
+ * — only when the user opens the modal — so the parent component stays
+ * cheap to render even when row actions are visible.
+ */
+interface CoiRequestModalLoaderProps {
+  intent: CoiRequestIntent
+  subcontractorAssignmentId: string
+  vendorId: string
+  projectId: string
+  onClose: () => void
+}
+
+function CoiRequestModalLoader({
+  intent,
+  subcontractorAssignmentId,
+  vendorId,
+  projectId,
+  onClose,
+}: CoiRequestModalLoaderProps): React.ReactElement {
+  const vendor = useEntityRecord('Company', vendorId)
+  const project = useEntityRecord('Project', projectId)
+
+  const vendorName = resolveDisplayName(vendor.record, vendor.isReady) ?? 'this vendor'
+  const projectName = resolveDisplayName(project.record, project.isReady) ?? 'this project'
+
+  return (
+    <CoiRequestModal
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      intent={intent}
+      subcontractorAssignmentId={subcontractorAssignmentId}
+      vendorId={vendorId}
+      vendorName={vendorName}
+      projectName={projectName}
+    />
+  )
+}
+
+function resolveDisplayName(record: EntityRecord | null, isReady: boolean): string | null {
+  if (!isReady || !record) return null
+  const top = record as Record<string, unknown>
+  const data = (top.data as Record<string, unknown> | undefined) ?? top
+  const displayName = data.display_name ?? top.display_name
+  if (typeof displayName === 'string' && displayName.trim()) return displayName
+  const name = data.name ?? top.name
+  if (typeof name === 'string' && name.trim()) return name
+  return null
 }
