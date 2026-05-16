@@ -31,6 +31,7 @@ import { ExpandedContentPortals } from './components/ExpandedContentPortals'
 // GH#1658: Ghost rows for inline creation
 import { GhostRowPortal } from './components/GhostRowPortal'
 import { GanttToolbar } from './components/GanttToolbar'
+import { ModuleErrorBoundary, ModuleErrorFallback } from './components/ModuleErrorBoundary'
 import { VibeGridEmptyState } from './components/VibeGridEmptyState'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
@@ -1416,8 +1417,24 @@ function VibeGridInnerBase(props: VibeGridProps) {
         />
       )}
 
-      {/* Gantt toolbar - spans full width above split pane */}
-      {effectiveViewMode === 'gantt' && <GanttToolbar />}
+      {/* Gantt toolbar — wrapped in ModuleErrorBoundary so any transient
+          read of ganttViewStore (availableDateFields, fieldMapping, etc.)
+          during cold-load can't bubble past VibeGrid to the route-level
+          GeneralError page. Deferred until phase==='painted' so the
+          toolbar mounts against ready schema + data. */}
+      {effectiveViewMode === 'gantt' && initStore.phase === 'painted' && (
+        <ModuleErrorBoundary
+          fallback={(error, reset) => (
+            <ModuleErrorFallback
+              error={error}
+              onReset={reset}
+              onSwitchToTable={onViewModeChange ? () => onViewModeChange('table') : undefined}
+            />
+          )}
+        >
+          <GanttToolbar />
+        </ModuleErrorBoundary>
+      )}
 
       {/* Main content area - Table, Split Pane (Gantt), or Kanban */}
       {/* IMPORTANT: containerRef must always be the same DOM element to keep renderer attached */}
@@ -1474,26 +1491,43 @@ function VibeGridInnerBase(props: VibeGridProps) {
           )}
         </div>
 
-        {/* Non-table view modes — rendered by activeModule via ViewModeRegistry */}
-        {activeModule &&
-          activeModule.id !== 'table' &&
-          activeModule.render(
-            {
-              tableId,
-              entityType,
-              entityDisplayName,
-              orgId,
-              className: '',
-              enableDragAndDrop,
-              enableSelectionColumn,
-              enableGrouping,
-              enableHierarchy,
-              onCellClick,
-              onEntityUpdate: commandBusEntityUpdate,
-              schemaFields,
-            },
-            stores,
-          )}
+        {/* Non-table view modes — rendered by activeModule via
+            ViewModeRegistry. Wrapped in ModuleErrorBoundary so a
+            transient read of partially-hydrated substrate state during
+            a view-mode switch can't bubble past VibeGrid to the
+            route-level GeneralError 500 page. Deferred until
+            phase==='painted' so Gantt/Kanban only mount against ready
+            data; the loading overlay above keeps the area visually
+            covered while we wait. */}
+        {activeModule && activeModule.id !== 'table' && initStore.phase === 'painted' && (
+          <ModuleErrorBoundary
+            fallback={(error, reset) => (
+              <ModuleErrorFallback
+                error={error}
+                onReset={reset}
+                onSwitchToTable={onViewModeChange ? () => onViewModeChange('table') : undefined}
+              />
+            )}
+          >
+            {activeModule.render(
+              {
+                tableId,
+                entityType,
+                entityDisplayName,
+                orgId,
+                className: '',
+                enableDragAndDrop,
+                enableSelectionColumn,
+                enableGrouping,
+                enableHierarchy,
+                onCellClick,
+                onEntityUpdate: commandBusEntityUpdate,
+                schemaFields,
+              },
+              stores,
+            )}
+          </ModuleErrorBoundary>
+        )}
 
         {/* Actions bar - appears when rows are selected (not in Kanban mode) */}
         {effectiveViewMode !== 'kanban' && enableSelectionColumn && (rowActions || enableDelete || enableExport) && (
