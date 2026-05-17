@@ -592,7 +592,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   // Page-level drag state for upload overlay
   const [isPageDragActive, setIsPageDragActive] = useState(false)
-  const pageDragCounterRef = useRef(0)
 
   // Track whether the grid has been shown at least once.
   // Prevents VibGrid from unmounting on transient data state changes
@@ -847,23 +846,31 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
     const handleDragEnter = (e: DragEvent): void => {
       e.preventDefault()
-      pageDragCounterRef.current++
       if (e.dataTransfer?.types.includes('Files')) {
         setIsPageDragActive(true)
       }
     }
 
+    // Counter pattern (enter++ / leave-- / unmount at 0) races React 18's
+    // per-handler render cadence: crossing child boundaries (e.g. the
+    // overlay's inner border-dashed card) fires dragleave + dragenter as
+    // separate events, each committing before the next handler runs —
+    // flicker. Use viewport bounds instead: only deactivate when the cursor
+    // truly leaves the window.
     const handleDragLeave = (e: DragEvent): void => {
       e.preventDefault()
-      pageDragCounterRef.current--
-      if (pageDragCounterRef.current === 0) {
+      if (
+        e.clientX <= 0 ||
+        e.clientY <= 0 ||
+        e.clientX >= window.innerWidth ||
+        e.clientY >= window.innerHeight
+      ) {
         setIsPageDragActive(false)
       }
     }
 
     const handleDrop = (e: DragEvent): void => {
       e.preventDefault()
-      pageDragCounterRef.current = 0
       setIsPageDragActive(false)
     }
 
