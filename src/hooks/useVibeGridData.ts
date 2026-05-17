@@ -180,6 +180,45 @@ export function useVibeGridData(
   ])
 
   // ====================================
+  // GH#2956 P1 — 8s GRACEFUL-DEGRADATION RENDER FALLBACK
+  // ====================================
+  // If at 8s post-mount substrate `isComplete` hasn't fired BUT the
+  // server-adapter race in unified/query.ts has produced rows, flip
+  // initStore.serverDataRendered to dismiss the skeleton overlay. The
+  // wedge_watchdog (30s) below stays untouched and continues recovery in
+  // the background — we are deliberately NOT calling
+  // markEntityDataKnownComplete() here (that flag's contract is "substrate
+  // authoritatively complete"; the timeout doesn't satisfy it). Logs a
+  // structured warn so Loki can baseline wedge rate in production.
+  //
+  // Mirror live state into refs so the 8s timer reads CURRENT values at fire
+  // time without re-arming on every observable snapshot (matches the
+  // isReadyRef pattern below).
+  const isCompleteRef = useRef(false)
+  useEffect(() => {
+    isCompleteRef.current = substrateState.isComplete
+  }, [substrateState.isComplete])
+
+  useEffect(() => {
+    if (skip || !entityType || !orgId) return
+    if (initStore.entityDataKnownComplete) return
+    const id = window.setTimeout(() => {
+      if (initStore.entityDataKnownComplete) return
+      if (isCompleteRef.current) return
+      if (tableCoreStore.processedRows.length === 0) return
+      logger.warn('substrate completion timeout', {
+        event: 'substrate_completion_timeout',
+        entity_type: entityType,
+        organization_id: orgId,
+        elapsed_ms: 8000,
+        rows_present: true,
+      })
+      initStore.markServerDataRendered()
+    }, 8000)
+    return () => window.clearTimeout(id)
+  }, [skip, entityType, orgId, initStore, tableCoreStore])
+
+  // ====================================
   // WEDGE WATCHDOG
   // ====================================
   // If the substrate fails to report `isReady` within the watchdog deadline,

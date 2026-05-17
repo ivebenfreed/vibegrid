@@ -83,6 +83,18 @@ export class InitStore implements IStore {
    */
   @observable entityDataKnownComplete: boolean = false
 
+  /**
+   * GH#2956 P1 — graceful-degradation render gate. Set to true by the 8s
+   * timeout in useVibeGridData when the server-adapter race has produced rows
+   * but substrate `isComplete` hasn't fired (typically because the
+   * SharedWorker leader has wedged — see #3087/#3086). Distinct from
+   * `entityDataKnownComplete`: this flag does NOT claim substrate is
+   * authoritatively complete. The skeleton gate in VibeGrid.tsx widens to
+   * `entityDataKnownComplete || serverDataRendered` so users see their data
+   * while the wedge subsystem (`wedge_watchdog`) continues recovery.
+   */
+  @observable serverDataRendered: boolean = false
+
   @observable errors: HydrationError[] = []
 
   @observable metrics: HydrationMetrics = {
@@ -207,6 +219,18 @@ export class InitStore implements IStore {
   markEntityDataKnownComplete(): void {
     if (this.entityDataKnownComplete) return
     this.entityDataKnownComplete = true
+  }
+
+  /**
+   * GH#2956 P1 — mark that server-adapter rows have been rendered while the
+   * substrate is still wedged. Idempotent. Set to `true` only by the 8s
+   * timeout in useVibeGridData. Does NOT imply substrate completion; the
+   * skeleton-gate predicate ORs this with `entityDataKnownComplete`.
+   */
+  @action
+  markServerDataRendered(): void {
+    if (this.serverDataRendered) return
+    this.serverDataRendered = true
   }
 
   /**
@@ -432,6 +456,7 @@ export class InitStore implements IStore {
       entityType: this.entityType,
       phase: this.phase,
       entityDataKnownComplete: this.entityDataKnownComplete,
+      serverDataRendered: this.serverDataRendered,
       errors: this.errors,
       metrics: this.metrics,
     }
@@ -558,6 +583,7 @@ export class InitStore implements IStore {
     logger.error('VIbeGrid hydration stalled', {
       phase: this.phase,
       entityDataKnownComplete: this.entityDataKnownComplete,
+      serverDataRendered: this.serverDataRendered,
       generationId: this.generationId,
       tableId: this.tableId,
       entityType: this.entityType,
@@ -569,6 +595,8 @@ export class InitStore implements IStore {
     // GH#2925 p4: phase machine is the single source of truth.
     this.phase = 'init'
     this.entityDataKnownComplete = false
+    // GH#2956 P1: reset the server-data-rendered fallback flag alongside.
+    this.serverDataRendered = false
 
     // Reset metrics and errors
     this.errors = []

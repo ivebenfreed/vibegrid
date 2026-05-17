@@ -1290,10 +1290,17 @@ function VibeGridInnerBase(props: VibeGridProps) {
   // GH#2925 (p3/p4): overlay + empty-state predicates derived from InitStore.phase
   // and entityDataKnownComplete. The 'isReady' / 'isRendered' compound flags
   // and the legacy 10-flag hydrationState are removed.
+  // GH#2956 P1: skeleton gate also lifts when serverDataRendered is true —
+  // the 8s timeout fallback in useVibeGridData flips it when the substrate is
+  // wedged but the server adapter has produced rows. entityDataKnownComplete
+  // (the authoritative-complete signal) takes precedence; serverDataRendered
+  // is a graceful-degradation OR, never a substitute.
   const showLoadingOverlay =
     !initStore ||
     initStore.phase !== 'painted' ||
-    (!initStore.entityDataKnownComplete && tableCoreStore.processedRows.length === 0)
+    (!initStore.entityDataKnownComplete &&
+      !initStore.serverDataRendered &&
+      tableCoreStore.processedRows.length === 0)
 
   // GH#2934 (p2): unified mount predicate — fires for any zero-row state
   // (empty / search-to-zero / filter-to-zero). Variant is resolved at the
