@@ -11,10 +11,14 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, Send } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useOrganization } from '@/app/stores'
+import {
+  BULK_SEND_BATCH_SIZE,
+  dispatchBulkSend,
+} from '@/features/lien-waivers/bulk-send-action'
 import { Alert, AlertDescription } from '@/shared/components/ui/alert'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
@@ -587,7 +591,7 @@ export function ChildEntitySection({
                     112 + GRID_DIMENSIONS.HEADER_HEIGHT + childRecords.length * GRID_DIMENSIONS.ROW_HEIGHT + 16,
                     500,
                   )}
-                  enableSelectionColumn={false}
+                  enableSelectionColumn={childEntityType === 'PaymentLine'}
                   enableGrouping={false}
                   enableFiltering={false}
                   enableSorting={true}
@@ -659,7 +663,76 @@ export function ChildEntitySection({
                           },
                         ]
                       : []),
+                    // GH#2561 Track C C5+C6 (child tab parity): expose the
+                    // PaymentLine bulk "Mark sent + send waiver" action on
+                    // the PaymentCycle → Lines child grid. Mirrors the
+                    // top-level EntityListView wiring; gate on entity type
+                    // and per-row status only (server enforces write
+                    // access — CASL plumbing is #2564 follow-on).
+                    ...(childEntityType === 'PaymentLine'
+                      ? [
+                          {
+                            id: 'send-lien-waiver',
+                            label: 'Mark sent + send waiver',
+                            icon: Send,
+                            hidden: (rowData: any) => {
+                              const status = rowData?.status ?? rowData?.data?.status
+                              return status !== 'imported' && status !== 'manual_rejected'
+                            },
+                          },
+                        ]
+                      : []),
                   ]}
+                  onRowAction={
+                    childEntityType === 'PaymentLine'
+                      ? (actionId, rowIds) => {
+                          if (actionId !== 'send-lien-waiver' || rowIds.length === 0) return
+                          const totalCount = rowIds.length
+                          const willBatch = totalCount > BULK_SEND_BATCH_SIZE
+                          const initialMessage = willBatch
+                            ? `Sending in ${Math.ceil(totalCount / BULK_SEND_BATCH_SIZE)} batches…`
+                            : `Sending ${totalCount} ${totalCount === 1 ? 'waiver' : 'waivers'}…`
+                          const toastId = toast.loading(initialMessage)
+
+                          dispatchBulkSend(rowIds, {
+                            onBatchProgress: (batchIndex, batchCount) => {
+                              if (batchCount > 1) {
+                                toast.loading(
+                                  `Sending in ${batchCount} batches… (${batchIndex}/${batchCount})`,
+                                  { id: toastId },
+                                )
+                              }
+                            },
+                          })
+                            .then((result) => {
+                              const summary = `Sent ${result.sent} ${result.sent === 1 ? 'waiver' : 'waivers'} (skipped ${result.skipped})`
+                              if (result.errors.length > 0) {
+                                const sample = result.errors
+                                  .slice(0, 5)
+                                  .map((e) => `• ${e.line_id}: ${e.message}`)
+                                  .join('\n')
+                                const more =
+                                  result.errors.length > 5
+                                    ? `\n…and ${result.errors.length - 5} more`
+                                    : ''
+                                toast.error(
+                                  `${summary} — ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`,
+                                  {
+                                    id: toastId,
+                                    description: `${sample}${more}`,
+                                    duration: 8000,
+                                  },
+                                )
+                              } else {
+                                toast.success(summary, { id: toastId })
+                              }
+                            })
+                            .catch((err: Error) => {
+                              toast.error(`Failed to send waivers: ${err.message}`, { id: toastId })
+                            })
+                        }
+                      : undefined
+                  }
                 />
               </VibeGridStoreProvider>
             </div>
