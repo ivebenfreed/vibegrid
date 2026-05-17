@@ -146,7 +146,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const authStore = useAuth()
   const navigate = useNavigate()
 
-  const { copyLink, activeViewId, hasUnsavedChanges, selectView, clearView, defaultViewConfig: activeViewConfig } = useViewUrlSync({
+  const { copyLink, activeViewId, activeViewName, hasUnsavedChanges, selectView, clearView, defaultViewConfig: activeViewConfig } = useViewUrlSync({
     entityType: entityName,
     orgId,
     stores,
@@ -234,6 +234,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     entityType: entityName,
     orgId,
     activeViewId,
+    activeViewName,
     hasUnsavedChanges,
     onViewSelect: selectView,
     onSaveView: () => setSaveDialogOpen(true),

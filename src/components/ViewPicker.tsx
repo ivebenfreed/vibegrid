@@ -79,6 +79,15 @@ export interface ViewPickerProps {
   entityType: string
   orgId: string
   activeViewId: string | null
+  /**
+   * Display name for the active view, resolved by the parent
+   * (`useViewUrlSync`) from the same `views.list` fetch it already runs
+   * at mount. Used as a fallback for the trigger label so the active
+   * view's name shows immediately — without this prop the local `views`
+   * state is empty until the popover is first opened, so the trigger
+   * would show "Views" instead of the active view's name on cold load.
+   */
+  activeViewName?: string | null
   hasUnsavedChanges: boolean
   currentViewMode: ViewMode
   onViewSelect: (view: EntityViewRow) => void
@@ -123,6 +132,7 @@ export const ViewPicker = observer(function ViewPicker({
   entityType,
   orgId: _orgId,
   activeViewId,
+  activeViewName,
   hasUnsavedChanges,
   currentViewMode,
   onViewSelect,
@@ -177,9 +187,13 @@ export const ViewPicker = observer(function ViewPicker({
       v.created_by !== userId && (v.visibility === 'shared' || v.visibility === 'locked') && !pinnedViewIds.has(v.id),
   )
 
-  // Find active view name for trigger label
+  // Find active view name for trigger label.
+  // Prefer the locally-loaded `views` entry (carries the freshest name in
+  // case it was renamed), fall back to the parent-supplied `activeViewName`
+  // so the label shows immediately on cold load before the picker's own
+  // lazy `views.list` fetch fires (it only runs when the popover opens).
   const activeView = activeViewId ? views.find((v) => v.id === activeViewId) : null
-  const triggerLabel = activeView ? activeView.name : 'Views'
+  const triggerLabel = activeView?.name ?? activeViewName ?? 'Views'
 
   // Context menu handlers
   const handleDelete = useCallback(async (viewId: string) => {

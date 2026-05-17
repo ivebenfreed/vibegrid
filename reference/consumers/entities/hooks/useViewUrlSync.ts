@@ -38,6 +38,14 @@ export interface UseViewUrlSyncOptions {
 export interface UseViewUrlSyncResult {
   /** The active saved view ID from URL (if any) */
   activeViewId: string | null
+  /**
+   * The active saved view's display name (if any). Exposed separately
+   * from `activeViewId` so consumers (e.g. ViewPicker's trigger label)
+   * can render the active view's name without waiting for the picker's
+   * own lazy-loaded views list. Resolved during the same `views.list`
+   * fetch this hook already runs at mount.
+   */
+  activeViewName: string | null
   /** Whether URL state is still being applied to stores */
   isLoading: boolean
   /** Whether the store state differs from the active view's config */
@@ -129,6 +137,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
   const [isLoading, setIsLoading] = useState(true)
   const [activeViewId, setActiveViewId] = useState<string | null>(null)
+  const [activeViewName, setActiveViewName] = useState<string | null>(null)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [defaultViewConfig, setDefaultViewConfig] = useState<Record<string, unknown> | null>(null)
 
@@ -163,6 +172,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
       suppressUrlUpdateRef.current = true
       setActiveViewId(view.id)
+      setActiveViewName(view.name)
       setHasUnsavedChanges(false)
 
       runInAction(() => {
@@ -245,6 +255,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
   const clearView = useCallback(() => {
     logger.info('Clearing active view, reverting to unsaved state')
     setActiveViewId(null)
+    setActiveViewName(null)
     setHasUnsavedChanges(false)
 
     // Remove view= from URL
@@ -377,6 +388,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
             // Ensure activeViewId state matches the URL even if the
             // URL→Store effect already set it; harmless re-set.
             setActiveViewId(activeView.id)
+            setActiveViewName((activeView as { name: string }).name)
 
             // GH#3016 4th fix: write the saved view's filter/sort/group into
             // visualStateStore on cold-nav so the substrate's sort/filter
@@ -588,6 +600,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
   if (!isEnabled) {
     return {
       activeViewId: null,
+      activeViewName: null,
       isLoading: false,
       hasUnsavedChanges: false,
       copyLink,
@@ -599,6 +612,7 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
   return {
     activeViewId,
+    activeViewName,
     isLoading,
     hasUnsavedChanges,
     copyLink,

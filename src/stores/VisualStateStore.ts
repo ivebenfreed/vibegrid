@@ -491,11 +491,21 @@ export class VisualStateStore implements IStore {
   }
 
   /**
-   * Count of active filter conditions (recursive)
+   * Count of active filter conditions.
+   *
+   * Counts whichever filter source is currently active. `filterGroup`
+   * (FilterBuilder dialog) takes precedence — when present, only its
+   * recursive condition count is reported. When absent, falls back to the
+   * legacy flat `filters` array (still written by `useViewUrlSync.selectView`
+   * when applying a saved view's config). Mirrors the substrate's
+   * `filterGroup ?? filters` precedence in `use-substrate-grid-rows.ts`
+   * (commit 9ccd1a152). Without this fallback, applying a saved view via
+   * the legacy `filters` array left the toolbar badge invisible and made
+   * an applied filter look like an unfiltered list.
    */
   @computed get activeFilterCount(): number {
-    if (!this.filterGroup) return 0
-    return this.countConditions(this.filterGroup)
+    if (this.filterGroup) return this.countConditions(this.filterGroup)
+    return this.filters.length
   }
 
   /**
