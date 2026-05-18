@@ -279,33 +279,36 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
     }
 
     const { visualStateStore, viewModeStore } = stores
-    const initialSearch = initialSearchRef.current
 
-    // Track that we're applying URL state so Store->URL reaction doesn't fire
+    // Read from the CURRENT search params, not `initialSearchRef.current`. The
+    // effect must re-fire when in-place navigations change the URL search
+    // (e.g. sidebar scope sub-nav click landing on the same `/entities/<X>`
+    // route with a new `?filter=`), otherwise the previously-applied default
+    // view's filter wins and the URL filter is silently ignored.
     suppressUrlUpdateRef.current = true
 
     logger.info('Applying URL search params to stores', {
       entityType,
-      search: initialSearch,
+      search,
     })
 
     runInAction(() => {
       // Apply sort from URL
-      const sortConfig = deserializeSort(initialSearch.sort)
+      const sortConfig = deserializeSort(search.sort)
       if (sortConfig) {
         visualStateStore.sortBy = sortConfig
       }
 
       // Apply filters from URL
-      const filterConfig = deserializeFilters(initialSearch.filter)
+      const filterConfig = deserializeFilters(search.filter)
       if (filterConfig) {
         visualStateStore.filters = filterConfig
       }
 
       // Apply group from URL
-      if (initialSearch.group) {
+      if (search.group) {
         visualStateStore.setGroupConfig({
-          fields: [{ field: initialSearch.group, displayName: initialSearch.group }],
+          fields: [{ field: search.group, displayName: search.group }],
           sortBy: 'name',
           sortDirection: 'asc',
           aggregations: [],
@@ -314,18 +317,18 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       }
 
       // Apply view mode from URL
-      if (initialSearch.mode === 'table' || initialSearch.mode === 'gantt' || initialSearch.mode === 'kanban') {
-        viewModeStore.setMode(initialSearch.mode)
+      if (search.mode === 'table' || search.mode === 'gantt' || search.mode === 'kanban') {
+        viewModeStore.setMode(search.mode)
       }
 
       // Apply search query from URL
-      if (initialSearch.q !== undefined) {
-        visualStateStore.setGlobalSearchText(initialSearch.q)
+      if (search.q !== undefined) {
+        visualStateStore.setGlobalSearchText(search.q)
       }
 
       // Track active view ID
-      if (initialSearch.view) {
-        setActiveViewId(initialSearch.view)
+      if (search.view) {
+        setActiveViewId(search.view)
       }
     })
 
@@ -334,7 +337,20 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       suppressUrlUpdateRef.current = false
       setIsLoading(false)
     })
-  }, [isEnabled, entityType, stores])
+  }, [
+    isEnabled,
+    entityType,
+    stores,
+    // Re-apply whenever any layered search param changes. Without these, an
+    // in-place nav like clicking a project sub-nav link from the unfiltered
+    // grid leaves the store on the previously-loaded default view.
+    search.filter,
+    search.sort,
+    search.group,
+    search.mode,
+    search.q,
+    search.view,
+  ])
 
   // ====================================
   // ACTIVE VIEW CONFIG LOADING (on mount)
