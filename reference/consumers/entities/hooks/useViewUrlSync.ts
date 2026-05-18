@@ -293,19 +293,21 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
     })
 
     runInAction(() => {
-      // Apply sort from URL
+      // Apply sort from URL — clear when the URL drops the param so an
+      // in-place nav back to the bare route returns to the unsorted state
+      // instead of inheriting whatever the previous URL applied.
       const sortConfig = deserializeSort(search.sort)
-      if (sortConfig) {
-        visualStateStore.sortBy = sortConfig
-      }
+      visualStateStore.sortBy = sortConfig ?? []
 
-      // Apply filters from URL
+      // Apply filters from URL — same symmetric clear (the original
+      // asymmetric "apply if present" left a project-scope filter in place
+      // when the user navigated back to "All Certificates of Insurance",
+      // making the bare URL look unfiltered while the grid was still
+      // scoped to the previous project).
       const filterConfig = deserializeFilters(search.filter)
-      if (filterConfig) {
-        visualStateStore.filters = filterConfig
-      }
+      visualStateStore.filters = filterConfig ?? []
 
-      // Apply group from URL
+      // Apply group from URL (clear when absent)
       if (search.group) {
         visualStateStore.setGroupConfig({
           fields: [{ field: search.group, displayName: search.group }],
@@ -314,22 +316,25 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           aggregations: [],
           expandedGroups: new Set(),
         })
+      } else {
+        visualStateStore.setGroupConfig(null)
       }
 
-      // Apply view mode from URL
+      // Apply view mode from URL (default to 'table' when absent — matches
+      // selectView's fallback at the saved-view apply path)
       if (search.mode === 'table' || search.mode === 'gantt' || search.mode === 'kanban') {
         viewModeStore.setMode(search.mode)
+      } else {
+        viewModeStore.setMode('table')
       }
 
-      // Apply search query from URL
-      if (search.q !== undefined) {
-        visualStateStore.setGlobalSearchText(search.q)
-      }
+      // Apply search query from URL (clear when absent)
+      visualStateStore.setGlobalSearchText(search.q ?? '')
 
-      // Track active view ID
-      if (search.view) {
-        setActiveViewId(search.view)
-      }
+      // Track active view ID (clear when URL drops `?view=` — otherwise the
+      // view-picker keeps highlighting a stale view after the user navs
+      // back to the bare route).
+      setActiveViewId(search.view ?? null)
     })
 
     // Allow Store->URL reactions after a tick
