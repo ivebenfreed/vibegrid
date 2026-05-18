@@ -53,10 +53,10 @@ export class HeaderRenderer {
   private lastRenderState: {
     columnCount: number
     scrollLeft: number
-    visibleColumnsLength: number
     visibleRangeStart: number
     visibleRangeEnd: number
     columnOrderString: string // Track column order for drag operations
+    columnWidthsString: string // Track id+width composition of visible columns (covers visibility swaps + resize)
   } | null = null
 
   // Header state
@@ -96,11 +96,9 @@ export class HeaderRenderer {
     const currentRenderState = {
       columnCount: columns.length,
       scrollLeft: geometry.scrollLeft,
-      visibleColumnsLength: visibleColumns.length,
       visibleRangeStart: geometry.visibleColumnRange.start,
       visibleRangeEnd: geometry.visibleColumnRange.end,
-      columnOrderString: (columnOrder || []).join(','), // Track column order for drag operations
-      // CRITICAL: Track column widths to detect resize changes
+      columnOrderString: (columnOrder || []).join(','),
       columnWidthsString: visibleColumns.map((col) => `${col.id}:${col.width}`).join(','),
     }
 
@@ -111,15 +109,19 @@ export class HeaderRenderer {
       columnOrder: columnOrder,
     })
 
-    // Skip render if nothing actually changed (Legend State optimization pattern)
+    // Skip render if nothing actually changed (Legend State optimization pattern).
+    // columnWidthsString captures both the visible-column ID composition AND each
+    // column's width — so a same-count visibility swap (one column hidden, another
+    // shown) invalidates the cache. Tracking only visibleColumns.length left headers
+    // stale when visibility swapped, while the body re-rendered with the new set.
     if (
       this.lastRenderState &&
       this.lastRenderState.columnCount === currentRenderState.columnCount &&
       this.lastRenderState.scrollLeft === currentRenderState.scrollLeft &&
-      this.lastRenderState.visibleColumnsLength === currentRenderState.visibleColumnsLength &&
       this.lastRenderState.visibleRangeStart === currentRenderState.visibleRangeStart &&
       this.lastRenderState.visibleRangeEnd === currentRenderState.visibleRangeEnd &&
-      this.lastRenderState.columnOrderString === currentRenderState.columnOrderString
+      this.lastRenderState.columnOrderString === currentRenderState.columnOrderString &&
+      this.lastRenderState.columnWidthsString === currentRenderState.columnWidthsString
     ) {
       fileLog.debug('🔄 HEADER RENDER SKIPPED - no changes detected', currentRenderState)
       return
