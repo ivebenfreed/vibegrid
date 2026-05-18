@@ -125,7 +125,21 @@ export function createRowSnapshot(row: any, columns: Column[]): RowSnapshot {
     const rawValue = row[col.id]
     // Normalize value based on field type (refs→IDs, dates→ISO, etc.)
     const normalizedValue = normalizeValue(col, rawValue)
-    const colHash = hashValue(normalizedValue)
+    let colHash = hashValue(normalizedValue)
+
+    // GH#3105 follow-up: for URS-injected relationship-source columns, ALSO
+    // include the substrate-join projection `row[col.id + '__rel']` in the
+    // column's hash. Without this, projection-only updates (the ID array stays
+    // the same but the resolved {id, name} list changes — e.g. when the
+    // ChildEntitySection projector resolves target names asynchronously) are
+    // invisible to change detection, and setRows() bails as a no-op, leaving
+    // badge cells stuck on `#hash` labels.
+    const colWithRel = col as Column & { relationshipTargetEntity?: string | null }
+    if (colWithRel.relationshipTargetEntity) {
+      const projection = row[`${col.id}__rel`]
+      const projHash = hashValue(projection != null ? JSON.stringify(projection) : null)
+      colHash = `${colHash}|${projHash}`
+    }
     columnHashes.set(col.id, colHash)
 
     // Exclude metadata from dataHash (loop-back protection)
