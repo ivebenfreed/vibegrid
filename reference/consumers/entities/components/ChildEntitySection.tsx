@@ -27,6 +27,7 @@ import { Skeleton } from '@/shared/components/ui/skeleton'
 import { useEntityRecord } from '@/shared/data/db/hooks/useEntityRecord'
 import { useEntityListFetch } from '@/shared/data/db/hooks/useEntityListFetch'
 import { orpcClient } from '@/shared/data/orpc/client'
+import { dataforgeData } from '@/shared/data/orpc/scope-middleware'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
@@ -453,10 +454,13 @@ export function ChildEntitySection({
           toast.success(`${displayName} added (link field not found on parent schema)`)
         } else {
           // Read current children array — LWW on full array per spec B3.
-          const parentRecord = await orpcClient.dataforge.data.get({
-            entityName: parentEntityType,
-            recordId: parentRecordId,
-          })
+          const parentRecord = await dataforgeData.get(
+            {
+              entityName: parentEntityType,
+              recordId: parentRecordId,
+            },
+            orgId,
+          )
           const parentData = ((parentRecord as { record?: Record<string, unknown> })?.record ?? {}) as Record<
             string,
             unknown
