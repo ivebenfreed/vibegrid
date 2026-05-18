@@ -32,12 +32,32 @@ export interface FilterBuilderProps {
 export const FilterBuilder = observer(function FilterBuilder({ stores, className }: FilterBuilderProps) {
   const { filterBuilderStore, visualStateStore, tableCoreStore } = stores
   const { filterBuilderState } = filterBuilderStore
-  const { activeFilterCount, filterGroup } = visualStateStore
+  const { activeFilterCount, filterGroup, filters: legacyFilters } = visualStateStore
   const { draftFilterGroup } = filterBuilderState
   const { hasValidationErrors, showComplexityWarning } = filterBuilderStore
 
   // Get columns from tableCoreStore for FilterGroup
   const columns = tableCoreStore.columns
+
+  // Legacy `filters[]` array is still written by `useViewUrlSync.selectView`
+  // when applying a saved view. The badge (`activeFilterCount`) already falls
+  // back to it (VisualStateStore:506-509), but the popover did not — so a
+  // saved view with legacy filters showed badge=N but the dialog rendered
+  // "No filters applied". Surface them here as a synthesized group so the
+  // user can see/edit/clear them.
+  const legacyFilterGroup = React.useMemo<FilterGroupType | null>(() => {
+    if (!legacyFilters || legacyFilters.length === 0) return null
+    return {
+      logic: 'AND',
+      conditions: legacyFilters.map((f) => ({
+        id: crypto.randomUUID(),
+        field: f.field,
+        operator: f.operator,
+        value: f.value,
+        caseSensitive: f.caseSensitive,
+      })),
+    }
+  }, [legacyFilters])
 
   // Handle keyboard events for Escape key
   const handleKeyDown = React.useCallback(
@@ -97,6 +117,8 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
   const handleClear = React.useCallback(() => {
     filterBuilderStore.setDraftFilter(null)
     visualStateStore.clearFilterGroup()
+    // Also clear legacy filters applied via saved-view selectView.
+    visualStateStore.clearFilters()
     filterBuilderStore.closeFilterBuilder()
     logger.info('Filters cleared')
   }, [filterBuilderStore, visualStateStore])
@@ -105,6 +127,10 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
   const handleApply = React.useCallback(() => {
     if (draftFilterGroup) {
       visualStateStore.applyFilterGroup(draftFilterGroup)
+      // Migrating from legacy `filters[]` to `filterGroup`: clear the
+      // legacy array so the substrate's `filterGroup ?? filters` precedence
+      // doesn't double-apply.
+      visualStateStore.clearFilters()
       logger.info('Filters applied', {
         conditionCount: draftFilterGroup.conditions.length,
       })
@@ -112,8 +138,9 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
     filterBuilderStore.closeFilterBuilder()
   }, [filterBuilderStore, visualStateStore, draftFilterGroup])
 
-  // Determine which filter group to display (draft takes precedence)
-  const displayFilterGroup = draftFilterGroup ?? filterGroup
+  // Determine which filter group to display. Precedence: in-flight draft →
+  // active filterGroup → synthesized view of legacy filters[].
+  const displayFilterGroup = draftFilterGroup ?? filterGroup ?? legacyFilterGroup
 
   return (
     <Popover open={filterBuilderState.isOpen} onOpenChange={handleOpenChange}>
