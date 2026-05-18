@@ -801,37 +801,52 @@ export const EntityListView = observer(function EntityListView(props: EntityList
       if (entityName !== 'CertificateOfInsurance') return
       if (!orgId || rowIds.length === 0) return
       const sqlite = getSQLiteClient()
-      // 1. Fire local SQLite removals best-effort — don't await.
+      // 1. Fire local SQLite removals best-effort — don't await. The
+      // SharedWorker handler emits its entityBatch delete synchronously
+      // before sending the IPC ack, so the grid drops the row instantly.
       for (const id of rowIds) {
         sqlite
           .localDeleteEntity({ orgId, entityName: 'CertificateOfInsurance', recordId: id })
           .catch(() => {})
       }
-      // 2. Server delete (parallel) — source of truth.
-      const serverResults = await Promise.allSettled(
-        rowIds.map((id) =>
-          orpcClient.dataforge.data.delete({
-            entityName: 'CertificateOfInsurance',
-            recordId: id,
-          }),
-        ),
-      )
-      // 3. Collect failed ids: rejected promises OR resolved with success=false.
-      const failedIds = collectFailedDeleteIds(rowIds, serverResults)
-      if (failedIds.length === 0) return
-      // 4. Refetch each failed id from the server to restore (or confirm gone).
-      const refetchResults = await Promise.allSettled(
-        failedIds.map((id) =>
-          sqlite.fetchEntityById({
-            orgId,
-            entityName: 'CertificateOfInsurance',
-            recordId: id,
-          }),
-        ),
-      )
-      const restored = countRestoredAfterRefetch(refetchResults)
-      const outcome = describeOptimisticDeleteOutcome(failedIds.length, restored)
-      if (outcome.kind !== 'none') toast.error(outcome.message)
+      // 2. Server delete + reconciliation runs in the background. We
+      // resolve the caller's Promise immediately so the confirm dialog
+      // closes without waiting on the round-trip. The server-side cascade
+      // can run into the multi-minute range against staging (separate bug
+      // to chase server-side); blocking the dialog on that is what users
+      // reported as "delete hangs while it shows deleted properly on
+      // refresh" — the row was already removed locally + server-side, the
+      // dialog was just sitting on the slow HTTP response.
+      void (async () => {
+        try {
+          const serverResults = await Promise.allSettled(
+            rowIds.map((id) =>
+              orpcClient.dataforge.data.delete({
+                entityName: 'CertificateOfInsurance',
+                recordId: id,
+              }),
+            ),
+          )
+          const failedIds = collectFailedDeleteIds(rowIds, serverResults)
+          if (failedIds.length === 0) return
+          const refetchResults = await Promise.allSettled(
+            failedIds.map((id) =>
+              sqlite.fetchEntityById({
+                orgId,
+                entityName: 'CertificateOfInsurance',
+                recordId: id,
+              }),
+            ),
+          )
+          const restored = countRestoredAfterRefetch(refetchResults)
+          const outcome = describeOptimisticDeleteOutcome(failedIds.length, restored)
+          if (outcome.kind !== 'none') toast.error(outcome.message)
+        } catch (err) {
+          logger.error('COI background delete reconciliation threw', {
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      })()
     },
     [entityName, orgId],
   )
