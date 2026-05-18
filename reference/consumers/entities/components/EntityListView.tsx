@@ -783,27 +783,31 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     [resolvedName],
   )
 
-  // COI optimistic delete carve-out: local-only delete first (instant grid
-  // update via entityBatch), then server delete in parallel. On any per-row
-  // failure, refetch the row by id to restore it from the server. Toast
-  // distinguishes "restored" (server still has the row) from a plain failure
-  // (server actually deleted it, but a downstream cascade failed).
+  // COI optimistic delete carve-out: fire local SQLite delete (instant grid
+  // update via entityBatch) without awaiting the SharedWorker IPC, and await
+  // the server delete which is the source of truth. On any per-row failure,
+  // refetch the row by id to restore it from the server. Toast distinguishes
+  // "restored" (server still has the row) from a plain failure (server
+  // actually deleted it, but a downstream cascade failed).
+  //
+  // The local-delete IPC must not gate the dialog: the SharedWorker handler
+  // emits its entityBatch delete synchronously before sending the ack, so the
+  // grid drops the row regardless of when the ack arrives. Awaiting the ack
+  // used to wedge "Deleting…" for up to DEFAULT_TIMEOUT (30s) when the leader
+  // tab was busy or stale (GH#3107), and worse, it deferred the server delete
+  // request from being fired at all.
   const coiOptimisticDelete = useCallback(
     async (rowIds: string[], _rowsData: any[]): Promise<void> => {
       if (entityName !== 'CertificateOfInsurance') return
       if (!orgId || rowIds.length === 0) return
       const sqlite = getSQLiteClient()
-      // 1. Optimistic local removals (parallel).
-      await Promise.allSettled(
-        rowIds.map((id) =>
-          sqlite.localDeleteEntity({
-            orgId,
-            entityName: 'CertificateOfInsurance',
-            recordId: id,
-          }),
-        ),
-      )
-      // 2. Server delete (parallel).
+      // 1. Fire local SQLite removals best-effort — don't await.
+      for (const id of rowIds) {
+        sqlite
+          .localDeleteEntity({ orgId, entityName: 'CertificateOfInsurance', recordId: id })
+          .catch(() => {})
+      }
+      // 2. Server delete (parallel) — source of truth.
       const serverResults = await Promise.allSettled(
         rowIds.map((id) =>
           orpcClient.dataforge.data.delete({
