@@ -39,6 +39,7 @@ import type { Column } from '@/systems/vibegrid/types'
 import { useEntitySchema } from '@/shared/data/queries/entity-schemas.queries'
 import type { ChildEntityConfig } from '../hooks/useChildEntityData'
 import { useChildEntityData } from '../hooks/useChildEntityData'
+import { useChildRecordsProjection } from '../hooks/useChildRecordsProjection'
 import { useLinkedFieldEnrichment } from '../hooks/useLinkedFieldEnrichment'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { CreationModeButton } from './CreationModeButton'
@@ -266,15 +267,26 @@ export function ChildEntitySection({
     return out.length > 0 ? out : undefined
   }, [linkedColumns, coiRequestColumn])
 
+  // GH#3105 follow-up Phase C: project relationship target IDs into
+  // `colId__rel: [{id, name}]` so the badge-list renderer's Path 1 (substrate
+  // join projection) has data to render — instead of falling through to
+  // Path 2 which empirically returns empty in this code path. The hook is a
+  // no-op when the child schema has no relationship fields.
+  const projectedRecords = useChildRecordsProjection({
+    childRecords: recordsWithCoiRequest,
+    childSchema,
+    orgId,
+  })
+
   // Always use collectionOverride for embedded child grids.
   // useChildEntityData already filters records — no need for VibeGrid to re-fetch.
   // This eliminates a race condition where skipDataFetching toggles based on schema cache timing.
   const collectionData = useMemo(
     () => ({
-      items: recordsWithCoiRequest,
-      count: recordsWithCoiRequest.length,
+      items: projectedRecords,
+      count: projectedRecords.length,
     }),
-    [recordsWithCoiRequest],
+    [projectedRecords],
   )
 
   // Creation mode detection (same as EntityListView)
