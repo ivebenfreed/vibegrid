@@ -33,11 +33,7 @@ import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
-import {
-  substrateCreate,
-  substrateDelete,
-  substrateUpdate,
-} from '@/shared/data/query/substrate-mutations'
+import { mutationApi } from '@/shared/data/hooks/useEntityMutation'
 import {
   useEntityGrid,
   type ViewportSpec,
@@ -406,18 +402,23 @@ export function useVibeGridData(
   // CRUD MUTATIONS
   // ====================================
 
+  // GH#3119 P5 — mutation entry points route through `mutationApi` (the
+  // useEntityMutation singleton), which writes the optimistic overlay to
+  // OptimisticMutationStore + issues the scoped oRPC mutation. The legacy
+  // `substrateCreate/Update/Delete` path bypassed the overlay store and
+  // wrote wa-sqlite directly via the SharedWorker, violating spec B1
+  // ("wa-sqlite is k/v only — optimistic mutations never write to it").
+  // mutationApi re-throws on error; the existing `.catch` keeps the
+  // fire-and-forget semantics this hook exposes to consumers.
   const createEntity = useMemo(() => {
     return (data: Record<string, any>) => {
-      substrateCreate(entityType, data)
-        .then((res) => {
-          if (!res.success) {
-            logger.error('Entity create failed (substrate)', { entityType, error: res.error })
-            return
-          }
-          logger.info('Entity create persisted (substrate)', { entityType })
+      mutationApi
+        .create({ entityName: entityType, data })
+        .then(() => {
+          logger.info('Entity create persisted', { entityType })
         })
         .catch((err: any) => {
-          logger.error('Entity create threw (substrate)', {
+          logger.error('Entity create failed', {
             entityType,
             error: err instanceof Error ? err.message : String(err),
           })
@@ -427,16 +428,13 @@ export function useVibeGridData(
 
   const updateEntity = useMemo(() => {
     return (id: string, updates: Record<string, any>) => {
-      substrateUpdate(entityType, String(id), updates)
-        .then((res) => {
-          if (!res.success) {
-            logger.error('Entity update failed (substrate)', { entityType, id, error: res.error })
-            return
-          }
-          logger.info('Entity update persisted (substrate)', { entityType, id })
+      mutationApi
+        .update({ entityName: entityType, recordId: String(id), patch: updates })
+        .then(() => {
+          logger.info('Entity update persisted', { entityType, id })
         })
         .catch((err: any) => {
-          logger.error('Entity update threw (substrate)', {
+          logger.error('Entity update failed', {
             entityType,
             id,
             error: err instanceof Error ? err.message : String(err),
@@ -447,16 +445,13 @@ export function useVibeGridData(
 
   const deleteEntity = useMemo(() => {
     return (id: string) => {
-      substrateDelete(entityType, String(id))
-        .then((res) => {
-          if (!res.success) {
-            logger.error('Entity delete failed (substrate)', { entityType, id, error: res.error })
-            return
-          }
-          logger.info('Entity delete persisted (substrate)', { entityType, id })
+      mutationApi
+        .delete({ entityName: entityType, recordId: String(id) })
+        .then(() => {
+          logger.info('Entity delete persisted', { entityType, id })
         })
         .catch((err: any) => {
-          logger.error('Entity delete threw (substrate)', {
+          logger.error('Entity delete failed', {
             entityType,
             id,
             error: err instanceof Error ? err.message : String(err),

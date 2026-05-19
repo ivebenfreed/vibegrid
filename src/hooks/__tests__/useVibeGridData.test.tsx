@@ -40,10 +40,14 @@ vi.mock('@/shared/data/hooks/useEntityGrid', () => ({
   useEntityGrid: vi.fn(() => gridResultRef.current),
 }))
 
-vi.mock('@/shared/data/query/substrate-mutations', () => ({
-  substrateCreate: vi.fn().mockResolvedValue({ success: true }),
-  substrateUpdate: vi.fn().mockResolvedValue({ success: true }),
-  substrateDelete: vi.fn().mockResolvedValue({ success: true }),
+vi.mock('@/shared/data/hooks/useEntityMutation', () => ({
+  mutationApi: {
+    create: vi.fn().mockResolvedValue({ success: true, record: null }),
+    update: vi.fn().mockResolvedValue({ success: true, record: null }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+    mutateSystemEntity: vi.fn().mockResolvedValue({ success: true }),
+  },
+  useEntityMutation: vi.fn(),
 }))
 
 vi.mock('@/app/stores', () => ({
