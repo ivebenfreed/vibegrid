@@ -3,44 +3,41 @@
 /**
  * useVibeGridData hydration gate.
  *
- * GH#3019 B10: the hook marks `initStore.entityDataKnownComplete` once the
- * unified query layer's snapshot has authoritatively reported completion
- * (`source !== null && isComplete`). Empty-but-authoritative entities
- * (server returned `total: 0`) satisfy `isComplete: true` and flip the
- * gate so the renderer can paint "No records yet" instead of a skeleton.
+ * GH#3119 P5 (B17): the hook reads from `useEntityGrid` (single-source-
+ * of-truth substrate read hook) and marks
+ * `initStore.entityDataKnownComplete` based on the result's `source`:
+ *   - `source === 'warm-local'`: wa-sqlite holds the dataset; flip on.
+ *   - `source === 'warming-server' && total === 0 && !isLoading`:
+ *     legitimately empty entity (server returned no ids); flip on.
+ *   - `source === 'warming-server' && isLoading`: still fetching, do
+ *     NOT flip.
  */
 
 import { renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { UseEntityGridResult } from '@/shared/data/hooks/useEntityGrid'
 
 // -------------------- Hoisted spies --------------------
 
-const { substrateStateRef } = vi.hoisted(() => {
-  type SubstrateState = {
-    rows: any[]
-    count: number
-    isReady: boolean
-    bounded: boolean
-    isComplete: boolean
-    source: 'local' | 'server' | null
-  }
-  const initial: SubstrateState = {
+const { gridResultRef } = vi.hoisted(() => {
+  const initial: UseEntityGridResult = {
     rows: [],
-    count: 0,
-    isReady: false,
-    bounded: false,
-    isComplete: false,
-    source: null,
+    total: 0,
+    isLoading: false,
+    isStale: false,
+    isWarm: false,
+    error: null,
+    source: 'empty',
   }
   return {
-    substrateStateRef: { current: initial as SubstrateState },
+    gridResultRef: { current: initial as UseEntityGridResult },
   }
 })
 
 // -------------------- Mocks --------------------
 
-vi.mock('@/shared/data/query/use-substrate-grid-rows', () => ({
-  useSubstrateGridRows: vi.fn(() => substrateStateRef.current),
+vi.mock('@/shared/data/hooks/useEntityGrid', () => ({
+  useEntityGrid: vi.fn(() => gridResultRef.current),
 }))
 
 vi.mock('@/shared/data/query/substrate-mutations', () => ({
@@ -54,7 +51,13 @@ vi.mock('@/app/stores', () => ({
 }))
 
 vi.mock('../../stores/context', () => ({
-  useVibeGridStores: () => ({ viewportStore: {} }),
+  useVibeGridStores: () => ({
+    viewportStore: {
+      visibleRowRange: { start: 0, end: 50 },
+      serverTotalRows: null,
+      setServerTotalRows: vi.fn(),
+    },
+  }),
 }))
 
 vi.mock('@/shared/lib/logging', () => ({
@@ -64,6 +67,10 @@ vi.mock('@/shared/lib/logging', () => ({
     debug: vi.fn(),
     error: vi.fn(),
   }),
+}))
+
+vi.mock('@/shared/data/db/sqlite/wedge-watchdog', () => ({
+  armWedgeWatchdog: vi.fn(() => () => {}),
 }))
 
 import { useVibeGridData } from '../useVibeGridData'
@@ -76,30 +83,37 @@ function makeInitStore() {
     markEntityDataKnownComplete: vi.fn(function (this: any) {
       this.entityDataKnownComplete = true
     }),
+    markServerDataRendered: vi.fn(),
   }
 }
 
 function makeTableCoreStore() {
   return {
     setRows: vi.fn(),
+    setSparseRows: vi.fn(),
+    processedRows: [] as any[],
+    columns: [] as any[],
   }
 }
 
-function setSubstrateState(next: {
-  rows?: any[]
-  count: number
-  isReady: boolean
-  bounded: boolean
-  isComplete?: boolean
-  source?: 'local' | 'server' | null
-}): void {
-  substrateStateRef.current = {
+function makeVisualStateStore() {
+  return {
+    sortBy: [],
+    filters: [],
+    filterGroup: null,
+    globalSearchText: '',
+  }
+}
+
+function setGridResult(next: Partial<UseEntityGridResult>): void {
+  gridResultRef.current = {
     rows: next.rows ?? [],
-    count: next.count,
-    isReady: next.isReady,
-    bounded: next.bounded,
-    isComplete: next.isComplete ?? false,
-    source: next.source ?? null,
+    total: next.total ?? 0,
+    isLoading: next.isLoading ?? false,
+    isStale: next.isStale ?? false,
+    isWarm: next.isWarm ?? false,
+    error: next.error ?? null,
+    source: next.source ?? 'empty',
   }
 }
 
@@ -109,7 +123,7 @@ describe('useVibeGridData — hydration gate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
-    setSubstrateState({ count: 0, isReady: false, bounded: false })
+    setGridResult({ source: 'empty', total: 0, isLoading: false })
   })
 
   afterEach(() => {
@@ -117,13 +131,17 @@ describe('useVibeGridData — hydration gate', () => {
     vi.clearAllMocks()
   })
 
-  it('does not mark entityDataKnownComplete until the unified layer delivers isComplete', () => {
+  it('does not mark entityDataKnownComplete while source is empty / warming with isLoading', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
-    const visualStateStore = {} as any
+    const visualStateStore = makeVisualStateStore() as any
 
-    // No snapshot delivered yet (source === null).
-    setSubstrateState({ count: 0, isReady: false, bounded: false, source: null })
+    // Warming-server, still loading — gate must stay closed.
+    setGridResult({
+      source: 'warming-server',
+      total: 100,
+      isLoading: true,
+    })
 
     const { rerender } = renderHook(() =>
       useVibeGridData(
@@ -134,35 +152,33 @@ describe('useVibeGridData — hydration gate', () => {
       ),
     )
 
-    // Advance well past the previous 5s wall-clock fallback. The new
-    // implementation must NOT mark complete here — no snapshot yet.
+    // Advance well past any previous wall-clock fallback. Must NOT mark complete.
     vi.advanceTimersByTime(6000)
     expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
 
-    // Snapshot arrives from server with isComplete=true (legitimately empty).
-    setSubstrateState({
-      count: 0,
-      isReady: true,
-      bounded: true,
-      isComplete: true,
-      source: 'server',
+    // Now flip to warm-local — the gate must open.
+    setGridResult({
+      source: 'warm-local',
+      total: 5,
+      isLoading: false,
+      isWarm: true,
     })
     rerender()
 
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('marks entityDataKnownComplete when snapshot is complete with count > 0', () => {
+  it('marks entityDataKnownComplete when source is warm-local with rows', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
-    const visualStateStore = {} as any
+    const visualStateStore = makeVisualStateStore() as any
 
-    setSubstrateState({
-      count: 5,
-      isReady: true,
-      bounded: true,
-      isComplete: true,
-      source: 'local',
+    setGridResult({
+      source: 'warm-local',
+      total: 5,
+      isLoading: false,
+      isWarm: true,
+      rows: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }, { id: 'e' }],
     })
 
     renderHook(() =>
@@ -177,17 +193,15 @@ describe('useVibeGridData — hydration gate', () => {
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('marks entityDataKnownComplete when snapshot is complete with count === 0 (legitimately empty)', () => {
+  it('marks entityDataKnownComplete when warming-server delivers empty-authoritative (total 0, !isLoading)', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
-    const visualStateStore = {} as any
+    const visualStateStore = makeVisualStateStore() as any
 
-    setSubstrateState({
-      count: 0,
-      isReady: true,
-      bounded: true,
-      isComplete: true,
-      source: 'server',
+    setGridResult({
+      source: 'warming-server',
+      total: 0,
+      isLoading: false,
     })
 
     renderHook(() =>
@@ -202,19 +216,17 @@ describe('useVibeGridData — hydration gate', () => {
     expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
   })
 
-  it('does not mark entityDataKnownComplete when source is set but isComplete is false', () => {
+  it('does not mark entityDataKnownComplete when warming-server is still loading', () => {
     const initStore = makeInitStore()
     const tableCoreStore = makeTableCoreStore()
-    const visualStateStore = {} as any
+    const visualStateStore = makeVisualStateStore() as any
 
-    // First-page snapshot landed (source='server') but more rows remain
-    // (isComplete=false): hydration gate should still be closed.
-    setSubstrateState({
-      count: 100,
-      isReady: true,
-      bounded: true,
-      isComplete: false,
-      source: 'server',
+    // First-page snapshot landed (warming-server) but more rows remain
+    // (isLoading=true): hydration gate should still be closed.
+    setGridResult({
+      source: 'warming-server',
+      total: 100,
+      isLoading: true,
     })
 
     renderHook(() =>

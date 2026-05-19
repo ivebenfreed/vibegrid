@@ -2,16 +2,19 @@
  * useVibeGridData - Substrate Integration Hook
  *
  * Bridges MobX stores (TableCoreStore, VisualStateStore) to the substrate
- * (SharedWorker + OPFS sqlite + MobX Query layer). Provides reactive data
- * delivery and CRUD mutations.
+ * read hook `useEntityGrid` (GH#3119 P5 consumer migration). Provides
+ * reactive data delivery and CRUD mutations.
  *
- * Architecture (post-GH#2806 P8 cutover):
+ * Architecture (post-GH#3119 P5 cutover):
  * - MobX stores manage UI state (filters, sorting, grouping config)
- * - useSubstrateGridRows pulls rows from the substrate Query and writes them
- *   directly to tableCoreStore via setSparseRows()
+ * - useEntityGrid is the single-source-of-truth read hook; it returns
+ *   `{rows, total, isLoading, isStale, isWarm, error, source}` for a
+ *   `(entityName, where, orderBy, viewport)` input.
+ * - This hook converts MobX observables → useEntityGrid inputs (via a
+ *   `mobx.reaction`) and writes useEntityGrid results → MobX stores
+ *   (`tableCoreStore.setSparseRows`, `viewportStore.setServerTotalRows`).
  * - Mutations route through substrateCreate / substrateUpdate / substrateDelete
- *   (oRPC). The substrate observes the change via server-emitted DataForge
- *   events and reconciles windowed rows via queryDelta.
+ *   (oRPC). Mutation-hook migration to `useEntityMutation` is a separate task.
  *
  * IMPORTANT: This hook writes directly to MobX. The parent component should NOT
  * use a useEffect to bridge rows to the store - that creates duplicate updates.
@@ -23,21 +26,35 @@
  * ```
  */
 
-import { useEffect, useMemo, useRef } from 'react'
+import { reaction } from 'mobx'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { SortClause, WherePredicate } from '@baseplane/shared-types'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
-// GH#2806 P8: substrate is the unconditional VibeGrid data path. The legacy
-// TanStack DB collection branch (useEntityCollection + useLiveQuery + JS
-// filter/sort) has been removed; VibeGrid now sources rows exclusively from
-// useSubstrateGridRows.
 import {
   substrateCreate,
   substrateDelete,
   substrateUpdate,
 } from '@/shared/data/query/substrate-mutations'
-import { useSubstrateGridRows } from '@/shared/data/query/use-substrate-grid-rows'
+import {
+  useEntityGrid,
+  type ViewportSpec,
+} from '@/shared/data/hooks/useEntityGrid'
+import {
+  composeFiltersAnd,
+  convertGlobalSearchToFilterExpression,
+  convertVibeGridFilterToFilterExpression,
+} from '@/shared/data/query/vibegrid-sort-filter-bridge'
+import {
+  asWherePredicate,
+  collectSearchableFields,
+  convertVibeGridSortToQuerySort,
+} from '@/shared/data/query/use-substrate-grid-rows/filter-sort-reaction'
+import { CURSOR_OVERSCAN } from '@/shared/data/query/use-substrate-grid-rows/viewport-cursor'
+import { wrapSubstrateRow } from '@/shared/data/query/use-substrate-grid-rows/snapshot-wiring'
+import type { RawRow } from '@/shared/data/query/types'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'
 import { armWedgeWatchdog } from '@/shared/data/db/sqlite/wedge-watchdog'
@@ -52,9 +69,9 @@ export interface VibeGridDataResult {
   /** Loading state */
   isLoading: boolean
   /**
-   * GH#2806 P8: substrate is the only VibeGrid data source. The legacy
-   * TanStack DB collection field is always `null`; kept on the result
-   * shape so existing consumers (VibeGrid.tsx propagation to stores,
+   * GH#2806 P8 / GH#3119 P5: substrate is the only VibeGrid data source.
+   * The legacy TanStack DB collection field is always `null`; kept on the
+   * result shape so existing consumers (VibeGrid.tsx propagation to stores,
    * CommandBus undo/redo paths) compile without a wider refactor.
    * Those consumers all early-return when collection is falsy.
    */
@@ -81,15 +98,44 @@ export interface VibeGridDataOptions {
 }
 
 // ====================================
+// INTERNAL — derived inputs from MobX
+// ====================================
+
+interface GridInputs {
+  where: WherePredicate | undefined
+  orderBy: SortClause[] | undefined
+  viewport: ViewportSpec
+}
+
+const DEFAULT_VIEWPORT_SIZE = 200
+
+const EMPTY_INPUTS: GridInputs = {
+  where: undefined,
+  orderBy: undefined,
+  viewport: {
+    start: 0,
+    end: DEFAULT_VIEWPORT_SIZE + CURSOR_OVERSCAN,
+  },
+}
+
+/** Debounce window for MobX-derived input recomputes. Matches the legacy
+ * viewport-cursor debounce so scroll bursts collapse to one input update. */
+const INPUT_RECOMPUTE_DEBOUNCE_MS = 50
+
+// ====================================
 // MAIN HOOK
 // ====================================
 
 /**
- * Integrate MobX stores with the substrate.
+ * Integrate MobX stores with the substrate read hook `useEntityGrid`.
  *
- * The substrate hook writes rows directly to TableCoreStore via setSparseRows().
  * This hook owns:
+ *   - input projection: MobX observables → useEntityGrid inputs (via reaction)
+ *   - output wiring: useEntityGrid result → tableCoreStore.setSparseRows()
+ *     + viewportStore.setServerTotalRows()
  *   - hydration state (initStore.markEntityDataKnownComplete())
+ *   - 8s graceful-degradation fallback (initStore.markServerDataRendered)
+ *   - wedge watchdog arming
  *   - mock-data passthrough (collectionOverride)
  *   - mutation entry points (createEntity / updateEntity / deleteEntity)
  *
@@ -110,37 +156,151 @@ export function useVibeGridData(
   const skip = options?.skip ?? false
   const collectionOverride = options?.collectionOverride
 
-  // Substrate is the unconditional read path for VibeGrid. The substrate hook
-  // delivers rows via setSparseRows() and publishes count/serverTotalRows.
-  // VibeGrid grid chrome (sort/filter/group/virtualization) operates on
-  // tableCoreStore output regardless of source.
   const orgId = useOrganization()?.activeOrganizationId ?? null
   const useSubstrate = !skip && !collectionOverride
   const { viewportStore } = useVibeGridStores()
-  const substrateState = useSubstrateGridRows(
-    useSubstrate ? entityType : '',
-    useSubstrate ? orgId : null,
-    useSubstrate ? viewportStore : null,
-    // Thread tableCoreStore through so the substrate hook delivers rows via
-    // setSparseRows().
-    useSubstrate ? tableCoreStore : null,
-    // Thread visualStateStore so the substrate hook can push VibeGrid
-    // sort/filter changes through to SQL via query.patch.
-    useSubstrate ? visualStateStore : null,
-  )
 
   // ====================================
-  // PUSH DATA DIRECTLY TO MOBX STORE
+  // INPUT PROJECTION (MobX → useEntityGrid inputs)
   // ====================================
-  // Hydration state for the substrate path (rows are written by
-  // useSubstrateGridRows.setSparseRows() — no setRows call here).
+  //
+  // We cannot read MobX observables inline (this hook is not wrapped in
+  // observer()). Instead, a `reaction` watches the relevant observables and
+  // pushes their derived input shape into React state via `setInputs`. The
+  // reaction collapses bursts via a small debounce.
+  const [inputs, setInputs] = useState<GridInputs>(EMPTY_INPUTS)
 
+  useEffect(() => {
+    if (!useSubstrate || !entityType) return
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+    const dispose = reaction(
+      () => {
+        // Tracked observables. Read all in the tracking fn so MobX subscribes.
+        const sortBy = visualStateStore.sortBy
+        const filters = visualStateStore.filters
+        const filterGroup = visualStateStore.filterGroup
+        const globalSearchText = visualStateStore.globalSearchText
+        const visibleRowRange = viewportStore?.visibleRowRange ?? null
+        const searchableFields = collectSearchableFields(
+          tableCoreStore?.columns,
+        ).join('|')
+        return {
+          sortBy,
+          filters,
+          filterGroup,
+          globalSearchText,
+          visibleRowRange,
+          searchableFields,
+        }
+      },
+      ({
+        sortBy,
+        filters,
+        filterGroup,
+        globalSearchText,
+        visibleRowRange,
+        searchableFields,
+      }) => {
+        if (debounceTimer) clearTimeout(debounceTimer)
+        debounceTimer = setTimeout(() => {
+          // Build WherePredicate from filterGroup (preferred) ?? filters
+          // + global search.
+          const userFilter = convertVibeGridFilterToFilterExpression(
+            filterGroup ?? filters,
+          )
+          const searchFilter = convertGlobalSearchToFilterExpression(
+            globalSearchText,
+            searchableFields.length > 0 ? searchableFields.split('|') : null,
+          )
+          const combined = composeFiltersAnd(userFilter, searchFilter)
+          const where = asWherePredicate(combined)
+
+          const orderBy = convertVibeGridSortToQuerySort(sortBy)
+
+          // Build viewport with CURSOR_OVERSCAN above and below the visible
+          // window so micro-scrolls don't round-trip the server.
+          let start = 0
+          let end = DEFAULT_VIEWPORT_SIZE + CURSOR_OVERSCAN
+          if (visibleRowRange) {
+            start = Math.max(0, visibleRowRange.start - CURSOR_OVERSCAN)
+            end = Math.max(start + 1, visibleRowRange.end + CURSOR_OVERSCAN)
+          }
+
+          setInputs({
+            where,
+            orderBy,
+            viewport: { start, end },
+          })
+        }, INPUT_RECOMPUTE_DEBOUNCE_MS)
+      },
+      { fireImmediately: true },
+    )
+
+    return () => {
+      dispose()
+      if (debounceTimer) clearTimeout(debounceTimer)
+    }
+  }, [useSubstrate, entityType, visualStateStore, tableCoreStore, viewportStore])
+
+  // ====================================
+  // READ HOOK
+  // ====================================
+  // The new single-source-of-truth read hook. Note we call it
+  // unconditionally to satisfy hooks rules; when `useSubstrate` is false we
+  // pass an empty entityName which short-circuits the hook to the EMPTY
+  // result.
+  const result = useEntityGrid({
+    entityName: useSubstrate ? entityType : '',
+    where: inputs.where,
+    orderBy: inputs.orderBy,
+    viewport: inputs.viewport,
+  })
+
+  // ====================================
+  // PUSH RESULTS → MobX STORES
+  // ====================================
+  useEffect(() => {
+    if (!useSubstrate) return
+    if (!tableCoreStore) return
+
+    // Filter skeleton placeholders (null entries) — setSparseRows expects
+    // real WrappedRow values and will paint skeleton cells for unloaded
+    // indices on its own.
+    const wrappedRows: RawRow[] = []
+    for (const row of result.rows) {
+      if (row === null) continue
+      wrappedRows.push(wrapSubstrateRow(row as RawRow))
+    }
+
+    tableCoreStore.setSparseRows(
+      inputs.viewport.start,
+      wrappedRows,
+      result.total,
+    )
+
+    if (viewportStore) {
+      if (viewportStore.serverTotalRows !== result.total) {
+        viewportStore.setServerTotalRows(result.total)
+      }
+    }
+  }, [
+    useSubstrate,
+    tableCoreStore,
+    viewportStore,
+    inputs.viewport.start,
+    result.rows,
+    result.total,
+  ])
+
+  // ====================================
+  // COLLECTION OVERRIDE (MOCK MODE)
+  // ====================================
   // Handle collectionOverride data push when skip mode is enabled
   // This allows components to provide mock data that still gets rendered
   useEffect(() => {
     if (!skip || !collectionOverride) return
 
-    // If collectionOverride has items array, push them directly to the store
     const items = collectionOverride.items || collectionOverride
     if (Array.isArray(items) && items.length > 0) {
       logger.info('[useVibeGridData] 📊 Pushing collectionOverride items to store', {
@@ -149,62 +309,60 @@ export function useVibeGridData(
       })
       tableCoreStore.setRows(items)
 
-      // Mark entity data as known-complete
       if (!initStore.entityDataKnownComplete) {
         initStore.markEntityDataKnownComplete()
       }
     }
   }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
 
-  // GH#3019 B10 — drive `markEntityDataKnownComplete()` from the unified
-  // query layer's snapshot signals (`isComplete` + `source`) instead of the
-  // pre-B8 ad-hoc `bounded && isReady` heuristic. A snapshot is
-  // authoritatively complete when:
-  //   - source is non-null (we received at least one snapshot), AND
-  //   - response.isComplete === true (the adapter declared the dataset
-  //     fully delivered through `cursor.start + records.length >= total`,
-  //     or local-substrate equivalent).
-  // Empty-but-authoritative entities (server returned `total: 0`) also
-  // satisfy `isComplete: true` from the server adapter, so the renderer
-  // can flip out of the hydration gate even with zero rows.
+  // ====================================
+  // HYDRATION GATE — markEntityDataKnownComplete
+  // ====================================
+  //
+  // The substrate is authoritatively complete from useEntityGrid's POV when:
+  //   - source === 'warm-local' (everything is in wa-sqlite, JS-evaluated)
+  //   - source === 'warming-server', total === 0, and isLoading === false
+  //     (server returned an empty-but-authoritative dataset)
+  //
+  // While `source === 'warming-server' && isLoading` we're still mid-fetch
+  // and must NOT mark complete.
   useEffect(() => {
     if (skip || initStore.entityDataKnownComplete) return
-    if (substrateState.source !== null && substrateState.isComplete) {
+    if (result.source === 'warm-local') {
+      initStore.markEntityDataKnownComplete()
+      return
+    }
+    if (
+      result.source === 'warming-server' &&
+      result.total === 0 &&
+      !result.isLoading
+    ) {
       initStore.markEntityDataKnownComplete()
     }
   }, [
     skip,
     initStore,
-    substrateState.source,
-    substrateState.isComplete,
+    result.source,
+    result.total,
+    result.isLoading,
   ])
 
   // ====================================
   // GH#2956 P1 — 8s GRACEFUL-DEGRADATION RENDER FALLBACK
   // ====================================
-  // If at 8s post-mount substrate `isComplete` hasn't fired BUT the
-  // server-adapter race in unified/query.ts has produced rows, flip
+  // If at 8s post-mount substrate completion hasn't fired BUT rows have
+  // landed in tableCoreStore.processedRows, flip
   // initStore.serverDataRendered to dismiss the skeleton overlay. The
   // wedge_watchdog (30s) below stays untouched and continues recovery in
   // the background — we are deliberately NOT calling
   // markEntityDataKnownComplete() here (that flag's contract is "substrate
   // authoritatively complete"; the timeout doesn't satisfy it). Logs a
   // structured warn so Loki can baseline wedge rate in production.
-  //
-  // Mirror live state into refs so the 8s timer reads CURRENT values at fire
-  // time without re-arming on every observable snapshot (matches the
-  // isReadyRef pattern below).
-  const isCompleteRef = useRef(false)
-  useEffect(() => {
-    isCompleteRef.current = substrateState.isComplete
-  }, [substrateState.isComplete])
-
   useEffect(() => {
     if (skip || !entityType || !orgId) return
     if (initStore.entityDataKnownComplete) return
     const id = window.setTimeout(() => {
       if (initStore.entityDataKnownComplete) return
-      if (isCompleteRef.current) return
       if (tableCoreStore.processedRows.length === 0) return
       logger.warn('substrate completion timeout', {
         event: 'substrate_completion_timeout',
@@ -221,18 +379,20 @@ export function useVibeGridData(
   // ====================================
   // WEDGE WATCHDOG
   // ====================================
-  // If the substrate fails to report `isReady` within the watchdog deadline,
-  // the SharedWorker leader has wedged (heartbeat lost / WebLock stuck /
-  // RPC hung). The watchdog trips a leader-bypass nuclear reset that tears
-  // down OPFS + IDB + caches and force-reloads. Loop-guarded so a chronic
-  // wedge doesn't put the user in an infinite reload spiral.
+  // If the substrate fails to report ready within the watchdog deadline,
+  // the SharedWorker leader has wedged. The watchdog trips a leader-bypass
+  // nuclear reset that tears down OPFS + IDB + caches and force-reloads.
+  // Loop-guarded so a chronic wedge doesn't put the user in an infinite
+  // reload spiral.
 
-  // Mirror substrateState.isReady into a ref so the watchdog timer reads
-  // the LIVE value at fire time, not what was snapshotted at arm time.
+  // Mirror the read hook's loading flag into a ref so the watchdog timer
+  // reads the LIVE value at fire time. The substrate is "ready" once
+  // isLoading flips false (either warm-local resolved, or warming-server
+  // delivered first ids + total).
   const isReadyRef = useRef(false)
   useEffect(() => {
-    isReadyRef.current = substrateState.isReady
-  }, [substrateState.isReady])
+    isReadyRef.current = !result.isLoading
+  }, [result.isLoading])
 
   // Arm only on entity/org changes — re-arming on every isReady flip would
   // reset the deadline forever and the watchdog would never fire.
@@ -248,12 +408,10 @@ export function useVibeGridData(
 
   const createEntity = useMemo(() => {
     return (data: Record<string, any>) => {
-      // Substrate is unconditional; route through oRPC. The substrate
-      // reconciles via queryDelta events.
       substrateCreate(entityType, data)
-        .then((result) => {
-          if (!result.success) {
-            logger.error('Entity create failed (substrate)', { entityType, error: result.error })
+        .then((res) => {
+          if (!res.success) {
+            logger.error('Entity create failed (substrate)', { entityType, error: res.error })
             return
           }
           logger.info('Entity create persisted (substrate)', { entityType })
@@ -270,9 +428,9 @@ export function useVibeGridData(
   const updateEntity = useMemo(() => {
     return (id: string, updates: Record<string, any>) => {
       substrateUpdate(entityType, String(id), updates)
-        .then((result) => {
-          if (!result.success) {
-            logger.error('Entity update failed (substrate)', { entityType, id, error: result.error })
+        .then((res) => {
+          if (!res.success) {
+            logger.error('Entity update failed (substrate)', { entityType, id, error: res.error })
             return
           }
           logger.info('Entity update persisted (substrate)', { entityType, id })
@@ -290,9 +448,9 @@ export function useVibeGridData(
   const deleteEntity = useMemo(() => {
     return (id: string) => {
       substrateDelete(entityType, String(id))
-        .then((result) => {
-          if (!result.success) {
-            logger.error('Entity delete failed (substrate)', { entityType, id, error: result.error })
+        .then((res) => {
+          if (!res.success) {
+            logger.error('Entity delete failed (substrate)', { entityType, id, error: res.error })
             return
           }
           logger.info('Entity delete persisted (substrate)', { entityType, id })
@@ -313,13 +471,14 @@ export function useVibeGridData(
 
   logger.debug('useVibeGridData loading state', {
     entityType,
-    isReady: substrateState.isReady,
-    bounded: substrateState.bounded,
-    count: substrateState.count,
+    isLoading: result.isLoading,
+    isWarm: result.isWarm,
+    source: result.source,
+    total: result.total,
   })
 
   return {
-    isLoading: !substrateState.isReady,
+    isLoading: result.isLoading,
     collection: null,
     createEntity,
     updateEntity,
