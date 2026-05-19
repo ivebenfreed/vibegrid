@@ -29,14 +29,70 @@ import type { CommandBus } from '@/systems/commands/CommandBus'
 // GH#2848 D2: route inline cell-edit commits through CommandBus.execute so
 // `commandBus.undo()` actually reverts substrate edits (B22 spec verify path).
 import { SubstrateUpdateCommand } from '@/systems/commands/dataforge/SubstrateUpdateCommand'
-// GH#2806 P8: substrate is the unconditional write path. Mutations route
-// through oRPC; the SharedWorker reconciles via queryDelta events. The
-// legacy TanStack DB collection.update fallback has been removed.
-import {
-  substrateCreate,
-  substrateDelete,
-  substrateUpdate,
-} from '@/shared/data/query/substrate-mutations'
+// GH#3119 P3: migrated from substrate-mutations to the new useEntityMutation
+// surface. The mutation API is the global `mutationApi` singleton so the
+// class-based EditingStore can call it without going through React hook
+// machinery. The new API throws on error and returns `{success, record}` on
+// success — these thin local adapters re-translate to the legacy
+// `{success, data, error}` shape so the surrounding optimistic-write
+// machinery (handleSubstrateWriteFailure, revertOptimisticCreate, etc.)
+// keeps working unchanged. Per spec P3 task 5 ("Migrate EditingStore call
+// sites from substrate-mutations.ts to useEntityMutation"). The legacy
+// substrate-mutations.ts file remains in place for now; deletion happens
+// in a follow-up phase after all consumers are migrated.
+import { mutationApi } from '@/shared/data/hooks/useEntityMutation'
+
+interface LegacyMutationResult {
+  success: boolean
+  data?: unknown
+  error?: string
+}
+
+async function substrateCreate(
+  entityName: string,
+  data: Record<string, unknown>,
+): Promise<LegacyMutationResult> {
+  try {
+    const result = await mutationApi.create({ entityName, data })
+    return { success: result.success, data: result.record }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
+async function substrateUpdate(
+  entityName: string,
+  recordId: string,
+  patch: Record<string, unknown>,
+): Promise<LegacyMutationResult> {
+  try {
+    const result = await mutationApi.update({ entityName, recordId, patch })
+    return { success: result.success, data: result.record }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
+async function substrateDelete(
+  entityName: string,
+  recordId: string,
+): Promise<LegacyMutationResult> {
+  try {
+    const result = await mutationApi.delete({ entityName, recordId })
+    return { success: result.success }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
 // GH#2806 P5: optimistic write infrastructure
 import { createDeferred, type Deferred } from '@/shared/lib/deferred'
 import { mergeMutations, NO_OP, type Mutation } from './mutation-merge'

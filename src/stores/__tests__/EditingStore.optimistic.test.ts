@@ -16,10 +16,24 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/shared/data/query/substrate-mutations', () => ({
-  substrateUpdate: vi.fn(),
-  substrateCreate: vi.fn(),
-  substrateDelete: vi.fn(),
+// GH#3119 P3: EditingStore migrated to the new useEntityMutation surface.
+// EditingStore's local adapter wraps `mutationApi` and translates throws into
+// the legacy `{success, error}` shape; these mocks reproduce both shapes
+// (throw vs reject) the wrapper handles. The legacy `substrate-mutations`
+// module is no longer imported by EditingStore, so we mock `useEntityMutation`
+// directly. Each test installs the desired behavior on `mockedMutationUpdate`,
+// `mockedMutationCreate`, or `mockedMutationDelete`. For success cases the
+// new API returns `{success: true, record: ...}`; for failure cases it
+// throws — the adapter in EditingStore.ts catches and surfaces
+// `{success: false, error}`.
+
+vi.mock('@/shared/data/hooks/useEntityMutation', () => ({
+  mutationApi: {
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    mutateSystemEntity: vi.fn(),
+  },
 }))
 
 // Toast import is dynamic in EditingStore — return a mock module with a stub.
@@ -31,18 +45,95 @@ vi.mock('sonner', () => ({
 
 import { EditingStore } from '../EditingStore'
 import { TableCoreStore } from '../TableCoreStore'
-import {
-  substrateCreate,
-  substrateDelete,
-  substrateUpdate,
-} from '@/shared/data/query/substrate-mutations'
+import { mutationApi } from '@/shared/data/hooks/useEntityMutation'
 import { toast } from 'sonner'
 import { applyQueryDeltaDedup } from '@/shared/data/query/query-delta-dedup'
 
-const mockedSubstrateUpdate = vi.mocked(substrateUpdate)
-const mockedSubstrateCreate = vi.mocked(substrateCreate)
-const mockedSubstrateDelete = vi.mocked(substrateDelete)
+const mockedMutationUpdate = vi.mocked(mutationApi.update)
+const mockedMutationCreate = vi.mocked(mutationApi.create)
+const mockedMutationDelete = vi.mocked(mutationApi.delete)
 const mockedToastError = vi.mocked(toast.error)
+
+/**
+ * The EditingStore adapter (see EditingStore.ts) maps the new API's
+ * `Promise<{success, record}>` (throws on error) onto the legacy
+ * `Promise<{success, data?, error?}>` (no-throw) shape used by the
+ * surrounding optimistic-write code. Tests written against the old shape
+ * use these helpers to install equivalent behavior on the new mocks:
+ *
+ *   resolveSuccess({record})   ← old: {success: true, data}
+ *   resolveFailure('msg')      ← old: {success: false, error: 'msg'}
+ *                              ↑ NEW api throws — adapter catches and
+ *                                translates to {success:false, error}
+ *   rejectWith(new Error(...)) ← unchanged: thrown errors translate the
+ *                                same way
+ */
+function asLegacyUpdateResult(legacy: { success: boolean; data?: unknown; error?: string }) {
+  if (legacy.success) {
+    return Promise.resolve({ success: true as const, record: legacy.data ?? null })
+  }
+  return Promise.reject(new Error(legacy.error ?? 'mutation failed'))
+}
+function asLegacyCreateResult(legacy: { success: boolean; data?: unknown; error?: string }) {
+  if (legacy.success) {
+    return Promise.resolve({ success: true as const, record: legacy.data ?? null })
+  }
+  return Promise.reject(new Error(legacy.error ?? 'mutation failed'))
+}
+function asLegacyDeleteResult(legacy: { success: boolean; error?: string }) {
+  if (legacy.success) {
+    return Promise.resolve({ success: true as const })
+  }
+  return Promise.reject(new Error(legacy.error ?? 'mutation failed'))
+}
+
+// Backwards-compat aliases — each `mockedSubstrate*.mock*` call below is
+// translated through the helpers above so the test body reads the same as
+// before. (We keep the alias names so the diff stays small.)
+const mockedSubstrateUpdate = {
+  mockImplementation(fn: (...args: unknown[]) => Promise<{ success: boolean; data?: unknown; error?: string }>) {
+    return mockedMutationUpdate.mockImplementation(async (...args: unknown[]) => {
+      return asLegacyUpdateResult(await fn(...args)) as unknown as ReturnType<typeof mockedMutationUpdate>
+    })
+  },
+  mockImplementationOnce(fn: (...args: unknown[]) => Promise<{ success: boolean; data?: unknown; error?: string }>) {
+    return mockedMutationUpdate.mockImplementationOnce(async (...args: unknown[]) => {
+      return asLegacyUpdateResult(await fn(...args)) as unknown as ReturnType<typeof mockedMutationUpdate>
+    })
+  },
+  mockResolvedValue(value: { success: boolean; data?: unknown; error?: string }) {
+    return mockedMutationUpdate.mockImplementation(() => asLegacyUpdateResult(value) as unknown as ReturnType<typeof mockedMutationUpdate>)
+  },
+  mockRejectedValue(err: unknown) {
+    return mockedMutationUpdate.mockRejectedValue(err)
+  },
+}
+const mockedSubstrateCreate = {
+  mockImplementation(fn: (...args: unknown[]) => Promise<{ success: boolean; data?: unknown; error?: string }>) {
+    return mockedMutationCreate.mockImplementation(async (...args: unknown[]) => {
+      return asLegacyCreateResult(await fn(...args)) as unknown as ReturnType<typeof mockedMutationCreate>
+    })
+  },
+  mockResolvedValue(value: { success: boolean; data?: unknown; error?: string }) {
+    return mockedMutationCreate.mockImplementation(() => asLegacyCreateResult(value) as unknown as ReturnType<typeof mockedMutationCreate>)
+  },
+  mockRejectedValue(err: unknown) {
+    return mockedMutationCreate.mockRejectedValue(err)
+  },
+}
+const mockedSubstrateDelete = {
+  mockImplementation(fn: (...args: unknown[]) => Promise<{ success: boolean; error?: string }>) {
+    return mockedMutationDelete.mockImplementation(async (...args: unknown[]) => {
+      return asLegacyDeleteResult(await fn(...args)) as unknown as ReturnType<typeof mockedMutationDelete>
+    })
+  },
+  mockResolvedValue(value: { success: boolean; error?: string }) {
+    return mockedMutationDelete.mockImplementation(() => asLegacyDeleteResult(value) as unknown as ReturnType<typeof mockedMutationDelete>)
+  },
+  mockRejectedValue(err: unknown) {
+    return mockedMutationDelete.mockRejectedValue(err)
+  },
+}
 
 function makeStore(opts: {
   rows?: Array<{ id: string; data: Record<string, unknown> }>
