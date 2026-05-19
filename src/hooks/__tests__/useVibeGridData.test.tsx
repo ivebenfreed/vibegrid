@@ -73,10 +73,6 @@ vi.mock('@/shared/lib/logging', () => ({
   }),
 }))
 
-vi.mock('@/shared/data/db/sqlite/wedge-watchdog', () => ({
-  armWedgeWatchdog: vi.fn(() => () => {}),
-}))
-
 import { useVibeGridData } from '../useVibeGridData'
 
 // -------------------- Helpers --------------------

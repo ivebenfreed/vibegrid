@@ -27,7 +27,7 @@
  */
 
 import { reaction } from 'mobx'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { SortClause, WherePredicate } from '@baseplane/shared-types'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -53,7 +53,6 @@ import { wrapSubstrateRow } from '@/shared/data/query/use-substrate-grid-rows/sn
 import type { RawRow } from '@/shared/data/query/types'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'
-import { armWedgeWatchdog } from '@/shared/data/db/sqlite/wedge-watchdog'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
@@ -371,32 +370,6 @@ export function useVibeGridData(
     }, 8000)
     return () => window.clearTimeout(id)
   }, [skip, entityType, orgId, initStore, tableCoreStore])
-
-  // ====================================
-  // WEDGE WATCHDOG
-  // ====================================
-  // If the substrate fails to report ready within the watchdog deadline,
-  // the SharedWorker leader has wedged. The watchdog trips a leader-bypass
-  // nuclear reset that tears down OPFS + IDB + caches and force-reloads.
-  // Loop-guarded so a chronic wedge doesn't put the user in an infinite
-  // reload spiral.
-
-  // Mirror the read hook's loading flag into a ref so the watchdog timer
-  // reads the LIVE value at fire time. The substrate is "ready" once
-  // isLoading flips false (either warm-local resolved, or warming-server
-  // delivered first ids + total).
-  const isReadyRef = useRef(false)
-  useEffect(() => {
-    isReadyRef.current = !result.isLoading
-  }, [result.isLoading])
-
-  // Arm only on entity/org changes — re-arming on every isReady flip would
-  // reset the deadline forever and the watchdog would never fire.
-  useEffect(() => {
-    if (skip || !entityType || !orgId) return
-    const cancel = armWedgeWatchdog({ entityType, orgId, isReadyRef })
-    return cancel
-  }, [skip, entityType, orgId])
 
   // ====================================
   // CRUD MUTATIONS
