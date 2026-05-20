@@ -526,7 +526,7 @@ export class TableCoreStore implements IStore {
 
         // GH#1422: Trigger incremental processing for large datasets
         // when visual config (sort/filter) changes
-        if (this.rawRows.length >= INCREMENTAL_CONFIG.SYNC_THRESHOLD) {
+        if (!this.isSparseMode && this.rawRows.length >= INCREMENTAL_CONFIG.SYNC_THRESHOLD) {
           this.startIncrementalProcessing()
         }
       },
@@ -2552,6 +2552,10 @@ export class TableCoreStore implements IStore {
    */
   @action
   startIncrementalProcessing(viewportRange?: { start: number; end: number }): void {
+    // Skip in sparse mode: rawRows.length is the server totalCount, not loaded-row count,
+    // so feeding it to IncrementalRowProcessor would materialize VirtualRows across all indices.
+    if (this.isSparseMode) return
+
     const rowCount = this.rawRows.length
 
     // Skip if not enough rows for incremental processing

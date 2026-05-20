@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCommandBus, useUndoRouter } from '@/app/stores'
 import { useDependencyCollection, useMembersCollection } from '@/shared/data/db/hooks/useEntityCollection'
 import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
-import { getLegacyMigrationDiagnostics } from '@/shared/data/db/sqlite/migration'
 import { getLogger } from '@/shared/lib/logging'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import { BatchUpdateEntityRecordsCommand } from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
@@ -383,12 +382,11 @@ function VibeGridInnerBase(props: VibeGridProps) {
         setTimeout(() => location.reload(), 200)
         return result
       },
-      // Boot diagnostics for the legacy OPFS table migration (GH#2806 P1.5).
-      // Returns `{ lastResult, ranAt }` from the most recent
-      // `migrateLegacyEntityTables` call, or null if migration hasn't fired
-      // in this session.
+      // Legacy-migration diagnostics retired in GH#3119 (migration code
+      // deleted). Kept as a null-returning shape to avoid breaking any
+      // external diagnostic readers that check `boot.legacyMigration`.
       get boot() {
-        return { legacyMigration: getLegacyMigrationDiagnostics() }
+        return { legacyMigration: null }
       },
       // Selection shape will change in wave 3b. Until then, expose
       // whatever's on InteractionStore via a getter so verification
