@@ -201,6 +201,13 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       const config: Record<string, unknown> = {
         sortBy: visualStateStore.sortBy.slice(),
         filters: visualStateStore.filters.slice(),
+        // GH#3119 follow-up: also persist `filterGroup`. The FilterBuilder
+        // UI writes the user's applied filter into `filterGroup` and
+        // explicitly clears the legacy `filters[]` array — so saving a
+        // view without `filterGroup` silently drops every UI-applied
+        // filter, leading to "No filters applied" when the view is
+        // re-selected.
+        filterGroup: visualStateStore.filterGroup,
         groupConfig: visualStateStore.groupConfig
           ? {
               fields: visualStateStore.groupConfig.fields,

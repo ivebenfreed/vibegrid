@@ -21,6 +21,7 @@ import { getLogger } from '@/shared/lib/logging'
 import type { EntityViewRow } from '@/systems/vibegrid/components/ViewPicker'
 import type { VibeGridStores } from '@/systems/vibegrid/stores/context'
 import type { AggregationConfig, FilterConfig } from '@/systems/vibegrid/types'
+import type { FilterGroup } from '@/systems/vibegrid/types/filter-types'
 
 const logger = getLogger(['entities', 'hooks', 'useViewUrlSync'])
 
@@ -186,11 +187,26 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           visualStateStore.sortBy = []
         }
 
-        // Apply filters from config
+        // Apply filters from config — BOTH the legacy flat `filters[]` and
+        // the FilterBuilder `filterGroup`. selectView previously only wrote
+        // `filters[]`, which meant:
+        //   - filters added via the FilterBuilder UI (which writes to
+        //     `filterGroup` and clears `filters[]`) were lost when the
+        //     user saved the view (handleSaveView didn't snapshot
+        //     filterGroup), so switching back showed "No filters applied"
+        //     in the popover.
+        //   - filterGroup from a prior Apply on another view bled across
+        //     view switches — selectView never cleared it.
+        // Pair these writes so the new view's config is fully canonical.
         if (Array.isArray(config.filters)) {
           visualStateStore.filters = config.filters as FilterConfig[]
         } else {
           visualStateStore.filters = []
+        }
+        if (config.filterGroup && typeof config.filterGroup === 'object') {
+          visualStateStore.applyFilterGroup(config.filterGroup as FilterGroup)
+        } else {
+          visualStateStore.clearFilterGroup()
         }
 
         // Apply group from config
@@ -353,6 +369,15 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       // scoped to the previous project).
       const filterConfig = deserializeFilters(search.filter)
       visualStateStore.filters = filterConfig ?? []
+      // If the URL explicitly carried a `?filter=` (legacy flat array),
+      // clear `filterGroup` so the substrate's `filterGroup ?? filters`
+      // precedence doesn't hide the URL filter behind a stale group.
+      // When `?filter=` is absent, leave `filterGroup` alone — the
+      // saved-view apply path (selectView / cold-load 4th fix) owns
+      // that dimension.
+      if (filterConfig) {
+        visualStateStore.clearFilterGroup()
+      }
 
       // Apply group from URL (clear when absent)
       if (search.group) {
@@ -482,6 +507,18 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
               runInAction(() => {
                 if (!initialSearch.filter && Array.isArray(config.filters)) {
                   visualStateStore.filters = config.filters as FilterConfig[]
+                }
+                // GH#3119 follow-up: also apply/clear filterGroup. The URL
+                // doesn't carry filterGroup, so the only guard is whether
+                // the URL has a layered `?filter=`. If it does, leave
+                // filterGroup alone — the layered URL takes precedence. If
+                // not, apply (or clear) filterGroup from the saved config.
+                if (!initialSearch.filter) {
+                  if (config.filterGroup && typeof config.filterGroup === 'object') {
+                    visualStateStore.applyFilterGroup(config.filterGroup as FilterGroup)
+                  } else {
+                    visualStateStore.clearFilterGroup()
+                  }
                 }
                 if (!initialSearch.sort && Array.isArray(config.sortBy)) {
                   visualStateStore.sortBy = config.sortBy as Array<{

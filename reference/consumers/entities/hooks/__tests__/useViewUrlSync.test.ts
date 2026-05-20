@@ -539,3 +539,86 @@ describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
     expect(source).toMatch(/activeView\s*\?\?[\s\S]*?is_default[\s\S]*?\?\?[\s\S]*?result\.views\[0\]/)
   })
 })
+
+// ====================================
+// GH#3119 follow-up: filterGroup must round-trip through selectView,
+// URL→Store, and the cold-load 4th fix. Pre-fix shape only touched the
+// legacy `filters[]` array — filters added via the FilterBuilder UI
+// (which writes to `filterGroup` and clears `filters[]`) were lost on
+// save and/or bled across view switches.
+//
+// Assertions are source-text only (consistent with the rest of this
+// file). Behavioral renderHook coverage would require mocking the full
+// VibeGrid store surface + TanStack Router + orpcClient.
+// ====================================
+
+describe('useViewUrlSync filterGroup round-trip (GH#3119 follow-up)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  // Reuse the selectView body slicer from sibling describe blocks.
+  function selectViewBody(): string {
+    const match = source.match(
+      /const selectView = useCallback\(\s*\(\s*view\s*:\s*EntityViewRow\s*\)\s*=>\s*\{([\s\S]*?)\n\s+\},\s*\[/,
+    )
+    if (!match) {
+      throw new Error('selectView useCallback not found in useViewUrlSync.ts')
+    }
+    return match[1]
+  }
+
+  it('imports FilterGroup type for filterGroup casts', () => {
+    // The hook needs the FilterGroup type to cast config.filterGroup
+    // before handing it to applyFilterGroup. Import lives on its own
+    // line since the existing `from '@/systems/vibegrid/types'` line
+    // exports FilterConfig but not FilterGroup.
+    expect(source).toContain(
+      "import type { FilterGroup } from '@/systems/vibegrid/types/filter-types'",
+    )
+  })
+
+  it('selectView calls visualStateStore.applyFilterGroup when config.filterGroup is set', () => {
+    const body = selectViewBody()
+    expect(body).toContain(
+      'visualStateStore.applyFilterGroup(config.filterGroup as FilterGroup)',
+    )
+  })
+
+  it('selectView calls visualStateStore.clearFilterGroup when config.filterGroup is absent', () => {
+    const body = selectViewBody()
+    // The else branch of the filterGroup guard MUST clear, otherwise
+    // filterGroup bleeds across view switches.
+    expect(body).toContain('visualStateStore.clearFilterGroup()')
+  })
+
+  it('URL→Store effect clears filterGroup when ?filter= is present', () => {
+    // Inside the URL→Store effect, after deserializing search.filter,
+    // we clear filterGroup only when the URL actually carried a
+    // legacy `?filter=`. When absent, we leave filterGroup alone —
+    // the saved-view apply path owns that dimension.
+    expect(source).toMatch(
+      /const filterConfig = deserializeFilters\(search\.filter\)[\s\S]*?if \(filterConfig\) \{[\s\S]*?visualStateStore\.clearFilterGroup\(\)/,
+    )
+  })
+
+  it('cold-load 4th fix applies filterGroup from saved view config', () => {
+    // The cold-load path (URL has ?view=<id>, no ?filter=) must
+    // apply the saved view's filterGroup so the user's UI-applied
+    // filter survives hard refresh.
+    expect(source).toMatch(
+      /if \(!initialSearch\.filter\) \{[\s\S]*?visualStateStore\.applyFilterGroup\(config\.filterGroup as FilterGroup\)[\s\S]*?\} else \{[\s\S]*?visualStateStore\.clearFilterGroup\(\)/,
+    )
+  })
+
+  it('cold-load 4th fix references both applyFilterGroup and clearFilterGroup', () => {
+    // Belt-and-suspenders presence check — both branches must exist.
+    expect(source).toContain('applyFilterGroup')
+    expect(source).toContain('clearFilterGroup')
+  })
+})
