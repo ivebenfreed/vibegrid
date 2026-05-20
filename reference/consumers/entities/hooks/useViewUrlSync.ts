@@ -235,11 +235,47 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
         }
       })
 
-      // Update URL with view= param
+      // Update URL with view= AND the view's full layered state (sort/filter/
+      // group/mode/q). Without serializing the full state, the URL→Store
+      // effect re-fires when `?view=` changes, sees no `?sort=` / `?filter=`
+      // / etc. in the URL, and symmetric-clears the store back to empty —
+      // wiping out the view config the runInAction just wrote. Writing the
+      // full state means URL→Store re-applies the same values (no-op clobber),
+      // and "Copy link to current view" captures the full visible state.
+      const sortByArr =
+        Array.isArray(config.sortBy)
+          ? (config.sortBy as Array<{ field: string; direction: 'asc' | 'desc' }>)
+          : []
+      const filtersArr =
+        Array.isArray(config.filters) ? (config.filters as FilterConfig[]) : []
+      const groupFieldName =
+        config.groupConfig &&
+        typeof config.groupConfig === 'object' &&
+        Array.isArray((config.groupConfig as { fields?: unknown }).fields)
+          ? ((config.groupConfig as { fields: Array<{ field?: string }> }).fields[0]
+              ?.field ?? null)
+          : null
+      const groupParam =
+        typeof groupFieldName === 'string' ? groupFieldName : undefined
+      const modeParam =
+        config.viewMode === 'gantt' || config.viewMode === 'kanban'
+          ? (config.viewMode as 'gantt' | 'kanban')
+          : undefined
+      const qParam =
+        typeof config.globalSearchText === 'string' &&
+        config.globalSearchText.trim().length > 0
+          ? config.globalSearchText
+          : undefined
+
       ;(navigate as any)({
         search: (prev: Record<string, unknown>) => ({
           ...prev,
           view: view.id,
+          sort: serializeSort(sortByArr),
+          filter: serializeFilters(filtersArr),
+          group: groupParam,
+          mode: modeParam,
+          q: qParam,
         }),
         replace: true,
       })

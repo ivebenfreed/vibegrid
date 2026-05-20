@@ -300,6 +300,111 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
 // ?view= is in the URL (e.g., after browser refresh)
 // ====================================
 
+// ====================================
+// selectView regression: selecting a saved view must serialize the view's
+// full state (sort/filter/group/mode/q) into the URL alongside `?view=<id>`.
+//
+// Bug shape (pre-fix): selectView wrote the view's config into the
+// VibeGrid stores via runInAction, then called navigate with ONLY
+// `?view=<id>` (no `?sort=` / `?filter=` / etc). Because the URL→Store
+// effect's deps array includes `search.view`, the effect re-fired when
+// `view=<id>` landed in the URL, then symmetric-cleared the store back
+// to empty (deserializeSort(undefined) → null → []; same for filters,
+// group, etc), wiping out the view config that runInAction had just
+// written.
+//
+// Fix shape: navigate now also serializes sort/filter/group/mode/q from
+// `view.config`. URL→Store re-fire applies the SAME values it just saw
+// — a no-op clobber — and the view's filter/sort survive.
+//
+// Asserted via source-text analysis (consistent with the GH#2689 B7
+// regression block below). Behavioral tests via renderHook would
+// require mocking the full VibeGrid store surface + TanStack Router
+// + orpcClient; the source-text approach is the established pattern
+// in this file.
+// ====================================
+
+describe('useViewUrlSync selectView URL serialization regression', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  // Extract the body of the `selectView` useCallback so all assertions
+  // run against the same scope. The useCallback's first arg is an arrow
+  // function `(view: EntityViewRow) => { ... }`. We slice from
+  // `const selectView = useCallback(` to the closing `, [` of the
+  // deps array.
+  function selectViewBody(): string {
+    const match = source.match(
+      /const selectView = useCallback\(\s*\(\s*view\s*:\s*EntityViewRow\s*\)\s*=>\s*\{([\s\S]*?)\n\s+\},\s*\[/,
+    )
+    if (!match) {
+      throw new Error('selectView useCallback not found in useViewUrlSync.ts')
+    }
+    return match[1]
+  }
+
+  it('selectView navigates with view= AND sort= derived from view.config.sortBy', () => {
+    const body = selectViewBody()
+    // The navigate object literal must include `sort: serializeSort(...)`.
+    expect(body).toMatch(/sort:\s*serializeSort\(/)
+    // And the sort source must trace back to `config.sortBy` (typed via
+    // Array.isArray-guarded local).
+    expect(body).toMatch(/Array\.isArray\(config\.sortBy\)/)
+  })
+
+  it('selectView navigates with view= AND filter= derived from view.config.filters', () => {
+    const body = selectViewBody()
+    expect(body).toMatch(/filter:\s*serializeFilters\(/)
+    expect(body).toMatch(/Array\.isArray\(config\.filters\)/)
+  })
+
+  it('selectView navigates with group= derived from view.config.groupConfig.fields[0].field', () => {
+    const body = selectViewBody()
+    // The serialized group param threads through a local that reads
+    // groupConfig.fields[0].field with null-safety.
+    expect(body).toMatch(/group:\s*groupParam/)
+    expect(body).toMatch(/config\.groupConfig/)
+    expect(body).toMatch(/\.fields\[0\]/)
+  })
+
+  it('selectView navigates with mode= ONLY when viewMode is gantt or kanban', () => {
+    const body = selectViewBody()
+    // The mode param must be undefined when viewMode is 'table' (the
+    // default), otherwise the Store→URL reaction would never strip the
+    // param after the user switches back to table view from a saved
+    // gantt view.
+    expect(body).toMatch(/mode:\s*modeParam/)
+    expect(body).toMatch(
+      /config\.viewMode === 'gantt'[\s\S]*?config\.viewMode === 'kanban'/,
+    )
+  })
+
+  it('selectView navigates with q= ONLY when globalSearchText is non-empty after trim', () => {
+    const body = selectViewBody()
+    expect(body).toMatch(/q:\s*qParam/)
+    expect(body).toMatch(/config\.globalSearchText[\s\S]*?trim\(\)\.length > 0/)
+  })
+
+  it('selectView preserves the spread-prev pattern in the search builder', () => {
+    // The navigate call must still spread prev so unrelated search
+    // params (e.g. ?project=<id> for project-scoped views) survive
+    // the view switch. Pre-fix shape kept this; the fix must too.
+    const body = selectViewBody()
+    expect(body).toMatch(/search:\s*\(\s*prev\s*:[\s\S]*?\)\s*=>\s*\(\s*\{[\s\S]*?\.\.\.prev/)
+  })
+
+  it('selectView still sets view= to the selected view id', () => {
+    const body = selectViewBody()
+    expect(body).toMatch(/view:\s*view\.id/)
+  })
+})
+
 describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
   let source: string
 
