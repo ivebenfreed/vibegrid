@@ -28,8 +28,6 @@ import {
 import { getActiveOrganizationId } from '@/app/stores/global/OrganizationStore'
 import type { IStore } from '@/app/stores/types'
 import { DisposerManager } from '@/app/stores/utils/disposer'
-import { createEntityCollection } from '@/shared/data/db/collections/entity-collections'
-import { getOrCreateEntityCollection } from '@/shared/data/db/collections/registry'
 import { getLogger } from '@/shared/lib/logging'
 import type { ObservableCoordinateManager } from '../coordinates/ObservableCoordinateManager'
 import { GroupProcessor } from '../processors/GroupProcessor'
@@ -351,15 +349,6 @@ export class TableCoreStore implements IStore {
 
   // Members data for UserReference fields (from TanStack DB membersCollection)
   @observable membersData: ObservableMap<string, any> = observable.map<string, any>()
-
-  // Cached entity reference data keyed by target entity → entity id
-  @observable entityReferenceData: ObservableMap<string, ObservableMap<string, any>> = observable.map<
-    string,
-    ObservableMap<string, any>
-  >()
-
-  // Track in-flight entity reference loads to avoid duplicate network calls
-  private pendingEntityReferenceLoads = new Map<string, Promise<void>>()
 
   // GH#2786 (F') P6a: relationshipBadgeData / relationshipBadgeReady
   // are gone. The static badge-list renderer now reads source-row inline
@@ -1201,149 +1190,12 @@ export class TableCoreStore implements IStore {
     return changedCells
   }
 
-  getEntityReferenceRecord(targetEntity: string, entityId: string): any {
-    const key = (targetEntity || '').toLowerCase()
-    const map = this.entityReferenceData.get(key)
-    return map?.get(entityId)
-  }
-
-  @action
-  setEntityReferenceRecord(targetEntity: string, entityId: string, data: Record<string, unknown>): void {
-    const map = this.getOrCreateEntityReferenceMap(targetEntity)
-    map.set(entityId, data)
-  }
-
   /**
    * GH#2786 (F') P6a: relationship-badge cache + bulk-write methods deleted.
    * Replaced by source-row inline IDs (P2 dual-write) plus client-side
    * resolution from the synced target entity collection — see
    * `slots/renderers/badge-list.ts`.
    */
-
-  async ensureEntityReferenceRecord(targetEntity: string, entityId: string, loader?: () => Promise<any>): Promise<any> {
-    const map = this.getOrCreateEntityReferenceMap(targetEntity)
-    if (map.has(entityId)) {
-      return map.get(entityId)
-    }
-
-    const loadKey = `${(targetEntity || '').toLowerCase()}:${entityId}`
-    if (!this.pendingEntityReferenceLoads.has(loadKey)) {
-      const promise = this.loadEntityReferenceRecord(targetEntity, entityId, map, loader)
-      this.pendingEntityReferenceLoads.set(loadKey, promise)
-    }
-
-    await this.pendingEntityReferenceLoads.get(loadKey)
-    const result = map.get(entityId)
-    logger.debug('Entity reference ensure completed', {
-      targetEntity,
-      entityId,
-      hasRecord: !!result,
-    })
-    return result
-  }
-
-  @action
-  private getOrCreateEntityReferenceMap(targetEntity: string): ObservableMap<string, any> {
-    const key = (targetEntity || '').toLowerCase()
-    let map = this.entityReferenceData.get(key)
-    if (!map) {
-      map = observable.map<string, any>()
-      this.entityReferenceData.set(key, map)
-    }
-    return map
-  }
-
-  private async loadEntityReferenceRecord(
-    targetEntity: string,
-    entityId: string,
-    map: ObservableMap<string, any>,
-    loader?: () => Promise<any>,
-  ): Promise<void> {
-    const loadKey = `${(targetEntity || '').toLowerCase()}:${entityId}`
-    try {
-      const collectionRecord = await this.loadFromEntityCollection(targetEntity, entityId)
-      if (collectionRecord) {
-        runInAction(() => {
-          map.set(entityId, collectionRecord)
-        })
-        logger.debug('Entity reference record loaded from collection', {
-          targetEntity,
-          entityId,
-        })
-        return
-      }
-
-      if (loader) {
-        const record = await loader()
-        if (record) {
-          runInAction(() => {
-            map.set(entityId, record)
-          })
-          logger.debug('Entity reference record loaded via fallback loader', {
-            targetEntity,
-            entityId,
-          })
-          return
-        }
-      }
-
-      logger.debug('Entity reference record could not be loaded', {
-        targetEntity,
-        entityId,
-      })
-    } catch (error) {
-      logger.error('Failed to load entity reference record', {
-        targetEntity,
-        entityId,
-        error,
-      })
-    } finally {
-      this.pendingEntityReferenceLoads.delete(loadKey)
-    }
-  }
-
-  private async loadFromEntityCollection(targetEntity: string, entityId: string): Promise<any | null> {
-    try {
-      const orgId = this.visualStateStore?.orgId || getActiveOrganizationId()
-      if (!orgId) {
-        logger.debug('Entity reference collection load skipped - no orgId', {
-          targetEntity,
-          entityId,
-        })
-        return null
-      }
-
-      if (!targetEntity) {
-        logger.debug('Entity reference collection load skipped - unknown target entity', {
-          entityId,
-        })
-        return null
-      }
-
-      const normalizedEntity = targetEntity
-
-      const collection = getOrCreateEntityCollection(normalizedEntity, orgId, createEntityCollection)
-
-      await collection.preload()
-      const record = collection.get(entityId)
-      if (record) {
-        logger.debug('Entity reference record found in TanStack collection', {
-          targetEntity: normalizedEntity,
-          entityId,
-        })
-        return record
-      }
-
-      return null
-    } catch (error) {
-      logger.debug('Entity reference collection load failed, will fall back to loader', {
-        targetEntity,
-        entityId,
-        error,
-      })
-      return null
-    }
-  }
 
   // ====================================
   // COMPUTED VALUES - DATA PROCESSING PIPELINE
@@ -2507,8 +2359,6 @@ export class TableCoreStore implements IStore {
     this.rawRowsIndexCacheRef = null
     this.rawRowsIndexCache = null
     this.membersData.clear()
-    this.entityReferenceData.clear()
-    this.pendingEntityReferenceLoads.clear()
     // GH#2786 (F') P6a: relationshipBadgeData / relationshipBadgeReady reset
     // dropped — those observables were deleted alongside the bridge.
 

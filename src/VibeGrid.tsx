@@ -35,7 +35,6 @@ import { VibeGridEmptyState } from './components/VibeGridEmptyState'
 import { VibeGridLoadingOverlay } from './components/VibeGridLoadingOverlay'
 import type { ViewPickerProps } from './components/ViewPicker'
 import { VibeGridXHeaderPure } from './components/VibeGridXHeaderPure'
-import { useEntityReferenceData } from './hooks/useEntityReferenceData'
 import { useRelationshipTargetCollections } from './hooks/useRelationshipTargetCollections'
 import { useVibeGridData } from './hooks/useVibeGridData'
 import { useVibeGridHierarchy } from './hooks/useVibeGridHierarchy'
@@ -747,11 +746,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
     tableCoreStore.setMembersData(members)
   }, [members, tableCoreStore])
 
-  // Reactive bridge: entity reference target collections → tableCoreStore.entityReferenceData
-  // Renders one invisible bridge component per target entity type (e.g., Company, Vendor)
-  // so that badge-list-live cells update automatically when target entities change
-  const entityRefBridges = useEntityReferenceData(tableCoreStore)
-
   // GH#2786 (F') P6a: badge-list-live + useBadgeListEnrichment bridge
   // are deleted. Relationship badges now render via the static
   // badge-list renderer reading source-row inline IDs (P2 dual-write)
@@ -1393,9 +1387,6 @@ function VibeGridInnerBase(props: VibeGridProps) {
 
       {/* Debug overlay - enable via console: __VIBEGRID_DEBUG__.enable() */}
       {debugStore && <DebugOverlay debugStore={debugStore} />}
-
-      {/* Invisible data bridges for reactive entity reference resolution */}
-      {entityRefBridges}
 
       {/* GH#2786 follow-up: relationship target collection slots — register
           target collections on the background priority-queue lane so name
