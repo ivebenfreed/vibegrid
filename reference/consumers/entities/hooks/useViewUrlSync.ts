@@ -226,12 +226,23 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           visualStateStore.setGlobalSearchText('')
         }
 
-        // Apply column visibility from config
+        // Apply column visibility from config as a TRUE REPLACE (not an
+        // additive merge). The previous loop only wrote the keys present in
+        // the saved config and left other keys (e.g. columns added to the
+        // schema after the view was saved, or columns the user manually
+        // toggled between switches) untouched. That made "switch view" feel
+        // half-applied — sort/filter switched cleanly but column visibility
+        // partially carried over. Rebuild a fresh map from the current schema
+        // columns so the saved snapshot is canonical and new schema columns
+        // fall back to their `!col.hidden` default (matching
+        // VisualStateStore.initialize/initializeColumns).
         if (config.columnVisibility && typeof config.columnVisibility === 'object') {
           const vis = config.columnVisibility as Record<string, boolean>
-          for (const [colId, visible] of Object.entries(vis)) {
-            visualStateStore.columnVisibility[colId] = visible
+          const next: Record<string, boolean> = {}
+          for (const col of visualStateStore.columns) {
+            next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden
           }
+          visualStateStore.columnVisibility = next
         }
       })
 

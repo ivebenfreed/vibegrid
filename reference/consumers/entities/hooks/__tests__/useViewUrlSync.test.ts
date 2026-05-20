@@ -405,6 +405,71 @@ describe('useViewUrlSync selectView URL serialization regression', () => {
   })
 })
 
+// ====================================
+// selectView regression: column visibility must be a TRUE REPLACE on view
+// switch, not an additive merge. Pre-fix shape looped only the keys in the
+// saved config and assigned each into the existing
+// visualStateStore.columnVisibility object — keys absent from the saved
+// config (manual hides made between switches, or columns added to the
+// schema after the view was saved) silently survived the switch, so
+// "switch view" felt half-applied. Fix shape: rebuild a fresh map keyed by
+// the current schema columns, fall back to !col.hidden for columns absent
+// from the saved snapshot, and assign the whole object so MobX sees a
+// single reactive update.
+// ====================================
+
+describe('useViewUrlSync selectView column visibility replace regression', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  // Reuse the same body-slicer pattern the sibling describe block uses so
+  // the assertions are scoped to selectView and don't accidentally match
+  // unrelated code elsewhere in the hook.
+  function selectViewBody(): string {
+    const match = source.match(
+      /const selectView = useCallback\(\s*\(\s*view\s*:\s*EntityViewRow\s*\)\s*=>\s*\{([\s\S]*?)\n\s+\},\s*\[/,
+    )
+    if (!match) {
+      throw new Error('selectView useCallback not found in useViewUrlSync.ts')
+    }
+    return match[1]
+  }
+
+  it('builds a fresh column-visibility map (does not mutate in-place)', () => {
+    const body = selectViewBody()
+    expect(body).toContain('const next: Record<string, boolean> = {}')
+  })
+
+  it('iterates the schema columns (visualStateStore.columns), not just saved-config keys', () => {
+    const body = selectViewBody()
+    expect(body).toContain('for (const col of visualStateStore.columns)')
+  })
+
+  it('falls back to !col.hidden for columns absent from the saved snapshot', () => {
+    const body = selectViewBody()
+    expect(body).toContain('next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden')
+  })
+
+  it('replaces columnVisibility wholesale (single reactive assignment)', () => {
+    const body = selectViewBody()
+    expect(body).toContain('visualStateStore.columnVisibility = next')
+  })
+
+  it('no longer writes per-key into the existing columnVisibility object', () => {
+    // This is the key regression guard: the old per-key loop assignment
+    // must be gone. If anyone reintroduces it (e.g. via a "merge instead
+    // of replace" revert), this test fires.
+    const body = selectViewBody()
+    expect(body).not.toContain('visualStateStore.columnVisibility[colId] = visible')
+  })
+})
+
 describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
   let source: string
 
