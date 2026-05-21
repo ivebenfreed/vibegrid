@@ -43,8 +43,26 @@ import type { Column } from '../types'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useRelationshipTargetCollections'])
 
-/** System entity types that are not DataForge entities and shouldn't be hydrated as collections. */
-const SYSTEM_ENTITY_NAMES = new Set(['Member', 'PlatformUser', 'PlatformOrganization'])
+/**
+ * System entity types that are not DataForge entities and shouldn't be
+ * hydrated as collections.
+ *
+ * `User` is included because several relationship schemas (e.g. RFI's
+ * `requested_from` / `assigned_to` / `requires_approval_from`) declare
+ * `targetEntityType: 'User'`, but `User` is a Better Auth account —
+ * `dataforge.schema.getByName({entityName:'User'})` returns `schema:null`.
+ * The org-scoped equivalent is `Member`, loaded globally via
+ * `useMembersCollection` for picker resolution. Excluding `User` here
+ * avoids a futile `useEntityList` warmup against a non-existent schema;
+ * badge labels for User-target columns still resolve via the substrate
+ * `__rel` server join (Path 1 in `badge-list.ts`).
+ */
+const SYSTEM_ENTITY_NAMES = new Set([
+  'Member',
+  'PlatformUser',
+  'PlatformOrganization',
+  'User',
+])
 
 const FETCH_BY_IDS_CHUNK = 500
 const VISIBLE_FETCH_DEBOUNCE_MS = 100
