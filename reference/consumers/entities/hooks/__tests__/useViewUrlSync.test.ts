@@ -235,13 +235,20 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
     source = readFileSync(HOOK_PATH, 'utf-8')
   })
 
-  it('should import orpcClient for default view fetching', () => {
-    expect(source).toContain("from '@/shared/data/orpc/client'")
-    expect(source).toContain('orpcClient')
+  it('should import loadViews + viewsStore for default view fetching (PR #3175)', () => {
+    // The fetch was migrated off the bare orpcClient call to the
+    // stale-while-revalidate helper pair: `loadViews` is the awaiting fetch,
+    // `viewsStore` is the in-memory cache that drives synchronous first-paint
+    // resolution before the network round-trip lands.
+    expect(source).toContain("from '@/shared/data/orpc/domains/views-fetch'")
+    expect(source).toContain("from '@/shared/data/stores/ViewsStore'")
+    expect(source).toContain('loadViews')
+    expect(source).toContain('viewsStore')
   })
 
-  it('should call orpcClient.dataforge.views.list to fetch default view', () => {
-    expect(source).toContain('orpcClient.dataforge.views.list')
+  it('should call loadViews(entityType) to fetch the default view (PR #3175)', () => {
+    // Replaces the previous direct `orpcClient.dataforge.views.list` call.
+    expect(source).toContain('loadViews(entityType)')
   })
 
   it('should check initialSearchRef.current.view before loading default', () => {
@@ -290,8 +297,10 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
   })
 
   it('should include selectView in useEffect dependencies', () => {
-    // The view-loading useEffect should depend on selectView
-    expect(source).toContain('selectView]')
+    // The view-loading useEffect should depend on selectView. PR #3175
+    // added `stores` to the same deps array (cached-apply now reads
+    // `stores.visualStateStore`), so anchor on the comma-separated form.
+    expect(source).toMatch(/\[isEnabled, entityType, selectView(?:,|\])/)
   })
 })
 
@@ -510,7 +519,12 @@ describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
     // an empty array and the tab strip disappeared on refresh.
     // Match: inside the `if (initialViewId) { ... }` block, we call
     // setDefaultViewConfig before returning.
-    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    // Match the `if (initialViewId) { ... }` block.
+    // Indent-tolerant: the spec restructure flattened the inner indentation
+    // by one level (no `try/catch` wrapper); accept any indent on the
+    // closing brace. Pair the brace with the trailing blank line to anchor
+    // to the right `}` (the inner `if (activeView) {` blocks are nested).
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s*\}\n\n/)
     expect(block).not.toBeNull()
     expect(block![1]).toContain('setDefaultViewConfig(')
   })
@@ -519,7 +533,12 @@ describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
     // selectView would clobber URL-layered sort/filter overrides on
     // a deep-link, since the URL→Store effect has already applied
     // them. Only call selectView in the default-view branch.
-    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    // Match the `if (initialViewId) { ... }` block.
+    // Indent-tolerant: the spec restructure flattened the inner indentation
+    // by one level (no `try/catch` wrapper); accept any indent on the
+    // closing brace. Pair the brace with the trailing blank line to anchor
+    // to the right `}` (the inner `if (activeView) {` blocks are nested).
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s*\}\n\n/)
     expect(block).not.toBeNull()
     expect(block![1]).not.toContain('selectView(')
   })

@@ -24,6 +24,7 @@ import { Main } from '@/shared/components/layout/main'
 import { TopNav } from '@/shared/components/layout/top-nav'
 import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
 import { orpcClient } from '@/shared/data/orpc/client'
+import { refreshViews } from '@/shared/data/orpc/domains/views-fetch'
 import { uploadQueryKeys } from '@/shared/data/orpc/query-utils'
 import { useEntityRecordQuery } from '@/shared/data/queries/entity-data.queries'
 import { useEntitySchema, useEntitySchemasQuery } from '@/shared/data/queries/entity-schemas.queries'
@@ -175,6 +176,8 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           visibility: 'personal',
           config: view.config,
         })
+        // PR #3175: re-prime the saved-views cache so the picker repaints.
+        await refreshViews(entityName)
         toast.success('View duplicated to My Views')
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to duplicate view'
@@ -231,6 +234,9 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         visibility,
         config,
       })
+      // PR #3175: re-prime the saved-views cache so the picker shows the
+      // new view immediately, no popover-open round-trip required.
+      await refreshViews(entityName)
 
       toast.success('View saved')
     },

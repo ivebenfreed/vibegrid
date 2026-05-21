@@ -1,3 +1,5 @@
+/* @vitest-environment node */
+
 /**
  * ViewPicker Component Tests
  *
@@ -15,6 +17,11 @@
  * 8. Lock icon for locked views (P2.4)
  * 9. Duplicate to My Views action (P2.4)
  * 10. onDuplicateView prop (P2.4)
+ *
+ * Runs in the node environment so `node:fs` + `node:path` imports stay
+ * usable — these tests do source-text analysis, not DOM work. Matches the
+ * pattern in sibling source-text test files (e.g. useViewUrlSync.test.ts,
+ * EntityListView-save-view.test.ts).
  */
 
 import { describe, expect, it, beforeEach } from 'vitest'
@@ -231,8 +238,15 @@ describe('ViewPicker Data Fetching', () => {
     source = getSourceCode()
   })
 
-  it('should call orpcClient.dataforge.views.list on open', () => {
-    expect(source).toContain('orpcClient.dataforge.views.list')
+  it('should call loadViews(entityType) on open (PR #3175 SWR helper)', () => {
+    // Direct `orpcClient.dataforge.views.list` call replaced with the
+    // shared SWR helper (see `apps/web/src/shared/data/orpc/domains/views-fetch.ts`).
+    // Mutation paths still call `orpcClient.dataforge.views.*` directly for
+    // delete/pin/unpin/setDefault/create — that's why the bare `orpcClient`
+    // import remains.
+    expect(source).toContain('loadViews(entityType)')
+    expect(source).toContain("from '@/shared/data/orpc/domains/views-fetch'")
+    expect(source).toContain("from '@/shared/data/stores/ViewsStore'")
   })
 
   it('should show loading skeleton during fetch', () => {
@@ -409,14 +423,18 @@ describe('ViewPicker Pin Reorder Support (P2.5)', () => {
   })
 
   it('should perform optimistic update on pins state', () => {
-    // Should update pins state before API call
-    expect(source).toContain('setPins((prev) =>')
+    // PR #3175 follow-up: pins are now sourced from `viewsStore.get(entityType)`
+    // instead of local `setPins` state. The optimistic reorder writes the
+    // re-ordered pins array directly into the store; the observer wrap
+    // re-renders on that write.
+    expect(source).toContain('viewsStore.set(entityType,')
     expect(source).toContain('pin_order: newOrder.indexOf(p.view_id)')
   })
 
   it('should rollback pins on API failure', () => {
-    // Should restore previous pins if API call fails
-    expect(source).toContain('setPins(prevPins)')
+    // Restoring the previous pins after a failed API call now writes back
+    // through the store (see optimistic-update test above).
+    expect(source).toContain('pins: prevPins')
   })
 
   it('should show error toast on reorder failure', () => {

@@ -38,6 +38,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { Skeleton } from '@/shared/components/ui/skeleton'
 import { orpcClient } from '@/shared/data/orpc/client'
+import { loadViews, refreshViews } from '@/shared/data/orpc/domains/views-fetch'
+import { viewsStore } from '@/shared/data/stores/ViewsStore'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 import type { ViewMode } from '../stores/ViewModeStore'
@@ -143,25 +145,31 @@ export const ViewPicker = observer(function ViewPicker({
   userRole,
 }: ViewPickerProps) {
   const [open, setOpen] = useState(false)
-  const [views, setViews] = useState<EntityViewRow[]>([])
-  const [pins, setPins] = useState<EntityViewPinRow[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch views when popover opens
+  // Read from the cache synchronously on every render so the picker paints
+  // last-known views instantly. The MobX `observer` wrap re-renders on
+  // `viewsStore.set(entityType, ...)`.
+  const cached = viewsStore.get(entityType)
+  const views: EntityViewRow[] = cached?.views ?? []
+  const pins: EntityViewPinRow[] = cached?.pins ?? []
+
+  // Fetch views when popover opens. The cache (`viewsStore`) is the source
+  // of truth for the rendered list; this call refreshes that cache. We
+  // only show the loading skeleton on a cold open (no cached entry yet) —
+  // the stale-while-revalidate contract means subsequent opens repaint
+  // instantly from the cache and quietly refresh in the background.
   const fetchViews = useCallback(async () => {
-    setIsLoading(true)
+    const hadCache = viewsStore.get(entityType) !== undefined
+    if (!hadCache) setIsLoading(true)
     setError(null)
     try {
-      const result = await orpcClient.dataforge.views.list({ entityName: entityType })
-      const fetchedViews = Array.isArray(result.views) ? (result.views as EntityViewRow[]) : []
-      const fetchedPins = Array.isArray(result.pins) ? (result.pins as EntityViewPinRow[]) : []
-      setViews(fetchedViews)
-      setPins(fetchedPins)
+      const entry = await loadViews(entityType)
       logger.info('Fetched views', {
         entityType,
-        viewCount: fetchedViews.length,
-        pinCount: fetchedPins.length,
+        viewCount: entry.views.length,
+        pinCount: entry.pins.length,
       })
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to load views'
@@ -195,55 +203,62 @@ export const ViewPicker = observer(function ViewPicker({
   const activeView = activeViewId ? views.find((v) => v.id === activeViewId) : null
   const triggerLabel = activeView?.name ?? activeViewName ?? 'Views'
 
-  // Context menu handlers
-  const handleDelete = useCallback(async (viewId: string) => {
-    try {
-      await orpcClient.dataforge.views.delete({ view_id: viewId })
-      toast.success('View deleted')
-      setViews((prev) => prev.filter((v) => v.id !== viewId))
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete view'
-      toast.error(msg)
-    }
-  }, [])
-
-  const handlePin = useCallback(async (viewId: string) => {
-    try {
-      const pin = await orpcClient.dataforge.views.pin({ view_id: viewId })
-      if (pin) {
-        setPins((prev) => [...prev, pin as EntityViewPinRow])
-        toast.success('View pinned')
+  // Context menu handlers — all mutations re-prime the cache via
+  // `refreshViews` so the MobX-observed view list re-renders.
+  const handleDelete = useCallback(
+    async (viewId: string) => {
+      try {
+        await orpcClient.dataforge.views.delete({ view_id: viewId })
+        toast.success('View deleted')
+        await refreshViews(entityType)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to delete view'
+        toast.error(msg)
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to pin view'
-      toast.error(msg)
-    }
-  }, [])
+    },
+    [entityType],
+  )
 
-  const handleUnpin = useCallback(async (viewId: string) => {
-    try {
-      await orpcClient.dataforge.views.unpin({ view_id: viewId })
-      setPins((prev) => prev.filter((p) => p.view_id !== viewId))
-      toast.success('View unpinned')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to unpin view'
-      toast.error(msg)
-    }
-  }, [])
+  const handlePin = useCallback(
+    async (viewId: string) => {
+      try {
+        await orpcClient.dataforge.views.pin({ view_id: viewId })
+        toast.success('View pinned')
+        await refreshViews(entityType)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to pin view'
+        toast.error(msg)
+      }
+    },
+    [entityType],
+  )
+
+  const handleUnpin = useCallback(
+    async (viewId: string) => {
+      try {
+        await orpcClient.dataforge.views.unpin({ view_id: viewId })
+        toast.success('View unpinned')
+        await refreshViews(entityType)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to unpin view'
+        toast.error(msg)
+      }
+    },
+    [entityType],
+  )
 
   const handleSetDefault = useCallback(
     async (viewId: string) => {
       try {
         await orpcClient.dataforge.views.setDefault({ view_id: viewId, entityName: entityType })
         toast.success('Default view updated')
-        // Refresh list to get updated is_default flags
-        fetchViews()
+        await refreshViews(entityType)
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to set default'
         toast.error(msg)
       }
     },
-    [entityType, fetchViews],
+    [entityType],
   )
 
   const handleDuplicate = useCallback(
@@ -260,7 +275,7 @@ export const ViewPicker = observer(function ViewPicker({
             config: view.config as Record<string, unknown>,
           })
           toast.success('View duplicated to My Views')
-          fetchViews()
+          await refreshViews(entityType)
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Failed to duplicate view'
           toast.error(msg)
@@ -268,7 +283,7 @@ export const ViewPicker = observer(function ViewPicker({
       }
       setOpen(false)
     },
-    [onDuplicateView, fetchViews],
+    [onDuplicateView, entityType],
   )
 
   const handleReorderPins = useCallback(
@@ -285,24 +300,42 @@ export const ViewPicker = observer(function ViewPicker({
       const newOrder = [...sortedPinnedIds]
       ;[newOrder[currentIndex], newOrder[newIndex]] = [newOrder[newIndex], newOrder[currentIndex]]
 
-      // Optimistic update
-      const prevPins = [...pins]
-      setPins((prev) =>
-        prev.map((p) => ({
-          ...p,
-          pin_order: newOrder.indexOf(p.view_id),
-        })),
-      )
+      // Optimistic update: write a re-ordered pins array straight into the
+      // store. Cell renderers (observer-wrapped) repaint on this same tick.
+      // Snapshot the cached entry first so we can roll back on API failure.
+      const cachedEntry = viewsStore.get(entityType)
+      const prevPins = cachedEntry ? [...cachedEntry.pins] : pins
+      if (cachedEntry) {
+        viewsStore.set(entityType, {
+          views: cachedEntry.views,
+          pins: cachedEntry.pins.map((p) => ({
+            ...p,
+            pin_order: newOrder.indexOf(p.view_id),
+          })),
+          defaultViewConfig: cachedEntry.defaultViewConfig,
+        })
+      }
 
       try {
         await orpcClient.dataforge.views.reorderPins({ view_ids: newOrder })
+        // Re-prime with server truth so we land on canonical row IDs.
+        await refreshViews(entityType)
       } catch (err) {
-        setPins(prevPins) // Rollback
+        // Roll back to the snapshot. Mirrors the legacy `setPins(prevPins)`
+        // local-state rollback by writing the prior pins back to the store.
+        const current = viewsStore.get(entityType)
+        if (current) {
+          viewsStore.set(entityType, {
+            views: current.views,
+            pins: prevPins,
+            defaultViewConfig: current.defaultViewConfig,
+          })
+        }
         const msg = err instanceof Error ? err.message : 'Failed to reorder'
         toast.error(msg)
       }
     },
-    [pins],
+    [entityType, pins],
   )
 
   const isAdmin = userRole === 'admin' || userRole === 'owner'
