@@ -35,7 +35,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { comparer, reaction } from 'mobx'
 import { useOrganization } from '@/app/stores'
-import { useEntityCollection } from '@/shared/data/db/hooks/useEntityCollection'
+import { useEntityList } from '@/shared/data/hooks/useEntityList'
 import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
 import { getLogger } from '@/shared/lib/logging'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -69,37 +69,28 @@ function getRelationshipTargets(columns: Column[]): string[] {
 }
 
 /**
- * Per-target slot: registers the entity collection in `collectionsCache`
- * (so `getExistingEntityCollection` resolves) and queues the bootstrap
- * warmup on the SharedWorker's **background** priority queue lane.
+ * Per-target slot: bootstraps wa-sqlite + WarmthStore for one relationship
+ * target via `useEntityList`. Return value is discarded — the slot exists
+ * only for the hook's side effects (warmEntity bootstrap, server-counts
+ * warmth recheck, entityBatch warmth recheck). GH#3173 migration off
+ * legacy `useEntityCollection`, which never wrote WarmthStore and so left
+ * the `startEntityWarmup` short-circuit inoperative for these targets.
  *
- * `entityBatch` events from the SharedWorker are bridged into the
- * collection's in-memory map by the global handler installed in
- * `entity-batch-bridge.ts` — no per-slot subscription is needed.
- *
- * Releases the priority-queue refcount on unmount; SQLite rows persist.
+ * Badge-list label resolution for substrate-owned grids now flows through
+ * the server `__rel` join projection (Path 1 in `badge-list.ts`); the
+ * legacy `getExistingEntityCollection` lookup (Path 2) is no longer
+ * populated by this slot.
  */
 function RelationshipTargetSlotBase({
   targetEntityType,
-  orgId,
 }: {
   targetEntityType: string
-  orgId: string
 }): null {
-  // Background lane: the page's own foreground entity bootstrap preempts.
-  useEntityCollection(targetEntityType, { priority: 'background' })
-
-  useEffect(() => {
-    return () => {
-      const client = getSQLiteClient()
-      if (!client.initialized) return
-      client
-        .releaseEntityInterest({ orgId, entityName: targetEntityType })
-        .catch(() => {
-          // best-effort cleanup
-        })
-    }
-  }, [targetEntityType, orgId])
+  // Side-effect-only call: populates wa-sqlite cache + WarmthStore for the
+  // relationship target. Discarded return value. GH#3173 — fixes the
+  // startEntityWarmup short-circuit which relies on WarmthStore being
+  // populated (the legacy useEntityCollection path never wrote it).
+  useEntityList({ entityName: targetEntityType })
 
   return null
 }
@@ -205,7 +196,6 @@ export function useRelationshipTargetCollections(
         <RelationshipTargetSlot
           key={`${target}-${orgId}`}
           targetEntityType={target}
-          orgId={orgId}
         />
       ))}
     </>
