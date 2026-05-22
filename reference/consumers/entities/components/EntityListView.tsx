@@ -221,7 +221,21 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           : null,
         viewMode: viewModeStore.mode,
         globalSearchText: visualStateStore.globalSearchText,
-        columnVisibility: { ...visualStateStore.columnVisibility },
+        // GH#3180 B1: persist column order so drag-reorder survives save → re-select.
+        // Empty array when uninitialized — the apply path treats absent + empty
+        // identically (B3 leaves the live order untouched in both cases).
+        columnOrder: visualStateStore.columnOrder.slice(),
+        // GH#3180 B2: rebuild a fresh visibility record keyed by the LIVE schema
+        // columns (rather than spreading the MobX observable) so the snapshot is
+        // guaranteed to be a plain JSON object with one boolean per current
+        // column id — robust against any future MobX-observable-shape drift and
+        // forward-compatible with new schema columns that appear after save.
+        columnVisibility: Object.fromEntries(
+          visualStateStore.columns.map((c) => [
+            c.id,
+            visualStateStore.columnVisibility[c.id] !== false,
+          ]),
+        ),
         // GH#1677 P2.3: Include child entity tabs array
         ...(childEntityTabs.length > 0 ? { childEntityTabs } : {}),
         // Keep legacy childEntityConfig for backward compat with existing views

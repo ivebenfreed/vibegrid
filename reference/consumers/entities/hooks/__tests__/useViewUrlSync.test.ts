@@ -38,7 +38,10 @@ import {
   serializeFilters,
   deserializeFilters,
   serializeGroup,
+  applySavedColumnState,
 } from '../useViewUrlSync'
+import { VisualStateStore } from '@/systems/vibegrid/stores/VisualStateStore'
+import type { Column } from '@/systems/vibegrid/types'
 
 const HOOK_PATH = join(__dirname, '../useViewUrlSync.ts')
 
@@ -450,23 +453,48 @@ describe('useViewUrlSync selectView column visibility replace regression', () =>
     return match[1]
   }
 
-  it('builds a fresh column-visibility map (does not mutate in-place)', () => {
+  // GH#3180 follow-up: the TRUE-REPLACE logic was extracted into the
+  // file-local `applySavedColumnState` helper (used by both the hot-apply
+  // selectView path AND the cold-apply `?view=<id>` path). Detailed
+  // assertions about the rebuild now run against the helper body; the
+  // invocation assertion runs against selectView's body.
+  function applySavedColumnStateBody(): string {
+    const match = source.match(
+      /export function applySavedColumnState\([\s\S]*?\)\s*:\s*void\s*\{([\s\S]*?)\n\}\n/,
+    )
+    if (!match) {
+      throw new Error(
+        'applySavedColumnState helper not found in useViewUrlSync.ts',
+      )
+    }
+    return match[1]
+  }
+
+  it('selectView invokes the applySavedColumnState helper', () => {
+    // The hot-apply path delegates to the helper rather than inlining the
+    // rebuild logic. This guards against re-inlining the body (which would
+    // diverge from the cold-load apply path).
     const body = selectViewBody()
+    expect(body).toContain('applySavedColumnState(visualStateStore, config)')
+  })
+
+  it('builds a fresh column-visibility map (does not mutate in-place)', () => {
+    const body = applySavedColumnStateBody()
     expect(body).toContain('const next: Record<string, boolean> = {}')
   })
 
   it('iterates the schema columns (visualStateStore.columns), not just saved-config keys', () => {
-    const body = selectViewBody()
+    const body = applySavedColumnStateBody()
     expect(body).toContain('for (const col of visualStateStore.columns)')
   })
 
   it('falls back to !col.hidden for columns absent from the saved snapshot', () => {
-    const body = selectViewBody()
+    const body = applySavedColumnStateBody()
     expect(body).toContain('next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden')
   })
 
   it('replaces columnVisibility wholesale (single reactive assignment)', () => {
-    const body = selectViewBody()
+    const body = applySavedColumnStateBody()
     expect(body).toContain('visualStateStore.columnVisibility = next')
   })
 
@@ -474,7 +502,7 @@ describe('useViewUrlSync selectView column visibility replace regression', () =>
     // This is the key regression guard: the old per-key loop assignment
     // must be gone. If anyone reintroduces it (e.g. via a "merge instead
     // of replace" revert), this test fires.
-    const body = selectViewBody()
+    const body = applySavedColumnStateBody()
     expect(body).not.toContain('visualStateStore.columnVisibility[colId] = visible')
   })
 })
@@ -723,5 +751,364 @@ describe('EntityListView remounts EntityListViewUrlSync on entityName change (Bu
     // defaultViewConfig / initialSearchRef) documents what would leak
     // without the key.
     expect(comment).toMatch(/activeViewName|defaultViewConfig|initialSearchRef/)
+  })
+})
+
+// ====================================
+// GH#3180: column-state save+restore (Bug C)
+//
+// The user-observed bug had two failure modes:
+//   (A) Cold-load (`?view=<id>` on mount) NEVER applied columnVisibility or
+//       columnOrder — only filters/filterGroup/sortBy/groupConfig. So after
+//       a hard refresh the grid always showed schema-default columns,
+//       regardless of what the saved view recorded.
+//   (B) Hot apply (`selectView`) had H1 race: when selectView fires before
+//       TableCoreStore.init() has hydrated VisualStateStore.columns
+//       (the cached `applyLoadedViews` synchronous path is the trigger),
+//       the merge loop writes `next = {}`, then `initializeColumns`'s
+//       `Object.keys(columnVisibility).length === 0` guard refills with
+//       all-visible defaults — silently clobbering the saved hides.
+//
+// P1 investigation attribution:
+//   - H1 (race): CONFIRMED. The cached `applyLoadedViews` path in
+//     useViewUrlSync.ts:597-599 fires synchronously on mount; schema load
+//     in TableCoreStore.init() is fully async. Default-view selectView()
+//     fires before columns are hydrated.
+//   - H2 (MobX spread): RULED OUT. `@observable columnVisibility:
+//     Record<string, boolean>` is a plain object proxy that spreads
+//     correctly in MobX 6. The B2 audit-fix (Object.fromEntries keyed by
+//     live columns) was applied as defense-in-depth anyway.
+//   - H3 (PersistenceStore clobber): RULED OUT in steady state; subsumed
+//     by H1 fast-path. With selectView writing a non-empty record into
+//     columnVisibility, the init guard at VisualStateStore.ts:585-587 no
+//     longer fires, so PS-load timing relative to selectView no longer
+//     determines the outcome.
+//
+// Tests below assert the source-text shape that fixes both failure modes,
+// consistent with the existing source-text-driven test pattern in this
+// file. Behavioral coverage via renderHook would require mocking the full
+// VibeGrid store surface + TanStack Router + orpcClient + ViewsStore +
+// PersistenceStore (the same stack the sibling test blocks above sidestep).
+// ====================================
+
+describe('GH#3180: column-state save+restore (Bug C)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!existsSync(HOOK_PATH)) {
+      throw new Error('useViewUrlSync.ts does not exist')
+    }
+    source = readFileSync(HOOK_PATH, 'utf-8')
+  })
+
+  // Reuse the selectView body slicer from sibling describe blocks so the
+  // hot-apply assertions are scoped to selectView and don't accidentally
+  // match unrelated code elsewhere in the hook.
+  function selectViewBody(): string {
+    const match = source.match(
+      /const selectView = useCallback\(\s*\(\s*view\s*:\s*EntityViewRow\s*\)\s*=>\s*\{([\s\S]*?)\n\s+\},\s*\[/,
+    )
+    if (!match) {
+      throw new Error('selectView useCallback not found in useViewUrlSync.ts')
+    }
+    return match[1]
+  }
+
+  // Slicer for the cold-load apply block. The cold-load path lives inside
+  // `applyLoadedViews`'s `if (initialViewId) { ... }` branch. Slice from the
+  // anchor (`const initialSearch = initialSearchRef.current`) down to the
+  // matching `requestAnimationFrame(...)` call that unsuppresses URL sync —
+  // that line is the canonical end-of-runInAction in this branch.
+  function coldLoadApplyBody(): string {
+    const match = source.match(
+      /const initialSearch = initialSearchRef\.current([\s\S]*?)requestAnimationFrame\(\(\) => \{\s*\n\s+suppressUrlUpdateRef\.current = false\s*\n\s+\}\)\s*\n\s+\}\s*\n\s+\}\s*\n\s+return/,
+    )
+    if (!match) {
+      throw new Error('cold-load apply block not found in useViewUrlSync.ts')
+    }
+    return match[1]
+  }
+
+  // GH#3180 follow-up: the apply logic was extracted into the file-local
+  // `applySavedColumnState` helper shared by both the hot apply
+  // (selectView) and the cold apply (`?view=<id>` resolved on mount).
+  // Detailed B3/B4/B6/B7 assertions run against the helper body; the
+  // selectView + cold-load slicers above are used only to assert the
+  // helper is invoked.
+  function applySavedColumnStateBody(): string {
+    const match = source.match(
+      /export function applySavedColumnState\([\s\S]*?\)\s*:\s*void\s*\{([\s\S]*?)\n\}\n/,
+    )
+    if (!match) {
+      throw new Error(
+        'applySavedColumnState helper not found in useViewUrlSync.ts',
+      )
+    }
+    return match[1]
+  }
+
+  // ----- Helper invocation (both call sites) -----
+
+  it('selectView invokes applySavedColumnState (hot-apply path)', () => {
+    const body = selectViewBody()
+    expect(body).toContain('applySavedColumnState(visualStateStore, config)')
+  })
+
+  it('cold-load invokes applySavedColumnState (cold-apply path)', () => {
+    const body = coldLoadApplyBody()
+    expect(body).toContain('applySavedColumnState(visualStateStore, config)')
+  })
+
+  // ----- B3 + B7 (apply-column-order: merge + stale-id drop) -----
+
+  it('helper applies config.columnOrder via setColumnOrder', () => {
+    const body = applySavedColumnStateBody()
+    // The Array.isArray guard MUST be present so absent/null/empty configs
+    // leave the live order untouched (preserves localStorage / schema
+    // default order on legacy views that never recorded columnOrder).
+    expect(body).toMatch(/Array\.isArray\(config\.columnOrder\)/)
+    expect(body).toContain('visualStateStore.setColumnOrder')
+  })
+
+  it('helper filters saved columnOrder to live column ids (B7: stale-id drop)', () => {
+    const body = applySavedColumnStateBody()
+    // The filter step is what implements B7 — phantom ids in the saved order
+    // (schema field removed since save) are silently dropped before write.
+    expect(body).toMatch(
+      /const liveIds = new Set\(visualStateStore\.columns\.map\(\(c\)\s*=>\s*c\.id\)\)/,
+    )
+    expect(body).toMatch(/saved\.filter\(\(id\)\s*=>\s*liveIds\.has\(id\)\)/)
+  })
+
+  it('helper appends current-schema columns missing from saved order (B6: new-column merge)', () => {
+    const body = applySavedColumnStateBody()
+    // The tail-append step is what implements B6 — schema columns added
+    // AFTER the view was saved appear at the end of the order, with their
+    // schema-default visibility (handled by VisualStateStore on the
+    // visibility side).
+    expect(body).toMatch(/const inSaved = new Set\(filtered\)/)
+    expect(body).toMatch(
+      /visualStateStore\.columns\s*\n?\s*\.filter\(\(c\)\s*=>\s*!inSaved\.has\(c\.id\)\)/,
+    )
+    expect(body).toMatch(/setColumnOrder\(\[\.\.\.filtered,\s*\.\.\.tail\]\)/)
+  })
+
+  // ----- B4 (apply-column-visibility-hot, H1 race fix) -----
+
+  it('helper has an H1 fast-path branch when visualStateStore.columns is empty', () => {
+    const body = applySavedColumnStateBody()
+    // The H1 fast-path: when columns are empty (apply ran before
+    // schema hydrated), write the saved record DIRECTLY so the init
+    // guard at VisualStateStore.ts:585-587 sees a non-empty record and
+    // skips the all-visible refill. The merge code at :594-607 then
+    // back-fills defaults for net-new schema columns on its own.
+    expect(body).toMatch(/visualStateStore\.columns\.length === 0/)
+    // The fast-path must write `vis` (the raw saved record) directly, not
+    // a freshly-built `next` map that would be empty.
+    expect(body).toMatch(/visualStateStore\.columnVisibility = vis/)
+  })
+
+  it('helper preserves the TRUE REPLACE rebuild when columns ARE hydrated', () => {
+    const body = applySavedColumnStateBody()
+    // The else branch must still rebuild the visibility record keyed by
+    // the live schema columns so B6 (new columns: !col.hidden) and
+    // B7 (stale ids: dropped) are also satisfied at apply time when
+    // columns are hydrated.
+    expect(body).toContain('const next: Record<string, boolean> = {}')
+    expect(body).toContain('for (const col of visualStateStore.columns)')
+    expect(body).toContain(
+      'next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden',
+    )
+    expect(body).toContain('visualStateStore.columnVisibility = next')
+  })
+
+  // ----- B5 (drag/toggle → hasUnsavedChanges) -----
+
+  // Slicer for the unsaved-changes reaction body — anchor on the comment
+  // block that opens the reaction so we don't accidentally match the
+  // sibling `useViewUrlSync.storeToUrl` reaction (which has the same
+  // tracked-observable shape but doesn't gate hasUnsavedChanges).
+  function unsavedChangesReactionBody(): string {
+    const match = source.match(
+      /When user modifies the grid while a view is active([\s\S]*?)name:\s*'useViewUrlSync\.unsavedChanges'/,
+    )
+    if (!match) {
+      throw new Error(
+        'unsaved-changes reaction comment not found in useViewUrlSync.ts',
+      )
+    }
+    return match[1]
+  }
+
+  it('unsaved-changes reaction tracks columnOrder', () => {
+    // The reaction's tracked-snapshot object must include columnOrder so
+    // drag-reorder flips the amber dot in the ViewPicker trigger.
+    const body = unsavedChangesReactionBody()
+    expect(body).toMatch(
+      /columnOrder:\s*visualStateStore\.columnOrder\.slice\(\)/,
+    )
+  })
+
+  it('unsaved-changes reaction tracks columnVisibility', () => {
+    // Same for visibility toggle — the Columns dropdown must flip the
+    // amber dot too. Snapshot is a plain spread (matches the existing
+    // shape for other tracked observables).
+    const body = unsavedChangesReactionBody()
+    expect(body).toMatch(
+      /columnVisibility:\s*\{\s*\.\.\.\s*visualStateStore\.columnVisibility\s*\}/,
+    )
+  })
+
+  // ----- B8 (cold-load `?view=<id>` apply) -----
+  //
+  // The detailed B8 shape assertions live on the helper body (above) since
+  // the cold-load path delegates to the same helper. These specifically
+  // verify the cold-load path doesn't regress to skipping column state.
+
+  it('cold-load apply body references applySavedColumnState (not skipped)', () => {
+    // Belt-and-suspenders: the cold-load branch must call the helper, not
+    // silently no-op. Without this, hard-refresh would once again show
+    // schema-default columns regardless of what the saved view recorded.
+    const body = coldLoadApplyBody()
+    expect(body).toContain('applySavedColumnState')
+  })
+
+  // ----- handleSaveView snapshot (B1 + B2 in EntityListView.tsx) -----
+  // EntityListView.tsx is the source of truth for the save snapshot — these
+  // assertions live in entity-list-view scope so renaming the snapshot in
+  // EntityListView (without updating the apply path) trips both files.
+
+  it('EntityListView.handleSaveView snapshots columnOrder (B1)', () => {
+    const entityListViewPath = join(
+      __dirname,
+      '../../components/EntityListView.tsx',
+    )
+    const entityListViewSource = readFileSync(entityListViewPath, 'utf-8')
+    // The save snapshot at handleSaveView must include a fresh slice() of
+    // visualStateStore.columnOrder so the post-save oRPC `views.create`
+    // call persists the current drag-reordered column order.
+    expect(entityListViewSource).toMatch(
+      /columnOrder:\s*visualStateStore\.columnOrder\.slice\(\)/,
+    )
+  })
+
+  it('EntityListView.handleSaveView builds columnVisibility keyed by live columns (B2 audit-fix)', () => {
+    const entityListViewPath = join(
+      __dirname,
+      '../../components/EntityListView.tsx',
+    )
+    const entityListViewSource = readFileSync(entityListViewPath, 'utf-8')
+    // The B2 audit-fix replaces `{...visualStateStore.columnVisibility}` with
+    // an explicit Object.fromEntries keyed by the live schema columns. This
+    // is defense-in-depth against any future MobX-observable-shape drift
+    // (H2 was ruled out for the current implementation but the safer
+    // snapshot shape is forward-compatible).
+    expect(entityListViewSource).toMatch(
+      /columnVisibility:\s*Object\.fromEntries\(\s*\n?\s*visualStateStore\.columns\.map/,
+    )
+    // And the snapshot value must be `!== false` (rather than truthy
+    // coercion), so explicit `false` entries persist and `undefined` /
+    // missing entries default to `true` (the schema-default visible).
+    expect(entityListViewSource).toMatch(
+      /visualStateStore\.columnVisibility\[c\.id\]\s*!==\s*false/,
+    )
+  })
+
+  // ====================================
+  // GH#3180 B4: H1 fast-path BEHAVIORAL tests
+  //
+  // These two tests intentionally break this file's source-text-only
+  // convention to lock the H1 fast-path RUNTIME behavior. They exercise the
+  // extracted `applySavedColumnState` helper against a live
+  // VisualStateStore instance — verifying that:
+  //
+  //   (1) When `visualStateStore.columns` is empty (the H1 race condition —
+  //       selectView fires before TableCoreStore.init has hydrated the
+  //       schema), the helper writes the saved `columnVisibility` record
+  //       DIRECTLY (not a freshly-built `{}` that the init guard at
+  //       VisualStateStore.ts:585-587 would then refill with all-visible
+  //       defaults, silently clobbering the saved hides).
+  //
+  //   (2) When `visualStateStore.columns` IS hydrated, the helper rebuilds
+  //       the visibility record keyed by the LIVE schema columns — falling
+  //       back to `!col.hidden` for columns absent from the saved snapshot
+  //       (B6: new schema columns added after save) and dropping ids from
+  //       the saved snapshot that no longer exist in the schema (B7).
+  //
+  // Source-text assertions above pin the literal code shape; these
+  // behavioral tests pin the runtime SEMANTICS so a future refactor that
+  // changes the code shape but breaks the H1 race fix would fail here too.
+  // ====================================
+  describe('applySavedColumnState runtime behavior (H1 fast-path)', () => {
+    it('H1 fast-path: writes saved columnVisibility DIRECTLY when columns are empty', () => {
+      const store = new VisualStateStore()
+      expect(store.columns.length).toBe(0)
+      expect(Object.keys(store.columnVisibility).length).toBe(0)
+
+      const config = {
+        columnVisibility: { a: false, b: true, c: false },
+      }
+      applySavedColumnState(store, config)
+
+      // The fast-path must produce EXACTLY the saved record — not an empty
+      // object (which the init guard at VisualStateStore.ts:585-587 would
+      // then refill with all-visible defaults).
+      expect(store.columnVisibility).toEqual({ a: false, b: true, c: false })
+      // And the record must be non-empty — this is the load-bearing
+      // invariant that lets the init guard short-circuit and preserve the
+      // saved hides through subsequent column hydration.
+      expect(Object.keys(store.columnVisibility).length).toBe(3)
+    })
+
+    it('hydrated branch: rebuilds columnVisibility keyed by LIVE columns (B6 + B7)', () => {
+      const store = new VisualStateStore()
+      // Hydrate the store with three live columns. Two of them have schema
+      // defaults (`hidden: false` ⇒ default visible).
+      const columns: Column[] = [
+        {
+          id: 'a',
+          label: 'A',
+          type: 'text',
+          fieldName: 'a',
+          fieldType: { type: 'text' },
+        } as any,
+        {
+          id: 'b',
+          label: 'B',
+          type: 'text',
+          fieldName: 'b',
+          fieldType: { type: 'text' },
+        } as any,
+        {
+          id: 'd_new',
+          label: 'D (new)',
+          type: 'text',
+          fieldName: 'd_new',
+          fieldType: { type: 'text' },
+          hidden: false,
+        } as any,
+      ]
+      ;(store as any).columns = columns
+
+      // Saved record predates the schema change: it carries `c` (stale —
+      // removed from schema since save) and lacks `d_new` (added since
+      // save). `a` is explicitly hidden, `b` is explicitly visible.
+      const config = {
+        columnVisibility: { a: false, b: true, c: false },
+      }
+      applySavedColumnState(store, config)
+
+      // B7 (stale-id drop): `c` is silently dropped — not present on
+      // visualStateStore.columns, so no entry in the rebuilt record.
+      // B6 (new-column merge): `d_new` is back-filled with `!col.hidden`
+      // (visible by default since `hidden: false`).
+      // Saved hides for live columns are preserved (`a: false`).
+      expect(store.columnVisibility).toEqual({
+        a: false,
+        b: true,
+        d_new: true,
+      })
+      expect('c' in store.columnVisibility).toBe(false)
+    })
   })
 })
