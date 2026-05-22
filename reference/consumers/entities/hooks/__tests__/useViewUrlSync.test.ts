@@ -641,3 +641,87 @@ describe('useViewUrlSync filterGroup round-trip (GH#3119 follow-up)', () => {
     expect(source).toContain('clearFilterGroup')
   })
 })
+
+// ====================================
+// Bug B (PR#10 follow-up): saved-view state must not leak across entity
+// routes. Root cause was React state held by `useViewUrlSync`
+// (activeViewName, defaultViewConfig, initialSearchRef) surviving in-place
+// rerenders of `EntityListViewUrlSync` when `entityName` changed via
+// sidebar nav between entity routes (e.g. RFI → Photo). The hook itself is
+// correct — the fix is to make the consumer remount on entity change by
+// keying `<EntityListViewUrlSync>` on `entityName`.
+//
+// The actual code change lives in
+// `apps/web/src/features/entities/components/EntityListView.tsx`, so the
+// regression guard is asserted via source-text against that file (matches
+// the pattern used by sibling tests in this file + EntityListView-save-view
+// .test.ts). Behavioral coverage via renderHook would require mocking the
+// full VibeGrid store surface + TanStack Router + orpcClient; the
+// source-text approach pins the literal fix that prevents the leak.
+//
+// This test must FAIL without the fix (key prop absent) and PASS with it.
+// ====================================
+
+describe('EntityListView remounts EntityListViewUrlSync on entityName change (Bug B)', () => {
+  const ENTITY_LIST_VIEW_PATH = join(
+    __dirname,
+    '../../components/EntityListView.tsx',
+  )
+
+  let entityListViewSource: string
+
+  beforeEach(() => {
+    if (!existsSync(ENTITY_LIST_VIEW_PATH)) {
+      throw new Error('EntityListView.tsx does not exist')
+    }
+    entityListViewSource = readFileSync(ENTITY_LIST_VIEW_PATH, 'utf-8')
+  })
+
+  it('passes key={entityName} to <EntityListViewUrlSync> so it remounts on entity nav', () => {
+    // Match the opening JSX of <EntityListViewUrlSync> and assert that
+    // `key={entityName}` appears among its attributes. Without the key,
+    // the hook's React state (activeViewName, defaultViewConfig, the
+    // initialSearchRef captured at mount) survives the entity change and
+    // bleeds RFI's "open1" saved-view label / config into the Photo
+    // entity grid.
+    //
+    // Match the opening tag (everything up to the first `>` that's not
+    // inside an attribute). The `\s*key=\{entityName\}` clause must
+    // appear before the closing `>` of the opening tag.
+    const openingTag = entityListViewSource.match(
+      /<EntityListViewUrlSync\b([\s\S]*?)\/?>/,
+    )
+    expect(openingTag).not.toBeNull()
+    expect(openingTag![1]).toMatch(/\bkey=\{entityName\}/)
+  })
+
+  it('the key prop is the FIRST attribute (idiomatic placement)', () => {
+    // Keep the key prop adjacent to the component name so a future reader
+    // sees the remount intent immediately. This also prevents accidental
+    // reordering that would buryit deep in the prop list.
+    expect(entityListViewSource).toMatch(
+      /<EntityListViewUrlSync\s*\n?\s*key=\{entityName\}/,
+    )
+  })
+
+  it('has a one-sentence comment naming the leak class above the JSX element', () => {
+    // The spec asks for an inline rationale so future readers do not
+    // remove the key thinking it's redundant. The comment must mention
+    // both the hook (useViewUrlSync) and at least one of the three
+    // leaking state values so a grep on the leak class lands here.
+    //
+    // Match a `{/* ... */}` JSX comment in the few lines preceding the
+    // opening tag.
+    const blockMatch = entityListViewSource.match(
+      /(\{\/\*[\s\S]*?\*\/\})\s*\n\s*<EntityListViewUrlSync\b/,
+    )
+    expect(blockMatch).not.toBeNull()
+    const comment = blockMatch![1]
+    // Naming the hook anchors the comment to the actual leak source.
+    expect(comment).toContain('useViewUrlSync')
+    // Naming at least one of the leaking values (activeViewName /
+    // defaultViewConfig / initialSearchRef) documents what would leak
+    // without the key.
+    expect(comment).toMatch(/activeViewName|defaultViewConfig|initialSearchRef/)
+  })
+})

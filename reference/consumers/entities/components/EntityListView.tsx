@@ -1046,7 +1046,9 @@ export const EntityListView = observer(function EntityListView(props: EntityList
             parent by the list-widget height, which pushes the ActionsBar off-screen. */}
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <VibeGridStoreProvider tableId={`entity-list-${entityName}`} entityType={entityName}>
+            {/* key={entityName}: remount on entity change so useViewUrlSync state (activeViewName, defaultViewConfig, initialSearchRef) does not leak across routes. */}
             <EntityListViewUrlSync
+              key={entityName}
               entityName={entityName}
               orgId={orgId}
               enableInlineCreation={isInlineCreationEnabled}
