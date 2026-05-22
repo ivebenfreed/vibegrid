@@ -123,6 +123,65 @@ export function serializeGroup(groupConfig: { fields: Array<{ field: string }> }
 }
 
 // ====================================
+// COLUMN-STATE APPLY HELPER (GH#3180)
+// ====================================
+
+/**
+ * GH#3180: applies saved view's `columnOrder` + `columnVisibility` to
+ * the VibeGrid VisualStateStore. Used by both the hot apply
+ * (selectView, on user click) and the cold apply (`?view=<id>` URL
+ * resolved on mount). Centralizes the H1 race fast-path
+ * (columns-empty → write directly) and the B6/B7 merge semantics
+ * (filter to live ids, append missing schema columns at tail).
+ *
+ * No-ops when neither field is present on the config.
+ */
+export function applySavedColumnState(
+  visualStateStore: VibeGridStores['visualStateStore'],
+  config: Record<string, unknown> | null | undefined,
+): void {
+  if (!config) return
+
+  if (config.columnVisibility && typeof config.columnVisibility === 'object') {
+    const vis = config.columnVisibility as Record<string, boolean>
+    if (visualStateStore.columns.length === 0) {
+      // GH#3180 B4 H1 fast-path: when columns haven't hydrated yet, write the
+      // saved record DIRECTLY so the init guard at VisualStateStore.ts:585-587
+      // sees a non-empty record and skips the all-visible refill. The merge
+      // code at VisualStateStore.ts:594-607 back-fills defaults for net-new
+      // schema column ids on its own, satisfying B6.
+      visualStateStore.columnVisibility = vis
+    } else {
+      const next: Record<string, boolean> = {}
+      for (const col of visualStateStore.columns) {
+        next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden
+      }
+      visualStateStore.columnVisibility = next
+    }
+  }
+
+  if (Array.isArray(config.columnOrder)) {
+    const saved = config.columnOrder as string[]
+    if (visualStateStore.columns.length === 0) {
+      // H1 fast-path mirror — write the saved order directly and let
+      // initializeColumns's own merge loop append net-new ids on its side.
+      visualStateStore.setColumnOrder(saved)
+    } else {
+      // B3 + B6 + B7: filter to live ids (B7: stale ids silently dropped),
+      // then append current-schema column ids missing from the saved order
+      // (B6: new schema columns appear at the end with default visibility).
+      const liveIds = new Set(visualStateStore.columns.map((c) => c.id))
+      const filtered = saved.filter((id) => liveIds.has(id))
+      const inSaved = new Set(filtered)
+      const tail = visualStateStore.columns
+        .filter((c) => !inSaved.has(c.id))
+        .map((c) => c.id)
+      visualStateStore.setColumnOrder([...filtered, ...tail])
+    }
+  }
+}
+
+// ====================================
 // HOOK
 // ====================================
 
@@ -243,24 +302,17 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
           visualStateStore.setGlobalSearchText('')
         }
 
-        // Apply column visibility from config as a TRUE REPLACE (not an
-        // additive merge). The previous loop only wrote the keys present in
-        // the saved config and left other keys (e.g. columns added to the
-        // schema after the view was saved, or columns the user manually
-        // toggled between switches) untouched. That made "switch view" feel
-        // half-applied — sort/filter switched cleanly but column visibility
-        // partially carried over. Rebuild a fresh map from the current schema
-        // columns so the saved snapshot is canonical and new schema columns
-        // fall back to their `!col.hidden` default (matching
-        // VisualStateStore.initialize/initializeColumns).
-        if (config.columnVisibility && typeof config.columnVisibility === 'object') {
-          const vis = config.columnVisibility as Record<string, boolean>
-          const next: Record<string, boolean> = {}
-          for (const col of visualStateStore.columns) {
-            next[col.id] = col.id in vis ? !!vis[col.id] : !col.hidden
-          }
-          visualStateStore.columnVisibility = next
-        }
+        // GH#3180: apply saved column state (visibility + order). The helper
+        // centralizes the TRUE-REPLACE semantics (rebuild fresh map keyed by
+        // live schema columns so "switch view" replaces wholesale rather than
+        // additively merging), the H1 race fast-path (columns-empty → write
+        // directly so the init guard at VisualStateStore.ts:585-587 sees a
+        // non-empty record and skips the all-visible refill), and the B6/B7
+        // merge semantics (filter to live ids, append schema columns missing
+        // from the saved order at the tail). Shared with the cold-load
+        // `applyLoadedViews` branch below so picker-click and `?view=<id>`
+        // hard-refresh produce identical grid state.
+        applySavedColumnState(visualStateStore, config)
       })
 
       // Update URL with view= AND the view's full layered state (sort/filter/
@@ -545,6 +597,18 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
                   })
                 }
               }
+
+              // GH#3180 B8 — cold-load column state apply (columnVisibility
+              // + columnOrder). The URL doesn't carry these dimensions
+              // (no `?cv=` / `?co=`), so they always apply when the view
+              // carries them. Shared helper with the hot-apply branch in
+              // selectView above so the picker-click path and the cold-
+              // refresh path produce identical grid state. H1 race fix
+              // (columns-empty fast-path inside the helper) is critical here
+              // — the schema load is fully async via TableCoreStore.init(),
+              // so on cold refresh `visualStateStore.columns` is usually
+              // still empty when this runs.
+              applySavedColumnState(visualStateStore, config)
             })
             requestAnimationFrame(() => {
               suppressUrlUpdateRef.current = false
@@ -699,6 +763,11 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
     const { visualStateStore, viewModeStore } = stores
 
     // When user modifies the grid while a view is active, mark as unsaved
+    // GH#3180 B5: include columnOrder + columnVisibility so column drag-
+    // reorder and visibility toggles (Columns dropdown) flip the unsaved
+    // indicator alongside sort/filter/group/mode/q. Without this, the user
+    // could drag or hide a column with no UI signal that the active saved
+    // view no longer matches.
     const dispose = reaction(
       () => ({
         sortBy: visualStateStore.sortBy.slice(),
@@ -706,6 +775,8 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
         groupConfig: visualStateStore.groupConfig,
         viewMode: viewModeStore.mode,
         globalSearchText: visualStateStore.globalSearchText,
+        columnOrder: visualStateStore.columnOrder.slice(),
+        columnVisibility: { ...visualStateStore.columnVisibility },
       }),
       () => {
         if (!suppressUrlUpdateRef.current) {
