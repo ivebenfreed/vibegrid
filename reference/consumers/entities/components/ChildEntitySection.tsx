@@ -607,7 +607,7 @@ export function ChildEntitySection({
                     112 + GRID_DIMENSIONS.HEADER_HEIGHT + childRecords.length * GRID_DIMENSIONS.ROW_HEIGHT + 16,
                     500,
                   )}
-                  enableSelectionColumn={childEntityType === 'PaymentLine'}
+                  enableSelectionColumn={true}
                   enableGrouping={false}
                   enableFiltering={false}
                   enableSorting={true}
