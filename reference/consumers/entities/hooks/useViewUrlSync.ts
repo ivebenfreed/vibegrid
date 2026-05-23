@@ -16,7 +16,8 @@ import { reaction, runInAction } from 'mobx'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useFeatureFlags } from '@/app/stores'
-import { orpcClient } from '@/shared/data/orpc/client'
+import { loadViews } from '@/shared/data/orpc/domains/views-fetch'
+import { viewsStore } from '@/shared/data/stores/ViewsStore'
 import { getLogger } from '@/shared/lib/logging'
 import type { EntityViewRow } from '@/systems/vibegrid/components/ViewPicker'
 import type { VibeGridStores } from '@/systems/vibegrid/stores/context'
@@ -459,136 +460,153 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
 
     let cancelled = false
 
-    const loadViews = async (): Promise<void> => {
-      try {
-        const result = await orpcClient.dataforge.views.list({ entityName: entityType })
-        if (cancelled) return
+    const applyLoadedViews = (result: { views: EntityViewRow[] }): void => {
+      const initialViewId = initialSearchRef.current.view
 
-        const initialViewId = initialSearchRef.current.view
-
-        if (initialViewId) {
-          // URL named a view — resolve config from it without re-applying.
-          const activeView = result.views.find(
-            (v: { id: string }) => v.id === initialViewId,
-          )
-          const resolved =
-            activeView ??
-            result.views.find((v: { is_default: boolean }) => v.is_default) ??
-            result.views[0] ??
-            null
-          setDefaultViewConfig(resolved?.config ?? null)
-          if (activeView) {
-            // Ensure activeViewId state matches the URL even if the
-            // URL→Store effect already set it; harmless re-set.
-            setActiveViewId(activeView.id)
-            setActiveViewName((activeView as { name: string }).name)
-
-            // GH#3016 4th fix: write the saved view's filter/sort/group into
-            // visualStateStore on cold-nav so the substrate's sort/filter
-            // reaction (fireImmediately: false, in use-substrate-grid-rows.ts)
-            // actually fires. Without this write, the URL→Store effect above
-            // leaves filters/sortBy empty (no `?filter=` in URL to apply), the
-            // reaction never observes a reactive change, and the substrate's
-            // query.shape.filter stays `undefined` — so the grid renders the
-            // unfiltered result set despite the saved view's filter being
-            // configured.
-            //
-            // Skip per-dimension when the URL carries an explicit override
-            // (`?sort=`, `?filter=`, `?group=`), so we don't clobber layered
-            // deep-linked state — preserves the original contract documented
-            // in the comment block at :337–350.
-            const config = activeView.config as Record<string, unknown> | null
-            if (config) {
-              const initialSearch = initialSearchRef.current
-              const { visualStateStore } = stores
-              // Suppress Store→URL sync while we apply view config, since the
-              // URL already encodes this via `?view=<id>`.
-              suppressUrlUpdateRef.current = true
-              runInAction(() => {
-                if (!initialSearch.filter && Array.isArray(config.filters)) {
-                  visualStateStore.filters = config.filters as FilterConfig[]
-                }
-                // GH#3119 follow-up: also apply/clear filterGroup. The URL
-                // doesn't carry filterGroup, so the only guard is whether
-                // the URL has a layered `?filter=`. If it does, leave
-                // filterGroup alone — the layered URL takes precedence. If
-                // not, apply (or clear) filterGroup from the saved config.
-                if (!initialSearch.filter) {
-                  if (config.filterGroup && typeof config.filterGroup === 'object') {
-                    visualStateStore.applyFilterGroup(config.filterGroup as FilterGroup)
-                  } else {
-                    visualStateStore.clearFilterGroup()
-                  }
-                }
-                if (!initialSearch.sort && Array.isArray(config.sortBy)) {
-                  visualStateStore.sortBy = config.sortBy as Array<{
-                    field: string
-                    direction: 'asc' | 'desc'
-                  }>
-                }
-                if (
-                  !initialSearch.group &&
-                  config.groupConfig &&
-                  typeof config.groupConfig === 'object'
-                ) {
-                  const gc = config.groupConfig as Record<string, unknown>
-                  if (Array.isArray(gc.fields) && gc.fields.length > 0) {
-                    visualStateStore.setGroupConfig({
-                      fields: gc.fields as Array<{
-                        field: string
-                        displayName: string
-                      }>,
-                      sortBy:
-                        (gc.sortBy as 'name' | 'count' | 'custom') || 'name',
-                      sortDirection:
-                        (gc.sortDirection as 'asc' | 'desc') || 'asc',
-                      aggregations:
-                        (gc.aggregations as AggregationConfig[]) || [],
-                      expandedGroups: new Set(),
-                    })
-                  }
-                }
-              })
-              requestAnimationFrame(() => {
-                suppressUrlUpdateRef.current = false
-              })
-            }
-          }
-          return
-        }
-
-        // No ?view= in URL — resolve the default view's config so widgets +
-        // extra tabs still render, but only call selectView (which clobbers
-        // sort/filter/group/mode/search to the view's config) when the URL
-        // carries no layered state. Otherwise selectView would silently
-        // overwrite the user's deep-linked `?sort=` / `?filter=` / `?group=`
-        // / `?mode=` / `?q=` with the default view's defaults (typically
-        // empty), and the Store→URL reaction would then strip those params
-        // out of the URL — making deep-linked search look like the search
-        // bar is broken and causing two back-to-back loading-skeleton
-        // flashes (URL→Store and the selectView clobber each fire a
-        // separate substrate sort/filter reaction, each clobbers the
-        // loaded window before its query.patch round-trip resolves).
-        const defaultView = result.views.find(
-          (v: { is_default: boolean }) => v.is_default,
+      if (initialViewId) {
+        // URL named a view — resolve config from it without re-applying.
+        const activeView = result.views.find(
+          (v: { id: string }) => v.id === initialViewId,
         )
-        const resolvedView = defaultView ?? result.views[0] ?? null
-        setDefaultViewConfig(resolvedView?.config ?? null)
+        const resolved =
+          activeView ??
+          result.views.find((v: { is_default: boolean }) => v.is_default) ??
+          result.views[0] ??
+          null
+        setDefaultViewConfig(resolved?.config ?? null)
+        if (activeView) {
+          // Ensure activeViewId state matches the URL even if the
+          // URL→Store effect already set it; harmless re-set.
+          setActiveViewId(activeView.id)
+          setActiveViewName((activeView as { name: string }).name)
 
-        const urlHasLayeredState =
-          !!initialSearchRef.current.sort ||
-          !!initialSearchRef.current.filter ||
-          !!initialSearchRef.current.group ||
-          !!initialSearchRef.current.mode ||
-          initialSearchRef.current.q !== undefined
-
-        if (defaultView && !cancelled && !urlHasLayeredState) {
-          logger.info('Loading default view', {
-            viewId: defaultView.id,
-            viewName: defaultView.name,
-          })
-          selectView(defaultView as EntityViewRow)
+          // GH#3016 4th fix: write the saved view's filter/sort/group into
+          // visualStateStore on cold-nav so the substrate's sort/filter
+          // reaction (fireImmediately: false, in use-substrate-grid-rows.ts)
+          // actually fires. Without this write, the URL→Store effect above
+          // leaves filters/sortBy empty (no `?filter=` in URL to apply), the
+          // reaction never observes a reactive change, and the substrate's
+          // query.shape.filter stays `undefined` — so the grid renders the
+          // unfiltered result set despite the saved view's filter being
+          // configured.
+          //
+          // Skip per-dimension when the URL carries an explicit override
+          // (`?sort=`, `?filter=`, `?group=`), so we don't clobber layered
+          // deep-linked state — preserves the original contract documented
+          // in the comment block at :337–350.
+          const config = activeView.config as Record<string, unknown> | null
+          if (config) {
+            const initialSearch = initialSearchRef.current
+            const { visualStateStore } = stores
+            // Suppress Store→URL sync while we apply view config, since the
+            // URL already encodes this via `?view=<id>`.
+            suppressUrlUpdateRef.current = true
+            runInAction(() => {
+              if (!initialSearch.filter && Array.isArray(config.filters)) {
+                visualStateStore.filters = config.filters as FilterConfig[]
+              }
+              // GH#3119 follow-up: also apply/clear filterGroup. The URL
+              // doesn't carry filterGroup, so the only guard is whether
+              // the URL has a layered `?filter=`. If it does, leave
+              // filterGroup alone — the layered URL takes precedence. If
+              // not, apply (or clear) filterGroup from the saved config.
+              if (!initialSearch.filter) {
+                if (config.filterGroup && typeof config.filterGroup === 'object') {
+                  visualStateStore.applyFilterGroup(config.filterGroup as FilterGroup)
+                } else {
+                  visualStateStore.clearFilterGroup()
+                }
+              }
+              if (!initialSearch.sort && Array.isArray(config.sortBy)) {
+                visualStateStore.sortBy = config.sortBy as Array<{
+                  field: string
+                  direction: 'asc' | 'desc'
+                }>
+              }
+              if (
+                !initialSearch.group &&
+                config.groupConfig &&
+                typeof config.groupConfig === 'object'
+              ) {
+                const gc = config.groupConfig as Record<string, unknown>
+                if (Array.isArray(gc.fields) && gc.fields.length > 0) {
+                  visualStateStore.setGroupConfig({
+                    fields: gc.fields as Array<{
+                      field: string
+                      displayName: string
+                    }>,
+                    sortBy:
+                      (gc.sortBy as 'name' | 'count' | 'custom') || 'name',
+                    sortDirection:
+                      (gc.sortDirection as 'asc' | 'desc') || 'asc',
+                    aggregations:
+                      (gc.aggregations as AggregationConfig[]) || [],
+                    expandedGroups: new Set(),
+                  })
+                }
+              }
+            })
+            requestAnimationFrame(() => {
+              suppressUrlUpdateRef.current = false
+            })
+          }
         }
+        return
+      }
+
+      // No ?view= in URL — resolve the default view's config so widgets +
+      // extra tabs still render, but only call selectView (which clobbers
+      // sort/filter/group/mode/search to the view's config) when the URL
+      // carries no layered state. Otherwise selectView would silently
+      // overwrite the user's deep-linked `?sort=` / `?filter=` / `?group=`
+      // / `?mode=` / `?q=` with the default view's defaults (typically
+      // empty), and the Store→URL reaction would then strip those params
+      // out of the URL — making deep-linked search look like the search
+      // bar is broken and causing two back-to-back loading-skeleton
+      // flashes (URL→Store and the selectView clobber each fire a
+      // separate substrate sort/filter reaction, each clobbers the
+      // loaded window before its query.patch round-trip resolves).
+      const defaultView = result.views.find(
+        (v: { is_default: boolean }) => v.is_default,
+      )
+      const resolvedView = defaultView ?? result.views[0] ?? null
+      setDefaultViewConfig(resolvedView?.config ?? null)
+
+      const urlHasLayeredState =
+        !!initialSearchRef.current.sort ||
+        !!initialSearchRef.current.filter ||
+        !!initialSearchRef.current.group ||
+        !!initialSearchRef.current.mode ||
+        initialSearchRef.current.q !== undefined
+
+      if (defaultView && !urlHasLayeredState) {
+        logger.info('Loading default view', {
+          viewId: defaultView.id,
+          viewName: defaultView.name,
+        })
+        selectView(defaultView as EntityViewRow)
+      }
+    }
+
+    // PR #3175 follow-up: stale-while-revalidate via ViewsStore. If the
+    // cache has an entry for this entity (from a prior consumer mount),
+    // prime `defaultViewConfig` + active-view state synchronously so the
+    // first paint isn't blocked on the network. Then `loadViews` fetches
+    // fresh and re-applies if the server returned something new.
+    const cachedEntry = viewsStore.get(entityType)
+    if (cachedEntry) {
+      applyLoadedViews({ views: cachedEntry.views })
+    }
+
+    const runFetch = async (): Promise<void> => {
+      try {
+        const entry = await loadViews(entityType)
+        if (cancelled) return
+        // The store now holds fresh data. Re-run resolution against it so
+        // any net-new views / config updates surface. The selectView path
+        // is gated on `urlHasLayeredState` so we don't double-clobber a
+        // user's deep-linked state on this second pass.
+        applyLoadedViews({ views: entry.views })
       } catch (err) {
         logger.warn('Failed to load views', {
           error: err instanceof Error ? err.message : String(err),
@@ -596,11 +614,11 @@ export function useViewUrlSync(options: UseViewUrlSyncOptions): UseViewUrlSyncRe
       }
     }
 
-    loadViews()
+    runFetch()
     return () => {
       cancelled = true
     }
-  }, [isEnabled, entityType, selectView])
+  }, [isEnabled, entityType, selectView, stores])
 
   // ====================================
   // STORE -> URL (on user interaction)

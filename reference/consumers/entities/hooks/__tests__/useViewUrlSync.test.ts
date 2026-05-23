@@ -235,13 +235,20 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
     source = readFileSync(HOOK_PATH, 'utf-8')
   })
 
-  it('should import orpcClient for default view fetching', () => {
-    expect(source).toContain("from '@/shared/data/orpc/client'")
-    expect(source).toContain('orpcClient')
+  it('should import loadViews + viewsStore for default view fetching (PR #3175)', () => {
+    // The fetch was migrated off the bare orpcClient call to the
+    // stale-while-revalidate helper pair: `loadViews` is the awaiting fetch,
+    // `viewsStore` is the in-memory cache that drives synchronous first-paint
+    // resolution before the network round-trip lands.
+    expect(source).toContain("from '@/shared/data/orpc/domains/views-fetch'")
+    expect(source).toContain("from '@/shared/data/stores/ViewsStore'")
+    expect(source).toContain('loadViews')
+    expect(source).toContain('viewsStore')
   })
 
-  it('should call orpcClient.dataforge.views.list to fetch default view', () => {
-    expect(source).toContain('orpcClient.dataforge.views.list')
+  it('should call loadViews(entityType) to fetch the default view (PR #3175)', () => {
+    // Replaces the previous direct `orpcClient.dataforge.views.list` call.
+    expect(source).toContain('loadViews(entityType)')
   })
 
   it('should check initialSearchRef.current.view before loading default', () => {
@@ -290,8 +297,10 @@ describe('useViewUrlSync default view loading (P2.5)', () => {
   })
 
   it('should include selectView in useEffect dependencies', () => {
-    // The view-loading useEffect should depend on selectView
-    expect(source).toContain('selectView]')
+    // The view-loading useEffect should depend on selectView. PR #3175
+    // added `stores` to the same deps array (cached-apply now reads
+    // `stores.visualStateStore`), so anchor on the comma-separated form.
+    expect(source).toMatch(/\[isEnabled, entityType, selectView(?:,|\])/)
   })
 })
 
@@ -510,7 +519,12 @@ describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
     // an empty array and the tab strip disappeared on refresh.
     // Match: inside the `if (initialViewId) { ... }` block, we call
     // setDefaultViewConfig before returning.
-    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    // Match the `if (initialViewId) { ... }` block.
+    // Indent-tolerant: the spec restructure flattened the inner indentation
+    // by one level (no `try/catch` wrapper); accept any indent on the
+    // closing brace. Pair the brace with the trailing blank line to anchor
+    // to the right `}` (the inner `if (activeView) {` blocks are nested).
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s*\}\n\n/)
     expect(block).not.toBeNull()
     expect(block![1]).toContain('setDefaultViewConfig(')
   })
@@ -519,7 +533,12 @@ describe('useViewUrlSync active view config loading (GH#2689 B7)', () => {
     // selectView would clobber URL-layered sort/filter overrides on
     // a deep-link, since the URL→Store effect has already applied
     // them. Only call selectView in the default-view branch.
-    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s{8}\}/)
+    // Match the `if (initialViewId) { ... }` block.
+    // Indent-tolerant: the spec restructure flattened the inner indentation
+    // by one level (no `try/catch` wrapper); accept any indent on the
+    // closing brace. Pair the brace with the trailing blank line to anchor
+    // to the right `}` (the inner `if (activeView) {` blocks are nested).
+    const block = source.match(/if \(initialViewId\)\s*\{([\s\S]*?)\n\s*\}\n\n/)
     expect(block).not.toBeNull()
     expect(block![1]).not.toContain('selectView(')
   })
@@ -620,5 +639,89 @@ describe('useViewUrlSync filterGroup round-trip (GH#3119 follow-up)', () => {
     // Belt-and-suspenders presence check — both branches must exist.
     expect(source).toContain('applyFilterGroup')
     expect(source).toContain('clearFilterGroup')
+  })
+})
+
+// ====================================
+// Bug B (PR#10 follow-up): saved-view state must not leak across entity
+// routes. Root cause was React state held by `useViewUrlSync`
+// (activeViewName, defaultViewConfig, initialSearchRef) surviving in-place
+// rerenders of `EntityListViewUrlSync` when `entityName` changed via
+// sidebar nav between entity routes (e.g. RFI → Photo). The hook itself is
+// correct — the fix is to make the consumer remount on entity change by
+// keying `<EntityListViewUrlSync>` on `entityName`.
+//
+// The actual code change lives in
+// `apps/web/src/features/entities/components/EntityListView.tsx`, so the
+// regression guard is asserted via source-text against that file (matches
+// the pattern used by sibling tests in this file + EntityListView-save-view
+// .test.ts). Behavioral coverage via renderHook would require mocking the
+// full VibeGrid store surface + TanStack Router + orpcClient; the
+// source-text approach pins the literal fix that prevents the leak.
+//
+// This test must FAIL without the fix (key prop absent) and PASS with it.
+// ====================================
+
+describe('EntityListView remounts EntityListViewUrlSync on entityName change (Bug B)', () => {
+  const ENTITY_LIST_VIEW_PATH = join(
+    __dirname,
+    '../../components/EntityListView.tsx',
+  )
+
+  let entityListViewSource: string
+
+  beforeEach(() => {
+    if (!existsSync(ENTITY_LIST_VIEW_PATH)) {
+      throw new Error('EntityListView.tsx does not exist')
+    }
+    entityListViewSource = readFileSync(ENTITY_LIST_VIEW_PATH, 'utf-8')
+  })
+
+  it('passes key={entityName} to <EntityListViewUrlSync> so it remounts on entity nav', () => {
+    // Match the opening JSX of <EntityListViewUrlSync> and assert that
+    // `key={entityName}` appears among its attributes. Without the key,
+    // the hook's React state (activeViewName, defaultViewConfig, the
+    // initialSearchRef captured at mount) survives the entity change and
+    // bleeds RFI's "open1" saved-view label / config into the Photo
+    // entity grid.
+    //
+    // Match the opening tag (everything up to the first `>` that's not
+    // inside an attribute). The `\s*key=\{entityName\}` clause must
+    // appear before the closing `>` of the opening tag.
+    const openingTag = entityListViewSource.match(
+      /<EntityListViewUrlSync\b([\s\S]*?)\/?>/,
+    )
+    expect(openingTag).not.toBeNull()
+    expect(openingTag![1]).toMatch(/\bkey=\{entityName\}/)
+  })
+
+  it('the key prop is the FIRST attribute (idiomatic placement)', () => {
+    // Keep the key prop adjacent to the component name so a future reader
+    // sees the remount intent immediately. This also prevents accidental
+    // reordering that would buryit deep in the prop list.
+    expect(entityListViewSource).toMatch(
+      /<EntityListViewUrlSync\s*\n?\s*key=\{entityName\}/,
+    )
+  })
+
+  it('has a one-sentence comment naming the leak class above the JSX element', () => {
+    // The spec asks for an inline rationale so future readers do not
+    // remove the key thinking it's redundant. The comment must mention
+    // both the hook (useViewUrlSync) and at least one of the three
+    // leaking state values so a grep on the leak class lands here.
+    //
+    // Match a `{/* ... */}` JSX comment in the few lines preceding the
+    // opening tag.
+    const blockMatch = entityListViewSource.match(
+      /(\{\/\*[\s\S]*?\*\/\})\s*\n\s*<EntityListViewUrlSync\b/,
+    )
+    expect(blockMatch).not.toBeNull()
+    const comment = blockMatch![1]
+    // Naming the hook anchors the comment to the actual leak source.
+    expect(comment).toContain('useViewUrlSync')
+    // Naming at least one of the leaking values (activeViewName /
+    // defaultViewConfig / initialSearchRef) documents what would leak
+    // without the key.
+    expect(comment).toMatch(/activeViewName|defaultViewConfig|initialSearchRef/)
   })
 })
