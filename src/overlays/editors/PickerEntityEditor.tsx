@@ -16,14 +16,18 @@ interface PickerEntityEditorProps {
 export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCancel }: PickerEntityEditorProps) {
   const [hasCommitted, setHasCommitted] = React.useState(false)
   const _cellType = (column.cellType || column.type) as CellType
-  const isUserReference = false // Legacy user_reference removed; person field handles user references
 
   const targetEntityType =
     (column as any).relationshipConfig?.targetEntityType ||
     (column as any).targetEntityType ||
     (column as any).relationshipTargetEntity
 
-  const relArchetypeInfo = useRelationshipArchetype(isUserReference ? undefined : targetEntityType)
+  // GH#3179: route User-target relationships to UserPicker (reads from
+  // useMembersCollection). EntityPicker would try to load a `User`
+  // DataForge entity that doesn't exist — see system-entity-names.ts.
+  const isUserTarget = targetEntityType === 'User'
+
+  const relArchetypeInfo = useRelationshipArchetype(isUserTarget ? undefined : targetEntityType)
 
   const displayField =
     (column as any).relationshipConfig?.displayField || (column as any).relationshipDisplayField || 'name'
@@ -76,7 +80,7 @@ export function PickerEntityEditor({ cell, column, initialValue, onCommit, onCan
     onCancel()
   }, [hasCommitted, onCancel])
 
-  if (isUserReference) {
+  if (isUserTarget) {
     return (
       <UserPicker
         value={initialValue}
