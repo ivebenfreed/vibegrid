@@ -488,3 +488,88 @@ describe('ViewPicker Pin Reorder Support (P2.5)', () => {
     expect(source).toContain('view_ids: newOrder')
   })
 })
+
+// ====================================
+// GH#3188 — active-view sync on delete (parent-notify wiring)
+// ====================================
+
+describe('ViewPicker active-view delete callback (GH#3188)', () => {
+  let source: string
+
+  beforeEach(() => {
+    if (!componentExists()) return
+    source = getSourceCode()
+  })
+
+  it('declares optional onActiveViewDeleted prop on ViewPickerProps', () => {
+    expect(source).toContain('onActiveViewDeleted?: () => void')
+  })
+
+  it('destructures onActiveViewDeleted from props', () => {
+    // Match the destructure even if the order of args shifts.
+    expect(source).toMatch(/onDuplicateView,\s*\n\s*onActiveViewDeleted,/)
+  })
+
+  it('handleDelete fires onActiveViewDeleted when deleting the active view', () => {
+    // The check must be wired in handleDelete (post-success), guarded
+    // by `viewId === activeViewId`. Verifying both pieces individually
+    // keeps the assertion robust against minor formatting drift.
+    const handleDeleteBody = source.match(
+      /const handleDelete = useCallback\(([\s\S]*?)\n {4}\[entityType[\s\S]*?\],\s*\n {2}\)/,
+    )
+    if (!handleDeleteBody) {
+      throw new Error('handleDelete callback not found in ViewPicker.tsx')
+    }
+    const body = handleDeleteBody[1]
+    expect(body).toContain('if (viewId === activeViewId)')
+    expect(body).toContain('onActiveViewDeleted?.()')
+  })
+
+  it('handleDelete includes activeViewId and onActiveViewDeleted in deps', () => {
+    // Without these in the dep array, the callback would close over a
+    // stale activeViewId / parent callback after the active view
+    // changes via picker selection.
+    const depMatch = source.match(
+      /const handleDelete = useCallback\([\s\S]*?\n {4}\[(entityType[^\]]*)\],/,
+    )
+    if (!depMatch) {
+      throw new Error('handleDelete dep array not found')
+    }
+    expect(depMatch[1]).toContain('activeViewId')
+    expect(depMatch[1]).toContain('onActiveViewDeleted')
+  })
+
+  // Locked-in negative B5/B6: handleSetDefault MUST NOT touch active view
+  // state. Setting a view as default is a separate concern from
+  // selecting it, and conflating the two would break the user's current
+  // session (they'd jump from their selected view to the new default).
+  it('handleSetDefault does NOT call onActiveViewDeleted or setActiveViewId', () => {
+    const handleSetDefaultBody = source.match(
+      /const handleSetDefault = useCallback\(([\s\S]*?)\n {4}\[entityType\],\s*\n {2}\)/,
+    )
+    if (!handleSetDefaultBody) {
+      throw new Error('handleSetDefault callback not found in ViewPicker.tsx')
+    }
+    const body = handleSetDefaultBody[1]
+    expect(body).not.toContain('onActiveViewDeleted')
+    expect(body).not.toContain('setActiveViewId')
+  })
+
+  // Locked-in negative: handlePin / handleUnpin / handleReorderPins MUST
+  // NOT touch active view state either — pinning a view is independent
+  // of selecting it. Bundled into one assertion since they're three
+  // tiny callbacks with identical invariants.
+  it('handlePin / handleUnpin / handleReorderPins do NOT touch active view state', () => {
+    for (const handler of ['handlePin', 'handleUnpin', 'handleReorderPins']) {
+      const body = source.match(
+        new RegExp(`const ${handler} = useCallback\\(([\\s\\S]*?)\\n {4}\\[`),
+      )
+      if (!body) {
+        throw new Error(`${handler} not found in ViewPicker.tsx`)
+      }
+      expect(body[1], `${handler} must not call onActiveViewDeleted`).not.toContain(
+        'onActiveViewDeleted',
+      )
+    }
+  })
+})

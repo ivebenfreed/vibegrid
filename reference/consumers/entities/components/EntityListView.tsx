@@ -44,6 +44,7 @@ import type { ViewMode } from '@/systems/vibegrid/stores/ViewModeStore'
 import { ReorderConfirmationDialog } from '@/systems/vibegrid/components/ReorderConfirmationDialog'
 import { SaveViewDialog } from '@/systems/vibegrid/components/SaveViewDialog'
 import type { ViewVisibility } from '@/systems/vibegrid/components/SaveViewDialog'
+import type { EntityViewRow } from '@/systems/vibegrid/components/ViewPicker'
 import { VibeGridStoreProvider, useVibeGridStores } from '@/systems/vibegrid/stores/context'
 import { useEntityUpload } from '../hooks/useEntityUpload'
 import { useViewUrlSync } from '../hooks/useViewUrlSync'
@@ -166,25 +167,51 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const isAdmin = userRole === 'admin' || userRole === 'owner'
   const hasWriteAccess = userRole !== 'viewer'
 
+  // GH#3188: extract the create+activate pattern so Save and Duplicate
+  // share a single source of truth. After creating a view server-side,
+  // we re-prime the SWR cache (so the picker dropdown repaints) and then
+  // call selectView(created) — but inside queueMicrotask so any open
+  // dialog (e.g. SaveViewDialog) has a chance to finish its close
+  // animation before the URL nav fires. Without selectView, the toolbar
+  // pill, dropdown active indicator, and `?view=<UUID>` URL param all
+  // stay stale (issue surfaces as "Save / Duplicate looks like a no-op").
+  const createAndActivateView = useCallback(
+    async (input: {
+      entityName: string
+      name: string
+      visibility: ViewVisibility
+      config: Record<string, unknown>
+    }) => {
+      const created = await orpcClient.dataforge.views.create(input)
+      // PR #3175: re-prime the saved-views cache so the picker repaints.
+      await refreshViews(input.entityName)
+      // GH#3188: activate the newly-created view so the URL `?view=<id>`,
+      // toolbar pill, and dropdown active indicator all flip together.
+      // queueMicrotask defers the nav by one task so any closing dialog
+      // (SaveViewDialog) doesn't visibly race the URL change.
+      queueMicrotask(() => selectView(created as EntityViewRow))
+      return created
+    },
+    [selectView],
+  )
+
   // Duplicate view: create a personal copy with "(copy)" suffix
   const handleDuplicateView = useCallback(
     async (view: { entity_type: string; name: string; config: Record<string, unknown> }) => {
       try {
-        await orpcClient.dataforge.views.create({
+        await createAndActivateView({
           entityName,
           name: `${view.name} (copy)`,
           visibility: 'personal',
           config: view.config,
         })
-        // PR #3175: re-prime the saved-views cache so the picker repaints.
-        await refreshViews(entityName)
         toast.success('View duplicated to My Views')
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to duplicate view'
         toast.error(msg)
       }
     },
-    [entityName],
+    [entityName, createAndActivateView],
   )
 
   // Save current view config to server
@@ -242,19 +269,16 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
         ...(childEntityTabs.length === 1 ? { childEntityConfig: childEntityTabs[0] } : {}),
       }
 
-      await orpcClient.dataforge.views.create({
+      await createAndActivateView({
         entityName,
         name,
         visibility,
         config,
       })
-      // PR #3175: re-prime the saved-views cache so the picker shows the
-      // new view immediately, no popover-open round-trip required.
-      await refreshViews(entityName)
 
       toast.success('View saved')
     },
-    [entityName, stores],
+    [entityName, stores, createAndActivateView],
   )
 
   const viewPickerProps = {
@@ -267,6 +291,11 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     onSaveView: () => setSaveDialogOpen(true),
     onUnsavedSelect: clearView,
     onDuplicateView: handleDuplicateView,
+    // GH#3188: when ViewPicker deletes the active view, flip the toolbar
+    // back to "(Unsaved)" and strip `?view=<id>` from the URL. Without
+    // this the pill keeps showing the deleted view's name and the URL
+    // still references its UUID until next manual nav.
+    onActiveViewDeleted: clearView,
     userId,
     userRole,
   }
