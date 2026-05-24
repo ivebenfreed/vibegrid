@@ -96,6 +96,14 @@ export interface ViewPickerProps {
   onSaveView: () => void
   onUnsavedSelect: () => void
   onDuplicateView?: (view: EntityViewRow) => void
+  /**
+   * GH#3188: invoked when the currently-active view is deleted from the
+   * picker. Parents wire this to the same `clearView` callback the
+   * "(Unsaved)" item uses, so the toolbar pill, dropdown active
+   * indicator, and `?view=<UUID>` URL param all flip back together. No-
+   * op when the deleted view wasn't the active one.
+   */
+  onActiveViewDeleted?: () => void
   userId: string
   userRole: string
 }
@@ -141,6 +149,7 @@ export const ViewPicker = observer(function ViewPicker({
   onSaveView,
   onUnsavedSelect,
   onDuplicateView,
+  onActiveViewDeleted,
   userId,
   userRole,
 }: ViewPickerProps) {
@@ -211,12 +220,20 @@ export const ViewPicker = observer(function ViewPicker({
         await orpcClient.dataforge.views.delete({ view_id: viewId })
         toast.success('View deleted')
         await refreshViews(entityType)
+        // GH#3188: if the active view was deleted, notify the parent so
+        // it can flip the toolbar pill back to "(Unsaved)" and strip
+        // `?view=<id>` from the URL. Without this, the URL keeps a
+        // dangling reference to a now-deleted view UUID and the pill
+        // shows its stale name until the next manual nav.
+        if (viewId === activeViewId) {
+          onActiveViewDeleted?.()
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to delete view'
         toast.error(msg)
       }
     },
-    [entityType],
+    [entityType, activeViewId, onActiveViewDeleted],
   )
 
   const handlePin = useCallback(
@@ -266,9 +283,19 @@ export const ViewPicker = observer(function ViewPicker({
       if (onDuplicateView) {
         onDuplicateView(view)
       } else {
-        // Default: create a personal copy via API
+        // Default: create a personal copy via API.
+        //
+        // GH#3188 B6 (defensive): this fallback branch is dead in
+        // production (EntityListView always provides onDuplicateView,
+        // which threads through createAndActivateView and flips the
+        // active view). Without a parent callback we can't make the new
+        // view "active" — that's the parent's job — but we still need
+        // it to appear in the dropdown immediately. Capturing the
+        // create return + re-priming the cache via refreshViews keeps
+        // symmetry with the parent's path; if the create returns a
+        // value the cache reprime publishes it on the next render.
         try {
-          await orpcClient.dataforge.views.create({
+          const _created = await orpcClient.dataforge.views.create({
             entityName: view.entity_type,
             name: `${view.name} (copy)`,
             visibility: 'personal',
