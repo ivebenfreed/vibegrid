@@ -147,6 +147,13 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const stores = useVibeGridStores()
   const authStore = useAuth()
   const navigate = useNavigate()
+  // GH#3120: ui_config (widgets, list-extra tabs, overviewComponent, detail
+  // extra tabs, child-entity tabs) now lives at the schema level. The inner
+  // EntityListViewUrlSync is the component that renders list widgets + extra
+  // tabs, so we resolve schema here — the outer EntityListView resolves it
+  // again for unrelated paint paths; both calls hit the same TanStack DB
+  // collection cache so the duplication is cheap.
+  const innerSchema = useEntitySchema(entityName)
 
   const { copyLink, activeViewId, activeViewName, hasUnsavedChanges, selectView, clearView, defaultViewConfig: activeViewConfig } = useViewUrlSync({
     entityType: entityName,
@@ -362,26 +369,22 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     allRowActions.push(sendLienWaiverAction)
   }
 
-  // GH#2641: Render widgets above the grid driven by entity_views.config.listWidgets.
-  // Unknown widget keys are skipped with a console.warn — never break the page.
-  const listWidgets = Array.isArray((activeViewConfig as any)?.listWidgets)
-    ? ((activeViewConfig as any).listWidgets as Array<{ widget: string; props?: Record<string, unknown> }>)
-    : []
+  // GH#2641 + GH#3120: Render widgets above the grid driven by
+  // entity_schemas.business_metadata.ui_config.list.widgets. Unknown widget
+  // keys are skipped with a console.warn — never break the page.
+  const listWidgets = (innerSchema?.businessMetadata?.ui_config?.list?.widgets ?? []) as Array<{
+    widget: string
+    props?: Record<string, unknown>
+  }>
 
-  // GH#2689 B7: Render the list-view tab strip when entity_views.config.listExtraTabs is present.
-  // Default tab is the grid; selecting a non-grid tab replaces the VibeGrid pane with the
-  // registered list-tab component. Tab id syncs to URL via `?tab=<id>` (TanStack Router search
-  // params validated by route schema), so reload + deep-link preserve state.
-  const listExtraTabs: Array<{ id: string; label: string; icon?: string; componentSlug?: string }> = Array.isArray(
-    (activeViewConfig as any)?.listExtraTabs,
-  )
-    ? ((activeViewConfig as any).listExtraTabs as Array<{
-        id: string
-        label: string
-        icon?: string
-        componentSlug?: string
-      }>)
-    : []
+  // GH#2689 B7 + GH#3120: Render the list-view tab strip from
+  // entity_schemas.business_metadata.ui_config.list.extraTabs. Default tab is
+  // the grid; selecting a non-grid tab replaces the VibeGrid pane with the
+  // registered list-tab component. Tab id syncs to URL via `?tab=<id>`
+  // (TanStack Router search params validated by route schema), so reload +
+  // deep-link preserve state.
+  const listExtraTabs: Array<{ id: string; label: string; icon?: string; componentSlug?: string }> =
+    innerSchema?.businessMetadata?.ui_config?.list?.extraTabs ?? []
   // Use a `select` so this hook only re-fires when the `tab` param actually
   // changes. Without `select`, every search-param change re-renders this
   // component (notably the review overlay's reviewEntity/reviewIds churn,
