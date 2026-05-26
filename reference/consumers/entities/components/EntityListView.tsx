@@ -147,7 +147,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const stores = useVibeGridStores()
   const authStore = useAuth()
   const navigate = useNavigate()
-  // GH#3120: ui_config (widgets, list-extra tabs, overviewComponent, detail
+  // GH#3120 (post-fix deploy retrigger 2026-05-26T13:45Z): ui_config (widgets, list-extra tabs, overviewComponent, detail
   // extra tabs, child-entity tabs) now lives at the schema level. The inner
   // EntityListViewUrlSync is the component that renders list widgets + extra
   // tabs, so we resolve schema here — the outer EntityListView resolves it
