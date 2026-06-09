@@ -23,6 +23,7 @@ const { gridResultRef } = vi.hoisted(() => {
   const initial: UseEntityGridResult = {
     rows: [],
     total: 0,
+    viewport: { start: 0, end: 0 },
     isLoading: false,
     isStale: false,
     isWarm: false,
@@ -84,6 +85,7 @@ function makeInitStore() {
       this.entityDataKnownComplete = true
     }),
     markServerDataRendered: vi.fn(),
+    markError: vi.fn(),
   }
 }
 
@@ -109,6 +111,7 @@ function setGridResult(next: Partial<UseEntityGridResult>): void {
   gridResultRef.current = {
     rows: next.rows ?? [],
     total: next.total ?? 0,
+    viewport: next.viewport ?? { start: 0, end: 0 },
     isLoading: next.isLoading ?? false,
     isStale: next.isStale ?? false,
     isWarm: next.isWarm ?? false,
@@ -239,5 +242,114 @@ describe('useVibeGridData — hydration gate', () => {
     )
 
     expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
+  })
+})
+
+describe('useVibeGridData — result→store pairing (scroll jitter guard)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    setGridResult({ source: 'empty', total: 0, isLoading: false })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('writes rows at the RESULT viewport start, not the live input viewport', () => {
+    const initStore = makeInitStore()
+    const tableCoreStore = makeTableCoreStore()
+    const visualStateStore = makeVisualStateStore() as any
+
+    // Result evaluated for window [0, 280) — even though the mocked
+    // viewportStore.visibleRowRange (the live input) starts at 0..50 with
+    // overscan, the store write must use the result's own start.
+    setGridResult({
+      source: 'warming-server',
+      total: 1000,
+      isLoading: false,
+      rows: [{ id: 'row-a' }, { id: 'row-b' }],
+      viewport: { start: 5800, end: 6100 },
+    })
+
+    renderHook(() =>
+      useVibeGridData(
+        'RFI',
+        tableCoreStore as any,
+        visualStateStore,
+        initStore as any,
+      ),
+    )
+
+    expect(tableCoreStore.setSparseRows).toHaveBeenCalled()
+    const lastCall = tableCoreStore.setSparseRows.mock.calls.at(-1)!
+    expect(lastCall[0]).toBe(5800)
+    expect(lastCall[2]).toBe(1000)
+  })
+})
+
+describe('useVibeGridData — read-error surface', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    setGridResult({ source: 'empty', total: 0, isLoading: false })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('records the error on InitStore and opens the skeleton gate', () => {
+    const initStore = makeInitStore()
+    const tableCoreStore = makeTableCoreStore()
+    const visualStateStore = makeVisualStateStore() as any
+
+    setGridResult({
+      source: 'warming-server',
+      total: 0,
+      isLoading: false,
+      error: new Error('400 input validation failed'),
+    })
+
+    renderHook(() =>
+      useVibeGridData(
+        'RFI',
+        tableCoreStore as any,
+        visualStateStore,
+        initStore as any,
+      ),
+    )
+
+    expect(initStore.markError).toHaveBeenCalledWith(
+      'substrate-query',
+      '400 input validation failed',
+    )
+    expect(initStore.markServerDataRendered).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire the error surface when there is no error', () => {
+    const initStore = makeInitStore()
+    const tableCoreStore = makeTableCoreStore()
+    const visualStateStore = makeVisualStateStore() as any
+
+    setGridResult({
+      source: 'warming-server',
+      total: 100,
+      isLoading: true,
+    })
+
+    renderHook(() =>
+      useVibeGridData(
+        'RFI',
+        tableCoreStore as any,
+        visualStateStore,
+        initStore as any,
+      ),
+    )
+
+    expect(initStore.markError).not.toHaveBeenCalled()
+    expect(initStore.markServerDataRendered).not.toHaveBeenCalled()
   })
 })

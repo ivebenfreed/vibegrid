@@ -268,8 +268,16 @@ export function useVibeGridData(
       wrappedRows.push(wrapSubstrateRow(row as RawRow))
     }
 
+    // Write rows at the offset they were EVALUATED for (`result.viewport`),
+    // never the live input viewport. On scroll, `inputs.viewport.start`
+    // advances immediately while `result` still holds the previous window's
+    // rows until the async evaluate resolves — pairing those would paint
+    // old-window rows at the new offset (the "wrong rows flash, then the
+    // correct rows replace them" scroll jitter). Writing at the result's
+    // own start is always correct: each result is authoritative for the
+    // window it was computed for.
     tableCoreStore.setSparseRows(
-      inputs.viewport.start,
+      result.viewport.start,
       wrappedRows,
       result.total,
     )
@@ -283,7 +291,7 @@ export function useVibeGridData(
     useSubstrate,
     tableCoreStore,
     viewportStore,
-    inputs.viewport.start,
+    result.viewport,
     result.rows,
     result.total,
   ])
@@ -341,6 +349,31 @@ export function useVibeGridData(
     result.total,
     result.isLoading,
   ])
+
+  // ====================================
+  // READ-ERROR SURFACE — resolve overlay instead of skeleton-forever
+  // ====================================
+  //
+  // useEntityGrid sets `result.error` when an evaluation fails (e.g. the
+  // warming-branch server query 400s on a malformed filter — GH#3246's
+  // double-encoded filter param, GH#3216's scope-middleware AST rejection).
+  // Without this effect that error was silently dropped: rows stay empty,
+  // the hydration gate above never fires, the 8s graceful-degradation
+  // fallback below requires processedRows > 0, and the grid sits in
+  // skeleton state forever (GH#3242 / GH#3214 user-visible shape). Record
+  // the failure on InitStore (drives the hydration-error UI) and flip
+  // serverDataRendered so the skeleton gate opens.
+  useEffect(() => {
+    if (skip || !useSubstrate || !result.error) return
+    logger.warn('substrate read failed; resolving overlay to error state', {
+      event: 'substrate_query_error',
+      entity_type: entityType,
+      organization_id: orgId,
+      error: result.error.message,
+    })
+    initStore.markError('substrate-query', result.error.message)
+    initStore.markServerDataRendered()
+  }, [skip, useSubstrate, result.error, initStore, entityType, orgId])
 
   // ====================================
   // GH#2956 P1 — 8s GRACEFUL-DEGRADATION RENDER FALLBACK
