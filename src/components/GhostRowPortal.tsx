@@ -83,7 +83,11 @@ export const GhostRowPortal = observer(function GhostRowPortal({
   const allGroupNodesById = useMemo(() => {
     const map = new Map<string, GroupNode>()
     for (const row of _processedRows) {
-      if (row.type === 'group' && row.data) {
+      // processedRows is a SPARSE array under viewport virtualization — holes
+      // (undefined) are normal while rows warm in. Guarding `row` is mandatory;
+      // `row.type` on an undefined hole threw and crashed the whole grid to a
+      // 500 for any org whose warming left a gap when this memo ran (GH#3214).
+      if (row?.type === 'group' && row.data) {
         map.set(row.id, row.data as GroupNode)
       }
     }
