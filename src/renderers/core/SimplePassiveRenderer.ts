@@ -468,6 +468,9 @@ export class SimplePassiveRenderer {
       ) => HTMLElement,
       onEntityUpdate: this.options.onEntityUpdate,
       slotRegistry: this.initStore?.slotRegistry,
+      // Gate progressive column deferral to the initial paint — post-paint
+      // full re-renders draw all columns synchronously (columns-7+ settle flash).
+      getIsPainted: () => this.initStore?.phase === 'painted',
     })
 
     // Update SelectionController with bodyRenderer reference

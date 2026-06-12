@@ -53,6 +53,13 @@ export interface BodyRendererOptions {
 
   // SlotRegistry for cell rendering
   slotRegistry?: SlotRegistry
+
+  // Returns true once the grid has completed its initial paint
+  // (InitStore.phase === 'painted'). Gates progressive column rendering:
+  // the 6-column-then-defer split only applies to the initial paint;
+  // post-paint full re-renders draw all in-range columns synchronously to
+  // avoid blanking visible cells (the columns-7+ settle flash).
+  getIsPainted?: () => boolean
 }
 
 // ====================================
@@ -71,6 +78,7 @@ export class BodyRenderer {
   private container: HTMLElement
   private createElement: (tag: string, className?: string) => HTMLElement
   private onEntityUpdate?: (rowId: string, updates: Record<string, any>) => Promise<void> | void
+  private getIsPainted?: () => boolean
 
   // Row state
   private activeRows: Map<string, HTMLElement> = new Map()
@@ -113,6 +121,7 @@ export class BodyRenderer {
     this.createElement = options.createElement
     this.onEntityUpdate = options.onEntityUpdate
     this.slotRegistry = options.slotRegistry || null
+    this.getIsPainted = options.getIsPainted
 
     // Initialize drag and drop manager with container
     this.initializeDragDrop()
@@ -297,8 +306,18 @@ export class BodyRenderer {
     }
 
     // PERFORMANCE: Progressive column rendering for faster initial load
-    // Render essential columns first (first 6), then defer remaining columns
-    const essentialColumnCount = Math.min(6, visibleColumnsOnly.length)
+    // Render essential columns first (first 6), then defer remaining columns.
+    //
+    // INITIAL PAINT ONLY: once the grid has painted, a full re-render (e.g.
+    // the relationship-target fetch bumping configVersion at scroll settle)
+    // recreates every visible row — deferring columns 7+ there blanks
+    // already-visible cells for ~200ms until the requestIdleCallback queue
+    // drains, which users see as a settle-time flash in columns 7+. After
+    // first paint, render all in-range columns synchronously.
+    const isInitialPaint = !(this.getIsPainted?.() ?? false)
+    const essentialColumnCount = isInitialPaint
+      ? Math.min(6, visibleColumnsOnly.length)
+      : visibleColumnsOnly.length
     const essentialColumns = visibleColumnsOnly.slice(0, essentialColumnCount)
     const deferredColumns = visibleColumnsOnly.slice(essentialColumnCount)
 
