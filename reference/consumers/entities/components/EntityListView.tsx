@@ -61,6 +61,7 @@ import {
 // GH#2641: side-effect import registers built-in list widgets + overview components
 import '../lib/register-view-components'
 // GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
+import { resolveEntityFileSource } from '../lib/entity-file-source'
 import { getListTab } from '../lib/list-tab-registry'
 import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
@@ -360,8 +361,25 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     },
   }
 
+  // Download action for `file` archetype entities (File, Photo, Drawing,
+  // Document, …). The durable R2 key lives on the row data even though it
+  // isn't a visible column, so we resolve it per-row and hide the action when
+  // the record has no downloadable source.
+  const downloadFileAction: RowAction = {
+    id: 'download-file',
+    label: 'Download',
+    icon: Download,
+    hidden: (rowData: any) => {
+      if (innerSchema?.archetype !== 'file') return true
+      return resolveEntityFileSource(rowData as EntityRecord) === null
+    },
+  }
+
   // Assemble row actions based on entity type
   const allRowActions: RowAction[] = [reviewAction]
+  if (innerSchema?.archetype === 'file') {
+    allRowActions.push(downloadFileAction)
+  }
   if (entityName === 'LienWaiverCycle') {
     allRowActions.push(startCycleAction, exportWaiversAction)
   }
@@ -524,6 +542,13 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           onRowAction={(actionId, rowIds, rowsData) => {
             if (actionId === 'review-selected') {
               onOpenReview(rowIds, rowsData)
+            }
+            // Download the file behind each selected file-archetype row.
+            if (actionId === 'download-file') {
+              for (const row of rowsData) {
+                const source = resolveEntityFileSource(row as EntityRecord)
+                if (source) window.open(source.downloadUrl, '_blank', 'noopener,noreferrer')
+              }
             }
             // GH#1926: Lien waiver cycle actions trigger workflows
             if (actionId === 'start-cycle' && rowIds.length > 0) {
