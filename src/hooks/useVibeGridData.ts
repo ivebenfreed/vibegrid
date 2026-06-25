@@ -53,6 +53,7 @@ import { wrapSubstrateRow } from '@/shared/data/query/use-substrate-grid-rows/sn
 import type { RawRow } from '@/shared/data/query/types'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'
+import { useGridRelationshipProjection } from './useGridRelationshipProjection'
 
 const logger = getLogger(['vibegrid', 'hooks', 'useVibeGridData'])
 
@@ -253,6 +254,23 @@ export function useVibeGridData(
   })
 
   // ====================================
+  // RELATIONSHIP-NAME PROJECTION
+  // ====================================
+  // GH#3119 follow-up: the substrate read hook returns raw row content with
+  // relationship fields as arrays of ID strings — no server `_included` name
+  // projection. Without this step the badge-list renderer has no
+  // `colId__rel` to read and chips render `#<idSuffix>` instead of names.
+  // `useGridRelationshipProjection` bulk-fetches the referenced targets and
+  // returns each row in the wrapped `{id, data:{...fields, colId__rel}}` shape
+  // (preserving `null` skeleton positions). When target names land the
+  // returned array gets a new identity and the push effect below re-runs.
+  const projectedRows = useGridRelationshipProjection(
+    useSubstrate ? tableCoreStore : null,
+    result.rows,
+    orgId,
+  )
+
+  // ====================================
   // PUSH RESULTS → MobX STORES
   // ====================================
   useEffect(() => {
@@ -261,9 +279,11 @@ export function useVibeGridData(
 
     // Filter skeleton placeholders (null entries) — setSparseRows expects
     // real WrappedRow values and will paint skeleton cells for unloaded
-    // indices on its own.
+    // indices on its own. `projectedRows` is positionally aligned with
+    // `result.rows`; rows already carry the wrapped `{id, data}` shape, so
+    // `wrapSubstrateRow` is an idempotent no-op kept for type safety.
     const wrappedRows: RawRow[] = []
-    for (const row of result.rows) {
+    for (const row of projectedRows) {
       if (row === null) continue
       wrappedRows.push(wrapSubstrateRow(row as RawRow))
     }
@@ -292,7 +312,7 @@ export function useVibeGridData(
     tableCoreStore,
     viewportStore,
     result.viewport,
-    result.rows,
+    projectedRows,
     result.total,
   ])
 
