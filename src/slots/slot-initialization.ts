@@ -25,6 +25,8 @@ import {
   colorCellRenderer,
   currencyCellRenderer,
   fileCellRenderer,
+  filePathLinkCellRenderer,
+  FILE_LINK_COLUMN_IDS,
   imageCellRenderer,
   ratingCellRenderer,
   sliderCellRenderer,
@@ -117,6 +119,16 @@ export function registerDefaultSlots(registry: SlotRegistry): void {
   // --- 11. File ---
   registry.register({ id: 'file', priority: 0, renderer: () => fileCellRenderer })
   registry.register({ id: 'file_upload', priority: 0, renderer: () => fileCellRenderer })
+
+  // File path / URL columns (e.g. `file_path`, `file_url`) are stored as plain
+  // `text` fields but should render as a clickable link to the real R2 download.
+  // Scoped by column id via canHandle so it only overrides those columns.
+  registry.register({
+    id: 'file-path-link',
+    priority: 10,
+    canHandle: (column) => FILE_LINK_COLUMN_IDS.has(column.id),
+    renderer: () => filePathLinkCellRenderer,
+  })
 
   // --- 12. Image ---
   registry.register({ id: 'image', priority: 0, renderer: () => imageCellRenderer })
