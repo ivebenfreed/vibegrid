@@ -36,8 +36,10 @@ import type { VisualStateStore } from '../stores/VisualStateStore'
 import { mutationApi } from '@/shared/data/hooks/useEntityMutation'
 import {
   useEntityGrid,
+  type RelationshipSearchClause,
   type ViewportSpec,
 } from '@/shared/data/hooks/useEntityGrid'
+import { buildRelColDescriptors } from '@/shared/data/query/use-substrate-grid-rows/snapshot-wiring'
 import {
   composeFiltersAnd,
   convertGlobalSearchToFilterExpression,
@@ -101,6 +103,46 @@ interface GridInputs {
   where: WherePredicate | undefined
   orderBy: SortClause[] | undefined
   viewport: ViewportSpec
+  /** Chip search (GH#3274) — warm-branch relationship-name search clauses. */
+  relationshipSearch?: RelationshipSearchClause[]
+}
+
+/** Identifier shape for a JSON field name we interpolate into a json_extract path. */
+const SIMPLE_FIELD = /^[a-zA-Z_][a-zA-Z0-9_]*$/
+/** Entity-type names allow a leading letter then word chars / hyphen. */
+const ENTITY_NAME = /^[A-Za-z][A-Za-z0-9_-]*$/
+
+/**
+ * Derive chip-search clauses for the warm branch: one `rel_name_contains` per
+ * VISIBLE relationship column (so matches land in an on-screen chip, mirroring
+ * the visible-column scoping of scalar search). Returns `undefined` when the
+ * term is empty or the grid has no eligible relationship columns. Invalid
+ * identifiers are skipped (target type) or coerced to the default `name`
+ * (display field) so a malformed schema can never throw inside the SQL builder.
+ */
+function deriveRelationshipSearch(
+  tableCoreStore: TableCoreStore,
+  term: string,
+  columnVisibility: Record<string, boolean> | undefined,
+): RelationshipSearchClause[] | undefined {
+  const trimmed = term.trim()
+  if (trimmed.length === 0) return undefined
+  const clauses: RelationshipSearchClause[] = []
+  for (const c of buildRelColDescriptors(tableCoreStore)) {
+    if (columnVisibility && columnVisibility[c.id] === false) continue
+    const targetEntityType = c.relationshipTargetEntity
+    if (!targetEntityType || !ENTITY_NAME.test(targetEntityType)) continue
+    if (!SIMPLE_FIELD.test(c.id)) continue
+    const displayField = c.relationshipDisplayField
+    clauses.push({
+      field: c.id,
+      targetEntityType,
+      targetNameField:
+        displayField && SIMPLE_FIELD.test(displayField) ? displayField : undefined,
+      term: trimmed,
+    })
+  }
+  return clauses.length > 0 ? clauses : undefined
 }
 
 const DEFAULT_VIEWPORT_SIZE = 200
@@ -215,6 +257,16 @@ export function useVibeGridData(
           const combined = composeFiltersAnd(userFilter, searchFilter)
           const where = asWherePredicate(combined)
 
+          // Chip search (GH#3274): also match the text shown in relationship
+          // chips. Derived from the same search term + the grid's visible
+          // relationship columns; applied on the warm branch via
+          // `rel_name_contains` (a cache-local self-join).
+          const relationshipSearch = deriveRelationshipSearch(
+            tableCoreStore,
+            globalSearchText ?? '',
+            visualStateStore.columnVisibility,
+          )
+
           const orderBy = convertVibeGridSortToQuerySort(sortBy)
 
           // Build viewport with CURSOR_OVERSCAN above and below the visible
@@ -230,6 +282,7 @@ export function useVibeGridData(
             where,
             orderBy,
             viewport: { start, end },
+            relationshipSearch,
           })
         }, INPUT_RECOMPUTE_DEBOUNCE_MS)
       },
@@ -254,6 +307,7 @@ export function useVibeGridData(
     where: inputs.where,
     orderBy: inputs.orderBy,
     viewport: inputs.viewport,
+    relationshipSearch: inputs.relationshipSearch,
   })
 
   // ====================================
