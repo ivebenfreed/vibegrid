@@ -317,6 +317,16 @@ export class TableCoreStore implements IStore {
   // GH#1391: Configurable searchable columns for text search
   @observable.ref searchableColumns: string[] | undefined = undefined
 
+  // True when rows were last delivered via `setSparseRows` (the substrate read
+  // path drives the grid). When substrate-backed, the substrate `where` is the
+  // SOLE filter source — the client-side `applyTextSearch` must NOT run (it
+  // would double-filter with a divergent field set, undercount, and paint
+  // skeletons past the filtered total). Dense grids (collectionOverride / mock
+  // via `setRows`) keep client-side search since there is no substrate to push
+  // the predicate to. Distinct from `isSparseMode` (a virtualization signal):
+  // a fully-loaded small substrate result is NOT sparse but IS substrate-backed.
+  @observable substrateBacked: boolean = false
+
   // Pending reorder confirmation (when sorting is active)
   @observable pendingReorder: PendingReorderOperation | null = null
 
@@ -714,6 +724,9 @@ export class TableCoreStore implements IStore {
   @action
   private assignFullyLoadedRawRows<T extends EntityRow>(rows: T[]): void {
     this.rawRows = rows
+    // Dense delivery (setRows / collectionOverride / mock) — NOT substrate.
+    // Client-side search applies here since there is no substrate predicate.
+    this.substrateBacked = false
     this.loadedWindowStart = 0
     this.loadedWindowEnd = rows.length
     // Invalidate id-index cache; will rebuild on next structural-change check
@@ -782,6 +795,7 @@ export class TableCoreStore implements IStore {
     // Indices outside [safeStart, safeEnd) remain holes — see method docblock.
 
     this.rawRows = next
+    this.substrateBacked = true
     this.loadedWindowStart = safeStart
     this.loadedWindowEnd = safeEnd
     this.hasLoadedRows = totalCount > 0
@@ -1258,14 +1272,41 @@ export class TableCoreStore implements IStore {
     const searchText = this.visualStateStore?.globalSearchText || ''
     if (!searchText.trim()) return rows
 
-    // GH#2848 D8: in sparse-substrate mode the JS text search would
-    // densify holes (and crash on .data access). Substrate doesn't
-    // currently push global search to SQL, so search-while-substrate
-    // returns the unfiltered window — out of #2848 scope to wire SQL
-    // text-search; tracked elsewhere.
-    if (this.isSparseMode) return rows
+    // Substrate-backed grids push global search into the substrate `where`
+    // predicate (see useVibeGridData → useEntityGrid), which is the SOLE
+    // filter source. Running the client-side `applyTextSearch` here too would
+    // double-filter with a divergent field set — undercounting the badge and
+    // painting skeletons past the substrate's filtered total (the "loading
+    // rows beyond the count" bug). Skip it whenever substrate-backed, whether
+    // the result is virtualized (sparse) or fully loaded. Dense grids
+    // (collectionOverride / mock) have no substrate, so client search runs.
+    if (this.substrateBacked) return rows
 
     return applyTextSearch(rows, searchText, this.columns, this.searchableColumns)
+  }
+
+  /**
+   * Row count for the search badge — the number of rows that match the
+   * current query, kept consistent with the grid's actual extent so the
+   * badge never disagrees with what's on screen.
+   *
+   * Substrate-backed: the substrate already applied the search predicate and
+   * the sparse array length IS the filtered total. Returning that (rather than
+   * the count of currently-LOADED data rows) is what fixes the "count says 76
+   * but the grid keeps loading rows past it" bug — during warming the loaded
+   * count lags the total, so counting loaded rows undercounts and the badge
+   * disagrees with the skeleton extent. `rawRows.length` always equals the
+   * total the grid paints to.
+   *
+   * Dense: no substrate, so `processedRows` carries the client-filtered set;
+   * count its data rows.
+   */
+  @computed
+  get searchResultCount(): number {
+    if (this.substrateBacked) return this.rawRows.length
+    return this.processedRows.filter(
+      (r) => r && (r as { type?: string }).type === 'data',
+    ).length
   }
 
   /**

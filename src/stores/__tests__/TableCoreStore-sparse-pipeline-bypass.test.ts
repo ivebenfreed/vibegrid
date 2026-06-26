@@ -118,4 +118,42 @@ describe('TableCoreStore — JS pipeline bypass under sparse mode (GH#2848 D8)',
     store.setSparseRows(0, makeRows(0, 100), 100)
     expect((store as any).isSparseMode).toBe(false)
   })
+
+  // ── Substrate-backed search bypass + badge count (search count vs shown) ──
+
+  it('setSparseRows marks the store substrate-backed; setRows clears it', () => {
+    store.setSparseRows(0, makeRows(0, 10), 1000)
+    expect(store.substrateBacked).toBe(true)
+    store.setRows(makeRows(0, 5))
+    expect(store.substrateBacked).toBe(false)
+  })
+
+  it('searchFilteredRows skips client search for a FULLY-LOADED substrate grid', () => {
+    // total === loaded → isSparseMode is false, but the grid is still
+    // substrate-backed, so the substrate `where` is authoritative and the
+    // client-side applyTextSearch must NOT run (it would double-filter and
+    // diverge from the substrate count). Regression guard for the "count
+    // says N but grid keeps loading rows past it" bug.
+    store.setSparseRows(0, makeRows(0, 30), 30)
+    expect((store as any).isSparseMode).toBe(false)
+    visual.globalSearchText = 'Title 5'
+    const result = store.searchFilteredRows
+    // Unfiltered by the client — all 30 substrate rows pass through.
+    expect(result.length).toBe(30)
+  })
+
+  it('searchResultCount = substrate filtered total when substrate-backed', () => {
+    // The substrate already applied the predicate; the array length IS the
+    // filtered total. The badge must use this (not the loaded-data-row count)
+    // so it agrees with the skeleton extent during warming.
+    store.setSparseRows(0, makeRows(0, 50), 1234)
+    expect(store.searchResultCount).toBe(1234)
+  })
+
+  it('searchResultCount = client-filtered data rows in dense mode', () => {
+    store.setRows(makeRows(0, 7))
+    expect(store.substrateBacked).toBe(false)
+    // No search → all 7 rows are data rows.
+    expect(store.searchResultCount).toBe(7)
+  })
 })

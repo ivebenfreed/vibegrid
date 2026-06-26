@@ -178,8 +178,11 @@ export function useVibeGridData(
         const filterGroup = visualStateStore.filterGroup
         const globalSearchText = visualStateStore.globalSearchText
         const visibleRowRange = viewportStore?.visibleRowRange ?? null
+        // Scope global search to VISIBLE searchable columns so every match
+        // lands in an on-screen (highlightable) cell.
         const searchableFields = collectSearchableFields(
           tableCoreStore?.columns,
+          visualStateStore.columnVisibility,
         ).join('|')
         return {
           sortBy,

@@ -66,11 +66,12 @@ export const SmartSearchInput = observer(function SmartSearchInput({
     visualStateStore.setGlobalSearchText('')
   }
 
-  // Result count: count data rows in processedRows when search is active
+  // Result count: the grid's authoritative match count when search is active.
+  // For substrate-backed grids this is the substrate-filtered total (kept in
+  // sync with the rows the grid paints, so the badge never disagrees with the
+  // skeleton extent); for dense grids it's the client-filtered data rows.
   const { tableCoreStore } = stores
-  const dataRowCount = visualStateStore.hasActiveSearch
-    ? tableCoreStore.processedRows.filter((r: any) => r.type === 'data').length
-    : null
+  const dataRowCount = visualStateStore.hasActiveSearch ? tableCoreStore.searchResultCount : null
 
   return (
     <search className={cn('relative', className)}>
