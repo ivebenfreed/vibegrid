@@ -514,6 +514,22 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
       {/* Wrap VibeGrid in a flex-1 min-h-0 sizing box so its height="100%" resolves to
           the remaining space after listWidgets — not 100% of the parent container, which
           would cause the grid (and its absolutely-positioned ActionsBar) to overflow. */}
+      {/* GP-GRID SPIKE (?grid=gp): swap ONLY the grid pane — page chrome, tab
+          strip, list widgets, and non-grid tabs all keep rendering. Read from
+          window.location directly (not validateSearch) so router config stays
+          untouched while the spike exists. */}
+      {entityName === 'Project' &&
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('grid') === 'gp' ? (
+        <div
+          data-testid="list-tab-grid"
+          className={cn('relative flex-1 min-h-0', activeTab !== 'grid' && 'hidden')}
+        >
+          <Suspense fallback={<EntityListSkeleton />}>
+            <GpGridEntityView entityName={entityName} />
+          </Suspense>
+        </div>
+      ) : (
       <div
         data-testid="list-tab-grid"
         className={cn('relative flex-1 min-h-0', activeTab !== 'grid' && 'hidden')}
@@ -649,6 +665,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           }}
         />
       </div>
+      )}
       <ReorderConfirmationDialog />
 
       {/* SaveViewDialog (GH#1570 P2.3) */}
@@ -1006,31 +1023,6 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   if (!entityName) {
     return <EntityNotFound entityName="unknown" />
-  }
-
-  // GP-GRID SPIKE (?grid=gp): swap the VibeGrid-based Projects list for
-  // @gp-grid/react. `GpGridEntityView` is lazy-loaded (see the module-scope
-  // `lazy(...)` above) so `@gp-grid/react` never lands in the main bundle
-  // unless this param is present. Part of the gp-grid-vs-VibeGrid
-  // replacement evaluation (DEB-only descoping initiative) — see the PR
-  // description for the activation URL and known gaps.
-  if (
-    entityName === 'Project' &&
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('grid') === 'gp'
-  ) {
-    return (
-      <>
-        <Header>
-          <TopNav links={[]} />
-        </Header>
-        <Main fluid className="flex flex-col gap-0 px-4 py-3">
-          <Suspense fallback={<EntityListSkeleton />}>
-            <GpGridEntityView entityName={entityName} />
-          </Suspense>
-        </Main>
-      </>
-    )
   }
 
   if (!listResult.isReady && listResult.rows.length === 0 && !hasShownGridRef.current) {
