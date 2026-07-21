@@ -16,7 +16,7 @@ import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, Send } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { useAuth, useFeatureFlags, useOrganization } from '@/app/stores'
 import { Header } from '@/shared/components/layout/header'
@@ -75,6 +75,15 @@ import { EntityDrawer } from './EntityDrawer'
 import { QuickCreatePanel } from './QuickCreatePanel'
 
 const logger = getLogger(['entity', 'EntityListView'])
+
+// GP-GRID SPIKE (`?grid=gp`): lazy-loaded so `@gp-grid/react` code-splits into
+// its own chunk and never lands in the main bundle for the default (no
+// param) path. See the render-time gate below for activation.
+const GpGridEntityView = lazy(() =>
+  import('@/features/entities/gp-grid-spike/GpGridEntityView').then((m) => ({
+    default: m.GpGridEntityView,
+  })),
+)
 
 /**
  * Header count chip — reads the server-authoritative entity count from the
@@ -997,6 +1006,31 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   if (!entityName) {
     return <EntityNotFound entityName="unknown" />
+  }
+
+  // GP-GRID SPIKE (?grid=gp): swap the VibeGrid-based Projects list for
+  // @gp-grid/react. `GpGridEntityView` is lazy-loaded (see the module-scope
+  // `lazy(...)` above) so `@gp-grid/react` never lands in the main bundle
+  // unless this param is present. Part of the gp-grid-vs-VibeGrid
+  // replacement evaluation (DEB-only descoping initiative) — see the PR
+  // description for the activation URL and known gaps.
+  if (
+    entityName === 'Project' &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('grid') === 'gp'
+  ) {
+    return (
+      <>
+        <Header>
+          <TopNav links={[]} />
+        </Header>
+        <Main fluid className="flex flex-col gap-0 px-4 py-3">
+          <Suspense fallback={<EntityListSkeleton />}>
+            <GpGridEntityView entityName={entityName} />
+          </Suspense>
+        </Main>
+      </>
+    )
   }
 
   if (!listResult.isReady && listResult.rows.length === 0 && !hasShownGridRef.current) {
