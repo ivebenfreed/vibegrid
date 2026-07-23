@@ -39,7 +39,7 @@ import {
   type RelationshipSearchClause,
   type ViewportSpec,
 } from '@/shared/data/hooks/useEntityGrid'
-import { buildRelColDescriptors } from '@/shared/data/query/use-substrate-grid-rows/snapshot-wiring'
+import { buildRelColDescriptors } from '@/shared/data/query/use-server-grid-rows/snapshot-wiring'
 import {
   composeFiltersAnd,
   convertGlobalSearchToFilterExpression,
@@ -49,9 +49,9 @@ import {
   asWherePredicate,
   collectSearchableFields,
   convertVibeGridSortToQuerySort,
-} from '@/shared/data/query/use-substrate-grid-rows/filter-sort-reaction'
-import { CURSOR_OVERSCAN } from '@/shared/data/query/use-substrate-grid-rows/viewport-cursor'
-import { wrapSubstrateRow } from '@/shared/data/query/use-substrate-grid-rows/snapshot-wiring'
+} from '@/shared/data/query/use-server-grid-rows/filter-sort-reaction'
+import { CURSOR_OVERSCAN } from '@/shared/data/query/use-server-grid-rows/viewport-cursor'
+import { wrapSubstrateRow } from '@/shared/data/query/use-server-grid-rows/snapshot-wiring'
 import type { RawRow } from '@/shared/data/query/types'
 import { useOrganization } from '@/app/stores'
 import { useVibeGridStores } from '../stores/context'

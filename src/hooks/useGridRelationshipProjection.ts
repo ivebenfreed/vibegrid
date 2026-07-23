@@ -33,7 +33,7 @@ import {
   projectRow,
   type RelColumnDescriptor,
 } from '@/shared/data/query/unified/project-row'
-import { buildRelColDescriptors } from '@/shared/data/query/use-substrate-grid-rows/snapshot-wiring'
+import { buildRelColDescriptors } from '@/shared/data/query/use-server-grid-rows/snapshot-wiring'
 import { useRelationshipTargetRecords } from '@/shared/data/hooks/useRelationshipTargetRecords'
 import type { TableCoreStore } from '../stores/TableCoreStore'
 
