@@ -416,23 +416,37 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   // changes. Without `select`, every search-param change re-renders this
   // component (notably the review overlay's reviewEntity/reviewIds churn,
   // which in turn re-renders VibeGrid).
+  // `ui_config.list.defaultTab` picks which tab opens on a bare URL. Absent
+  // (or naming a tab that no longer exists) keeps the historical behavior of
+  // opening the grid. Configured per entity type, so an entity whose landing
+  // surface should be a dashboard says so in config rather than in code.
+  const configuredDefaultTab: string | undefined =
+    innerSchema?.businessMetadata?.ui_config?.list?.defaultTab
   const requestedTab = (useSearch({
     strict: false,
-    select: (s) => (typeof (s as { tab?: unknown }).tab === 'string' ? (s as { tab: string }).tab : 'grid'),
-  }) as string) ?? 'grid'
+    select: (s) => (typeof (s as { tab?: unknown }).tab === 'string' ? (s as { tab: string }).tab : ''),
+  }) as string) ?? ''
   const knownTabIds = ['grid', ...listExtraTabs.map((t) => t.id)]
-  // Fall back to grid when the URL contains an unknown tab id (stale config, deleted tab, etc.)
-  const activeTab = knownTabIds.includes(requestedTab) ? requestedTab : 'grid'
+  const defaultTab =
+    configuredDefaultTab && knownTabIds.includes(configuredDefaultTab)
+      ? configuredDefaultTab
+      : 'grid'
+  // Fall back to the default when the URL carries no tab, or an unknown one
+  // (stale config, deleted tab, etc.).
+  const activeTab = knownTabIds.includes(requestedTab) ? requestedTab : defaultTab
   const setActiveTab = useCallback(
     (next: string) => {
       // Use replace so tab switching doesn't pollute the back stack — matches the
       // detail-view tab pattern in EntityDetailTabShell.
+      //
+      // The default tab drops the param entirely; anything else pins it, so a
+      // shared link always reopens the tab the sender was looking at.
       navigate({
-        search: (prev: any) => ({ ...prev, tab: next === 'grid' ? undefined : next }),
+        search: (prev: any) => ({ ...prev, tab: next === defaultTab ? undefined : next }),
         replace: true,
       } as any)
     },
-    [navigate],
+    [navigate, defaultTab],
   )
   const activeListTabEntry = listExtraTabs.find((t) => t.id === activeTab)
   const ActiveListTabComponent =
