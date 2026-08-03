@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, Send } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, RefreshCw, Send } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useTransition } from 'react'
@@ -62,6 +62,7 @@ import {
 import '../lib/register-view-components'
 // GH#2689 B7: list-view extra tabs registry (Scan Runs etc.)
 import { resolveEntityFileSource } from '../lib/entity-file-source'
+import { canRetryExtraction, retryExtractionBatch } from '../lib/retry-extraction'
 import { getListTab } from '../lib/list-tab-registry'
 import { getListWidget, type ListWidgetContext } from '../lib/widget-registry'
 import { CreationModeButton } from './CreationModeButton'
@@ -384,8 +385,22 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     },
   }
 
+  // GH#3311: re-run the extraction pipeline against a record's existing source
+  // document. Surfaces wherever a review queue exists (i.e. the entity is fed
+  // by document extraction) and the row actually carries a durable R2 source —
+  // which is exactly the failed-extraction case operators get stuck on.
+  const retryExtractionAction: RowAction = {
+    id: 'retry-extraction',
+    label: 'Retry Extraction',
+    icon: RefreshCw,
+    hidden: (rowData: any) => {
+      if (!hasReviewMode || !hasWriteAccess) return true
+      return !canRetryExtraction(rowData as EntityRecord)
+    },
+  }
+
   // Assemble row actions based on entity type
-  const allRowActions: RowAction[] = [reviewAction]
+  const allRowActions: RowAction[] = [reviewAction, retryExtractionAction]
   if (innerSchema?.archetype === 'file') {
     allRowActions.push(downloadFileAction)
   }
@@ -581,6 +596,17 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
           onRowAction={(actionId, rowIds, rowsData) => {
             if (actionId === 'review-selected') {
               onOpenReview(rowIds, rowsData)
+            }
+            // GH#3311: re-run extraction on the selected records' source docs.
+            // Grid rows arrive either flattened or wrapped in `.data`, and the
+            // wrapped shape may omit `id` — normalize against `rowIds` first
+            // (same defensive unwrap the lien-waiver actions below use).
+            if (actionId === 'retry-extraction' && rowIds.length > 0) {
+              const records = rowIds.map((rowId, i) => {
+                const raw = ((rowsData[i] as any)?.data ?? rowsData[i] ?? {}) as Record<string, unknown>
+                return { ...raw, id: (raw.id as string | undefined) ?? rowId } as EntityRecord
+              })
+              void retryExtractionBatch(entityName, records)
             }
             // Download the file behind each selected file-archetype row.
             if (actionId === 'download-file') {
