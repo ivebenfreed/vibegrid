@@ -34,6 +34,7 @@ import type { TableCoreStore } from '../stores/TableCoreStore'
 import type { InitStore } from '../stores/InitStore'
 import type { VisualStateStore } from '../stores/VisualStateStore'
 import { mutationApi } from '@/shared/data/hooks/useEntityMutation'
+import { isWarmSyncDisabled } from '@/shared/data/query/feature-flag'
 import {
   useEntityGrid,
   type RelationshipSearchClause,
@@ -403,21 +404,36 @@ export function useVibeGridData(
   //   - source === 'warm-local' (everything is in wa-sqlite, JS-evaluated)
   //   - source === 'warming-server', total === 0, and isLoading === false
   //     (server returned an empty-but-authoritative dataset)
+  //   - GH#3283: warm sync is gated off, source === 'warming-server', and
+  //     isLoading === false — see below
   //
   // While `source === 'warming-server' && isLoading` we're still mid-fetch
   // and must NOT mark complete.
+  //
+  // GH#3283 — the `total === 0` restriction encoded an assumption that is
+  // false once warms are gated off. It was written when a NON-zero total in
+  // the warming branch meant "the substrate is still filling, wait for
+  // warm-local". With no warm loop, `warming-server` is the terminal state,
+  // so that condition could never fire for a non-empty entity and this gate
+  // never opened. Skeleton dismissal then fell to the 8s
+  // `substrate_completion_timeout` fallback — an 8-second overlay on EVERY
+  // grid load, which is worse than the warm cost being saved.
+  //
+  // The flag's contract is "row count is definitively known (zero or
+  // non-zero)". In server-first mode `result.total` IS the server's
+  // authoritative count, so a settled warming-server response satisfies it
+  // exactly. Scoped to `isWarmSyncDisabled()` so the warm path's
+  // wait-for-warm-local semantics are untouched for orgs without the gate.
   useEffect(() => {
     if (skip || initStore.entityDataKnownComplete) return
     if (result.source === 'warm-local') {
       initStore.markEntityDataKnownComplete()
       return
     }
-    if (
-      result.source === 'warming-server' &&
-      result.total === 0 &&
-      !result.isLoading
-    ) {
-      initStore.markEntityDataKnownComplete()
+    if (result.source === 'warming-server' && !result.isLoading) {
+      if (isWarmSyncDisabled() || result.total === 0) {
+        initStore.markEntityDataKnownComplete()
+      }
     }
   }, [
     skip,

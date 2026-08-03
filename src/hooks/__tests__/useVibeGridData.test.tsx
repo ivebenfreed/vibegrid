@@ -243,6 +243,93 @@ describe('useVibeGridData — hydration gate', () => {
 
     expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
   })
+
+  // GH#3283 — with the warm loop gated off, `warming-server` is the
+  // TERMINAL state, not a way-station. The old `total === 0` condition
+  // could then never fire for a non-empty entity, the gate never opened,
+  // and skeleton dismissal fell through to the 8s
+  // `substrate_completion_timeout` fallback — an 8-second overlay on every
+  // grid load. Observed on staging (DEB Submittal, 6836 rows).
+  describe('warm sync gated off (GH#3283)', () => {
+    afterEach(() => {
+      window.localStorage.removeItem('ff:substrate-no-warm')
+    })
+
+    it('marks entityDataKnownComplete on a settled warming-server response with a NON-zero total', () => {
+      window.localStorage.setItem('ff:substrate-no-warm', 'true')
+      const initStore = makeInitStore()
+      const tableCoreStore = makeTableCoreStore()
+      const visualStateStore = makeVisualStateStore() as any
+
+      // The exact shape that used to hang: rows present, server total
+      // known, nothing in flight, and no warm-local transition coming.
+      setGridResult({
+        source: 'warming-server',
+        total: 6836,
+        isLoading: false,
+      })
+
+      renderHook(() =>
+        useVibeGridData(
+          'Submittal',
+          tableCoreStore as any,
+          visualStateStore,
+          initStore as any,
+        ),
+      )
+
+      expect(initStore.markEntityDataKnownComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('still waits while the warming-server response is in flight', () => {
+      window.localStorage.setItem('ff:substrate-no-warm', 'true')
+      const initStore = makeInitStore()
+      const tableCoreStore = makeTableCoreStore()
+      const visualStateStore = makeVisualStateStore() as any
+
+      setGridResult({
+        source: 'warming-server',
+        total: 6836,
+        isLoading: true,
+      })
+
+      renderHook(() =>
+        useVibeGridData(
+          'Submittal',
+          tableCoreStore as any,
+          visualStateStore,
+          initStore as any,
+        ),
+      )
+
+      expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
+    })
+
+    it('leaves the warm path untouched — non-zero total still waits when warms are ON', () => {
+      // No localStorage key set: the gate is off, so the pre-GH#3283
+      // wait-for-warm-local semantics must still hold.
+      const initStore = makeInitStore()
+      const tableCoreStore = makeTableCoreStore()
+      const visualStateStore = makeVisualStateStore() as any
+
+      setGridResult({
+        source: 'warming-server',
+        total: 6836,
+        isLoading: false,
+      })
+
+      renderHook(() =>
+        useVibeGridData(
+          'Submittal',
+          tableCoreStore as any,
+          visualStateStore,
+          initStore as any,
+        ),
+      )
+
+      expect(initStore.markEntityDataKnownComplete).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('useVibeGridData — result→store pairing (scroll jitter guard)', () => {
