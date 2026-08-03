@@ -37,6 +37,7 @@ import { comparer, reaction } from 'mobx'
 import { useOrganization } from '@/app/stores'
 import { useEntityList } from '@/shared/data/hooks/useEntityList'
 import { getSQLiteClient } from '@/shared/data/db/sqlite/client'
+import { isWarmSyncDisabled } from '@/shared/data/query/feature-flag'
 import { getLogger } from '@/shared/lib/logging'
 import { SYSTEM_ENTITY_NAMES } from '@/shared/lib/system-entity-names'
 import type { TableCoreStore } from '../stores/TableCoreStore'
@@ -195,6 +196,19 @@ export function useRelationshipTargetCollections(
   }, [tableCoreStore, orgId])
 
   if (!orgId || targets.length === 0) return null
+
+  // GH#3283 step 4 — with warm sync gated off the slots are not merely
+  // useless, they are a net LOSS. Each slot's `useEntityList` exists only
+  // for the warmEntity side effect; strip the warm and what remains is a
+  // permanent server round trip (the warming branch's DEFAULT_LIST_LIMIT of
+  // 1000 rows) per relationship target, per grid, on every evaluation —
+  // paying full price for a result that is discarded.
+  //
+  // Nothing else regresses: badge labels resolve through the server `__rel`
+  // join projection (Path 1 in slots/renderers/badge-list.ts), and the
+  // visible-cell bulk fetch above is a separate, viewport-scoped mechanism
+  // that is deliberately left running.
+  if (isWarmSyncDisabled()) return null
 
   return (
     <>
