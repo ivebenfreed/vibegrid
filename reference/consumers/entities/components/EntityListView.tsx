@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, Play, PlayCircle, RefreshCw, Send } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, PlayCircle, RefreshCw, Send } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useTransition } from 'react'
@@ -326,28 +326,10 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     hidden: () => !hasReviewMode,
   }
 
-  // GH#1926 Phase 4: LienWaiverCycle-specific entity actions
-  const startCycleAction: RowAction = {
-    id: 'start-cycle',
-    label: 'Start Cycle',
-    icon: Play,
-    hidden: (rowData: any) => {
-      // Only show for LienWaiverCycle entities in 'open' status
-      const status = rowData?.status ?? rowData?.data?.status
-      return entityName !== 'LienWaiverCycle' || status !== 'open'
-    },
-  }
-
-  const exportWaiversAction: RowAction = {
-    id: 'export-waivers',
-    label: 'Export Waivers',
-    icon: Download,
-    hidden: (rowData: any) => {
-      // Only show for LienWaiverCycle entities in 'complete' or 'closed' status
-      const status = rowData?.status ?? rowData?.data?.status
-      return entityName !== 'LienWaiverCycle' || (status !== 'complete' && status !== 'closed')
-    },
-  }
+  // (GH#1926 Phase 4 LienWaiverCycle start-cycle / export-waivers actions
+  // removed — the LienWaiverCycle schema was dropped in migration
+  // 20260514120000_drop_lien_waiver_cycle_schema_2964, so those actions could
+  // never fire. The lien flow now starts from PaymentCycle → PaymentLine.)
 
   // GH#2561 Track C C5: PaymentLine bulk "Mark sent + send waiver" action.
   // Hidden when:
@@ -403,9 +385,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   const allRowActions: RowAction[] = [reviewAction, retryExtractionAction]
   if (innerSchema?.archetype === 'file') {
     allRowActions.push(downloadFileAction)
-  }
-  if (entityName === 'LienWaiverCycle') {
-    allRowActions.push(startCycleAction, exportWaiversAction)
   }
   if (entityName === 'PaymentLine') {
     allRowActions.push(sendLienWaiverAction)
@@ -615,26 +594,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
                 if (source) window.open(source.downloadUrl, '_blank', 'noopener,noreferrer')
               }
             }
-            // GH#1926: Lien waiver cycle actions trigger workflows
-            if (actionId === 'start-cycle' && rowIds.length > 0) {
-              // Trigger lien-waiver-start-cycle workflow via status change to in_progress
-              const record = rowsData[0]?.data ?? rowsData[0]
-              const recordId = record?.id ?? rowIds[0]
-              if (recordId) {
-                orpcClient.dataforge.data
-                  .update({
-                    entityName: 'LienWaiverCycle',
-                    recordId,
-                    data: { status: 'in_progress' },
-                  })
-                  .then(() => {
-                    toast.success('Cycle started — waiver requests are being created')
-                  })
-                  .catch((err: Error) => {
-                    toast.error(`Failed to start cycle: ${err.message}`)
-                  })
-              }
-            }
             // GH#2561 Track C C5+C6: PaymentLine bulk "Mark sent + send waiver".
             // Pages on the client side (≤100 ids per HTTP call, see D5 cap)
             // and surfaces per-batch progress + final aggregate via toast.
@@ -682,25 +641,6 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
                 .catch((err: Error) => {
                   toast.error(`Failed to send waivers: ${err.message}`, { id: toastId })
                 })
-            }
-            if (actionId === 'export-waivers' && rowIds.length > 0) {
-              // Trigger export by changing status to closed (fires lien-waiver-export workflow)
-              const record = rowsData[0]?.data ?? rowsData[0]
-              const recordId = record?.id ?? rowIds[0]
-              if (recordId) {
-                orpcClient.dataforge.data
-                  .update({
-                    entityName: 'LienWaiverCycle',
-                    recordId,
-                    data: { status: 'closed' },
-                  })
-                  .then(() => {
-                    toast.success('Export started — document will be available shortly')
-                  })
-                  .catch((err: Error) => {
-                    toast.error(`Failed to export waivers: ${err.message}`)
-                  })
-              }
             }
           }}
         />
@@ -909,6 +849,17 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     // reads as zero ids and renders nothing. The grid passes the actual
     // row ids as the first argument; that's our source of truth.
     if (rowIds.length === 0) return
+    // LienWaiverRequest has its own review surface (LienWaiverReviewDrawer,
+    // PDF preview + signature/notary fields + close/reject + manual upload),
+    // opened via ?lwrReviewId=. The generic EntityReviewOverlay is the COI-style
+    // extraction reviewer and is the wrong drawer for a lien waiver — route LWR
+    // review to its drawer instead (single row; it's a per-record reviewer).
+    if (resolvedName === 'LienWaiverRequest') {
+      navigate({
+        search: (prev: any) => ({ ...prev, lwrReviewId: rowIds[0] }),
+      } as any)
+      return
+    }
     navigate({
       search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: rowIds.join(',') }),
     } as any)
@@ -1158,10 +1109,19 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               // reviewQueueResult.entities already holds the rows from the
               // /review/list endpoint, each with a top-level id — no need to
               // round-trip through the grid's row selection.
-              const ids = reviewQueueResult.entities.map((e) => e.id).filter(Boolean).join(',')
-              if (!ids) return
+              const idList = reviewQueueResult.entities.map((e) => e.id).filter(Boolean)
+              if (idList.length === 0) return
+              // LienWaiverRequest uses its own single-record drawer (see
+              // handleOpenReview) — open the first pending waiver there rather
+              // than the batch COI overlay.
+              if (resolvedName === 'LienWaiverRequest') {
+                navigate({
+                  search: (prev: any) => ({ ...prev, lwrReviewId: idList[0] }),
+                } as any)
+                return
+              }
               navigate({
-                search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: ids }),
+                search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: idList.join(',') }),
               } as any)
             }}
             disabled={reviewQueueResult.isLoading || reviewQueueResult.entities.length === 0}
