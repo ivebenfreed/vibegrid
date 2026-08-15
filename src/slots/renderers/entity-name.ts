@@ -7,6 +7,7 @@ import type { CellRenderer, CellRendererContext } from '../SlotRegistry'
 import { applyAffordanceAttrs } from '../applyAffordanceAttrs'
 import { isEmpty } from './helpers'
 import { highlightMatch } from '../../utils/highlight-text'
+import { resolveRecordLabel } from '@/shared/lib/entity-name-utils'
 
 class EntityNameCellRenderer implements CellRenderer {
   render(value: unknown, column: Column, context: CellRendererContext): HTMLElement {
@@ -30,12 +31,19 @@ class EntityNameCellRenderer implements CellRenderer {
     textEl.dataset.affordanceRole = 'link'
     textEl.dataset.fieldType = 'entity-name'
 
-    if (isEmpty(value)) {
+    // The bound column (usually the archetype's `name`) is often empty on synced
+    // records whose label lives elsewhere (RFI → subject, Photo → filename).
+    // Fall back to the row's conventional label fields before giving up.
+    const rowData = (context as { rowData?: Record<string, unknown> }).rowData
+    const fallbackLabel = isEmpty(value) && rowData ? resolveRecordLabel(rowData) : null
+    const resolvedValue = isEmpty(value) ? fallbackLabel : value
+
+    if (isEmpty(resolvedValue)) {
       textEl.textContent = 'Untitled'
       textEl.style.opacity = '0.5'
       textEl.style.fontStyle = 'italic'
     } else {
-      const displayValue = String(value)
+      const displayValue = String(resolvedValue)
       // GH#1391: Highlight matching search text
       const searchText = context.searchText as string | undefined
       const highlighted = searchText ? highlightMatch(displayValue, searchText) : null
@@ -64,9 +72,12 @@ class EntityNameCellRenderer implements CellRenderer {
     return container
   }
 
-  format(value: unknown, _column: Column, _context: CellRendererContext): string {
-    if (value == null) return ''
-    return String(value)
+  format(value: unknown, _column: Column, context: CellRendererContext): string {
+    if (!isEmpty(value)) return String(value)
+    // Match render()'s fallback so CSV export and clipboard carry the same label
+    // the user sees on screen rather than a blank cell.
+    const rowData = (context as { rowData?: Record<string, unknown> }).rowData
+    return (rowData ? resolveRecordLabel(rowData) : null) ?? ''
   }
 
   validate(value: unknown, column: Column, _context: CellRendererContext): string | null {
