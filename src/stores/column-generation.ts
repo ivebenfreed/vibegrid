@@ -367,6 +367,15 @@ function generateColumnsFromEntity<T = any>(entitySchema: any, entityType: strin
         return null
       }
 
+      // Skip fields flagged hide-from-grid. Unlike `serverOnly`, the field stays
+      // in the record payload + sync (so drawers/detail views can still read it,
+      // e.g. PaymentCycle.import_result feeding the CSV mapping-review drawer) —
+      // it's just not surfaced as a grid column, where a raw JSON blob is noise.
+      if ((fieldDef as any)?.hideInGrid === true) {
+        fileLog.debug('⏭️ Skipping hideInGrid field', { fieldName })
+        return null
+      }
+
       // Skip system fields — DB infrastructure, not user-facing entity data
       // Manifests use `system: true`, legacy schemas may use `isSystem: true`
       if ((fieldDef as any)?.isSystem === true || (fieldDef as any)?.system === true) {
