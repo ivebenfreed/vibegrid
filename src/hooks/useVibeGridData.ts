@@ -42,6 +42,7 @@ import {
 } from '@/shared/data/hooks/useEntityGrid'
 import { buildRelColDescriptors } from '@/shared/data/query/use-server-grid-rows/snapshot-wiring'
 import {
+  collectRelationshipFields,
   composeFiltersAnd,
   convertGlobalSearchToFilterExpression,
   convertVibeGridFilterToFilterExpression,
@@ -250,6 +251,7 @@ export function useVibeGridData(
           // + global search.
           const userFilter = convertVibeGridFilterToFilterExpression(
             filterGroup ?? filters,
+            { relationshipFields: collectRelationshipFields(tableCoreStore?.columns) },
           )
           const searchFilter = convertGlobalSearchToFilterExpression(
             globalSearchText,

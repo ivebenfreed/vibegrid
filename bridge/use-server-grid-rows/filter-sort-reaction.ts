@@ -30,6 +30,7 @@ import {
   convertGlobalSearchToFilterExpression,
   composeFiltersAnd,
   convertVibeGridSortToQueryShape,
+  collectRelationshipFields,
 } from '../vibegrid-sort-filter-bridge'
 import { isSearchableType } from '@/systems/vibegrid/constants/field-type-categories'
 import type { SubscriptionHandle } from '../unified/query'
@@ -154,6 +155,7 @@ export function setupFilterSortReaction(ctx: FilterSortReactionCtx): () => void 
         bridgeSort && bridgeSort.length > 0 ? bridgeSort : undefined
       const userFilter = convertVibeGridFilterToFilterExpression(
         filterGroup ?? filters,
+        { relationshipFields: collectRelationshipFields(tableCoreStore?.columns) },
       )
       const searchFilter = convertGlobalSearchToFilterExpression(
         globalSearchText,

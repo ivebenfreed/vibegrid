@@ -18,6 +18,7 @@ import React from 'react'
 import { Button } from '@/shared/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover'
 import { getLogger } from '@/shared/lib/logging'
+import { collectInViewRelationshipOptions } from '../utils/relationship-column'
 import type { VibeGridStores } from '../stores/context'
 import type { FilterGroup as FilterGroupType } from '../types/filter-types'
 import { FilterGroup } from './FilterGroup'
@@ -38,6 +39,19 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
 
   // Get columns from tableCoreStore for FilterGroup
   const columns = tableCoreStore.columns
+
+  // Relationship targets referenced by the rows the grid currently holds.
+  // Computed only while the dialog is open — the scan is O(loaded rows), but
+  // there is no reason to pay it on every grid render just to keep the
+  // trigger button painted. Recomputed per open (and on row/column change)
+  // via the MobX read inside this observer component.
+  const inViewRelationshipOptions = React.useMemo(
+    () =>
+      filterBuilderState.isOpen
+        ? collectInViewRelationshipOptions(columns, tableCoreStore.processedRows)
+        : undefined,
+    [filterBuilderState.isOpen, columns, tableCoreStore.processedRows],
+  )
 
   // Legacy `filters[]` array is still written by `useViewUrlSync.selectView`
   // when applying a saved view. The badge (`activeFilterCount`) already falls
@@ -184,6 +198,7 @@ export const FilterBuilder = observer(function FilterBuilder({ stores, className
             depth={0}
             onChange={handleDraftFilterGroupChange}
             className="mb-4"
+            inViewRelationshipOptions={inViewRelationshipOptions}
           />
         ) : (
           <div className="text-center text-muted-foreground py-4">

@@ -12,7 +12,10 @@
  * - date/datetime: Date picker
  * - boolean/checkbox: Toggle switch
  * - status/single_select: Select dropdown with options
- * - relationship: Text input (entity picker is complex, deferred)
+ * - relationship: Searchable entity listbox (FilterRelationshipValue) —
+ *   "In this view" options from the grid's loaded rows, then the full
+ *   target-entity option set. Falls back to text when the column carries no
+ *   resolvable target entity type.
  * - is_empty/is_not_empty operators: No input needed
  */
 
@@ -20,6 +23,8 @@ import { observer } from 'mobx-react-lite'
 import { Input } from '@/shared/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select'
 import { Switch } from '@/shared/components/ui/switch'
+import { getRelationshipTarget } from '../utils/relationship-column'
+import { FilterRelationshipValue, type InViewRelationshipOption } from './FilterRelationshipValue'
 import type { CellType } from '../column-types'
 import type { Column, FilterOperator } from '../types'
 
@@ -51,6 +56,12 @@ export interface FilterValueInputProps {
   onChange: (value: any) => void
   index: number
   className?: string
+  /**
+   * Distinct relationship targets referenced by the grid's currently-loaded
+   * rows, keyed by column id. Supplied by FilterBuilder so a relationship
+   * condition can lead with the values that actually occur in the view.
+   */
+  inViewRelationshipOptions?: Record<string, readonly InViewRelationshipOption[]>
 }
 
 export const FilterValueInput = observer(function FilterValueInput({
@@ -60,6 +71,7 @@ export const FilterValueInput = observer(function FilterValueInput({
   onChange,
   index,
   className,
+  inViewRelationshipOptions,
 }: FilterValueInputProps) {
   // Empty operators don't need a value
   if (operator === 'is_empty' || operator === 'is_not_empty') {
@@ -82,6 +94,24 @@ export const FilterValueInput = observer(function FilterValueInput({
   }
 
   const cellType: CellType | string = column.cellType ?? 'text'
+
+  // Relationship field — searchable entity listbox instead of a raw UUID
+  // text box. `in` / `not_in` select a set of targets.
+  const relationshipTarget = getRelationshipTarget(column)
+  if (relationshipTarget) {
+    return (
+      <FilterRelationshipValue
+        targetEntityType={relationshipTarget.targetEntityType}
+        displayField={relationshipTarget.displayField}
+        value={value}
+        onChange={onChange}
+        multiSelect={operator === 'in' || operator === 'not_in'}
+        inViewOptions={inViewRelationshipOptions?.[column.id]}
+        index={index}
+        className={className}
+      />
+    )
+  }
 
   // Boolean field
   if (BOOLEAN_CELL_TYPES.has(cellType)) {

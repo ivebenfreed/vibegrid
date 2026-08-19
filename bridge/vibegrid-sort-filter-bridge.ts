@@ -26,6 +26,25 @@
  *                                      a JS post-filter to parsed rows)
  *   decision_status  → (still unsupported on SQL path)
  *
+ * Relationship fields (GH: relationship filter picker) are a special case.
+ * Their cell value is stored as an ARRAY of target-entity ids — e.g.
+ * `rel__r_f_i__project_belongs_tos: ["<uuid>"]` — so `data->>'<field>'`
+ * yields the JSON text `["<uuid>"]`, and scalar `eq '<uuid>'` never matches
+ * (verified against staging: `eq` → 0 rows, `contains` → 9). Conditions whose
+ * field is named in `options.relationshipFields` are therefore translated to
+ * substring semantics over that JSON text:
+ *
+ *   equals → contains(id)
+ *   in     → or(contains(id1), contains(id2), …)
+ *
+ * The UUID payload makes the substring test exact in practice. `not_equals` /
+ * `not_in` have no server-side counterpart (the v1 `WherePredicate` AST has
+ * neither `neq` nor a negated substring op — see
+ * `packages/shared-types/src/predicate.ts`), and `notIn` against the JSON
+ * text would silently match every row; those operators are withheld from the
+ * relationship operator set in `FilterOperatorPicker` rather than emitted
+ * here as a wrong answer.
+ *
  * Filters with unsupported operators fall through and are dropped from the
  * SQL pushdown — the substrate path's caller MUST gate the JS-side
  * `applyAllFilters` for substrate-owned entities. If a substrate-owned
@@ -137,11 +156,94 @@ function isFilterGroup(
   return (node as VibeGridFilterGroup).logic !== undefined
 }
 
+/** Options accepted by the filter converters. */
+export interface VibeGridFilterConvertOptions {
+  /**
+   * Field names whose stored value is an array of relationship target ids.
+   * Conditions on these fields get array-membership semantics instead of
+   * scalar comparison. Derive with `collectRelationshipFields(columns)`.
+   */
+  relationshipFields?: ReadonlySet<string>
+}
+
+/** Loose column shape — matches what VibeGrid column producers attach. */
+interface RelationshipColumnLike {
+  id: string
+  field?: string
+  relationshipTargetEntity?: string | null
+  relationshipConfig?: { targetEntityType?: string | null } | null
+}
+
+/**
+ * Collect the field names of a grid's relationship columns.
+ *
+ * Keyed on the resolved target entity type rather than `cellType` because
+ * that is what actually identifies an id-valued column (see
+ * `systems/vibegrid/utils/relationship-column.ts` for the UI-side twin).
+ * Columns whose target could not be derived are excluded — their values are
+ * not guaranteed to be id arrays.
+ */
+export function collectRelationshipFields(
+  columns: ReadonlyArray<RelationshipColumnLike> | null | undefined,
+): ReadonlySet<string> {
+  const out = new Set<string>()
+  if (!columns || columns.length === 0) return out
+  for (const col of columns) {
+    const target = col.relationshipConfig?.targetEntityType || col.relationshipTargetEntity
+    if (!target) continue
+    const fieldName = col.field || col.id
+    if (fieldName) out.add(fieldName)
+  }
+  return out
+}
+
+/** Substring leaf over the JSON array text — the membership test. */
+function relationshipContains(field: string, value: unknown): FilterExpression | null {
+  if (typeof value !== 'string' || value.length === 0) return null
+  return { op: 'contains', field, value }
+}
+
+/**
+ * Translate a condition on an array-valued relationship field. Returns `null`
+ * for operators that cannot be expressed correctly (see the module header).
+ */
+function convertRelationshipCondition(
+  c: VibeGridFilterCondition,
+): FilterExpression | null {
+  switch (c.operator) {
+    case 'equals':
+    case 'contains':
+      return relationshipContains(c.field, c.value)
+    case 'in': {
+      const values = Array.isArray(c.value) ? c.value : [c.value]
+      const leafs = values
+        .map((v) => relationshipContains(c.field, v))
+        .filter((e): e is FilterExpression => e !== null)
+      if (leafs.length === 0) return null
+      if (leafs.length === 1) return leafs[0]!
+      return { op: 'or', filters: leafs }
+    }
+    case 'is_empty':
+      return { op: 'is_null', field: c.field }
+    case 'is_not_empty':
+      return { op: 'is_not_null', field: c.field }
+    default:
+      // not_equals / not_in / text operators — no correct translation.
+      return null
+  }
+}
+
 /**
  * Translate a single VibeGrid FilterCondition into a leaf FilterExpression.
  * Returns `null` for unsupported operators or invalid shapes.
  */
-function convertCondition(c: VibeGridFilterCondition): FilterExpression | null {
+function convertCondition(
+  c: VibeGridFilterCondition,
+  options?: VibeGridFilterConvertOptions,
+): FilterExpression | null {
+  if (options?.relationshipFields?.has(c.field)) {
+    return convertRelationshipCondition(c)
+  }
   const op = mapOperator(c.operator)
   if (!op) return null
 
@@ -169,11 +271,16 @@ function convertCondition(c: VibeGridFilterCondition): FilterExpression | null {
  * Translate a VibeGrid FilterGroup into a compound FilterExpression. Empty
  * groups return `null` so the caller can omit the filter entirely.
  */
-function convertGroup(group: VibeGridFilterGroup): FilterExpression | null {
+function convertGroup(
+  group: VibeGridFilterGroup,
+  options?: VibeGridFilterConvertOptions,
+): FilterExpression | null {
   if (!group.conditions || group.conditions.length === 0) return null
   const filters: FilterExpression[] = []
   for (const node of group.conditions) {
-    const child = isFilterGroup(node) ? convertGroup(node) : convertCondition(node)
+    const child = isFilterGroup(node)
+      ? convertGroup(node, options)
+      : convertCondition(node, options)
     if (child) filters.push(child)
   }
   if (filters.length === 0) return null
@@ -198,6 +305,7 @@ export function convertVibeGridFilterToFilterExpression(
     | VibeGridFilterGroup
     | null
     | undefined,
+  options?: VibeGridFilterConvertOptions,
 ): FilterExpression | undefined {
   if (!filters) return undefined
 
@@ -206,7 +314,7 @@ export function convertVibeGridFilterToFilterExpression(
     if (arr.length === 0) return undefined
     const expressions: FilterExpression[] = []
     for (const c of arr) {
-      const expr = convertCondition(c)
+      const expr = convertCondition(c, options)
       if (expr) expressions.push(expr)
     }
     if (expressions.length === 0) return undefined
@@ -215,7 +323,7 @@ export function convertVibeGridFilterToFilterExpression(
   }
 
   // FilterGroup (object form)
-  const result = convertGroup(filters as VibeGridFilterGroup)
+  const result = convertGroup(filters as VibeGridFilterGroup, options)
   return result ?? undefined
 }
 

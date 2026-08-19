@@ -16,6 +16,8 @@ import { getLogger } from '@/shared/lib/logging'
 import { FilterFieldPicker } from './FilterFieldPicker'
 import { FilterOperatorPicker, getOperatorsForFieldType } from './FilterOperatorPicker'
 import { FilterValueInput } from './FilterValueInput'
+import { getRelationshipTarget } from '../utils/relationship-column'
+import type { InViewRelationshipOption } from './FilterRelationshipValue'
 import type { FilterCondition as FilterConditionType } from '../types/filter-types'
 import type { Column, FilterOperator } from '../types'
 
@@ -30,6 +32,8 @@ export interface FilterConditionProps {
   className?: string
   /** Validation error message to display */
   errorMessage?: string
+  /** Distinct relationship targets present in the grid's loaded rows, by column id. */
+  inViewRelationshipOptions?: Record<string, readonly InViewRelationshipOption[]>
 }
 
 export const FilterCondition = observer(function FilterCondition({
@@ -40,12 +44,23 @@ export const FilterCondition = observer(function FilterCondition({
   onRemove,
   className,
   errorMessage,
+  inViewRelationshipOptions,
 }: FilterConditionProps) {
   const selectedColumn = columns.find((col) => col.id === condition.field)
 
+  // Relationship columns hold target-entity ids, so they get the relationship
+  // operator set and the entity-picker value control. The array-membership
+  // semantics their conditions need are applied downstream, in the SQL bridge
+  // (`collectRelationshipFields`) and the JS evaluator — both derive it from
+  // the columns, so saved views built before this change get it too.
+  const relationshipTarget = getRelationshipTarget(selectedColumn)
+  const effectiveCellType = relationshipTarget ? 'badge-list' : (selectedColumn?.cellType ?? 'text')
+
   const handleFieldChange = (fieldId: string) => {
     const newColumn = columns.find((col) => col.id === fieldId)
-    const operators = newColumn ? getOperatorsForFieldType(newColumn.cellType ?? 'text') : []
+    const newRelationship = getRelationshipTarget(newColumn)
+    const newCellType = newRelationship ? 'badge-list' : (newColumn?.cellType ?? 'text')
+    const operators = newColumn ? getOperatorsForFieldType(newCellType) : []
     const defaultOperator = operators[0] ?? 'equals'
 
     onChange({
@@ -59,10 +74,21 @@ export const FilterCondition = observer(function FilterCondition({
 
   const handleOperatorChange = (operator: FilterOperator) => {
     const needsValue = operator !== 'is_empty' && operator !== 'is_not_empty'
+    // `in` / `not_in` carry a set; the others carry a scalar. Reshape rather
+    // than handing the value control a type it can't render.
+    const isSetOperator = operator === 'in' || operator === 'not_in'
+    let nextValue = needsValue ? condition.value : null
+    if (needsValue && relationshipTarget) {
+      if (isSetOperator && !Array.isArray(nextValue)) {
+        nextValue = nextValue == null || nextValue === '' ? [] : [nextValue]
+      } else if (!isSetOperator && Array.isArray(nextValue)) {
+        nextValue = nextValue.length > 0 ? nextValue[0] : null
+      }
+    }
     onChange({
       ...condition,
       operator,
-      value: needsValue ? condition.value : null,
+      value: nextValue,
     })
     logger.debug('Operator changed', { operator, needsValue })
   }
@@ -81,7 +107,7 @@ export const FilterCondition = observer(function FilterCondition({
         <FilterFieldPicker columns={columns} value={condition.field} onChange={handleFieldChange} index={index} />
 
         <FilterOperatorPicker
-          cellType={selectedColumn?.cellType ?? 'text'}
+          cellType={effectiveCellType}
           value={condition.operator}
           onChange={handleOperatorChange}
           index={index}
@@ -93,6 +119,7 @@ export const FilterCondition = observer(function FilterCondition({
           value={condition.value}
           onChange={handleValueChange}
           index={index}
+          inViewRelationshipOptions={inViewRelationshipOptions}
         />
 
         <Button

@@ -99,14 +99,27 @@ export function evaluateCondition(row: any, condition: FilterCondition): boolean
   const value = row.data ? row.data[condition.field] : row[condition.field]
   const filterValue = condition.value
 
+  // Relationship cells hold an ARRAY of target-entity ids
+  // (`rel__r_f_i__project_belongs_tos: ["<uuid>"]`), so equality against a
+  // single id is set membership, not identity. Detected from the runtime
+  // value rather than column metadata, which this pure function has no access
+  // to — and which would be redundant, since only list-valued cells can be
+  // matched this way. Mirrors the SQL-side translation in
+  // `vibegrid-sort-filter-bridge.ts`.
+  const isListValue = Array.isArray(value)
+
   switch (condition.operator) {
     case 'equals':
+      if (isListValue) return (value as unknown[]).includes(filterValue)
       return value === filterValue
 
     case 'not_equals':
+      if (isListValue) return !(value as unknown[]).includes(filterValue)
       return value !== filterValue
 
     case 'contains': {
+      // A list cell stringifies to `a,b` — `String([x]) === x` — so the
+      // substring test already behaves as membership for exact ids.
       const valueStr = String(value ?? '').toLowerCase()
       const filterStr = String(filterValue ?? '').toLowerCase()
       return condition.caseSensitive
@@ -145,16 +158,23 @@ export function evaluateCondition(row: any, condition: FilterCondition): boolean
       return Number(value) < Number(filterValue)
 
     case 'is_empty':
+      if (isListValue) return (value as unknown[]).length === 0
       return value === null || value === undefined || value === ''
 
     case 'is_not_empty':
+      if (isListValue) return (value as unknown[]).length > 0
       return value !== null && value !== undefined && value !== ''
 
     case 'in':
-      return Array.isArray(filterValue) && filterValue.includes(value)
+      if (!Array.isArray(filterValue)) return false
+      // List cell ∩ selected set — the row matches if it holds ANY of them.
+      if (isListValue) return (value as unknown[]).some((v) => filterValue.includes(v))
+      return filterValue.includes(value)
 
     case 'not_in':
-      return !Array.isArray(filterValue) || !filterValue.includes(value)
+      if (!Array.isArray(filterValue)) return true
+      if (isListValue) return !(value as unknown[]).some((v) => filterValue.includes(v))
+      return !filterValue.includes(value)
 
     case 'regex':
       try {

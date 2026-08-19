@@ -14,6 +14,7 @@ import { observer } from 'mobx-react-lite'
 import { Button } from '@/shared/components/ui/button'
 import { getLogger } from '@/shared/lib/logging'
 import { FilterCondition } from './FilterCondition'
+import type { InViewRelationshipOption } from './FilterRelationshipValue'
 import type { FilterCondition as FilterConditionType, FilterGroup as FilterGroupType } from '../types/filter-types'
 import type { Column } from '../types'
 
@@ -26,6 +27,8 @@ export interface FilterGroupProps {
   onChange: (group: FilterGroupType) => void
   onRemove?: () => void // Optional - root group can't be removed
   className?: string
+  /** Distinct relationship targets present in the grid's loaded rows, by column id. */
+  inViewRelationshipOptions?: Record<string, readonly InViewRelationshipOption[]>
 }
 
 const MAX_DEPTH = 3
@@ -52,6 +55,7 @@ export const FilterGroup = observer(function FilterGroup({
   onChange,
   onRemove,
   className,
+  inViewRelationshipOptions,
 }: FilterGroupProps) {
   const canAddGroup = depth < MAX_DEPTH - 1 // Can add if we're not at max depth
 
@@ -138,6 +142,7 @@ export const FilterGroup = observer(function FilterGroup({
               depth={depth + 1}
               onChange={(updated) => updateCondition(index, updated)}
               onRemove={() => removeCondition(index)}
+              inViewRelationshipOptions={inViewRelationshipOptions}
             />
           ) : (
             // Condition row
@@ -148,6 +153,7 @@ export const FilterGroup = observer(function FilterGroup({
               index={index}
               onChange={(updated) => updateCondition(index, updated)}
               onRemove={() => removeCondition(index)}
+              inViewRelationshipOptions={inViewRelationshipOptions}
             />
           ),
         )}

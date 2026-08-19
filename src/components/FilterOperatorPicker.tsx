@@ -35,7 +35,20 @@ const BOOLEAN_OPERATORS = ['equals', 'is_empty', 'is_not_empty'] as const
 
 const ENUM_OPERATORS = ['equals', 'not_equals', 'in', 'not_in', 'is_empty', 'is_not_empty'] as const
 
-const RELATIONSHIP_OPERATORS = ['equals', 'not_equals', 'in', 'not_in', 'is_empty', 'is_not_empty'] as const
+/**
+ * Relationship cells hold an ARRAY of target-entity ids, so a match is set
+ * membership over that array (the bridge translates `equals` / `in` into
+ * substring predicates over the stored JSON text — see
+ * `vibegrid-sort-filter-bridge.ts`).
+ *
+ * `not_equals` / `not_in` are deliberately absent: the v1 server predicate AST
+ * (`packages/shared-types/src/predicate.ts`) has neither `neq` nor a negated
+ * substring op, and a plain `notIn` compares against the whole JSON text — so
+ * it would match every row, including the ones the user meant to exclude. An
+ * operator that silently returns the wrong rows is worse than one that isn't
+ * offered; add them back when the AST grows a negation.
+ */
+const RELATIONSHIP_OPERATORS = ['equals', 'in', 'is_empty', 'is_not_empty'] as const
 
 const DECISION_TABLE_OPERATORS = ['decision_status', 'is_empty', 'is_not_empty'] as const
 
@@ -79,6 +92,18 @@ export function getOperatorsForFieldType(cellType: string): FilterOperator[] {
     case 'single_select':
     case 'multi_select':
       return [...ENUM_OPERATORS]
+
+    // Relationship types. `column-generation.ts` renders relationship
+    // projections as `badge-list`; `badge-list-live` is the pre-F' name still
+    // present on some column producers. These hold target-entity ids, so the
+    // substring operators (starts_with / regex / …) that TEXT_OPERATORS
+    // offered were meaningless here — RELATIONSHIP_OPERATORS was declared for
+    // exactly this case but never wired up.
+    case 'badge-list':
+    case 'badge-list-live':
+    case 'relationship':
+    case 'entity-reference':
+      return [...RELATIONSHIP_OPERATORS]
 
     // Computed decision table types
     case 'computed_decision_table':

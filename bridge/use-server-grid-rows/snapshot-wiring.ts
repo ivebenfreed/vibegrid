@@ -46,6 +46,7 @@ import {
   convertVibeGridFilterToFilterExpression,
   convertGlobalSearchToFilterExpression,
   composeFiltersAnd,
+  collectRelationshipFields,
 } from '../vibegrid-sort-filter-bridge'
 
 /**
@@ -373,6 +374,7 @@ export function setupSnapshotWiring(ctx: SnapshotWiringCtx): SnapshotWiringResul
       if (bridgeSort && bridgeSort.length > 0) req.sort = bridgeSort
       const userFilter = convertVibeGridFilterToFilterExpression(
         visualStateStore.filterGroup ?? visualStateStore.filters,
+        { relationshipFields: collectRelationshipFields(tableCoreStore?.columns) },
       )
       const searchFilter = convertGlobalSearchToFilterExpression(
         visualStateStore.globalSearchText,

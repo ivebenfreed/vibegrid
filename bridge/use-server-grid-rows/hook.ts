@@ -50,6 +50,7 @@ import {
   convertVibeGridFilterToFilterExpression,
   convertGlobalSearchToFilterExpression,
   composeFiltersAnd,
+  collectRelationshipFields,
 } from '../vibegrid-sort-filter-bridge'
 import type { SubscriptionHandle } from '../unified/query'
 import { setupViewportCursor } from './viewport-cursor'
@@ -166,6 +167,7 @@ export function useServerGridRows(
       // empty WhereExpr and the filter never reached the substrate.
       const initialUserFilter = convertVibeGridFilterToFilterExpression(
         visualStateStore.filterGroup ?? visualStateStore.filters,
+        { relationshipFields: collectRelationshipFields(tableCoreStore?.columns) },
       )
       const initialSearchFilter = convertGlobalSearchToFilterExpression(
         visualStateStore.globalSearchText,
