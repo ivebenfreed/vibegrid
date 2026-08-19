@@ -147,6 +147,9 @@ function deriveRelationshipSearch(
   return clauses.length > 0 ? clauses : undefined
 }
 
+/** Stable empty-rows identity so the override memo doesn't churn. */
+const EMPTY_ROWS: Array<Record<string, unknown> | null> = []
+
 const DEFAULT_VIEWPORT_SIZE = 200
 
 const EMPTY_INPUTS: GridInputs = {
@@ -377,26 +380,60 @@ export function useVibeGridData(
   ])
 
   // ====================================
-  // COLLECTION OVERRIDE (MOCK MODE)
+  // COLLECTION OVERRIDE (EMBEDDED / MOCK MODE)
   // ====================================
-  // Handle collectionOverride data push when skip mode is enabled
-  // This allows components to provide mock data that still gets rendered
+  // Handle collectionOverride data push when skip mode is enabled. Embedded
+  // grids (the PaymentCycle hub's lien tabs, mock harnesses) supply their own
+  // already-fetched rows rather than reading the substrate.
+  //
+  // Relationship names: the override rows are raw records — relationship
+  // fields are arrays of target IDs with no `colId__rel` projection. Without
+  // the same projection the substrate path gets, the badge-list renderer's
+  // Path 1 is empty and Path 2 (`getExistingEntityCollection`) is dead
+  // post-GH#3119, so every chip renders `#<idSuffix>` forever. Run
+  // `useGridRelationshipProjection` over the override rows too, then flatten
+  // back to the flat record shape `setRows` expects (the projection returns
+  // the wrapped `{id, data}` contract) so only the `colId__rel` keys are new.
+  const overrideRows = useMemo<Array<Record<string, unknown> | null>>(() => {
+    if (!skip || !collectionOverride) return EMPTY_ROWS
+    const items = collectionOverride.items || collectionOverride
+    return Array.isArray(items) ? (items as Array<Record<string, unknown>>) : EMPTY_ROWS
+  }, [skip, collectionOverride])
+
+  const projectedOverrideRows = useGridRelationshipProjection(
+    skip && collectionOverride ? tableCoreStore : null,
+    overrideRows,
+    orgId,
+  )
+
+  const flatOverrideRows = useMemo(() => {
+    const out: Array<Record<string, unknown>> = []
+    for (const row of projectedOverrideRows) {
+      if (row === null) continue
+      const data = (row as { data?: unknown }).data
+      out.push(
+        data && typeof data === 'object' && !Array.isArray(data)
+          ? { ...(data as Record<string, unknown>), id: row.id }
+          : (row as unknown as Record<string, unknown>),
+      )
+    }
+    return out
+  }, [projectedOverrideRows])
+
   useEffect(() => {
     if (!skip || !collectionOverride) return
+    if (flatOverrideRows.length === 0) return
 
-    const items = collectionOverride.items || collectionOverride
-    if (Array.isArray(items) && items.length > 0) {
-      logger.info('[useVibeGridData] 📊 Pushing collectionOverride items to store', {
-        itemCount: items.length,
-        entityType,
-      })
-      tableCoreStore.setRows(items)
+    logger.info('[useVibeGridData] 📊 Pushing collectionOverride items to store', {
+      itemCount: flatOverrideRows.length,
+      entityType,
+    })
+    tableCoreStore.setRows(flatOverrideRows)
 
-      if (!initStore.entityDataKnownComplete) {
-        initStore.markEntityDataKnownComplete()
-      }
+    if (!initStore.entityDataKnownComplete) {
+      initStore.markEntityDataKnownComplete()
     }
-  }, [skip, collectionOverride, tableCoreStore, initStore, entityType])
+  }, [skip, collectionOverride, flatOverrideRows, tableCoreStore, initStore, entityType])
 
   // ====================================
   // HYDRATION GATE — markEntityDataKnownComplete
