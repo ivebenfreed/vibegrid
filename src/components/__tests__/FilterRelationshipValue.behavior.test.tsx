@@ -226,6 +226,105 @@ describe('FilterRelationshipValue', () => {
     expect(useEntityOptions).toHaveBeenLastCalledWith('', undefined, '')
   })
 
+  it('renders one record under one name, whichever group surfaced it', () => {
+    // The join projection carries the raw `name`; the option query honors the
+    // schema displayFormat. Showing both made the same project read as two.
+    render(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value={null}
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-beacon', name: 'Beacon Plaza' }]}
+      />,
+    )
+    const panel = openPanel()
+    expect(within(panel).getByTestId('picker-option-p-beacon').textContent).toContain('Beacon Plaza')
+    expect(within(panel).queryByText('Beacon Plaza')).toBeTruthy()
+  })
+
+  it('prefers the schema-formatted label over the join projection name', () => {
+    useEntityOptions.mockReturnValue({
+      options: [{ value: 'p-beacon', label: '260143 - Beacon Plaza' }],
+      isLoading: false,
+    })
+    render(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value={null}
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-beacon', name: 'Beacon Plaza' }]}
+      />,
+    )
+    const panel = openPanel()
+    expect(within(panel).getByTestId('picker-option-p-beacon').textContent).toBe('260143 - Beacon Plaza')
+  })
+
+  it('keeps the formatted label on the trigger after selection', () => {
+    useEntityOptions.mockReturnValue({
+      options: [{ value: 'p-beacon', label: '260143 - Beacon Plaza' }],
+      isLoading: false,
+    })
+    render(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value="p-beacon"
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-beacon', name: 'Beacon Plaza' }]}
+      />,
+    )
+    expect(screen.getByTestId('vibegrid-filter-value-0').textContent).toContain('260143 - Beacon Plaza')
+  })
+
+  it('holds the formatted label when typing narrows the option window past it', () => {
+    // The option query is server-narrowed, so an in-view record can drop out
+    // of it mid-search. The accumulated cache is what keeps its name stable.
+    useEntityOptions.mockReturnValue({
+      options: [{ value: 'p-beacon', label: '260143 - Beacon Plaza' }],
+      isLoading: false,
+    })
+    const { rerender } = render(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value={null}
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-beacon', name: 'Beacon Plaza' }]}
+      />,
+    )
+    openPanel()
+    // Window narrows to something else entirely; the in-view row remains.
+    useEntityOptions.mockReturnValue({ options: [], isLoading: false })
+    rerender(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value={null}
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-beacon', name: 'Beacon Plaza' }]}
+      />,
+    )
+    const panel = screen.getByTestId('vibegrid-filter-value-options-0')
+    expect(within(panel).getByTestId('picker-option-p-beacon').textContent).toBe('260143 - Beacon Plaza')
+  })
+
+  it('falls back to the join projection name when the query has no label', () => {
+    useEntityOptions.mockReturnValue({ options: [], isLoading: false })
+    render(
+      <FilterRelationshipValue
+        targetEntityType="Project"
+        value={null}
+        onChange={vi.fn()}
+        index={0}
+        inViewOptions={[{ id: 'p-solo', name: 'Solo Project' }]}
+      />,
+    )
+    const panel = openPanel()
+    expect(within(panel).getByTestId('picker-option-p-solo').textContent).toBe('Solo Project')
+  })
+
   it('reports an empty result rather than an empty panel', () => {
     useEntityOptions.mockReturnValue({ options: [], isLoading: false })
     render(

@@ -137,6 +137,16 @@ const OPERATOR_LABELS: Record<string, string> = {
   decision_status: 'decision status is',
 }
 
+/**
+ * Human label for an operator. Single source for the dropdown rows AND the
+ * trigger — they disagreed before, because `Select.Value` falls back to the
+ * raw item value when no formatter is supplied.
+ */
+export function getOperatorLabel(operator: string | null | undefined): string {
+  if (!operator) return ''
+  return OPERATOR_LABELS[operator] ?? operator
+}
+
 // ====================================
 // COMPONENT
 // ====================================
@@ -166,12 +176,21 @@ export const FilterOperatorPicker = observer(function FilterOperatorPicker({
   return (
     <Select value={value ?? undefined} onValueChange={(val) => onChange(val as FilterOperator)}>
       <SelectTrigger data-testid={`vibegrid-filter-operator-${index}`} className={className}>
-        <SelectValue placeholder="Select operator..." />
+        {/*
+          `Select.Value` renders the raw item VALUE unless given a formatter,
+          so the trigger read "in" / "not_in" while the dropdown row that set
+          it read "is any of" / "is none of". Map through the same labels the
+          options use. (Pre-existing for enum columns, which have always
+          offered `in`; relationship columns just made it easy to hit.)
+        */}
+        <SelectValue placeholder="Select operator...">
+          {(selected: string | null) => getOperatorLabel(selected) || 'Select operator...'}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {operators.map((op) => (
           <SelectItem key={op} value={op}>
-            {OPERATOR_LABELS[op] ?? op}
+            {getOperatorLabel(op)}
           </SelectItem>
         ))}
       </SelectContent>

@@ -114,19 +114,31 @@ export function FilterRelationshipValue({
   useEffect(() => {
     setLabelCache((prev) => {
       let next: Record<string, string> | null = null
-      const put = (id: string, label: string) => {
+      // `authoritative` marks the option-query label, which honors the
+      // schema's displayFormat / primaryField (e.g. "260143 - BMO Brentwood
+      // Renovation"). The join projection only carries the raw `name`
+      // ("BMO Brentwood Renovation"), so it may never overwrite a label
+      // already resolved — otherwise the same record renders under two
+      // different names depending on which group surfaced it.
+      const put = (id: string, label: string, authoritative: boolean) => {
         if (!id || !label || prev[id] === label) return
+        if (!authoritative && prev[id]) return
         next ??= { ...prev }
         next[id] = label
       }
-      for (const opt of inViewOptions ?? []) put(opt.id, opt.name)
-      for (const opt of allOptions) put(opt.value, opt.label)
+      for (const opt of inViewOptions ?? []) put(opt.id, opt.name, false)
+      for (const opt of allOptions) put(opt.value, opt.label, true)
       return next ?? prev
     })
   }, [inViewOptions, allOptions])
 
   // Two groups, deduped: an id present in the view is not repeated below.
   const { inViewMatches, allMatches } = useMemo(() => {
+    // Canonical labels for this render, so an in-view row and its twin in the
+    // full list never disagree. Falls back to the accumulated cache (which
+    // survives the option window narrowing as the user types) and finally to
+    // the join projection's raw name.
+    const canonicalLabel = new Map(allOptions.map((o) => [o.value, o.label]))
     const inViewIds = new Set<string>()
     const inView: PickerOption[] = []
     for (const opt of inViewOptions ?? []) {
@@ -134,7 +146,8 @@ export function FilterRelationshipValue({
       inViewIds.add(opt.id)
       const candidate: PickerOption = {
         value: opt.id,
-        label: opt.name || labelCache[opt.id] || `Entity ${opt.id.slice(-6)}`,
+        label:
+          canonicalLabel.get(opt.id) || labelCache[opt.id] || opt.name || `Entity ${opt.id.slice(-6)}`,
         color: dotColor,
         group: IN_VIEW_GROUP,
       }
