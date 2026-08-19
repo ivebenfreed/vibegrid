@@ -114,31 +114,34 @@ export function FilterRelationshipValue({
   useEffect(() => {
     setLabelCache((prev) => {
       let next: Record<string, string> | null = null
-      // `authoritative` marks the option-query label, which honors the
-      // schema's displayFormat / primaryField (e.g. "260143 - BMO Brentwood
-      // Renovation"). The join projection only carries the raw `name`
-      // ("BMO Brentwood Renovation"), so it may never overwrite a label
-      // already resolved — otherwise the same record renders under two
-      // different names depending on which group surfaced it.
-      const put = (id: string, label: string, authoritative: boolean) => {
+      const put = (id: string, label: string) => {
         if (!id || !label || prev[id] === label) return
-        if (!authoritative && prev[id]) return
         next ??= { ...prev }
         next[id] = label
       }
-      for (const opt of inViewOptions ?? []) put(opt.id, opt.name, false)
-      for (const opt of allOptions) put(opt.value, opt.label, true)
+      // Exactly one source per id, so a record's name never depends on
+      // whether it happened to fall inside the option query's 200-row
+      // alphabetical window. In-view ids are labelled by the join
+      // projection (the same text the grid's badge cells show); every other
+      // id is labelled by the option query (schema displayFormat). The two
+      // groups are deduped below, so no id is ever claimed by both.
+      const owned = new Set<string>()
+      for (const opt of inViewOptions ?? []) {
+        if (opt.id && opt.name) {
+          owned.add(opt.id)
+          put(opt.id, opt.name)
+        }
+      }
+      for (const opt of allOptions) {
+        if (owned.has(opt.value)) continue
+        put(opt.value, opt.label)
+      }
       return next ?? prev
     })
   }, [inViewOptions, allOptions])
 
   // Two groups, deduped: an id present in the view is not repeated below.
   const { inViewMatches, allMatches } = useMemo(() => {
-    // Canonical labels for this render, so an in-view row and its twin in the
-    // full list never disagree. Falls back to the accumulated cache (which
-    // survives the option window narrowing as the user types) and finally to
-    // the join projection's raw name.
-    const canonicalLabel = new Map(allOptions.map((o) => [o.value, o.label]))
     const inViewIds = new Set<string>()
     const inView: PickerOption[] = []
     for (const opt of inViewOptions ?? []) {
@@ -146,8 +149,9 @@ export function FilterRelationshipValue({
       inViewIds.add(opt.id)
       const candidate: PickerOption = {
         value: opt.id,
-        label:
-          canonicalLabel.get(opt.id) || labelCache[opt.id] || opt.name || `Entity ${opt.id.slice(-6)}`,
+        // Own name first; the cache only covers rows whose target had not
+        // loaded when the projection was read.
+        label: opt.name || labelCache[opt.id] || `Entity ${opt.id.slice(-6)}`,
         color: dotColor,
         group: IN_VIEW_GROUP,
       }
