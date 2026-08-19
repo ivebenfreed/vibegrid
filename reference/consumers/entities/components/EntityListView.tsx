@@ -32,6 +32,8 @@ import { EntityNameUtils } from '@/shared/lib/entity-name-utils'
 import { getLogger } from '@/shared/lib/logging'
 import { cn } from '@/shared/lib/utils'
 
+import { buildReviewSearchParams } from '@/features/entity-review/lib/review-surface-registry'
+import { resolveReviewConfig } from '@/features/entity-review/lib/review-config'
 import { useReviewQueue } from '@/features/entity-review/hooks/useReviewQueue'
 import {
   BULK_SEND_BATCH_SIZE,
@@ -127,6 +129,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate,
   onOpenReview,
   hasReviewMode,
+  hasExtractionPipeline,
   schemaFields,
   toolbarLeading,
   toolbarTrailing,
@@ -145,6 +148,14 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   onEscalate: (groupId: string, inheritedFields: Record<string, unknown>) => void
   onOpenReview: (_rowIds: string[], rowsData: EntityRecord[]) => void
   hasReviewMode: boolean
+  /**
+   * Whether this entity type actually runs an extraction pipeline
+   * (`primaryFile.extractionTemplate` is set). GH#3331 split this out of
+   * `hasReviewMode`: Retry Extraction rode along on review mode and so
+   * appeared on entities that never extract anything — PaymentCycle imports a
+   * CSV, and there is no extraction to retry.
+   */
+  hasExtractionPipeline: boolean
   schemaFields?: SchemaFieldDescriptor[]
   toolbarLeading?: React.ReactNode
   toolbarTrailing?: React.ReactNode
@@ -376,7 +387,7 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     label: 'Retry Extraction',
     icon: RefreshCw,
     hidden: (rowData: any) => {
-      if (!hasReviewMode || !hasWriteAccess) return true
+      if (!hasExtractionPipeline || !hasWriteAccess) return true
       return !canRetryExtraction(rowData as EntityRecord)
     },
   }
@@ -738,9 +749,18 @@ export const EntityListView = observer(function EntityListView(props: EntityList
 
   const creationModes = creationConfigQuery.data?.creationModes ?? ['form']
   const hasUploadMode = creationModes.includes('upload')
-  // Review mode: enabled by 'upload' (entities created from files) or 'review' (entities with review queue but form-created)
-  const hasReviewMode = hasUploadMode || (creationModes as string[]).includes('review')
   const primaryFileConfig = creationConfigQuery.data?.primaryFile
+
+  // GH#3331: review is DECLARED on the schema, not inferred from upload mode.
+  // Accepting a file no longer implies a document-vs-form reviewer (a CSV
+  // import has no document to read), and needing review no longer requires an
+  // upload (a lien waiver's document arrives inbound days later).
+  const reviewConfig = resolveReviewConfig(schema)
+  const hasReviewMode = reviewConfig.enabled
+  // Retry Extraction is about the extraction pipeline specifically, so it is
+  // gated on there BEING one — previously it rode along on hasReviewMode and
+  // showed up on entities that never extract anything.
+  const hasExtractionPipeline = Boolean(primaryFileConfig?.extractionTemplate)
 
   // Upload orchestration hook (conditionally enabled based on schema config)
   // GH#2985: forward primaryFile.intent so non-OCR uploads (e.g. CSV imports)
@@ -836,7 +856,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
   const reviewCount = reviewQueueResult.isLoading ? uploadStore.reviewRequiredCount : reviewQueueResult.total
 
   const handleOpenReview = useCallback((rowIds: string[], _rowsData: any[]) => {
-    // GH#2326: Open review overlay via search params (page stays mounted underneath).
+    // GH#2326: Open the reviewer via search params (page stays mounted underneath).
     //
     // GH#2848 follow-up: use the `rowIds` argument directly. Previously we
     // derived ids via `rowsData.map((r) => (r.data ?? r).id)`, which only
@@ -845,25 +865,16 @@ export const EntityListView = observer(function EntityListView(props: EntityList
     // the substrate row stream, `processedRows[i].data` is the column
     // payload from SQLite and does not necessarily expose an `id` field —
     // so the join produced an empty string and the URL ended up with
-    // `reviewIds=` (empty), which `EntityReviewOverlay.getReviewParams`
-    // reads as zero ids and renders nothing. The grid passes the actual
-    // row ids as the first argument; that's our source of truth.
-    if (rowIds.length === 0) return
-    // LienWaiverRequest has its own review surface (LienWaiverReviewDrawer,
-    // PDF preview + signature/notary fields + close/reject + manual upload),
-    // opened via ?lwrReviewId=. The generic EntityReviewOverlay is the COI-style
-    // extraction reviewer and is the wrong drawer for a lien waiver — route LWR
-    // review to its drawer instead (single row; it's a per-record reviewer).
-    if (resolvedName === 'LienWaiverRequest') {
-      navigate({
-        search: (prev: any) => ({ ...prev, lwrReviewId: rowIds[0] }),
-      } as any)
-      return
-    }
-    navigate({
-      search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: rowIds.join(',') }),
-    } as any)
-  }, [navigate, resolvedName])
+    // `reviewIds=` (empty), which reads as zero ids and renders nothing.
+    //
+    // GH#3331: WHICH reviewer opens, and which search param carries the id,
+    // both come from the schema's declared surface. This used to be an
+    // `if (resolvedName === 'LienWaiverRequest')` carve-out plus a default —
+    // a shape that needed a new branch for every reviewer added.
+    const search = buildReviewSearchParams(reviewConfig.surface, resolvedName, rowIds)
+    if (!search) return
+    navigate({ search: (prev: any) => ({ ...prev, ...search }) } as any)
+  }, [navigate, resolvedName, reviewConfig.surface])
 
   // GH#1658: Inline creation via ghost rows
   const featureFlags = useFeatureFlags()
@@ -1105,33 +1116,29 @@ export const EntityListView = observer(function EntityListView(props: EntityList
           <button
             type="button"
             onClick={() => {
-              // Open the review overlay with every pending entity as a batch.
+              // Open the reviewer with every pending entity as a batch.
               // reviewQueueResult.entities already holds the rows from the
               // /review/list endpoint, each with a top-level id — no need to
               // round-trip through the grid's row selection.
+              //
+              // GH#3331: the surface (and whether it takes the whole batch or
+              // just the first id) is declared on the schema. Single-record
+              // reviewers like the lien-waiver drawer get the first id and do
+              // their own prev/next internally.
               const idList = reviewQueueResult.entities.map((e) => e.id).filter(Boolean)
-              if (idList.length === 0) return
-              // LienWaiverRequest uses its own single-record drawer (see
-              // handleOpenReview) — open the first pending waiver there rather
-              // than the batch COI overlay.
-              if (resolvedName === 'LienWaiverRequest') {
-                navigate({
-                  search: (prev: any) => ({ ...prev, lwrReviewId: idList[0] }),
-                } as any)
-                return
-              }
-              navigate({
-                search: (prev: any) => ({ ...prev, reviewEntity: resolvedName, reviewIds: idList.join(',') }),
-              } as any)
+              const search = buildReviewSearchParams(reviewConfig.surface, resolvedName, idList)
+              if (!search) return
+              navigate({ search: (prev: any) => ({ ...prev, ...search }) } as any)
             }}
             disabled={reviewQueueResult.isLoading || reviewQueueResult.entities.length === 0}
             className="flex w-full items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-left text-sm transition-colors hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50"
-            aria-label={`Review ${reviewCount} ${reviewCount === 1 ? 'record' : 'records'} pending`}
+            aria-label={`Review ${reviewCount} ${reviewConfig.queueLabel ?? (reviewCount === 1 ? 'record' : 'records')} pending`}
             data-testid="review-queue-banner"
           >
             <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
             <span className="font-medium">
-              Review {reviewCount} {reviewCount === 1 ? 'record' : 'records'}
+              Review {reviewCount}{' '}
+              {reviewConfig.queueLabel ?? (reviewCount === 1 ? 'record' : 'records')}
             </span>
             <span className="text-muted-foreground">— click to open</span>
           </button>
@@ -1154,6 +1161,7 @@ export const EntityListView = observer(function EntityListView(props: EntityList
               onOpenReview={handleOpenReview}
               onDelete={entityName === 'CertificateOfInsurance' ? coiOptimisticDelete : undefined}
               hasReviewMode={hasReviewMode}
+              hasExtractionPipeline={hasExtractionPipeline}
               schemaFields={schemaFields}
               toolbarLeading={
                 <div className="flex items-center gap-2 border-r border-border pr-3 mr-1">
