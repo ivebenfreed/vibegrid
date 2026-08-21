@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { AlertTriangle, ClipboardCheck, Download, PlayCircle, RefreshCw, Send } from 'lucide-react'
+import { AlertTriangle, ClipboardCheck, Download, PlayCircle, RefreshCw, Send, Upload } from 'lucide-react'
 import { reaction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useTransition } from 'react'
@@ -392,6 +392,26 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
     },
   }
 
+  // Manual signed-waiver upload, on the grid rather than only inside the review
+  // drawer. A waiver can arrive by email OR be handed to AP on paper, and until
+  // now the paper case required opening a reviewer first — so the row action
+  // exists for the same reason the drawer's button does.
+  //
+  // Hidden once the waiver is closed: uploading a replacement onto a settled
+  // record would silently re-open a decision someone already made.
+  const CLOSED_LWR_STATUSES = new Set(['auto_closed', 'manual_closed'])
+  const uploadSignedWaiverAction: RowAction = {
+    id: 'upload-signed-waiver',
+    label: 'Upload signed waiver',
+    icon: Upload,
+    hidden: (rowData: any) => {
+      if (entityName !== 'LienWaiverRequest') return true
+      if (!hasWriteAccess) return true
+      const status = rowData?.status ?? rowData?.data?.status
+      return CLOSED_LWR_STATUSES.has(status)
+    },
+  }
+
   // Assemble row actions based on entity type
   const allRowActions: RowAction[] = [reviewAction, retryExtractionAction]
   if (innerSchema?.archetype === 'file') {
@@ -399,6 +419,9 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
   }
   if (entityName === 'PaymentLine') {
     allRowActions.push(sendLienWaiverAction)
+  }
+  if (entityName === 'LienWaiverRequest') {
+    allRowActions.push(uploadSignedWaiverAction)
   }
 
   // GH#2641 + GH#3120: Render widgets above the grid driven by
@@ -597,6 +620,16 @@ const EntityListViewUrlSync = observer(function EntityListViewUrlSync({
                 return { ...raw, id: (raw.id as string | undefined) ?? rowId } as EntityRecord
               })
               void retryExtractionBatch(entityName, records)
+            }
+            // Single-record on purpose: each upload is one PDF against one
+            // request, so a multi-select would need a file per row and there is
+            // no sane picker for that. Take the first selected row.
+            if (actionId === 'upload-signed-waiver' && rowIds.length > 0) {
+              const raw = ((rowsData[0] as any)?.data ?? rowsData[0] ?? {}) as Record<string, unknown>
+              const lwrId = (raw.id as string | undefined) ?? rowIds[0]
+              void import('@/features/lien-waivers/components/UploadSignedWaiverButton').then((m) =>
+                m.pickAndUploadSignedWaiver(lwrId),
+              )
             }
             // Download the file behind each selected file-archetype row.
             if (actionId === 'download-file') {
