@@ -255,6 +255,9 @@ const ThreadListGridInner = observer(function ThreadListGridInner({
         height="100%"
         skipDataFetching={true}
         enableSelectionColumn={isSelectMode}
+        // Threads are archived/trashed through their own row actions, never
+        // hard-deleted as DataForge records.
+        enableDelete={false}
         enableGrouping={false}
         enableFiltering={false}
         enableSorting={true}

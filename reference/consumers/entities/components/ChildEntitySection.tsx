@@ -352,6 +352,9 @@ export function ChildEntitySection({
   const orgRole = authStore.currentOrganization?.role
   const isOrgAdmin = orgRole === 'admin' || orgRole === 'owner'
   const showCoiRequestActions = isOrgAdmin && childEntityType === 'SubcontractorAssignment'
+  // Fail-secure: an unresolved role reads as viewer, which makes the grid
+  // read-only and withholds VibeGrid's built-in bulk delete.
+  const hasWriteAccess = (orgRole ?? 'viewer') !== 'viewer'
 
   // GH#2139: View mode switching in child entity tabs
   const [childViewMode, setChildViewMode] = useState<ViewMode>('table')
@@ -608,6 +611,7 @@ export function ChildEntitySection({
                     500,
                   )}
                   enableSelectionColumn={true}
+                  readOnly={!hasWriteAccess}
                   enableGrouping={false}
                   enableFiltering={false}
                   enableSorting={true}
@@ -624,9 +628,15 @@ export function ChildEntitySection({
                     if (record) setEditRecord(record)
                   }}
                   rowActions={[
+                    // Edit / Delete open a per-record dialog, so they stay in
+                    // the row's 3-dot menu. Multi-select delete is served by
+                    // VibeGrid's built-in bulk Delete instead — running these
+                    // once per selected row would just leave the last dialog
+                    // standing.
                     {
                       id: 'edit',
                       label: 'Edit',
+                      singleRowOnly: true,
                       onClick: (rowData: Record<string, unknown>) => {
                         const record = childRecords.find((r) => r.id === (rowData.id as string))
                         if (record) setEditRecord(record)
@@ -636,6 +646,7 @@ export function ChildEntitySection({
                       id: 'delete',
                       label: 'Delete',
                       destructive: true,
+                      singleRowOnly: true,
                       onClick: (rowData: Record<string, unknown>) => {
                         const record = childRecords.find((r) => r.id === (rowData.id as string))
                         if (record) setDeleteRecord(record)
@@ -646,6 +657,7 @@ export function ChildEntitySection({
                           {
                             id: 'coi-request-reissue',
                             label: 'Request reissue',
+                            singleRowOnly: true,
                             onClick: (rowData: Record<string, unknown>) => {
                               const recordId = rowData.id as string
                               const data = rowData.data as Record<string, unknown> | undefined
@@ -663,6 +675,7 @@ export function ChildEntitySection({
                           {
                             id: 'coi-request-onboarding',
                             label: 'Send onboarding',
+                            singleRowOnly: true,
                             onClick: (rowData: Record<string, unknown>) => {
                               const recordId = rowData.id as string
                               const data = rowData.data as Record<string, unknown> | undefined

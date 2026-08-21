@@ -81,7 +81,7 @@ export interface VibeGridDataResult {
   /** Update existing entity */
   updateEntity: (id: string, updates: Record<string, any>) => void
   /** Delete entity */
-  deleteEntity: (id: string) => void
+  deleteEntity: (id: string) => Promise<void>
 }
 
 export interface VibeGridDataOptions {
@@ -582,8 +582,11 @@ export function useVibeGridData(
   }, [entityType])
 
   const deleteEntity = useMemo(() => {
+    // Returns the promise so bulk callers can `await` the round-trip.
+    // Failures are already surfaced to the user by mutationApi (optimistic
+    // patch rolled back + error toast), so they're logged, not re-thrown.
     return (id: string) => {
-      mutationApi
+      return mutationApi
         .delete({ entityName: entityType, recordId: String(id) })
         .then(() => {
           logger.info('Entity delete persisted', { entityType, id })

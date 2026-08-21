@@ -45,7 +45,15 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
   const { rowActionMenuState } = menuStateStore
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<{ rowId: string; rowData: any } | null>(null)
+  // `action` is set when the confirmation came from a destructive ROW ACTION
+  // rather than the built-in Delete. Without it, confirming fell through to
+  // `onDelete` — which callers shipping their own destructive action never
+  // pass, so the row menu's Delete silently did nothing.
+  const [pendingDelete, setPendingDelete] = useState<{
+    rowId: string
+    rowData: any
+    action?: RowAction
+  } | null>(null)
 
   const deleteMessage = React.useMemo(() => {
     if (!pendingDelete) return 'Are you sure you want to delete this item?'
@@ -85,21 +93,30 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
     return !action.hidden || !action.hidden(rowData)
   })
 
+  // A caller's own destructive action wins in the row menu — it's the richer
+  // per-record path (cascade / permanent / undo). The built-in Delete still
+  // serves the multi-select ActionsBar.
+  const showBuiltInDelete =
+    enableDelete && !rowActions.some((a) => a.destructive || a.id === 'delete')
+
   const handleActionClick = async (action: RowAction) => {
     menuStateStore.closeRowActionMenu()
 
     if (action.destructive) {
       // Show confirmation dialog for destructive actions
-      setPendingDelete({ rowId: rowActionMenuState.rowId!, rowData })
+      setPendingDelete({ rowId: rowActionMenuState.rowId!, rowData, action })
       setDeleteDialogOpen(true)
       return
     }
 
-    // Execute action immediately
+    await runAction(action, rowData)
+  }
+
+  const runAction = async (action: RowAction, data: any) => {
     if (action.onClick) {
-      await action.onClick(rowData)
+      await action.onClick(data)
     } else if (onRowAction) {
-      await onRowAction(action.id, rowData)
+      await onRowAction(action.id, data)
     }
   }
 
@@ -110,7 +127,10 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
   }
 
   const handleConfirmDelete = async () => {
-    if (pendingDelete && onDelete) {
+    if (pendingDelete?.action) {
+      // Destructive row action — run the action itself, not the built-in delete.
+      await runAction(pendingDelete.action, pendingDelete.rowData)
+    } else if (pendingDelete && onDelete) {
       await onDelete(pendingDelete.rowId, pendingDelete.rowData)
     }
     setDeleteDialogOpen(false)
@@ -149,7 +169,7 @@ const FloatingActionsMenuContent = observer((props: FloatingActionsMenuProps) =>
             )
           })}
 
-          {enableDelete && (
+          {showBuiltInDelete && (
             <>
               {visibleActions.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={handleDeleteClick} variant="destructive">

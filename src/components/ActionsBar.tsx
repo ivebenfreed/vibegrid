@@ -57,7 +57,16 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   const serverTotalRows = viewportStore.totalRows ?? 0
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<{ rowIds: string[]; rowsData: any[] } | null>(null)
+  // `action` is set when the confirmation was raised by a destructive ROW
+  // ACTION rather than the built-in Delete. Without it the confirm handler
+  // fell through to `onDelete` — which callers that ship their own destructive
+  // action (ChildEntitySection, GCFileBrowser) never pass, so confirming a
+  // bulk "Delete" silently did nothing.
+  const [pendingDelete, setPendingDelete] = useState<{
+    rowIds: string[]
+    rowsData: any[]
+    action?: RowAction
+  } | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Derive selected rows from selected cells
@@ -108,6 +117,20 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
     ? Math.max(0, serverTotalRows - markerExclusionCount)
     : selectedRowIds.length
 
+  const runAction = async (action: RowAction, rowIds: string[], rowsData: any[]) => {
+    if (action.onClick) {
+      // Call action for each row
+      await Promise.all(rowsData.map((rowData) => action.onClick!(rowData)))
+    } else if (onRowAction) {
+      await onRowAction(action.id, rowIds, rowsData)
+    }
+
+    // Clear selection after successful action (unless action preserves it)
+    if (!action.preserveSelection) {
+      interactionStore.clearSelection()
+    }
+  }
+
   const handleActionClick = async (action: RowAction, e?: React.MouseEvent) => {
     // Stop propagation to prevent MouseController's global click handler from interfering
     e?.stopPropagation()
@@ -116,25 +139,14 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
     if (action.destructive) {
       // Show confirmation dialog for destructive actions
-      setPendingDelete({ rowIds: selectedRowIds, rowsData: selectedRowsData })
+      setPendingDelete({ rowIds: selectedRowIds, rowsData: selectedRowsData, action })
       setDeleteDialogOpen(true)
       return
     }
 
-    // Execute action immediately
     setIsProcessing(true)
     try {
-      if (action.onClick) {
-        // Call action for each row
-        await Promise.all(selectedRowsData.map((rowData) => action.onClick!(rowData)))
-      } else if (onRowAction) {
-        await onRowAction(action.id, selectedRowIds, selectedRowsData)
-      }
-
-      // Clear selection after successful action (unless action preserves it)
-      if (!action.preserveSelection) {
-        interactionStore.clearSelection()
-      }
+      await runAction(action, selectedRowIds, selectedRowsData)
     } catch (error) {
       logger.error('Action failed', { error })
     } finally {
@@ -151,14 +163,21 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
   }
 
   const handleConfirmDelete = async () => {
-    if (!pendingDelete || !onDelete) return
+    if (!pendingDelete) return
+    const { action } = pendingDelete
+    if (!action && !onDelete) return
 
     setIsProcessing(true)
     try {
-      await onDelete(pendingDelete.rowIds, pendingDelete.rowsData)
+      if (action) {
+        // Destructive row action — run the action itself, not the built-in delete.
+        await runAction(action, pendingDelete.rowIds, pendingDelete.rowsData)
+      } else {
+        await onDelete!(pendingDelete.rowIds, pendingDelete.rowsData)
 
-      // Clear selection after successful delete
-      interactionStore.clearSelection()
+        // Clear selection after successful delete
+        interactionStore.clearSelection()
+      }
     } catch (error) {
       logger.error('Delete failed', { error })
     } finally {
@@ -190,6 +209,9 @@ export const ActionsBar = observer((props: ActionsBarProps) => {
 
   // Filter out hidden actions
   const visibleActions = rowActions.filter((action) => {
+    // Per-record actions (open a dialog for one row) belong in the row's
+    // 3-dot menu, not the multi-select bar.
+    if (action.singleRowOnly) return false
     // If action has hidden function, check all selected rows
     if (action.hidden) {
       // Show action only if it's visible for ALL selected rows

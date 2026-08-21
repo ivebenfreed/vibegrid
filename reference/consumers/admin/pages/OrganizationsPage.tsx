@@ -154,6 +154,9 @@ export const OrganizationsPage = observer(function OrganizationsPage() {
               entityType="PlatformOrganization"
               height="calc(100vh - 280px)"
               enableSelectionColumn={true}
+              // Orgs are deleted through the platform-admin row actions, not
+              // via a DataForge record delete.
+              enableDelete={false}
               enableGrouping={false}
               enableFiltering={true}
               enableSorting={true}

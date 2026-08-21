@@ -16,6 +16,7 @@ import { useMemo } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 
+import { useAuth } from '@/app/stores'
 import { VibeGrid } from '@/systems/vibegrid'
 import { GRID_DIMENSIONS } from '@/systems/vibegrid/constants/grid-dimensions'
 import { VibeGridStoreProvider } from '@/systems/vibegrid/stores/context'
@@ -42,6 +43,10 @@ export function LienEntityGrid({
   testId,
 }: LienEntityGridProps): React.JSX.Element {
   const navigate = useNavigate()
+  const authStore = useAuth()
+  // Fail-secure: if session/org hasn't loaded yet, treat as viewer (read-only,
+  // no bulk delete). VibeGrid derives its built-in Delete from `readOnly`.
+  const hasWriteAccess = (authStore.session?.organization?.role ?? 'viewer') !== 'viewer'
   const schema = useEntitySchema(entityName)
   const { data: records, total, isLoading, error } = useEntityListFetch<EntityRecord>(entityName, {
     limit: LIST_LIMIT,
@@ -113,6 +118,7 @@ export function LienEntityGrid({
             560,
           )}
           enableSelectionColumn={true}
+          readOnly={!hasWriteAccess}
           enableGrouping={false}
           enableFiltering={true}
           enableSorting={true}

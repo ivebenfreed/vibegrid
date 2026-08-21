@@ -200,6 +200,9 @@ const MyWorkGridInner = observer(function MyWorkGridInner({
           height="100%"
           skipDataFetching={true}
           enableSelectionColumn={isSelectMode}
+          // WorkQueueItem is a virtual/aggregate feed, not a DataForge record
+          // type — the built-in bulk delete would have nothing to delete.
+          enableDelete={false}
           enableGrouping={false}
           enableFiltering={true}
           enableSorting={true}

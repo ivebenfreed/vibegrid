@@ -133,6 +133,7 @@ const FILE_ROW_ACTIONS: RowAction[] = [
     id: 'preview',
     label: 'Preview',
     icon: Eye,
+    singleRowOnly: true,
     onClick: (rowData) => {
       canvasViewportStore.openFile(rowData as FileEntity)
     },
@@ -150,6 +151,9 @@ const FILE_ROW_ACTIONS: RowAction[] = [
     label: 'Delete',
     icon: Trash2,
     destructive: true,
+    // Opens a per-file confirm that also cleans up R2 — not something to run
+    // once per selected row from the bulk bar.
+    singleRowOnly: true,
     onClick: (rowData) => {
       const row = rowData as { id: string; entity_type?: string; name?: string }
       _pendingDelete = {
@@ -528,6 +532,9 @@ const FileGrid = observer(function FileGrid({
       entityType="File"
       height="100%"
       enableSelectionColumn={true}
+      // Files delete through the per-file dialog (R2 cleanup + entity delete),
+      // not the generic bulk entity delete.
+      enableDelete={false}
       enableGrouping={true}
       enableFiltering={true}
       enableSorting={true}

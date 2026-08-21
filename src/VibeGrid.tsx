@@ -23,6 +23,7 @@ import { getLogger } from '@/shared/lib/logging'
 import { UpdateEntityRecordCommand } from '@/systems/commands/dataforge/UpdateEntityRecordCommand'
 import { BatchUpdateEntityRecordsCommand } from '@/systems/commands/dataforge/BatchUpdateEntityRecordsCommand'
 import { ActionsBar } from './components/ActionsBar'
+import { resolveEnableDelete } from './utils/resolve-enable-delete'
 import { DebugOverlay } from './components/DebugOverlay'
 import { FloatingActionsMenu } from './components/FloatingActionsMenu'
 // GH#1240: ExpandedContentPortals renders nested VibeGrid via React portals
@@ -68,6 +69,13 @@ export interface RowAction {
   destructive?: boolean // Red color, requires confirmation
   hidden?: (rowData: any) => boolean // Conditional visibility
   preserveSelection?: boolean // Keep selection after action (e.g. CSV export)
+  /**
+   * Action only makes sense one row at a time — typically because its handler
+   * opens a per-record dialog or drawer. Kept in the row's 3-dot menu, hidden
+   * from the multi-select ActionsBar (where running it per row would just fire
+   * N dialogs and leave the last one standing).
+   */
+  singleRowOnly?: boolean
 }
 
 // ====================================
@@ -99,6 +107,16 @@ interface VibeGridProps<_T = any> {
   onRowAction?: (actionId: string, rowIds: string[], rowsData: any[]) => void | Promise<void>
 
   // Built-in delete action (optional)
+  /**
+   * Show the built-in Delete in the bulk ActionsBar + row menu.
+   *
+   * Defaults to ON for writable grids (`readOnly === false`) that already
+   * carry a selection column and don't supply their own destructive row
+   * action — every entity grid should offer at least bulk delete to anyone
+   * with write access. Pass `false` explicitly to opt out (grids whose
+   * `entityType` isn't a real DataForge record type, e.g. virtual/aggregate
+   * feeds, must do this).
+   */
   enableDelete?: boolean
   onDelete?: (rowIds: string[], rowsData: any[]) => Promise<void>
   deleteConfirmation?: (rowsData: any[]) => string | React.ReactNode
@@ -247,7 +265,7 @@ function VibeGridInnerBase(props: VibeGridProps) {
     onBatchEntityUpdate,
     rowActions,
     onRowAction,
-    enableDelete,
+    enableDelete: enableDeleteProp,
     onDelete,
     deleteConfirmation,
     enableVirtualScrolling: _enableVirtualScrolling = true,
@@ -577,6 +595,15 @@ function VibeGridInnerBase(props: VibeGridProps) {
     skip: skipDataFetching,
     collectionOverride,
     systemPredicate,
+  })
+
+  // Bulk delete is ON by default for writable, selectable grids — see
+  // resolveEnableDelete for the policy and its two escape hatches.
+  const enableDelete = resolveEnableDelete({
+    enableDelete: enableDeleteProp,
+    readOnly,
+    enableSelectionColumn,
+    rowActions,
   })
 
   // Default bulk delete handler — falls back to internal deleteEntity when no onDelete prop provided
