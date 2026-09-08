@@ -18,7 +18,7 @@ modes.
 
 | Path | What |
 |---|---|
-| `src/` | The grid itself — 205 source files, ~66k LOC (287 files / ~89k incl. tests + CSS) |
+| `src/` | The grid itself — 205 source files / ~66k LOC (286 tracked files / 89k LOC incl. tests + CSS) |
 | `bridge/` | Grid-specific server data-spine code that lived in Baseplane's `shared/data/query/` — the windowed-refetch adapter and the sort/filter → server-predicate bridge |
 | `harness/` | Debug routes (`/debug/vibegrid`, field-type/grouping/drag-drop/gantt pages) and scale-seed scripts |
 | `e2e/` | Playwright smoke suite — 25 specs covering field types, clipboard, selection, keyboard, gantt, stress |
