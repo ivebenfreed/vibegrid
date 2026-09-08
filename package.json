@@ -1,0 +1,41 @@
+{
+  "name": "vibegrid",
+  "version": "0.0.0",
+  "private": true,
+  "description": "High-performance MobX + direct-DOM data grid, extracted from Baseplane. Not yet standalone — see DECOUPLING.md.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test -c e2e/playwright.config.ts"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@tanstack/react-virtual": "^3.13.10",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.488.0",
+    "mobx": "^6.15.0",
+    "mobx-react-lite": "^4.1.1",
+    "ohash": "^2.0.11",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.2.0",
+    "use-debounce": "^10.0.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "//deps-note": "Deliberately EXCLUDED from dependencies: @tanstack/db, @tanstack/react-db, @tanstack/react-query, @baseplane/shared-types. Those are the Baseplane data layer and are slated for deletion/replacement — see DECOUPLING.md sections 2 and 4.1. Adding them back would re-import the coupling this repo exists to remove."
+}
